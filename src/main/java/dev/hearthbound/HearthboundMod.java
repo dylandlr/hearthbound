@@ -1,0 +1,38 @@
+package dev.hearthbound;
+
+import com.mojang.brigadier.CommandDispatcher;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
+import net.minecraft.network.chat.Component;
+import net.minecraftforge.event.RegisterCommandsEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+/** Bootstrap only: no fabricated Create integration or citizen AI yet. */
+@Mod(HearthboundMod.MOD_ID)
+public final class HearthboundMod {
+    public static final String MOD_ID = "hearthbound";
+    private static final Logger LOGGER = LogManager.getLogger();
+
+    public HearthboundMod() {
+        LOGGER.info("Hearthbound bootstrap loaded. First Mill controller not installed yet.");
+    }
+
+    @Mod.EventBusSubscriber(modid = MOD_ID)
+    public static final class CommandsHandler {
+        @SubscribeEvent
+        public static void onCommands(RegisterCommandsEvent event) {
+            CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
+            dispatcher.register(Commands.literal("hearthbound")
+                    .then(Commands.literal("status")
+                            .executes(ctx -> {
+                                ctx.getSource().sendSuccess(
+                                        () -> Component.literal("Hearthbound 0.1 dev: bootstrap active. Citizen and Create controllers pending."),
+                                        false);
+                                return 1;
+                            })));
+        }
+    }
+}
