@@ -1,0 +1,71 @@
+name: Forge Dedicated Server Smoke
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/first-mill-foundation]
+    paths:
+      - 'src/**'
+      - 'build.gradle'
+      - '.github/workflows/forge-server-smoke.yml'
+permissions:
+  contents: read
+jobs:
+  dedicated-server:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.8'
+      - name: Generate Forge run configurations
+        run: gradle --no-daemon genIntellijRuns
+      - name: Accept EULA in disposable CI world
+        run: |
+          mkdir -p run
+          printf 'eula=true\n' > run/eula.txt
+          printf 'online-mode=false\nlevel-name=hearthbound-ci\nmax-players=1\n' > run/server.properties
+      - name: Start real Forge dedicated server, assert bootstrap log
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout --signal=INT --kill-after=15s 180s gradle --no-daemon runServer > forge-server-output.log 2>&1 &
+          pid=$!
+          found=0
+          for i in $(seq 1 150); do
+            if grep -q 'Hearthbound bootstrap loaded' forge-server-output.log; then
+              found=1
+              break
+            fi
+            if ! kill -0 "$pid" 2>/dev/null; then
+              echo 'Forge exited before the Hearthbound bootstrap was seen.'
+              tail -120 forge-server-output.log
+              wait "$pid" || true
+              exit 1
+            fi
+            sleep 1
+          done
+          if [ "$found" != 1 ]; then
+            echo 'Forge did not load Hearthbound within the time limit.'
+            tail -120 forge-server-output.log
+            kill "$pid" 2>/dev/null || true
+            wait "$pid" || true
+            exit 1
+          fi
+          echo 'PASS: observed Hearthbound bootstrap in real Forge dedicated server process'
+          kill -INT "$pid" 2>/dev/null || true
+          wait "$pid" || true
+      - name: Upload server logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: forge-server-smoke-logs
+          path: |
+            forge-server-output.log
+            run/logs/
+            run/crash-reports/
+          if-no-files-found: ignore
