@@ -47,4 +47,4 @@ def install(project, pinned=None):
                 item = api("/version/" + dep["version_id"])
                 install(item["project_id"])
 
-install("create", "6.0.8")
+install("create", "mc1.20.1-6.0.8")
