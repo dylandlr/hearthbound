@@ -4,20 +4,26 @@ import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.npc.Villager;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-/** Bootstrap only: no fabricated Create integration or citizen AI yet. */
+/**
+ * Initial in-game embodiment probe.
+ * Sable is a persistent vanilla Villager until a dedicated colony controller exists.
+ */
 @Mod(HearthboundMod.MOD_ID)
 public final class HearthboundMod {
     public static final String MOD_ID = "hearthbound";
     private static final Logger LOGGER = LogManager.getLogger();
 
     public HearthboundMod() {
-        LOGGER.info("Hearthbound bootstrap loaded. First Mill controller not installed yet.");
+        LOGGER.info("Hearthbound bootstrap loaded. Create integration pending.");
     }
 
     @Mod.EventBusSubscriber(modid = MOD_ID)
@@ -29,8 +35,31 @@ public final class HearthboundMod {
                     .then(Commands.literal("status")
                             .executes(ctx -> {
                                 ctx.getSource().sendSuccess(
-                                        () -> Component.literal("Hearthbound 0.1 dev: bootstrap active. Citizen and Create controllers pending."),
+                                        () -> Component.literal("Hearthbound dev: Forge bootstrap. Sable embodiment probe available; Create controller pending."),
                                         false);
+                                return 1;
+                            }))
+                    .then(Commands.literal("spawn_sable")
+                            .requires(source -> source.hasPermission(2))
+                            .executes(ctx -> {
+                                CommandSourceStack source = ctx.getSource();
+                                ServerLevel level = source.getLevel();
+                                Villager sable = EntityType.VILLAGER.create(level);
+                                if (sable == null) {
+                                    source.sendFailure(Component.literal("Failed to create Sable."));
+                                    return 0;
+                                }
+                                sable.moveTo(source.getPosition().x, source.getPosition().y,
+                                        source.getPosition().z, 0.0F, 0.0F);
+                                sable.setCustomName(Component.literal("Sable [prototype]"));
+                                sable.setCustomNameVisible(true);
+                                sable.setPersistenceRequired();
+                                if (!level.addFreshEntity(sable)) {
+                                    source.sendFailure(Component.literal("Failed to add Sable to world."));
+                                    return 0;
+                                }
+                                source.sendSuccess(() -> Component.literal(
+                                        "Spawned persistent vanilla Sable. AI jobs and Create milling are NOT active."), true);
                                 return 1;
                             })));
         }
