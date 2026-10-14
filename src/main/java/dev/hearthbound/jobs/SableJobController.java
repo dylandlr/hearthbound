@@ -1,6 +1,9 @@
 package dev.hearthbound.jobs;
 
 import com.mojang.brigadier.Command;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -23,6 +26,9 @@ public final class SableJobController {
     private static final String TARGET = "HearthboundTarget";
     private static final String ACTIVE = "HearthboundTravelActive";
 
+    private static final String RESULT = "HearthboundTravelResult";
+    private static final Map<UUID, TravelProgress> PROGRESS = new HashMap<>();
+
     private SableJobController() {}
 
     public static void markSable(Villager villager) {
@@ -44,6 +50,8 @@ public final class SableJobController {
         var data = sable.getPersistentData();
         data.putLong(TARGET, target.asLong());
         data.putBoolean(ACTIVE, true);
+        data.putString(RESULT, "MOVING");
+        PROGRESS.remove(sable.getUUID());
         sable.getNavigation().stop();
         source.sendSuccess(() -> Component.literal("Sable assigned a travel destination at " +
                 target.toShortString() + ". This is pathfinding only; no item transfers."), false);
@@ -58,6 +66,8 @@ public final class SableJobController {
             return 0;
         }
         sable.getPersistentData().putBoolean(ACTIVE, false);
+        sable.getPersistentData().putString(RESULT, "CANCELLED");
+        PROGRESS.remove(sable.getUUID());
         sable.getNavigation().stop();
         source.sendSuccess(() -> Component.literal("Cancelled Sable's travel job."), false);
         return 1;
@@ -93,8 +103,15 @@ public final class SableJobController {
             sable.getNavigation().stop();
             return;
         }
-        if (sable.distanceToSqr(target.getX() + 0.5, target.getY(), target.getZ() + 0.5) <= 4.0) {
+        double distanceSq = sable.distanceToSqr(target.getX() + 0.5, target.getY(), target.getZ() + 0.5);
+        long gameTick = sable.level().getGameTime();
+        TravelProgress watch = PROGRESS.computeIfAbsent(sable.getUUID(),
+                id -> new TravelProgress(gameTick, distanceSq));
+        TravelProgress.Outcome outcome = watch.sample(gameTick, distanceSq);
+        if (outcome != TravelProgress.Outcome.MOVING) {
             data.putBoolean(ACTIVE, false);
+            data.putString(RESULT, outcome.name());
+            PROGRESS.remove(sable.getUUID());
             sable.getNavigation().stop();
             return;
         }
