@@ -137,7 +137,9 @@ for attempt in range(100):
     supply_source = module.execute("data get block 23 100 21 Items")
     production = module.execute("hearthbound ci_mill_nbt 31 100 21")
     if attempt in (0, 9, 19, 39, 69):
-        print("Sable milling tick", attempt, supply_source[:300], production[:700], flush=True)
+        progress = module.execute("execute positioned 21 100 21 run hearthbound haul_status")
+        villagers = module.execute('execute as @e[type=minecraft:villager,tag=hearthbound.sable,x=21,y=100,z=21,distance=..25,limit=1,sort=nearest] run data get entity @s Pos')
+        print("Sable milling tick", attempt, supply_source[:300], production[:700], "job:", progress, "pos:", villagers, flush=True)
     if __import__("re").search(r"Count:\s*4b", supply_source) and "create:wheat_flour" in production:
         print("HB_SABLE_CREATE_FIRST_MILL_PASS real_citizen_haul_and_flour", flush=True)
         break
