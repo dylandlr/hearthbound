@@ -104,3 +104,17 @@ input_state = module.execute("hearthbound ci_mill_nbt 2 100 0")
 if "minecraft:wheat" not in input_state:
     raise AssertionError("Capability insertion did not reach Create inventory: " + input_state)
 print("HB_CREATE_CAPABILITY_INPUT_PASS", flush=True)
+
+# Transfer inventory from a real vanilla barrel into an actual Create machine.
+print(module.execute("setblock 4 100 0 barrel"), flush=True)
+print(module.execute('data merge block 4 100 0 {Items:[{Slot:0b,id:"minecraft:wheat",Count:8b}]}'), flush=True)
+print(module.execute("setblock 6 100 0 create:millstone"), flush=True)
+supply = module.execute("hearthbound ci_mill_supply 4 100 0 6 100 0 4")
+print("Mill supply:", supply, flush=True)
+if "HB_MILL_SUPPLY_PASS barrel_removed=4 mill_inserted=4" not in supply:
+    raise AssertionError("Barrel-to-Create supply failed: " + supply)
+remaining = module.execute("data get block 4 100 0 Items")
+inserted = module.execute("hearthbound ci_mill_nbt 6 100 0")
+if "Count:4b" not in remaining or "minecraft:wheat" not in inserted:
+    raise AssertionError("Barrel-to-Create supply inventories incorrect: " + remaining + " " + inserted)
+print("HB_CREATE_BARREL_SUPPLY_PASS source=4 mill=4", flush=True)
