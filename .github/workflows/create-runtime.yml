@@ -1,6 +1,13 @@
 name: Create 6.0.8 Runtime Compatibility
 on:
   workflow_dispatch:
+  push:
+    branches: [feature/first-mill-foundation]
+    paths:
+      - 'src/main/java/dev/hearthbound/create/**'
+      - 'scripts/install-create-ci.py'
+      - 'scripts/forge-create-probe.py'
+      - '.github/workflows/create-runtime.yml'
 permissions:
   contents: read
 jobs:
