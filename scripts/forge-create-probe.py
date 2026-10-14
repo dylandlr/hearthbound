@@ -143,3 +143,15 @@ for attempt in range(100):
         break
 else:
     raise AssertionError("Sable did not supply wheat and produce flour: " + supply_source + " " + production)
+
+# Output collection: ensure real flour is removed from Create's output and stored.
+print(module.execute("setblock 33 100 21 minecraft:barrel"), flush=True)
+collected = module.execute("hearthbound ci_flour_collect 31 100 21 33 100 21 1")
+print("Flour collection:", collected, flush=True)
+if "HB_FLOUR_COLLECTED count=1" not in collected:
+    raise AssertionError("Create flour output capability collection failed: " + collected)
+stockpile = module.execute("data get block 33 100 21 Items")
+print("Flour stockpile:", stockpile, flush=True)
+if "create:wheat_flour" not in stockpile:
+    raise AssertionError("Flour never reached real storage barrel: " + stockpile)
+print("HB_CREATE_FLOUR_STOCKPILE_PASS", flush=True)
