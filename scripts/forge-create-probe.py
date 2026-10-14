@@ -211,11 +211,6 @@ for attempt in range(140):
                 print("Active work order:", current, flush=True)
                 if "First Mill: state=" not in current:
                     raise AssertionError("Work-order management status unavailable: " + current)
-                stopped = module.execute("execute positioned 49 100 50 run hearthbound mill_order_stop")
-                print("Stopped work order:", stopped, flush=True)
-                if "First Mill scheduling stopped" not in stopped:
-                    raise AssertionError("Could not disable work-order scheduling: " + stopped)
-                print("HB_FIRST_MILL_CONTROLS_PASS", flush=True)
                 break
         else:
             raise AssertionError("First Mill did not autonomously collect a second flour: " + second)
@@ -235,3 +230,10 @@ print("Flour capped status:", target_state, flush=True)
 if "TARGET_REACHED" not in target_state:
     raise AssertionError("Scheduler did not honor flour stockpile target: " + target_state)
 print("HB_FIRST_MILL_TARGET_PASS", flush=True)
+
+# Stop only after production-target validation, preserving the active work order.
+stopped = module.execute("execute positioned 49 100 50 run hearthbound mill_order_stop")
+print("Stopped work order:", stopped, flush=True)
+if "First Mill scheduling stopped" not in stopped:
+    raise AssertionError("Could not disable work-order scheduling: " + stopped)
+print("HB_FIRST_MILL_CONTROLS_PASS", flush=True)
