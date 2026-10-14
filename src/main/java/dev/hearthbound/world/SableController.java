@@ -1,6 +1,8 @@
 package dev.hearthbound.world;
 
 import com.mojang.brigadier.CommandDispatcher;
+import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
+import net.minecraft.core.BlockPos;
 import dev.hearthbound.ai.ActionGate;
 import dev.hearthbound.ai.ColonyPolicy;
 import dev.hearthbound.ai.PriorityPolicy;
@@ -51,7 +53,48 @@ public final class SableController {
                 }
                 source.sendSuccess(() -> Component.literal("Sable spawned. She will follow nearby players."), true);
                 return 1;
+            }))
+            .then(Commands.literal("haul")
+                .then(Commands.argument("source", BlockPosArgument.blockPos())
+                    .then(Commands.argument("destination", BlockPosArgument.blockPos())
+                        .executes(ctx -> {
+                            CommandSourceStack source = ctx.getSource();
+                            Villager sable = nearestSable(source);
+                            if (sable == null) {
+                                source.sendFailure(Component.literal("No Sable within 16 blocks."));
+                                return 0;
+                            }
+                            BlockPos from = BlockPosArgument.getLoadedBlockPos(ctx, "source");
+                            BlockPos to = BlockPosArgument.getLoadedBlockPos(ctx, "destination");
+                            try {
+                                SableHauling.assign(sable, from, to);
+                            } catch (IllegalArgumentException | IllegalStateException ex) {
+                                source.sendFailure(Component.literal(ex.getMessage()));
+                                return 0;
+                            }
+                            source.sendSuccess(() -> Component.literal("Sable assigned wheat haul."), true);
+                            return 1;
+                        }))))
+            .then(Commands.literal("haul-status").executes(ctx -> {
+                Villager sable = nearestSable(ctx.getSource());
+                if (sable == null) return 0;
+                ctx.getSource().sendSuccess(() -> Component.literal(SableHauling.status(sable)), false);
+                return 1;
+            }))
+            .then(Commands.literal("haul-resume").executes(ctx -> {
+                Villager sable = nearestSable(ctx.getSource());
+                if (sable == null || !SableHauling.resume(sable)) return 0;
+                ctx.getSource().sendSuccess(() -> Component.literal("Hauling resumed."), true);
+                return 1;
             })));
+    }
+
+    private static Villager nearestSable(CommandSourceStack source) {
+        return source.getLevel().getEntitiesOfClass(Villager.class,
+            new net.minecraft.world.phys.AABB(source.getPosition()).inflate(16),
+            v -> v.getPersistentData().getBoolean(MARKER))
+            .stream().min(java.util.Comparator.comparingDouble(
+                v -> v.distanceToSqr(source.getPosition()))).orElse(null);
     }
 
     @SubscribeEvent
@@ -60,6 +103,11 @@ public final class SableController {
         if (!(villager.level() instanceof ServerLevel level)) return;
         if (!villager.getPersistentData().getBoolean(MARKER)) return;
         if (villager.tickCount % 20 != 0) return;
+
+        if (SableHauling.active(villager)) {
+            SableHauling.tick(level, villager);
+            return;
+        }
 
         Player target = level.getNearestPlayer(villager, 12.0D);
         if (target == null || target.isSpectator()) {
