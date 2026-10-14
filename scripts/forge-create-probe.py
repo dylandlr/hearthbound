@@ -118,3 +118,28 @@ inserted = module.execute("hearthbound ci_mill_nbt 6 100 0")
 if not __import__("re").search(r"Count:\s*4b", remaining) or "minecraft:wheat" not in inserted:
     raise AssertionError("Barrel-to-Create supply inventories incorrect: " + remaining + " " + inserted)
 print("HB_CREATE_BARREL_SUPPLY_PASS source=4 mill=4", flush=True)
+
+# Citizen-operated end-to-end production on an isolated walkable stone platform.
+# No direct injection or test-only instantaneous supply command in this scenario.
+print(module.execute("fill 20 99 20 34 99 22 minecraft:stone"), flush=True)
+print(module.execute("setblock 23 100 21 minecraft:barrel"), flush=True)
+print(module.execute('data merge block 23 100 21 {Items:[{Slot:0b,id:"minecraft:wheat",Count:8b}]}'), flush=True)
+print(module.execute("setblock 31 100 21 create:millstone"), flush=True)
+print(module.execute("setblock 31 99 21 create:creative_motor[facing=up]"), flush=True)
+print(module.execute('summon minecraft:villager 21 100 21 {Tags:["hearthbound.sable"],PersistenceRequired:1b}'), flush=True)
+job = module.execute("execute positioned 21 100 21 run hearthbound haul_sable 23 100 21 31 100 21 4")
+print("Sable mill assignment:", job, flush=True)
+if "Sable assigned" not in job:
+    raise AssertionError("Sable could not accept Create hauling job: " + job)
+
+for attempt in range(100):
+    time.sleep(1)
+    supply_source = module.execute("data get block 23 100 21 Items")
+    production = module.execute("hearthbound ci_mill_nbt 31 100 21")
+    if attempt in (0, 9, 19, 39, 69):
+        print("Sable milling tick", attempt, supply_source[:300], production[:700], flush=True)
+    if __import__("re").search(r"Count:\s*4b", supply_source) and "create:wheat_flour" in production:
+        print("HB_SABLE_CREATE_FIRST_MILL_PASS real_citizen_haul_and_flour", flush=True)
+        break
+else:
+    raise AssertionError("Sable did not supply wheat and produce flour: " + supply_source + " " + production)
