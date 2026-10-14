@@ -56,14 +56,18 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
         'setblock 3 100 1 minecraft:chest{Items:[{Slot:0b,id:"minecraft:wheat",Count:8b}]} replace',
         "setblock 7 100 1 minecraft:chest replace",
         "tp @e[type=minecraft:villager,name=Sable,limit=1] 2 100 1",
-        "sable haul 3 100 1 7 100 1",
+        "execute at @e[type=minecraft:villager,name=Sable,limit=1] run sable haul 3 100 1 7 100 1",
     ]
     next_id = 10
     for command in setup:
         sock.sendall(packet(next_id, 2, command))
         got_id, _, output = response(sock)
         print(f"{command}: {output}")
-        if got_id != next_id or any(term in output.lower() for term in ("unknown command", "incorrect argument", "failed to")):
+        if got_id != next_id or any(term in output.lower() for term in (
+            "unknown command", "incorrect argument", "failed to", "no sable",
+            "source already claimed", "cannot")):
+            raise AssertionError(f"Setup failed: {command}: {output}")
+        if "run sable haul" in command and "sable assigned wheat haul" not in output.lower():
             raise AssertionError(f"Setup failed: {command}: {output}")
         next_id += 1
 
