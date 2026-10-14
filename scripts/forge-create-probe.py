@@ -25,3 +25,16 @@ print(inspection, flush=True)
 if "HEARTHBOUND_CREATE_MILL_FOUND" not in inspection or "powered=false" not in inspection:
     raise AssertionError("Could not inspect an actual unpowered millstone: " + inspection)
 print("HB_CREATE_MILL_INSPECTION_PASS genuine unpowered millstone", flush=True)
+
+# Verify the bridge rejects a block that is not a millstone.
+not_mill = module.execute("hearthbound inspect_mill 0 101 0")
+print("Non-mill inspection:", not_mill, flush=True)
+if "HEARTHBOUND_CREATE_MILL_FOUND" in not_mill:
+    raise AssertionError("Create bridge falsely accepted non-mill block")
+
+# A genuine millstone without kinetic input must remain unpowered.
+for i in range(3):
+    measured = module.execute("hearthbound inspect_mill 0 100 0")
+    if "speed=0.0 RPM powered=false" not in measured:
+        raise AssertionError("Unpowered millstone reported unexpected kinetic speed: " + measured)
+print("HB_CREATE_NEGATIVE_PROBES_PASS non-mill rejected; 0 RPM stable", flush=True)
