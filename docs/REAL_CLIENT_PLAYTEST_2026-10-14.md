@@ -38,6 +38,21 @@ The same JAR was launched in the graphical client and its integrated server pass
 
 Create dedicated-server CI on this revision failed during physical delivery on its narrow elevated platform: the worker left the platform after pickup. This is separate from the successful wide-platform client recording. The follow-up navigation-authority change suspends vanilla villager behavior while colony jobs run; its validation must be recorded separately.
 
+## Navigation-authority retest
+
+Source `ca623e5f790a96ee589d754878ff6cf15ed183b7` passed a fresh local Forge build with seven JUnit tests and the standalone core suite. The distribution JAR was relaunched in the actual client; SHA-256: `62ed185aaf3e749266f4bba638c42f354b9b29b53ee835861fde25084f524325`.
+
+- Worker-selection assertions passed again: `HB_WORKER_SELECTION_CLIENT_PASS 7/7`.
+- A new three-block-wide elevated platform reproduced the dedicated-server geometry. Sable supplied four wheat to its real powered millstone and delivered one flour to storage. Source inventory became four wheat, storage contained one flour, and the last haul result was `DELIVERED_1`.
+- The worker remained on the platform at the final 45-second inspection: `HB_NARROW_NAVIGATION_CLIENT_PASS 4/4`.
+- No teleport command was issued to the worker. The spectator camera was teleported to observe the test.
+
+These are integrated-server client results. Dedicated-server CI results are recorded separately when complete.
+
+Dedicated Create run `38655462279` on `ca623e5` confirmed `HB_SABLE_CREATE_FIRST_MILL_PASS`, `HB_CREATE_FLOUR_STOCKPILE_PASS`, `HB_SABLE_FLOUR_COURIER_PASS`, `HB_FIRST_MILL_WORK_ORDER_PASS`, `HB_FIRST_MILL_SECOND_CYCLE_PASS`, `HB_FIRST_MILL_TARGET_PASS`, and `HB_FIRST_MILL_CONTROLS_PASS`. The run then failed its new worker-selection fixture's first assignment. Server logs show both summons succeeded, followed by assignment only five milliseconds after the second summon, while entity sections were still becoming queryable. The fixture now polls for both workers with a bounded timeout before making behavior assertions; its follow-up CI run remains the final verification gate.
+
+The latest client also accepted a work order on the narrow platform and subsequently reported `TARGET_REACHED`, `hauling=IDLE`, `target=2`, with two flour in storage.
+
 ## Limits
 
 This is prototype evidence, using deterministic rules, a vanilla villager body, a disposable test scene, and a creative motor. It does not prove survival power construction, general multi-worker resource arbitration, graceful or crash-restart conservation, multiplayer playability, carrying animations, or LLM/RL decision-making. Movement and station interaction need polish.

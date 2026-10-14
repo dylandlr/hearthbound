@@ -2,6 +2,7 @@
 """Multi-worker targeting regression against a disposable Forge + Create server."""
 import importlib.util
 from pathlib import Path
+import time
 
 
 def run(execute):
@@ -19,11 +20,23 @@ def run(execute):
     execute("setblock 175 100 165 create:millstone")
     execute("setblock 178 100 165 minecraft:barrel")
     for name, x in (("hb_far", 164), ("hb_near", 170)):
-        execute(f'summon minecraft:villager {x} 100 162 '
+        require(f'summon minecraft:villager {x} 100 162 '
                 f'{{Tags:["hearthbound.sable","hb_selection_probe","{name}"],'
-                'NoAI:1b,PersistenceRequired:1b}')
+                'NoAI:1b,PersistenceRequired:1b}', "Summoned new Villager")
     near = "@e[type=minecraft:villager,tag=hb_near,limit=1]"
     far = "@e[type=minecraft:villager,tag=hb_far,limit=1]"
+    # Chunk block access can be ready before entity sections become visible to
+    # level queries. Summon success alone does not establish a ticking worker.
+    for _ in range(40):
+        ready = execute(f"execute if entity {near} if entity {far} "
+                        "run say HB_SELECTION_WORKERS_READY")
+        if "HB_SELECTION_WORKERS_READY" in ready:
+            break
+        time.sleep(0.25)
+    else:
+        raise AssertionError("Selection fixture workers never became visible: "
+                             + execute(f"data get entity {near} Pos") + " "
+                             + execute(f"data get entity {far} Pos"))
     order = "hearthbound mill_order 172 100 165 175 100 165 178 100 165"
     require("execute positioned 170 100 162 run " + order, "work order enabled")
     require(f"data get entity {near} ForgeData.HearthboundMillOrder.Enabled", "1b")
