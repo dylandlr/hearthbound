@@ -91,10 +91,10 @@ public final class SableController {
 
     private static Villager nearestSable(CommandSourceStack source) {
         return source.getLevel().getEntitiesOfClass(Villager.class,
-            new net.minecraft.world.phys.AABB(source.getPosition()).inflate(16),
+            new net.minecraft.world.phys.AABB(net.minecraft.core.BlockPos.containing(source.getPosition())).inflate(16),
             v -> v.getPersistentData().getBoolean(MARKER))
             .stream().min(java.util.Comparator.comparingDouble(
-                v -> v.distanceToSqr(source.getPosition()))).orElse(null);
+                v -> v.distanceToSqr(source.getPosition().x, source.getPosition().y, source.getPosition().z))).orElse(null);
     }
 
     @SubscribeEvent
