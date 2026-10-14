@@ -48,6 +48,20 @@ if __name__ == "__main__":
         print(restored)
         if "HB_RESTART_PASS" not in restored:
             raise AssertionError("Saved cargo did not survive reboot: " + restored)
+        unblocked = execute("hearthbound ci_restart_unblock")
+        print(unblocked)
+        if "HB_RESTART_UNBLOCKED" not in unblocked:
+            raise AssertionError("Failed to unblock recovered delivery")
+        for n in range(70):
+            time.sleep(1)
+            result = execute("hearthbound ci_restart_delivered")
+            if "HB_RESTART_DELIVERED" in result:
+                print(result)
+                break
+            if "HB_RESTART_PENDING" not in result:
+                raise AssertionError("Recovered delivery failed: " + result)
+        else:
+            raise AssertionError("Recovery delivery timed out: " + result)
         sys.exit(0)
     for attempt in range(30):
         try:
