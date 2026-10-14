@@ -7,6 +7,7 @@ import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import dev.hearthbound.jobs.SableJobController;
 import dev.hearthbound.create.CreateMillDiscovery;
 import dev.hearthbound.create.MillstoneProbe;
+import dev.hearthbound.create.MillstoneItemInput;
 import dev.hearthbound.jobs.BarrelHaulController;
 import dev.hearthbound.jobs.HaulE2EProbe;
 import dev.hearthbound.jobs.HaulRestartProbe;
@@ -53,6 +54,13 @@ public final class HearthboundMod {
                                         false);
                                 return 1;
                             }))
+                    .then(Commands.literal("ci_mill_feed")
+                            .requires(source -> source.hasPermission(2))
+                            .then(Commands.argument("position", BlockPosArgument.blockPos())
+                                .then(Commands.argument("count", IntegerArgumentType.integer(1,64))
+                                    .executes(ctx -> MillstoneItemInput.feed(ctx.getSource(),
+                                        BlockPosArgument.getLoadedBlockPos(ctx, "position"),
+                                        IntegerArgumentType.getInteger(ctx, "count"))))))
                     .then(Commands.literal("ci_mill_nbt")
                             .requires(source -> source.hasPermission(2))
                             .then(Commands.argument("position", BlockPosArgument.blockPos())
