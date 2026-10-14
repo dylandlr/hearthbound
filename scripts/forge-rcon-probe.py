@@ -65,6 +65,10 @@ if __name__ == "__main__":
         sys.exit(0)
     for attempt in range(30):
         try:
+            create = execute("hearthbound create_status")
+            print(create)
+            if "installed=false" not in create:
+                raise AssertionError("Expected optional Create absence on vanilla Forge test runner")
             result = execute("hearthbound ci_probe")
             print(result)
             if "HB_CI_PROBE_PASS" not in result:
