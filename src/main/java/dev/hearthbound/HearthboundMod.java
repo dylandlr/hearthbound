@@ -233,6 +233,11 @@ public final class HearthboundMod {
                                                 BlockPosArgument.getLoadedBlockPos(ctx, "wheat"),
                                                 BlockPosArgument.getLoadedBlockPos(ctx, "mill"),
                                                 BlockPosArgument.getLoadedBlockPos(ctx, "flour")))))))
+                    .then(Commands.literal("mill_order_target")
+                            .requires(source -> source.hasPermission(2))
+                            .then(Commands.argument("flour_count", IntegerArgumentType.integer(1, 4096))
+                                .executes(ctx -> FirstMillWorkOrder.target(ctx.getSource(),
+                                        IntegerArgumentType.getInteger(ctx, "flour_count")))))
                     .then(Commands.literal("mill_order_status")
                             .executes(ctx -> FirstMillWorkOrder.status(ctx.getSource())))
                     .then(Commands.literal("mill_order_stop")
