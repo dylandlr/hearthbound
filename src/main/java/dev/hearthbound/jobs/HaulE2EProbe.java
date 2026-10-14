@@ -78,8 +78,8 @@ public final class HaulE2EProbe {
                 !(testLevel.getBlockEntity(sourcePos) instanceof BarrelBlockEntity input) ||
                 !(testLevel.getBlockEntity(destinationPos) instanceof BarrelBlockEntity output))
             return fail(command, "not_started");
-        int from = input.getItem(0).getCount();
-        int to = output.getItem(0).getCount();
+        int from = countWheat(input);
+        int to = countWheat(output);
         var state = citizen.getPersistentData();
         int cargo = state.contains("HearthboundHaul", 10)
                 ? state.getCompound("HearthboundHaul").getInt("Cargo") : 0;
@@ -118,6 +118,15 @@ public final class HaulE2EProbe {
                 + " dest=" + to + " cargo=" + cargo
                 + " pickupSeen=" + observedPickup + " travelingSeen=" + observedDeliveryTravel), false);
         return 1;
+    }
+
+    private static int countWheat(BarrelBlockEntity barrel) {
+        int total = 0;
+        for (int slot = 0; slot < barrel.getContainerSize(); slot++) {
+            ItemStack stack = barrel.getItem(slot);
+            if (stack.is(Items.WHEAT)) total += stack.getCount();
+        }
+        return total;
     }
 
     private static int fail(CommandSourceStack command, String cause) {
