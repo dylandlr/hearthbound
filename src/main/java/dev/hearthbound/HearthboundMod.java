@@ -5,6 +5,8 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import dev.hearthbound.jobs.SableJobController;
+import dev.hearthbound.jobs.BarrelHaulController;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
@@ -70,6 +72,15 @@ public final class HearthboundMod {
                             .then(Commands.argument("target", BlockPosArgument.blockPos())
                                     .executes(ctx -> SableJobController.assign(ctx.getSource(),
                                             BlockPosArgument.getLoadedBlockPos(ctx, "target")))))
+                    .then(Commands.literal("haul_sable")
+                            .requires(source -> source.hasPermission(2))
+                            .then(Commands.argument("source", BlockPosArgument.blockPos())
+                                .then(Commands.argument("destination", BlockPosArgument.blockPos())
+                                    .then(Commands.argument("count", IntegerArgumentType.integer(1, 64))
+                                        .executes(ctx -> BarrelHaulController.assign(ctx.getSource(),
+                                            BlockPosArgument.getLoadedBlockPos(ctx, "source"),
+                                            BlockPosArgument.getLoadedBlockPos(ctx, "destination"),
+                                            IntegerArgumentType.getInteger(ctx, "count")))))))
                     .then(Commands.literal("sable_status")
                             .executes(ctx -> SableJobController.status(ctx.getSource())))
                     .then(Commands.literal("cancel_sable")
