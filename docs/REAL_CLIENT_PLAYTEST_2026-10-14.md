@@ -53,6 +53,8 @@ Dedicated Create run `38655462279` on `ca623e5` confirmed `HB_SABLE_CREATE_FIRST
 
 The latest client also accepted a work order on the narrow platform and subsequently reported `TARGET_REACHED`, `hauling=IDLE`, `target=2`, with two flour in storage.
 
+Follow-up run `38656070326` repeated all production successes, but its first readiness check incorrectly relied on `/say` feedback on an empty dedicated server. Worker position queries succeeded in the failure diagnostic. The final fixture uses direct, bounded position queries for readiness instead; it leaves all worker-selection assertions intact.
+
 ## Limits
 
 This is prototype evidence, using deterministic rules, a vanilla villager body, a disposable test scene, and a creative motor. It does not prove survival power construction, general multi-worker resource arbitration, graceful or crash-restart conservation, multiplayer playability, carrying animations, or LLM/RL decision-making. Movement and station interaction need polish.

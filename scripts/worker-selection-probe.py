@@ -28,9 +28,13 @@ def run(execute):
     # Chunk block access can be ready before entity sections become visible to
     # level queries. Summon success alone does not establish a ticking worker.
     for _ in range(40):
-        ready = execute(f"execute if entity {near} if entity {far} "
-                        "run say HB_SELECTION_WORKERS_READY")
-        if "HB_SELECTION_WORKERS_READY" in ready:
+        # Use the same bounded entity lookup as the production command. /say
+        # broadcasts to players but provides no RCON response on an empty server.
+        near_ready = execute("execute positioned 170 100 162 run data get entity "
+                             "@e[type=minecraft:villager,tag=hb_near,distance=..32,limit=1] Pos")
+        far_ready = execute("execute positioned 170 100 162 run data get entity "
+                            "@e[type=minecraft:villager,tag=hb_far,distance=..32,limit=1] Pos")
+        if "following entity data" in near_ready and "following entity data" in far_ready:
             break
         time.sleep(0.25)
     else:
