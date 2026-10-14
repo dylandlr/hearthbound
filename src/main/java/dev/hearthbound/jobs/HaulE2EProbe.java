@@ -20,9 +20,18 @@ public final class HaulE2EProbe {
     private static ServerLevel testLevel;
     private static boolean observedPickup;
     private static boolean observedDeliveryTravel;
+    private static boolean fullDestinationMode;
     private HaulE2EProbe() {}
 
     public static int start(CommandSourceStack command) {
+        return startScenario(command, false);
+    }
+
+    public static int startFullDestination(CommandSourceStack command) {
+        return startScenario(command, true);
+    }
+
+    private static int startScenario(CommandSourceStack command, boolean fillOutput) {
         ServerLevel level = command.getLevel();
         BlockPos spawn = level.getSharedSpawnPos();
         int y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
@@ -42,6 +51,11 @@ public final class HaulE2EProbe {
         if (!(level.getBlockEntity(sourcePos) instanceof BarrelBlockEntity input)
                 || !(level.getBlockEntity(destinationPos) instanceof BarrelBlockEntity)) return fail(command, "barrels");
         input.setItem(0, new ItemStack(Items.WHEAT, 8));
+        if (fillOutput) {
+            BarrelBlockEntity output = (BarrelBlockEntity) level.getBlockEntity(destinationPos);
+            for (int slot = 0; slot < output.getContainerSize(); slot++)
+                output.setItem(slot, new ItemStack(Items.COBBLESTONE, 64));
+        }
         citizen = EntityType.VILLAGER.create(level);
         if (citizen == null) return fail(command, "villager");
         citizen.moveTo(base.getX() + 0.5, base.getY(), base.getZ() + 0.5, 0, 0);
@@ -52,6 +66,7 @@ public final class HaulE2EProbe {
                 !BarrelHaulController.assignCitizen(citizen, sourcePos, destinationPos, 4))
             return fail(command, "job");
         testLevel = level;
+        fullDestinationMode = fillOutput;
         observedPickup = false;
         observedDeliveryTravel = false;
         command.sendSuccess(() -> Component.literal("HB_HAUL_E2E_STARTED"), false);
@@ -69,6 +84,18 @@ public final class HaulE2EProbe {
         int cargo = state.contains("HearthboundHaul", 10)
                 ? state.getCompound("HearthboundHaul").getInt("Cargo") : 0;
         if (from + to + cargo != 8) return fail(command, "inventory_conservation");
+        if (fullDestinationMode) {
+            boolean noWheatLost = from == 8 && to == 0 && cargo == 0;
+            boolean rejected = state.contains("HearthboundHaul", 10)
+                    && "OUTPUT_FULL".equals(state.getCompound("HearthboundHaul").getString("Result"));
+            if (noWheatLost && rejected) {
+                command.sendSuccess(() -> Component.literal("HB_HAUL_FULL_PASS source=8 dest=0 cargo=0"), false);
+                return 1;
+            }
+            command.sendSuccess(() -> Component.literal("HB_HAUL_FULL_PENDING source=" + from
+                    + " dest=" + to + " cargo=" + cargo), false);
+            return 1;
+        }
         if (from == 4 && cargo == 4 && to == 0) observedPickup = true;
         if (observedPickup && cargo > 0 && citizen.distanceToSqr(destinationPos.getX() + .5,
                 destinationPos.getY() + .5, destinationPos.getZ() + .5) > 6.25)
