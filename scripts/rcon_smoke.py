@@ -3,6 +3,7 @@
 import os
 import socket
 import struct
+import time
 
 HOST = "127.0.0.1"
 PORT = 25575
@@ -48,4 +49,41 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
         print(f"{command}: {output}")
         if actual_id != request_id or expected.lower() not in output.lower():
             raise AssertionError(f"Command failed: {command}; got {output!r}")
-print("Hearthbound commands and Sable entity spawn verified on a real dedicated server")
+    # Controlled test platform in a disposable world. No player inventory used.
+    setup = [
+        "fill 0 99 0 10 99 4 minecraft:stone",
+        "fill 0 100 0 10 103 4 minecraft:air",
+        'setblock 3 100 1 minecraft:chest{Items:[{Slot:0b,id:"minecraft:wheat",Count:8b}]} replace',
+        "setblock 7 100 1 minecraft:chest replace",
+        "tp @e[type=minecraft:villager,name=Sable,limit=1] 2 100 1",
+        "sable haul 3 100 1 7 100 1",
+    ]
+    next_id = 10
+    for command in setup:
+        sock.sendall(packet(next_id, 2, command))
+        got_id, _, output = response(sock)
+        print(f"{command}: {output}")
+        if got_id != next_id or any(term in output.lower() for term in ("unknown command", "incorrect argument", "failed to")):
+            raise AssertionError(f"Setup failed: {command}: {output}")
+        next_id += 1
+
+    # This is a true Minecraft server-side behavior check: inventories must move.
+    # It may expose pathfinding or vanilla villager AI interference; failed CI is useful evidence.
+    transferred = False
+    for i in range(75):
+        time.sleep(2)
+        sock.sendall(packet(100+i, 2,
+            'execute if data block 7 100 1 Items[{id:"minecraft:wheat",Count:1b}]'))
+        got_id, _, output = response(sock)
+        if got_id == 100+i and "test passed" in output.lower():
+            transferred = True
+            break
+    if not transferred:
+        raise AssertionError("Sable did not deliver wheat within 150 seconds")
+    sock.sendall(packet(300, 2,
+        'execute if data block 3 100 1 Items[{id:"minecraft:wheat",Count:7b}]'))
+    got_id, _, output = response(sock)
+    if got_id != 300 or "test passed" not in output.lower():
+        raise AssertionError("Source count is not 7 wheat after delivery: " + output)
+    print("Real server-side wheat transfer verified: source 8->7, destination 0->1")
+print("Hearthbound server commands, entity spawn and wheat hauling verified")
