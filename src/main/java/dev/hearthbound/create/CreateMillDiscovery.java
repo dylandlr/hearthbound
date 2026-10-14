@@ -7,6 +7,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraftforge.fml.ModList;
 
 /**
@@ -38,8 +39,27 @@ public final class CreateMillDiscovery {
             source.sendFailure(Component.literal("Hearthbound: selected position is not a Create millstone."));
             return 0;
         }
+        BlockEntity machine = source.getLevel().getBlockEntity(position);
+        if (machine == null) {
+            source.sendFailure(Component.literal("Hearthbound: millstone has no block entity."));
+            return 0;
+        }
+        // This is a deliberately optional bridge: Create remains absent from the compile classpath.
+        // Its kinetic block entities expose public getSpeed(); never invent a nonzero speed.
+        final float rpm;
+        try {
+            Object measured = machine.getClass().getMethod("getSpeed").invoke(machine);
+            if (!(measured instanceof Number speed)) throw new IllegalStateException("not numeric");
+            rpm = speed.floatValue();
+            if (!Float.isFinite(rpm)) throw new IllegalStateException("not finite");
+        } catch (ReflectiveOperationException | IllegalStateException error) {
+            source.sendFailure(Component.literal("Hearthbound: could not read Create millstone kinetic speed: "
+                    + error.getClass().getSimpleName()));
+            return 0;
+        }
         source.sendSuccess(() -> Component.literal("HEARTHBOUND_CREATE_MILL_FOUND at "
-                + position.toShortString() + "; mechanical power and recipe output NOT YET VERIFIED"), false);
+                + position.toShortString() + " speed=" + rpm + " RPM powered=" + (rpm != 0)
+                + "; recipe output NOT YET VERIFIED"), false);
         return 1;
     }
 
