@@ -21,17 +21,23 @@ public final class HaulE2EProbe {
     private static boolean observedPickup;
     private static boolean observedDeliveryTravel;
     private static boolean fullDestinationMode;
+    private static boolean blockAfterPickupMode;
+    private static boolean destinationFilledAfterPickup;
     private HaulE2EProbe() {}
 
     public static int start(CommandSourceStack command) {
-        return startScenario(command, false);
+        return startScenario(command, false, false);
     }
 
     public static int startFullDestination(CommandSourceStack command) {
-        return startScenario(command, true);
+        return startScenario(command, true, false);
     }
 
-    private static int startScenario(CommandSourceStack command, boolean fillOutput) {
+    public static int startBlockAfterPickup(CommandSourceStack command) {
+        return startScenario(command, false, true);
+    }
+
+    private static int startScenario(CommandSourceStack command, boolean fillOutput, boolean blockAfterPickup) {
         ServerLevel level = command.getLevel();
         BlockPos spawn = level.getSharedSpawnPos();
         int y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
@@ -67,6 +73,8 @@ public final class HaulE2EProbe {
             return fail(command, "job");
         testLevel = level;
         fullDestinationMode = fillOutput;
+        blockAfterPickupMode = blockAfterPickup;
+        destinationFilledAfterPickup = false;
         observedPickup = false;
         observedDeliveryTravel = false;
         command.sendSuccess(() -> Component.literal("HB_HAUL_E2E_STARTED"), false);
@@ -84,6 +92,24 @@ public final class HaulE2EProbe {
         int cargo = state.contains("HearthboundHaul", 10)
                 ? state.getCompound("HearthboundHaul").getInt("Cargo") : 0;
         if (from + to + cargo != 8) return fail(command, "inventory_conservation");
+        if (blockAfterPickupMode) {
+            if (!destinationFilledAfterPickup && from == 4 && cargo == 4 && to == 0) {
+                for (int slot = 0; slot < output.getContainerSize(); slot++)
+                    output.setItem(slot, new ItemStack(Items.COBBLESTONE, 64));
+                destinationFilledAfterPickup = true;
+            }
+            boolean carrying = state.contains("HearthboundHaul", 10)
+                    && state.getCompound("HearthboundHaul").getInt("Cargo") == 4;
+            boolean outputBlocked = carrying
+                    && "OUTPUT_FULL_CARRYING".equals(state.getCompound("HearthboundHaul").getString("Result"));
+            if (destinationFilledAfterPickup && outputBlocked && from == 4 && to == 0 && cargo == 4) {
+                command.sendSuccess(() -> Component.literal("HB_HAUL_CARGO_BLOCKED_PASS source=4 cargo=4 dest=0"), false);
+                return 1;
+            }
+            command.sendSuccess(() -> Component.literal("HB_HAUL_CARGO_BLOCKED_PENDING source=" + from
+                    + " cargo=" + cargo + " dest=" + to), false);
+            return 1;
+        }
         if (fullDestinationMode) {
             boolean fullOfCobblestone = true;
             for (int slot = 0; slot < output.getContainerSize(); slot++) {
