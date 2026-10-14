@@ -155,3 +155,21 @@ print("Flour stockpile:", stockpile, flush=True)
 if "create:wheat_flour" not in stockpile:
     raise AssertionError("Flour never reached real storage barrel: " + stockpile)
 print("HB_CREATE_FLOUR_STOCKPILE_PASS", flush=True)
+
+# Verify villager-carried flour using a *new* output barrel, not direct collection.
+# Original Create mill at (0,100,0) has previously produced flour.
+print(module.execute("setblock 7 100 0 minecraft:barrel"), flush=True)
+print(module.execute("fill -2 99 -1 9 99 1 minecraft:stone"), flush=True)
+print(module.execute('summon minecraft:villager 0 100 2 {Tags:["hearthbound.sable"],PersistenceRequired:1b}'), flush=True)
+pickup = module.execute("execute positioned 0 100 2 run hearthbound haul_flour 0 100 0 7 100 0 1")
+print("Flour courier:", pickup, flush=True)
+if "Sable assigned to collect flour" not in pickup:
+    raise AssertionError("No Sable assigned to retrieve flour: " + pickup)
+for attempt in range(80):
+    time.sleep(1)
+    storage = module.execute("data get block 7 100 0 Items")
+    if "create:wheat_flour" in storage:
+        print("HB_SABLE_FLOUR_COURIER_PASS " + storage, flush=True)
+        break
+else:
+    raise AssertionError("Sable did not bring flour to stockpile: " + storage)
