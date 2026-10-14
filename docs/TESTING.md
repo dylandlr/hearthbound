@@ -31,3 +31,10 @@ Actions jobs previously failed in seconds with zero executed steps. Check reposi
 
 ## Workflow discipline
 PR stays draft until checks are demonstrably passing. Never equate unit tests with Forge/GameTest/E2E coverage; keep provenance for video and release artifacts.
+
+## First successful GitHub CI execution (2026-10-14)
+GitHub Actions run https://github.com/dylandlr/hearthbound/actions/runs/38516422575 **succeeded**. Its `core-tests` job performed a checkout, installed Java 17 and completed `Run every pure Java smoke test` successfully. This resolves the prior *no-runner* blocker for that workflow, but is not Forge verification.
+
+A separate `Forge Compile` workflow now provisions JDK 17 + Gradle 8.8 and attempts `gradle --no-daemon --stacktrace build`, including JUnit. It is experimental and its outcome must be inspected independently. A pinned, checked-in Gradle wrapper remains a follow-up task.
+
+No Minecraft GameTests, Create runtime or multiplayer E2E acceptance may be claimed merely from a successful Gradle build.
