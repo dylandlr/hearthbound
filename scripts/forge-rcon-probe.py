@@ -63,6 +63,15 @@ if __name__ == "__main__":
                     break
             else:
                 raise AssertionError("Hauling did not finish: " + state)
+            assert "HB_HAUL_E2E_STARTED" in execute("hearthbound ci_haul_full_start")
+            for n in range(30):
+                time.sleep(1)
+                full_state = execute("hearthbound ci_haul_check")
+                if "HB_HAUL_FULL_PASS" in full_state:
+                    print(full_state)
+                    break
+            else:
+                raise AssertionError("Full destination test did not pass: " + full_state)
             sys.exit(0)
         except (OSError, TimeoutError) as exc:
             if attempt == 29:
