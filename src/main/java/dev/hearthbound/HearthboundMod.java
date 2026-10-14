@@ -16,6 +16,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BarrelBlockEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -90,6 +91,31 @@ public final class HearthboundMod {
                                 ctx.getSource().sendSuccess(
                                         () -> Component.literal("HB_CI_PROBE_PASS real_barrels_wheat_8_tagged_villager"),
                                         true);
+                                return 1;
+                            }))
+                    .then(Commands.literal("ci_haul_probe")
+                            .requires(source -> source.hasPermission(2))
+                            .executes(ctx -> {
+                                ServerLevel level = ctx.getSource().getLevel();
+                                BlockPos center = BlockPos.containing(ctx.getSource().getPosition());
+                                BlockPos inputPos = center.offset(2, 0, 0);
+                                BlockPos outputPos = center.offset(4, 0, 0);
+                                level.setBlockAndUpdate(inputPos, Blocks.BARREL.defaultBlockState());
+                                level.setBlockAndUpdate(outputPos, Blocks.BARREL.defaultBlockState());
+                                if (!(level.getBlockEntity(inputPos) instanceof BarrelBlockEntity input)
+                                        || !(level.getBlockEntity(outputPos) instanceof BarrelBlockEntity output)) {
+                                    ctx.getSource().sendFailure(Component.literal("HB_HAUL_FAIL setup"));
+                                    return 0;
+                                }
+                                input.setItem(0, new ItemStack(Items.WHEAT, 8));
+                                int baseline = input.getItem(0).getCount();
+                                // Stage 1: real-world inventory presence. No synthetic claim of item transport.
+                                if (baseline != 8 || !output.isEmpty()) {
+                                    ctx.getSource().sendFailure(Component.literal("HB_HAUL_FAIL baseline"));
+                                    return 0;
+                                }
+                                ctx.getSource().sendSuccess(() -> Component.literal(
+                                        "HB_HAUL_SETUP_PASS source=8 destination=0; physical movement not yet tested"), true);
                                 return 1;
                             }))
                     .then(Commands.literal("spawn_sable")
