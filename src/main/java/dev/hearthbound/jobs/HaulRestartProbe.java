@@ -35,6 +35,8 @@ public final class HaulRestartProbe {
         if (!"DELIVER".equals(job.getString("Phase")) || job.getInt("Cargo") != 4)
             return fail(source, "cargo_or_phase");
         BlockPos from = BlockPos.of(job.getLong("From"));
+        sable.getPersistentData().putLong("HearthboundRestartFrom", job.getLong("From"));
+        sable.getPersistentData().putLong("HearthboundRestartTo", job.getLong("To"));
         BlockPos to = BlockPos.of(job.getLong("To"));
         if (!(level.getBlockEntity(from) instanceof BarrelBlockEntity input)
                 || !(level.getBlockEntity(to) instanceof BarrelBlockEntity output))
@@ -72,16 +74,18 @@ public final class HaulRestartProbe {
             source.sendSuccess(() -> Component.literal("HB_RESTART_PENDING"), false);
             return 1;
         }
-        BlockPos from = getSourceFromCitizen(sable);
-        if (from == null) return fail(source, "saved_source_missing");
-        // Caller checks the exact world inventory using the source saved before job completion.
-        source.sendSuccess(() -> Component.literal("HB_RESTART_DELIVERED"), false);
+        if (!data.contains("HearthboundRestartFrom") || !data.contains("HearthboundRestartTo"))
+            return fail(source, "coordinates_missing");
+        BlockPos from = BlockPos.of(data.getLong("HearthboundRestartFrom"));
+        BlockPos to = BlockPos.of(data.getLong("HearthboundRestartTo"));
+        if (!(source.getLevel().getBlockEntity(from) instanceof BarrelBlockEntity input)
+                || !(source.getLevel().getBlockEntity(to) instanceof BarrelBlockEntity output))
+            return fail(source, "barrels_missing");
+        if (countWheat(input) != 4 || countWheat(output) != 4
+                || !"DELIVERED_4".equals(data.getString("HearthboundLastHaulResult")))
+            return fail(source, "delivery_inventory_or_result");
+        source.sendSuccess(() -> Component.literal("HB_RESTART_DELIVERED source=4 dest=4 cargo=0"), false);
         return 1;
-    }
-
-    private static BlockPos getSourceFromCitizen(Villager citizen) {
-        if (!citizen.getPersistentData().contains("HearthboundHaul", 10)) return null;
-        return BlockPos.of(citizen.getPersistentData().getCompound("HearthboundHaul").getLong("From"));
     }
 
     private static Villager findRestartCitizen(ServerLevel level) {
