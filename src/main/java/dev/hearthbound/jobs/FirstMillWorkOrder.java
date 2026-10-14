@@ -68,6 +68,29 @@ public final class FirstMillWorkOrder {
         return 1;
     }
 
+    public static int status(CommandSourceStack source) {
+        List<Villager> workers = source.getLevel().getEntitiesOfClass(Villager.class,
+                new AABB(source.getPosition(), source.getPosition()).inflate(32),
+                v -> v.getTags().contains("hearthbound.sable")
+                        && v.getPersistentData().contains(ROOT, 10));
+        if (workers.isEmpty()) {
+            source.sendFailure(Component.literal("No First Mill work order nearby."));
+            return 0;
+        }
+        Villager worker = workers.stream().min(java.util.Comparator.comparingDouble(
+                v -> v.distanceToSqr(source.getPosition()))).orElseThrow();
+        CompoundTag order = worker.getPersistentData().getCompound(ROOT);
+        String state = order.getString("State");
+        String hauling = worker.getPersistentData().contains("HearthboundHaul", 10)
+                ? worker.getPersistentData().getCompound("HearthboundHaul").getString("Phase") : "IDLE";
+        source.sendSuccess(() -> Component.literal("First Mill: state=" + state
+                + ", worker=" + worker.getUUID() + ", hauling=" + hauling
+                + ", wheat=" + BlockPos.of(order.getLong("Wheat"))
+                + ", mill=" + BlockPos.of(order.getLong("Mill"))
+                + ", flour=" + BlockPos.of(order.getLong("Flour"))), false);
+        return 1;
+    }
+
     @SubscribeEvent
     public static void tick(LivingEvent.LivingTickEvent event) {
         Entity entity = event.getEntity();
