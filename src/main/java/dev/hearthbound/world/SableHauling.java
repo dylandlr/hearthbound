@@ -124,6 +124,21 @@ public final class SableHauling {
         tag.putString(ERROR, message);
     }
 
+    /**
+     * Safe operator cancellation only before pickup: no cargo can be orphaned.
+     * Cargo-bearing jobs must be delivered or reconciled, never silently cancelled.
+     */
+    public static boolean cancelBeforePickup(ServerLevel level, Villager citizen) {
+        CompoundTag tag = citizen.getPersistentData().getCompound(KEY);
+        if (!tag.contains(PHASE) || tag.getInt(PHASE) == COMPLETE || tag.contains(CARGO))
+            return false;
+        BlockPos source = BlockPos.of(tag.getLong(SOURCE));
+        tag.putInt(PHASE, COMPLETE);
+        tag.remove(ERROR);
+        HaulClaims.release(level, source, citizen.getUUID());
+        return true;
+    }
+
     public static boolean resume(Villager citizen) {
         CompoundTag tag = citizen.getPersistentData().getCompound(KEY);
         if (tag.getInt(PHASE) != PAUSED) return false;
