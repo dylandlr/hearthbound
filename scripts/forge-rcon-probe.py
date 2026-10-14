@@ -72,6 +72,15 @@ if __name__ == "__main__":
                     break
             else:
                 raise AssertionError("Full destination test did not pass: " + full_state)
+            assert "HB_HAUL_E2E_STARTED" in execute("hearthbound ci_haul_block_after_pickup")
+            for n in range(50):
+                time.sleep(1)
+                blocked = execute("hearthbound ci_haul_check")
+                if "HB_HAUL_CARGO_BLOCKED_PASS" in blocked:
+                    print(blocked)
+                    break
+            else:
+                raise AssertionError("Post-pickup blockage test failed: " + blocked)
             sys.exit(0)
         except (OSError, TimeoutError) as exc:
             if attempt == 29:
