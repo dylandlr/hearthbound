@@ -81,9 +81,13 @@ print("Seeded NBT:", seeded[:1800], flush=True)
 if "minecraft:wheat" not in seeded:
     raise AssertionError("Create millstone did not accept staged wheat: " + seeded)
 print("Motor restored:", module.execute("setblock 0 99 0 create:creative_motor[facing=up]"), flush=True)
+restored_speed = module.execute("hearthbound inspect_mill 0 100 0")
+print("Restored speed:", restored_speed, flush=True)
 for attempt in range(90):
     time.sleep(1)
     processing = module.execute("hearthbound ci_mill_nbt 0 100 0")
+    if attempt in (0, 4, 14, 29, 59):
+        print("Grinding sample", attempt, processing[:1400], flush=True)
     if "create:wheat_flour" in processing:
         print("HB_CREATE_WHEAT_GRINDING_PASS " + processing[:1800], flush=True)
         break
