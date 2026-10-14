@@ -90,4 +90,12 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
     if got_id != 300 or "test passed" not in output.lower():
         raise AssertionError("Source count is not 7 wheat after delivery: " + output)
     print("Real server-side wheat transfer verified: source 8->7, destination 0->1")
+    # Require physical proximity to destination, not merely inventory mutation.
+    sock.sendall(packet(301, 2,
+        'execute positioned 7.5 100 1.5 if entity @e[type=minecraft:villager,name=Sable,distance=..2.6]'))
+    got_id, _, output = response(sock)
+    if got_id != 301 or "test passed" not in output.lower():
+        raise AssertionError("Wheat delivered but Sable not near destination: " + output)
+    print("Sable proximity verified at destination chest")
+
 print("Hearthbound server commands, entity spawn and wheat hauling verified")
