@@ -41,17 +41,12 @@ public final class SableJobController {
             source.sendFailure(Component.literal("Target chunk must be loaded."));
             return 0;
         }
-        Villager sable = nearestSable(level, source.getPosition().x,
-                source.getPosition().y, source.getPosition().z);
+        Villager sable = SableSelection.nearest(source, SableSelection::idle);
         if (sable == null) {
-            source.sendFailure(Component.literal("No Hearthbound Sable within 32 blocks."));
+            source.sendFailure(Component.literal("No idle Sable within 32 blocks."));
             return 0;
         }
         var data = sable.getPersistentData();
-        if (data.contains("HearthboundHaul", 10)) {
-            source.sendFailure(Component.literal("Sable has a hauling job; finish or recover cargo before assigning travel."));
-            return 0;
-        }
         data.putLong(TARGET, target.asLong());
         data.putBoolean(ACTIVE, true);
         data.putString(RESULT, "MOVING");

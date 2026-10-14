@@ -2,4 +2,6 @@
 
 A Minecraft-first, fun-first Create-powered AI colony simulator.
 
-Design-first development. See docs/ for the architecture and experiments.
+The First Mill prototype runs in Minecraft 1.20.1 with Forge 47.4.10 and optional Create 6.0.8. Sable can travel, carry wheat into a powered millstone, and collect flour under a persistent work order with a stockpile target.
+
+Current development is on `feature/first-mill-foundation`. Start with [development status](docs/DEVELOPMENT_STATUS.md) and the [real client playtest record](docs/REAL_CLIENT_PLAYTEST_2026-10-14.md). Earlier documents retain their historical validation limits.

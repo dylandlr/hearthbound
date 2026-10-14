@@ -44,6 +44,9 @@ def run(execute):
     rejected = execute("execute positioned 170 100 162 run " + order)
     if "No unassigned Sable" not in rejected:
         raise AssertionError("Busy workers were eligible: " + rejected)
+    travel = execute("execute positioned 170 100 162 run hearthbound assign_sable 174 100 162")
+    if "No idle Sable" not in travel:
+        raise AssertionError("Travel replaced an existing worker job: " + travel)
     execute("kill @e[tag=hb_selection_probe]")
     print("HB_WORKER_SELECTION_PASS nearest_idle_start_target_status_stop", flush=True)
 
