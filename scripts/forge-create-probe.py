@@ -175,3 +175,27 @@ for attempt in range(80):
         break
 else:
     raise AssertionError("Sable did not bring flour to stockpile: " + storage)
+
+# Work-order test: only the initial order is player-issued.
+print(module.execute("fill 48 99 48 66 99 52 minecraft:stone"), flush=True)
+print(module.execute("setblock 51 100 50 minecraft:barrel"), flush=True)
+print(module.execute('data merge block 51 100 50 {Items:[{Slot:0b,id:"minecraft:wheat",Count:8b}]}'), flush=True)
+print(module.execute("setblock 59 100 50 create:millstone"), flush=True)
+print(module.execute("setblock 59 99 50 create:creative_motor[facing=up]"), flush=True)
+print(module.execute("setblock 63 100 50 minecraft:barrel"), flush=True)
+print(module.execute('summon minecraft:villager 49 100 50 {Tags:["hearthbound.sable"],PersistenceRequired:1b}'), flush=True)
+order = module.execute("execute positioned 49 100 50 run hearthbound mill_order 51 100 50 59 100 50 63 100 50")
+print("Work order:", order, flush=True)
+if "First Mill work order enabled" not in order:
+    raise AssertionError("Order registration failed: " + order)
+for attempt in range(140):
+    time.sleep(1)
+    flour_stock = module.execute("data get block 63 100 50 Items")
+    wheat_stock = module.execute("data get block 51 100 50 Items")
+    if attempt in (0, 15, 45, 90):
+        print("Work order sample", attempt, wheat_stock[:250], flour_stock[:250], flush=True)
+    if "create:wheat_flour" in flour_stock and "Count: 8b" not in wheat_stock:
+        print("HB_FIRST_MILL_WORK_ORDER_PASS", flush=True)
+        break
+else:
+    raise AssertionError("Autonomous milling did not fill stockpile: " + wheat_stock + " " + flour_stock)
