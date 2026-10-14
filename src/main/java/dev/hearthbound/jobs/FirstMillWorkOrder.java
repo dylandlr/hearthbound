@@ -56,6 +56,26 @@ public final class FirstMillWorkOrder {
         return 1;
     }
 
+    public static int target(CommandSourceStack source, int amount) {
+        if (amount < 1 || amount > 4096) {
+            source.sendFailure(Component.literal("Target must be between 1 and 4096 flour."));
+            return 0;
+        }
+        List<Villager> workers = source.getLevel().getEntitiesOfClass(Villager.class,
+                new AABB(source.getPosition(), source.getPosition()).inflate(32),
+                v -> v.getTags().contains("hearthbound.sable")
+                        && v.getPersistentData().contains(ROOT, 10));
+        if (workers.isEmpty()) {
+            source.sendFailure(Component.literal("No First Mill work order nearby."));
+            return 0;
+        }
+        Villager worker = workers.stream().min(java.util.Comparator.comparingDouble(
+                v -> v.distanceToSqr(source.getPosition()))).orElseThrow();
+        worker.getPersistentData().getCompound(ROOT).putInt("TargetFlour", amount);
+        source.sendSuccess(() -> Component.literal("First Mill flour target set to " + amount), false);
+        return 1;
+    }
+
     public static int stop(CommandSourceStack source) {
         List<Villager> sable = source.getLevel().getEntitiesOfClass(Villager.class,
                 new AABB(source.getPosition(), source.getPosition()).inflate(32),
@@ -114,6 +134,17 @@ public final class FirstMillWorkOrder {
                         new ResourceLocation("create", "millstone")))) {
             order.putString("State", "MISSING_STATION");
             return;
+        }
+        int targetFlour = order.getInt("TargetFlour");
+        if (targetFlour > 0 && level.getBlockEntity(flour) instanceof BarrelBlockEntity store) {
+            var flourItem = BuiltInRegistries.ITEM.get(new ResourceLocation("create", "wheat_flour"));
+            int stocked = 0;
+            for (int i = 0; i < store.getContainerSize(); i++)
+                if (store.getItem(i).is(flourItem)) stocked += store.getItem(i).getCount();
+            if (stocked >= targetFlour) {
+                order.putString("State", "TARGET_REACHED");
+                return;
+            }
         }
         // Prioritize finished goods. Otherwise supply up to four wheat.
         if (hasFlourOutput(level, mill)) {
