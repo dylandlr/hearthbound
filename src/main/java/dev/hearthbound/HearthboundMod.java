@@ -70,6 +70,8 @@ public final class HearthboundMod {
                             .then(Commands.argument("target", BlockPosArgument.blockPos())
                                     .executes(ctx -> SableJobController.assign(ctx.getSource(),
                                             BlockPosArgument.getLoadedBlockPos(ctx, "target")))))
+                    .then(Commands.literal("sable_status")
+                            .executes(ctx -> SableJobController.status(ctx.getSource())))
                     .then(Commands.literal("cancel_sable")
                             .requires(source -> source.hasPermission(2))
                             .executes(ctx -> SableJobController.cancel(ctx.getSource()))));
