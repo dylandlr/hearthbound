@@ -71,3 +71,21 @@ print(nbt[:2500], flush=True)
 if "HB_MILL_NBT" not in nbt:
     raise AssertionError("Could not read real Create millstone NBT: " + nbt)
 print("HB_CREATE_NBT_PROBE_PASS", flush=True)
+
+# First genuine grinding experiment: seed the actual Create input inventory
+# using vanilla /data merge, restore kinetic power, and inspect actual output.
+wheat = module.execute('data merge block 0 100 0 {InputInventory:{Size:1,Items:[{Slot:0b,id:"minecraft:wheat",Count:4b}]}}')
+print("Wheat staging:", wheat, flush=True)
+seeded = module.execute("hearthbound ci_mill_nbt 0 100 0")
+print("Seeded NBT:", seeded[:1800], flush=True)
+if "minecraft:wheat" not in seeded:
+    raise AssertionError("Create millstone did not accept staged wheat: " + seeded)
+print("Motor restored:", module.execute("setblock 0 99 0 create:creative_motor[facing=up]"), flush=True)
+for attempt in range(90):
+    time.sleep(1)
+    processing = module.execute("hearthbound ci_mill_nbt 0 100 0")
+    if "create:wheat_flour" in processing:
+        print("HB_CREATE_WHEAT_GRINDING_PASS " + processing[:1800], flush=True)
+        break
+else:
+    raise AssertionError("Create never produced wheat flour from four input wheat: " + processing)
