@@ -49,7 +49,11 @@ if __name__ == "__main__":
             print(result)
             if "HB_CI_PROBE_PASS" not in result:
                 raise AssertionError("Real Forge command did not report success")
-            print("PASS: real-world Forge barrels and villager integration probe")
+            haul = execute("hearthbound ci_haul_probe")
+            print(haul)
+            if "HB_HAUL_SETUP_PASS" not in haul:
+                raise AssertionError("Real Forge hauling baseline failed")
+            print("PASS: real-world Forge entity and inventory setup probes")
             sys.exit(0)
         except (OSError, TimeoutError) as exc:
             if attempt == 29:
