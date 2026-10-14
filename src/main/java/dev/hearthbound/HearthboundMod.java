@@ -5,6 +5,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import dev.hearthbound.jobs.SableJobController;
+import dev.hearthbound.create.CreateMillDiscovery;
 import dev.hearthbound.jobs.BarrelHaulController;
 import dev.hearthbound.jobs.HaulE2EProbe;
 import dev.hearthbound.jobs.HaulRestartProbe;
@@ -51,6 +52,12 @@ public final class HearthboundMod {
                                         false);
                                 return 1;
                             }))
+                    .then(Commands.literal("create_status")
+                            .executes(ctx -> CreateMillDiscovery.status(ctx.getSource())))
+                    .then(Commands.literal("inspect_mill")
+                            .then(Commands.argument("position", BlockPosArgument.blockPos())
+                                    .executes(ctx -> CreateMillDiscovery.inspect(ctx.getSource(),
+                                            BlockPosArgument.getLoadedBlockPos(ctx, "position")))))
                     .then(Commands.literal("ci_haul_start")
                             .requires(source -> source.hasPermission(2))
                             .executes(ctx -> HaulE2EProbe.start(ctx.getSource())))
