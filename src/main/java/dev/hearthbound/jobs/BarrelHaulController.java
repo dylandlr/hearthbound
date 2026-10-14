@@ -54,7 +54,12 @@ public final class BarrelHaulController {
             source.sendFailure(Component.literal("Sable already has a job; finish or recover it first."));
             return 0;
         }
-        return assignCitizen(sable, from, to, count) ? 1 : 0;
+        if (!assignCitizen(sable, from, to, count)) {
+            source.sendFailure(Component.literal("Could not assign hauling job."));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal("Sable assigned to haul " + count + " wheat."), false);
+        return 1;
     }
 
     /** Same server-side job assignment used by commands and world integration probes. */
