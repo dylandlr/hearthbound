@@ -5,6 +5,7 @@ on:
     branches: [feature/first-mill-foundation]
     paths:
       - 'src/**'
+      - 'scripts/forge-rcon-probe.py'
       - 'build.gradle'
       - '.github/workflows/forge-server-smoke.yml'
 permissions:
