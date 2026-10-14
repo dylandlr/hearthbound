@@ -205,7 +205,7 @@ for attempt in range(140):
             second = module.execute("data get block 63 100 50 Items")
             if extra in (0, 20, 60, 100):
                 print("Second cycle sample", extra, second[:400], flush=True)
-            if __import__("re").search(r'create:wheat_flour", Count:\\s*[2-9]b', second):
+            if __import__("re").search(r'create:wheat_flour", Count:\s*[2-9]b', second):
                 print("HB_FIRST_MILL_SECOND_CYCLE_PASS", flush=True)
                 break
         else:
