@@ -55,6 +55,10 @@ The latest client also accepted a work order on the narrow platform and subseque
 
 Follow-up run `38656070326` repeated all production successes, but its first readiness check incorrectly relied on `/say` feedback on an empty dedicated server. Worker position queries succeeded in the failure diagnostic. The final fixture uses direct, bounded position queries for readiness instead; it leaves all worker-selection assertions intact.
 
+The complete production distribution test passed on `2d852b9c84ac67fac867430ee4a50c52117e3ffa`: [Create 6.0.8 Runtime Compatibility, run 38656669350](https://github.com/dylandlr/hearthbound/actions/runs/38656669350). It includes powered/unpowered behavior, genuine grinding, citizen wheat supply and flour collection, two autonomous flour deliveries, stockpile targets, stop controls, and `HB_WORKER_SELECTION_PASS` for nearest eligible assignment and management.
+
+Separate dedicated-server smoke run `38655462341` passed normal hauling, full-output preflight, and post-pickup output blocking, then timed out while staging its fourth/restart scenario. Inventory remained source=4, cargo=4, destination=0, but the required `OUTPUT_FULL_CARRYING` result was not observed. This run did not reach the actual save/restart check. Treat restart recovery as an open verification failure on the updated controller; production-client success does not supersede it.
+
 ## Limits
 
 This is prototype evidence, using deterministic rules, a vanilla villager body, a disposable test scene, and a creative motor. It does not prove survival power construction, general multi-worker resource arbitration, graceful or crash-restart conservation, multiplayer playability, carrying animations, or LLM/RL decision-making. Movement and station interaction need polish.
