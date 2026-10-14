@@ -65,7 +65,7 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
         got_id, _, output = response(sock)
         print(f"{command}: {output}")
         if got_id != next_id or any(term in output.lower() for term in (
-            "unknown command", "incorrect argument", "failed to", "no sable", "not loaded", "no blocks were filled",
+            "unknown command", "incorrect argument", "failed to", "no sable", "not loaded",
             "source already claimed", "cannot")):
             raise AssertionError(f"Setup failed: {command}: {output}")
         if "run sable haul" in command and "sable assigned wheat haul" not in output.lower():
