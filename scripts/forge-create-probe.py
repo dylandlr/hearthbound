@@ -213,3 +213,16 @@ for attempt in range(140):
         break
 else:
     raise AssertionError("Autonomous milling did not fill stockpile: " + wheat_stock + " " + flour_stock)
+
+# Production cap: stockpile already has at least two flour. Setting target=1
+# must make the order report TARGET_REACHED without taking more wheat.
+cap = module.execute("execute positioned 49 100 50 run hearthbound mill_order_target 1")
+print("Flour target command:", cap, flush=True)
+if "First Mill flour target set to 1" not in cap:
+    raise AssertionError("Production target command rejected order: " + cap)
+time.sleep(3)
+target_state = module.execute("execute positioned 49 100 50 run hearthbound mill_order_status")
+print("Flour capped status:", target_state, flush=True)
+if "TARGET_REACHED" not in target_state:
+    raise AssertionError("Scheduler did not honor flour stockpile target: " + target_state)
+print("HB_FIRST_MILL_TARGET_PASS", flush=True)
