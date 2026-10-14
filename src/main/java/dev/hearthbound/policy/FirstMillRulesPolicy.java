@@ -5,7 +5,7 @@ import static dev.hearthbound.policy.ColonyPolicy.Action;
 
 /** Deterministic baseline; selects a validated intention, never edits Minecraft state. */
 public final class FirstMillRulesPolicy implements ColonyPolicy {
-    @Override public String id() { return "rules:first-mill:v1"; }
+    @Override public String id() { return "rules:first-mill:v2"; }
 
     @Override public Decision decide(Observation state) {
         List<Action> allowed = state.availableActions();
@@ -26,7 +26,7 @@ public final class FirstMillRulesPolicy implements ColonyPolicy {
         }
         if (!allowed.contains(choice)) {
             // An empty allowed list represents a scheduling failure, not permission to act.
-            return new Decision(Action.WAIT, state.worldVersion(), "No executable actions provided");
+            throw new IllegalStateException("No safe action: WAIT absent from authorized actions");
         }
         return new Decision(choice, state.worldVersion(), why);
     }
