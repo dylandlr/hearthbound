@@ -16,6 +16,7 @@ jobs:
       - name: Compile pure Java 17 policy
         run: |
           mkdir -p build/policy-classes
-          javac --release 17 -d build/policy-classes src/main/java/dev/hearthbound/policy/*.java src/test/java/dev/hearthbound/policy/*.java
+          javac --release 17 -d build/policy-classes src/main/java/dev/hearthbound/policy/*.java src/test/java/dev/hearthbound/policy/*.java src/main/java/dev/hearthbound/jobs/TravelProgress.java src/test/java/dev/hearthbound/jobs/TravelProgressSmokeTest.java
       - name: Run policy smoke tests
         run: java -cp build/policy-classes dev.hearthbound.policy.FirstMillRulesPolicySmokeTest
+          java -cp build/policy-classes dev.hearthbound.jobs.TravelProgressSmokeTest
