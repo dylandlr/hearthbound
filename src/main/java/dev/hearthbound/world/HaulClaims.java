@@ -62,6 +62,22 @@ public final class HaulClaims extends SavedData {
         if (data.claims.remove(source.asLong(), citizenId)) data.setDirty();
     }
 
+    /**
+     * Operator-initiated repair with optimistic owner matching.
+     * Never removes a claim if its owner has changed since inspection.
+     * Caller MUST separately verify physical cargo and inventories.
+     */
+    public static boolean releaseIfOwned(ServerLevel level, BlockPos source, UUID expectedOwner) {
+        HaulClaims data = get(level);
+        boolean removed = data.claims.remove(source.asLong(), expectedOwner);
+        if (removed) data.setDirty();
+        return removed;
+    }
+
+    public static int count(ServerLevel level) {
+        return get(level).claims.size();
+    }
+
     public static UUID owner(ServerLevel level, BlockPos source) {
         return get(level).claims.get(source.asLong());
     }
