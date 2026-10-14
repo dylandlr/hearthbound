@@ -1,0 +1,28 @@
+name: Minecraft playtest JAR
+on:
+  push:
+    branches:
+      - 'build/playtest-jar-artifact'
+  pull_request:
+jobs:
+  build-jar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.8'
+      - name: Compile and package Forge mod
+        run: gradle --no-daemon clean build
+      - name: Upload development JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: hearthbound-minecraft-1.20.1-dev-jar
+          path: build/libs/hearthbound-*.jar
+          if-no-files-found: error
+          retention-days: 14
