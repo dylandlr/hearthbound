@@ -1,0 +1,21 @@
+name: First Mill Policy Smoke Test
+on:
+  push:
+    branches: [main, feature/first-mill-foundation]
+  pull_request:
+    branches: [main]
+jobs:
+  java-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Compile pure Java 17 policy
+        run: |
+          mkdir -p build/policy-classes
+          javac --release 17 -d build/policy-classes src/main/java/dev/hearthbound/policy/*.java src/test/java/dev/hearthbound/policy/*.java
+      - name: Run policy smoke tests
+        run: java -cp build/policy-classes dev.hearthbound.policy.FirstMillRulesPolicySmokeTest
