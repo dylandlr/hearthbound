@@ -115,6 +115,6 @@ if "HB_MILL_SUPPLY_PASS barrel_removed=4 mill_inserted=4" not in supply:
     raise AssertionError("Barrel-to-Create supply failed: " + supply)
 remaining = module.execute("data get block 4 100 0 Items")
 inserted = module.execute("hearthbound ci_mill_nbt 6 100 0")
-if not __import__("re").search(r"Count:\\s*4b", remaining) or "minecraft:wheat" not in inserted:
+if not __import__("re").search(r"Count:\s*4b", remaining) or "minecraft:wheat" not in inserted:
     raise AssertionError("Barrel-to-Create supply inventories incorrect: " + remaining + " " + inserted)
 print("HB_CREATE_BARREL_SUPPLY_PASS source=4 mill=4", flush=True)
