@@ -38,3 +38,18 @@ for i in range(3):
     if "speed=0.0 RPM powered=false" not in measured:
         raise AssertionError("Unpowered millstone reported unexpected kinetic speed: " + measured)
 print("HB_CREATE_NEGATIVE_PROBES_PASS non-mill rejected; 0 RPM stable", flush=True)
+
+# Creative Motor is a test-only kinetic source. Place it below the millstone
+# with its shaft facing upward, then interrogate the actual Create speed.
+motor = module.execute("setblock 0 99 0 create:creative_motor[facing=up]")
+print("Motor:", motor, flush=True)
+import time
+for attempt in range(25):
+    time.sleep(1)
+    measured = module.execute("hearthbound inspect_mill 0 100 0")
+    if "powered=true" in measured and "speed=0.0 RPM" not in measured:
+        print(measured, flush=True)
+        print("HB_CREATE_POWERED_MILL_PASS real nonzero kinetic speed", flush=True)
+        break
+else:
+    raise AssertionError("Create millstone did not receive power from creative motor: " + measured)
