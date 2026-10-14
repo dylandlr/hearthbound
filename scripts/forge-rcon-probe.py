@@ -54,6 +54,15 @@ if __name__ == "__main__":
             if "HB_HAUL_SETUP_PASS" not in haul:
                 raise AssertionError("Real Forge hauling baseline failed")
             print("PASS: real-world Forge entity and inventory setup probes")
+            assert "HB_HAUL_E2E_STARTED" in execute("hearthbound ci_haul_start")
+            for n in range(70):
+                time.sleep(1)
+                state = execute("hearthbound ci_haul_check")
+                if "HB_HAUL_E2E_PASS" in state:
+                    print(state)
+                    break
+            else:
+                raise AssertionError("Hauling did not finish: " + state)
             sys.exit(0)
         except (OSError, TimeoutError) as exc:
             if attempt == 29:
