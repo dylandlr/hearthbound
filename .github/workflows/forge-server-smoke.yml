@@ -28,7 +28,7 @@ jobs:
         run: |
           mkdir -p run
           printf 'eula=true\n' > run/eula.txt
-          printf 'online-mode=false\nlevel-name=hearthbound-ci\nmax-players=1\n' > run/server.properties
+          printf 'online-mode=false\nlevel-name=hearthbound-ci\nmax-players=1\nenable-rcon=true\nrcon.password=hearthbound-ci-only-password\nrcon.port=25575\n' > run/server.properties
       - name: Start real Forge dedicated server, assert bootstrap log
         shell: bash
         run: |
@@ -63,6 +63,7 @@ jobs:
             exit 1
           fi
           echo 'PASS: observed Hearthbound bootstrap and Minecraft world-ready log in real Forge dedicated server process'
+          python3 scripts/forge-rcon-probe.py
           kill -INT "$pid" 2>/dev/null || true
           wait "$pid" || true
       - name: Upload server logs
