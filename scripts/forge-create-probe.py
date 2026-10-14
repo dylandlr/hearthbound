@@ -199,6 +199,17 @@ for attempt in range(140):
         print("Work order sample", attempt, wheat_stock[:250], flour_stock[:250], "machine:", module.execute("hearthbound ci_mill_nbt 59 100 50")[:650], "order:", module.execute("data get entity @e[type=minecraft:villager,tag=hearthbound.sable,x=49,y=100,z=50,distance=..20,sort=nearest,limit=1] ForgeData")[:1000], "position:", module.execute("data get entity @e[type=minecraft:villager,tag=hearthbound.sable,x=49,y=100,z=50,distance=..20,sort=nearest,limit=1] Pos"), "ticks:", module.execute("execute as @e[type=minecraft:villager,tag=hearthbound.sable,x=49,y=100,z=50,distance=..20,sort=nearest,limit=1] run data get entity @s Age"), flush=True)
     if "create:wheat_flour" in flour_stock and "Count: 8b" not in wheat_stock:
         print("HB_FIRST_MILL_WORK_ORDER_PASS", flush=True)
+        # Keep the same order active and demand a second physical flour delivery.
+        for extra in range(140):
+            time.sleep(1)
+            second = module.execute("data get block 63 100 50 Items")
+            if extra in (0, 20, 60, 100):
+                print("Second cycle sample", extra, second[:400], flush=True)
+            if __import__("re").search(r'create:wheat_flour", Count:\\s*[2-9]b', second):
+                print("HB_FIRST_MILL_SECOND_CYCLE_PASS", flush=True)
+                break
+        else:
+            raise AssertionError("First Mill did not autonomously collect a second flour: " + second)
         break
 else:
     raise AssertionError("Autonomous milling did not fill stockpile: " + wheat_stock + " " + flour_stock)
