@@ -12,11 +12,9 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.entity.BarrelBlockEntity;
-import net.minecraft.world.phys.AABB;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import java.util.List;
 
 /** First playable, opt-in, persistent job scheduler. Villager remains server-authoritative. */
 @Mod.EventBusSubscriber(modid = HearthboundMod.MOD_ID)
@@ -35,16 +33,11 @@ public final class FirstMillWorkOrder {
             source.sendFailure(Component.literal("Work order needs two loaded barrels and a Create millstone."));
             return 0;
         }
-        List<Villager> sable = level.getEntitiesOfClass(Villager.class,
-                new AABB(source.getPosition(), source.getPosition()).inflate(32),
-                v -> v.getTags().contains("hearthbound.sable")
-                        && !v.getPersistentData().contains(ROOT, 10));
-        if (sable.isEmpty()) {
+        Villager worker = SableSelection.nearest(source, SableSelection::idle);
+        if (worker == null) {
             source.sendFailure(Component.literal("No unassigned Sable within 32 blocks."));
             return 0;
         }
-        Villager worker = sable.stream().min(java.util.Comparator.comparingDouble(v ->
-                v.distanceToSqr(source.getPosition()))).orElseThrow();
         CompoundTag order = new CompoundTag();
         order.putLong("Wheat", wheat.asLong());
         order.putLong("Mill", mill.asLong());
@@ -61,50 +54,45 @@ public final class FirstMillWorkOrder {
             source.sendFailure(Component.literal("Target must be between 1 and 4096 flour."));
             return 0;
         }
-        List<Villager> workers = source.getLevel().getEntitiesOfClass(Villager.class,
-                new AABB(source.getPosition(), source.getPosition()).inflate(32),
-                v -> v.getTags().contains("hearthbound.sable")
-                        && v.getPersistentData().contains(ROOT, 10));
-        if (workers.isEmpty()) {
+        Villager worker = SableSelection.nearest(source,
+                v -> v.getPersistentData().contains(ROOT, 10));
+        if (worker == null) {
             source.sendFailure(Component.literal("No First Mill work order nearby."));
             return 0;
         }
-        Villager worker = workers.stream().min(java.util.Comparator.comparingDouble(
-                v -> v.distanceToSqr(source.getPosition()))).orElseThrow();
         worker.getPersistentData().getCompound(ROOT).putInt("TargetFlour", amount);
         source.sendSuccess(() -> Component.literal("First Mill flour target set to " + amount), false);
         return 1;
     }
 
     public static int stop(CommandSourceStack source) {
-        List<Villager> sable = source.getLevel().getEntitiesOfClass(Villager.class,
-                new AABB(source.getPosition(), source.getPosition()).inflate(32),
-                v -> v.getTags().contains("hearthbound.sable")
-                        && v.getPersistentData().contains(ROOT, 10));
-        if (sable.isEmpty()) return 0;
+        Villager worker = SableSelection.nearest(source,
+                v -> v.getPersistentData().contains(ROOT, 10));
+        if (worker == null) {
+            source.sendFailure(Component.literal("No First Mill work order nearby."));
+            return 0;
+        }
         // Stop scheduling new jobs; never erase cargo from an active haul.
-        sable.get(0).getPersistentData().remove(ROOT);
+        worker.getPersistentData().remove(ROOT);
         source.sendSuccess(() -> Component.literal("First Mill scheduling stopped; existing haul retained."), false);
         return 1;
     }
 
     public static int status(CommandSourceStack source) {
-        List<Villager> workers = source.getLevel().getEntitiesOfClass(Villager.class,
-                new AABB(source.getPosition(), source.getPosition()).inflate(32),
-                v -> v.getTags().contains("hearthbound.sable")
-                        && v.getPersistentData().contains(ROOT, 10));
-        if (workers.isEmpty()) {
+        Villager worker = SableSelection.nearest(source,
+                v -> v.getPersistentData().contains(ROOT, 10));
+        if (worker == null) {
             source.sendFailure(Component.literal("No First Mill work order nearby."));
             return 0;
         }
-        Villager worker = workers.stream().min(java.util.Comparator.comparingDouble(
-                v -> v.distanceToSqr(source.getPosition()))).orElseThrow();
         CompoundTag order = worker.getPersistentData().getCompound(ROOT);
         String state = order.getString("State");
         String hauling = worker.getPersistentData().contains("HearthboundHaul", 10)
                 ? worker.getPersistentData().getCompound("HearthboundHaul").getString("Phase") : "IDLE";
         source.sendSuccess(() -> Component.literal("First Mill: state=" + state
                 + ", worker=" + worker.getUUID() + ", hauling=" + hauling
+                + ", target=" + (order.getInt("TargetFlour") > 0
+                        ? order.getInt("TargetFlour") : "unlimited")
                 + ", wheat=" + BlockPos.of(order.getLong("Wheat"))
                 + ", mill=" + BlockPos.of(order.getLong("Mill"))
                 + ", flour=" + BlockPos.of(order.getLong("Flour"))), false);

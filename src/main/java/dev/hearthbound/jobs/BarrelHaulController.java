@@ -1,7 +1,6 @@
 package dev.hearthbound.jobs;
 
 import dev.hearthbound.HearthboundMod;
-import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.UUID;
@@ -22,7 +21,6 @@ import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.entity.BarrelBlockEntity;
-import net.minecraft.world.phys.AABB;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -48,17 +46,9 @@ public final class BarrelHaulController {
             source.sendFailure(Component.literal("Use two loaded, distinct barrels and 1-64 wheat."));
             return 0;
         }
-        List<Villager> citizens = level.getEntitiesOfClass(Villager.class,
-                new AABB(source.getPosition(), source.getPosition()).inflate(32),
-                v -> v.getTags().contains(SABLE_TAG));
-        if (citizens.isEmpty()) {
-            source.sendFailure(Component.literal("No tagged Sable nearby."));
-            return 0;
-        }
-        Villager sable = citizens.get(0);
-        if (sable.getPersistentData().contains(ROOT)
-                || sable.getPersistentData().getBoolean("HearthboundTravelActive")) {
-            source.sendFailure(Component.literal("Sable already has a job; finish or recover it first."));
+        Villager sable = SableSelection.nearest(source, SableSelection::idle);
+        if (sable == null) {
+            source.sendFailure(Component.literal("No idle Sable within 32 blocks."));
             return 0;
         }
         if (!assignCitizen(sable, from, to, count)) {
@@ -94,15 +84,12 @@ public final class BarrelHaulController {
     }
 
     public static int status(CommandSourceStack source) {
-        ServerLevel level = source.getLevel();
-        List<Villager> citizens = level.getEntitiesOfClass(Villager.class,
-                new AABB(source.getPosition(), source.getPosition()).inflate(32),
-                v -> v.getTags().contains(SABLE_TAG));
-        if (citizens.isEmpty()) {
+        Villager worker = SableSelection.nearest(source, v -> true);
+        if (worker == null) {
             source.sendFailure(Component.literal("No tagged Sable nearby."));
             return 0;
         }
-        CompoundTag data = citizens.get(0).getPersistentData();
+        CompoundTag data = worker.getPersistentData();
         if (!data.contains(ROOT, 10)) {
             source.sendSuccess(() -> Component.literal("No active haul. Last result: " +
                     data.getString("HearthboundLastHaulResult")), false);

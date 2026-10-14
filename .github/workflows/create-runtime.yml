@@ -8,6 +8,7 @@ on:
       - 'src/main/java/dev/hearthbound/jobs/**'
       - 'scripts/install-create-ci.py'
       - 'scripts/forge-create-probe.py'
+      - 'scripts/worker-selection-probe.py'
       - '.github/workflows/create-runtime.yml'
 permissions:
   contents: read

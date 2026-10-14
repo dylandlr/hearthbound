@@ -237,3 +237,10 @@ print("Stopped work order:", stopped, flush=True)
 if "First Mill scheduling stopped" not in stopped:
     raise AssertionError("Could not disable work-order scheduling: " + stopped)
 print("HB_FIRST_MILL_CONTROLS_PASS", flush=True)
+
+# Commands must target the same nearest eligible citizen in a multi-worker colony.
+selection_spec = importlib.util.spec_from_file_location(
+    "worker_selection", pathlib.Path(__file__).with_name("worker-selection-probe.py"))
+selection = importlib.util.module_from_spec(selection_spec)
+selection_spec.loader.exec_module(selection)
+selection.run(module.execute)

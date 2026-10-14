@@ -12,6 +12,7 @@ import dev.hearthbound.create.MillSupplyTransfer;
 import dev.hearthbound.create.FlourCollection;
 import dev.hearthbound.jobs.BarrelHaulController;
 import dev.hearthbound.jobs.FirstMillWorkOrder;
+import dev.hearthbound.jobs.SableSelection;
 import dev.hearthbound.jobs.HaulE2EProbe;
 import dev.hearthbound.jobs.HaulRestartProbe;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -41,7 +42,7 @@ public final class HearthboundMod {
     private static final Logger LOGGER = LogManager.getLogger();
 
     public HearthboundMod() {
-        LOGGER.info("Hearthbound bootstrap loaded. Create integration pending.");
+        LOGGER.info("Hearthbound bootstrap loaded. First Mill work orders available.");
     }
 
     @Mod.EventBusSubscriber(modid = MOD_ID)
@@ -53,7 +54,7 @@ public final class HearthboundMod {
                     .then(Commands.literal("status")
                             .executes(ctx -> {
                                 ctx.getSource().sendSuccess(
-                                        () -> Component.literal("Hearthbound dev: Forge bootstrap. Sable embodiment probe available; Create controller pending."),
+                                        () -> Component.literal("Hearthbound dev: Sable travel, hauling, and First Mill work orders available. Use create_status to check optional Create support."),
                                         false);
                                 return 1;
                             }))
@@ -207,7 +208,7 @@ public final class HearthboundMod {
                                     return 0;
                                 }
                                 source.sendSuccess(() -> Component.literal(
-                                        "Spawned persistent vanilla Sable. AI jobs and Create milling are NOT active."), true);
+                                        "Spawned persistent Sable. Assign a travel, hauling, or First Mill work order to begin."), true);
                                 return 1;
                             }))
                     .then(Commands.literal("assign_sable")
@@ -249,17 +250,13 @@ public final class HearthboundMod {
                                 .then(Commands.argument("storage", BlockPosArgument.blockPos())
                                     .then(Commands.argument("count", IntegerArgumentType.integer(1, 64))
                                         .executes(ctx -> {
-                                            ServerLevel level = ctx.getSource().getLevel();
-                                            var villagers = level.getEntitiesOfClass(Villager.class,
-                                                new net.minecraft.world.phys.AABB(ctx.getSource().getPosition(),
-                                                    ctx.getSource().getPosition()).inflate(32),
-                                                v -> v.getTags().contains("hearthbound.sable")
-                                                    && !v.getPersistentData().contains("HearthboundHaul", 10));
-                                            if (villagers.isEmpty()) {
+                                            Villager worker = SableSelection.nearest(
+                                                    ctx.getSource(), SableSelection::idle);
+                                            if (worker == null) {
                                                 ctx.getSource().sendFailure(Component.literal("No available Sable nearby."));
                                                 return 0;
                                             }
-                                            boolean assigned = BarrelHaulController.assignFlourCitizen(villagers.get(0),
+                                            boolean assigned = BarrelHaulController.assignFlourCitizen(worker,
                                                 BlockPosArgument.getLoadedBlockPos(ctx, "mill"),
                                                 BlockPosArgument.getLoadedBlockPos(ctx, "storage"),
                                                 IntegerArgumentType.getInteger(ctx, "count"));
