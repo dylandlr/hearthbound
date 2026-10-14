@@ -11,6 +11,7 @@ import dev.hearthbound.create.MillstoneItemInput;
 import dev.hearthbound.create.MillSupplyTransfer;
 import dev.hearthbound.create.FlourCollection;
 import dev.hearthbound.jobs.BarrelHaulController;
+import dev.hearthbound.jobs.FirstMillWorkOrder;
 import dev.hearthbound.jobs.HaulE2EProbe;
 import dev.hearthbound.jobs.HaulRestartProbe;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -223,6 +224,18 @@ public final class HearthboundMod {
                                             BlockPosArgument.getLoadedBlockPos(ctx, "source"),
                                             BlockPosArgument.getLoadedBlockPos(ctx, "destination"),
                                             IntegerArgumentType.getInteger(ctx, "count")))))))
+                    .then(Commands.literal("mill_order")
+                            .requires(source -> source.hasPermission(2))
+                            .then(Commands.argument("wheat", BlockPosArgument.blockPos())
+                                .then(Commands.argument("mill", BlockPosArgument.blockPos())
+                                    .then(Commands.argument("flour", BlockPosArgument.blockPos())
+                                        .executes(ctx -> FirstMillWorkOrder.start(ctx.getSource(),
+                                                BlockPosArgument.getLoadedBlockPos(ctx, "wheat"),
+                                                BlockPosArgument.getLoadedBlockPos(ctx, "mill"),
+                                                BlockPosArgument.getLoadedBlockPos(ctx, "flour"))))))
+                    .then(Commands.literal("mill_order_stop")
+                            .requires(source -> source.hasPermission(2))
+                            .executes(ctx -> FirstMillWorkOrder.stop(ctx.getSource())))
                     .then(Commands.literal("haul_flour")
                             .requires(source -> source.hasPermission(2))
                             .then(Commands.argument("mill", BlockPosArgument.blockPos())
