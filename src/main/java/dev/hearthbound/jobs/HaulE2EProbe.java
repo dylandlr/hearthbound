@@ -67,6 +67,7 @@ public final class HaulE2EProbe {
         citizen.moveTo(base.getX() + 0.5, base.getY(), base.getZ() + 0.5, 0, 0);
         citizen.setCustomName(Component.literal("Sable [E2E]"));
         citizen.setPersistenceRequired();
+        if (blockAfterPickup) citizen.addTag("hearthbound.restart.probe");
         SableJobController.markSable(citizen);
         if (!level.addFreshEntity(citizen) ||
                 !BarrelHaulController.assignCitizen(citizen, sourcePos, destinationPos, 4))
