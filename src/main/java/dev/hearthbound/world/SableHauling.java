@@ -75,6 +75,15 @@ public final class SableHauling {
             return;
         }
         if (phase == TO_SOURCE) {
+            // Preflight is not an atomic reservation, but avoids removing wheat
+            // when the destination is already known to reject it.
+            BlockPos destination = BlockPos.of(tag.getLong(DESTINATION));
+            if (!level.hasChunkAt(destination)) return;
+            BlockEntity output = level.getBlockEntity(destination);
+            if (output == null || !canAccept(output, new ItemStack(Items.WHEAT))) {
+                pause(tag, "Destination unavailable or full before pickup");
+                return;
+            }
             ItemStack taken = extractWheat(entity);
             if (taken.isEmpty()) {
                 pause(tag, "No wheat available");
@@ -113,6 +122,30 @@ public final class SableHauling {
         tag.putInt(PHASE, tag.contains(CARGO) ? TO_DEST : TO_SOURCE);
         tag.remove(ERROR);
         return true;
+    }
+
+    private static boolean canAccept(BlockEntity block, ItemStack input) {
+        LazyOptional<IItemHandler> capability =
+            block.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY);
+        if (capability.isPresent()) {
+            IItemHandler handler = capability.orElseThrow(IllegalStateException::new);
+            for (int i = 0; i < handler.getSlots(); i++) {
+                ItemStack remainder = handler.insertItem(i, input.copy(), true);
+                if (remainder.getCount() < input.getCount()) return true;
+            }
+            return false;
+        }
+        if (block instanceof Container container) {
+            for (int i = 0; i < container.getContainerSize(); i++) {
+                if (!container.canPlaceItem(i, input)) continue;
+                ItemStack existing = container.getItem(i);
+                if (existing.isEmpty()) return true;
+                if (ItemStack.isSameItemSameTags(existing, input)
+                    && existing.getCount() < Math.min(
+                        container.getMaxStackSize(), existing.getMaxStackSize())) return true;
+            }
+        }
+        return false;
     }
 
     private static ItemStack extractWheat(BlockEntity block) {
