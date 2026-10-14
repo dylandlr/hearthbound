@@ -8,7 +8,7 @@ import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraftforge.items.CapabilityItemHandler;
+import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.common.util.LazyOptional;
 
@@ -126,7 +126,7 @@ public final class SableHauling {
 
     private static boolean canAccept(BlockEntity block, ItemStack input) {
         LazyOptional<IItemHandler> capability =
-            block.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY);
+            block.getCapability(ForgeCapabilities.ITEM_HANDLER);
         if (capability.isPresent()) {
             IItemHandler handler = capability.orElseThrow(IllegalStateException::new);
             for (int i = 0; i < handler.getSlots(); i++) {
@@ -149,7 +149,7 @@ public final class SableHauling {
     }
 
     private static ItemStack extractWheat(BlockEntity block) {
-        LazyOptional<IItemHandler> capability = block.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY);
+        LazyOptional<IItemHandler> capability = block.getCapability(ForgeCapabilities.ITEM_HANDLER);
         if (capability.isPresent()) {
             IItemHandler handler = capability.orElseThrow(IllegalStateException::new);
             for (int i = 0; i < handler.getSlots(); i++) {
@@ -168,7 +168,7 @@ public final class SableHauling {
     }
 
     private static ItemStack insert(BlockEntity block, ItemStack cargo) {
-        LazyOptional<IItemHandler> capability = block.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY);
+        LazyOptional<IItemHandler> capability = block.getCapability(ForgeCapabilities.ITEM_HANDLER);
         if (capability.isPresent()) {
             IItemHandler handler = capability.orElseThrow(IllegalStateException::new);
             ItemStack remaining = cargo.copy();
