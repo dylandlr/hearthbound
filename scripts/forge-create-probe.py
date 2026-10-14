@@ -53,3 +53,14 @@ for attempt in range(25):
         break
 else:
     raise AssertionError("Create millstone did not receive power from creative motor: " + measured)
+
+# Power-off regression: removing the motor must stop the same millstone.
+print("Motor removed:", module.execute("setblock 0 99 0 air"), flush=True)
+for attempt in range(25):
+    time.sleep(1)
+    measured = module.execute("hearthbound inspect_mill 0 100 0")
+    if "speed=0.0 RPM powered=false" in measured:
+        print("HB_CREATE_POWER_CUTOFF_PASS motor removed and millstone stopped", flush=True)
+        break
+else:
+    raise AssertionError("Millstone stayed powered after motor removal: " + measured)
