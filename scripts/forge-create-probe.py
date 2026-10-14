@@ -193,7 +193,7 @@ for attempt in range(140):
     flour_stock = module.execute("data get block 63 100 50 Items")
     wheat_stock = module.execute("data get block 51 100 50 Items")
     if attempt in (0, 15, 45, 90):
-        print("Work order sample", attempt, wheat_stock[:250], flour_stock[:250], "machine:", module.execute("hearthbound ci_mill_nbt 59 100 50")[:650], flush=True)
+        print("Work order sample", attempt, wheat_stock[:250], flour_stock[:250], "machine:", module.execute("hearthbound ci_mill_nbt 59 100 50")[:650], "order:", module.execute("data get entity @e[type=minecraft:villager,tag=hearthbound.sable,x=49,y=100,z=50,distance=..20,sort=nearest,limit=1] ForgeData")[:1000], "position:", module.execute("data get entity @e[type=minecraft:villager,tag=hearthbound.sable,x=49,y=100,z=50,distance=..20,sort=nearest,limit=1] Pos"), flush=True)
     if "create:wheat_flour" in flour_stock and "Count: 8b" not in wheat_stock:
         print("HB_FIRST_MILL_WORK_ORDER_PASS", flush=True)
         break
