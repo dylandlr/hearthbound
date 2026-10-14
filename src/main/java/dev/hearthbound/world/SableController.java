@@ -67,7 +67,7 @@ public final class SableController {
                             BlockPos from = BlockPosArgument.getLoadedBlockPos(ctx, "source");
                             BlockPos to = BlockPosArgument.getLoadedBlockPos(ctx, "destination");
                             try {
-                                SableHauling.assign(sable, from, to);
+                                SableHauling.assign(levelOf(sable), sable, from, to);
                             } catch (IllegalArgumentException | IllegalStateException ex) {
                                 source.sendFailure(Component.literal(ex.getMessage()));
                                 return 0;
@@ -87,6 +87,10 @@ public final class SableController {
                 ctx.getSource().sendSuccess(() -> Component.literal("Hauling resumed."), true);
                 return 1;
             })));
+    }
+
+    private static ServerLevel levelOf(Villager villager) {
+        return (ServerLevel) villager.level();
     }
 
     private static Villager nearestSable(CommandSourceStack source) {
