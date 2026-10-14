@@ -65,8 +65,30 @@ jobs:
           fi
           echo 'PASS: observed Hearthbound bootstrap and Minecraft world-ready log in real Forge dedicated server process'
           python3 scripts/forge-rcon-probe.py
-          kill -INT "$pid" 2>/dev/null || true
+          # Probe issued 'save-all flush' and 'stop' over local RCON.
           wait "$pid" || true
+          echo 'Restarting Forge against the same persisted world'
+          timeout --signal=INT --kill-after=15s 180s gradle --no-daemon runServer > forge-server-restart.log 2>&1 &
+          restart_pid=$!
+          reloaded=0
+          for i in $(seq 1 150); do
+            if grep -E -q 'Done \([0-9.]+s\)! For help, type "help"' forge-server-restart.log; then
+              reloaded=1
+              break
+            fi
+            if ! kill -0 "$restart_pid" 2>/dev/null; then
+              tail -120 forge-server-restart.log
+              exit 1
+            fi
+            sleep 1
+          done
+          if [ "$reloaded" != 1 ]; then
+            tail -120 forge-server-restart.log
+            exit 1
+          fi
+          python3 scripts/forge-rcon-probe.py after-restart
+          kill -INT "$restart_pid" 2>/dev/null || true
+          wait "$restart_pid" || true
       - name: Upload server logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -74,6 +96,7 @@ jobs:
           name: forge-server-smoke-logs
           path: |
             forge-server-output.log
+            forge-server-restart.log
             run/logs/
             run/crash-reports/
           if-no-files-found: ignore
