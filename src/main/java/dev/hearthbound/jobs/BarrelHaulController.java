@@ -81,8 +81,15 @@ public final class BarrelHaulController {
         job.putInt("Cargo", 0);
         job.putString("Result", "IN_PROGRESS");
         job.putString("JobId", java.util.UUID.randomUUID().toString());
+        job.putString("Item", "minecraft:wheat");
         TRAVEL.remove(sable.getUUID());
         sable.getPersistentData().put(ROOT, job);
+        return true;
+    }
+
+    public static boolean assignFlourCitizen(Villager sable, BlockPos mill, BlockPos storage, int count) {
+        if (!assignCitizen(sable, mill, storage, count)) return false;
+        sable.getPersistentData().getCompound(ROOT).putString("Item", "create:wheat_flour");
         return true;
     }
 
@@ -148,22 +155,28 @@ public final class BarrelHaulController {
             return;
         }
         if ("PICKUP".equals(phase)) {
-            if (!(destinationEntity instanceof BarrelBlockEntity barrel)) {
+            boolean flourJob = "create:wheat_flour".equals(job.getString("Item"));
+            if (!flourJob && !(destinationEntity instanceof BarrelBlockEntity)) {
                 job.putString("Result", "MISSING_SOURCE_BARREL");
                 return;
             }
-            int quantity = Math.min(job.getInt("Requested"), countWheat(barrel));
+            net.minecraft.world.item.Item item = flourJob ? BuiltInRegistries.ITEM.get(
+                    new ResourceLocation("create", "wheat_flour")) : Items.WHEAT;
+            int quantity = Math.min(job.getInt("Requested"), flourJob
+                    ? extractableFlour(level, target) : countWheat((BarrelBlockEntity) destinationEntity));
             if (quantity == 0) {
                 job.putString("Result", "NO_WHEAT");
                 return;
             }
             // Prevent over-extraction into a destination with no space.
             BlockPos destination = BlockPos.of(job.getLong("To"));
-            if (!level.hasChunkAt(destination) || destinationCapacity(level, destination, quantity) < quantity) {
+            if (!level.hasChunkAt(destination) || (flourJob
+                    ? flourBarrelCapacity(level, destination, item) : destinationCapacity(level, destination, quantity)) < quantity) {
                 job.putString("Result", "OUTPUT_FULL");
                 return;
             }
-            int withdrawn = removeWheat(barrel, quantity);
+            int withdrawn = flourJob ? takeFlour(level, target, quantity)
+                    : removeWheat((BarrelBlockEntity) destinationEntity, quantity);
             if (withdrawn <= 0) return;
             job.putInt("Cargo", withdrawn);
             job.putString("Phase", "DELIVER");
@@ -171,7 +184,9 @@ public final class BarrelHaulController {
             job.putString("Result", "CARRYING");
         } else if ("DELIVER".equals(phase)) {
             int cargo = job.getInt("Cargo");
-            int delivered = destinationEntity instanceof BarrelBlockEntity barrel
+            int delivered = "create:wheat_flour".equals(job.getString("Item"))
+                    ? insertFlour(level, target, cargo)
+                    : destinationEntity instanceof BarrelBlockEntity barrel
                     ? insertWheat(barrel, cargo) : insertMillWheat(level, target, cargo);
             int left = cargo - delivered;
             job.putInt("Cargo", left);
@@ -180,6 +195,64 @@ public final class BarrelHaulController {
                 persisted.putString("HearthboundLastHaulResult", "DELIVERED_" + delivered);
             } else job.putString("Result", "OUTPUT_FULL_CARRYING");
         }
+    }
+
+    private static IItemHandler millOutput(ServerLevel level, BlockPos pos) {
+        if (!isMillstone(level, pos)) return null;
+        BlockEntity entity = level.getBlockEntity(pos);
+        return entity == null ? null : entity.getCapability(ForgeCapabilities.ITEM_HANDLER, Direction.EAST).orElse(null);
+    }
+
+    private static int extractableFlour(ServerLevel level, BlockPos pos) {
+        IItemHandler output = millOutput(level, pos);
+        if (output == null) return 0;
+        var flour = BuiltInRegistries.ITEM.get(new ResourceLocation("create", "wheat_flour"));
+        int count = 0;
+        for (int i = 0; i < output.getSlots(); i++)
+            if (output.getStackInSlot(i).is(flour))
+                count += output.extractItem(i, 64, true).getCount();
+        return count;
+    }
+
+    private static int takeFlour(ServerLevel level, BlockPos pos, int amount) {
+        IItemHandler output = millOutput(level, pos);
+        if (output == null) return 0;
+        var flour = BuiltInRegistries.ITEM.get(new ResourceLocation("create", "wheat_flour"));
+        int taken = 0;
+        for (int i = 0; i < output.getSlots() && taken < amount; i++)
+            if (output.getStackInSlot(i).is(flour))
+                taken += output.extractItem(i, amount - taken, false).getCount();
+        return taken;
+    }
+
+    private static int flourBarrelCapacity(ServerLevel level, BlockPos pos, net.minecraft.world.item.Item flour) {
+        if (!(level.getBlockEntity(pos) instanceof BarrelBlockEntity barrel)) return 0;
+        int space = 0;
+        for (int i = 0; i < barrel.getContainerSize(); i++) {
+            ItemStack stack = barrel.getItem(i);
+            if (stack.isEmpty()) space += barrel.getMaxStackSize();
+            else if (stack.is(flour)) space += Math.max(0, Math.min(stack.getMaxStackSize(),
+                    barrel.getMaxStackSize()) - stack.getCount());
+        }
+        return space;
+    }
+
+    private static int insertFlour(ServerLevel level, BlockPos pos, int amount) {
+        if (!(level.getBlockEntity(pos) instanceof BarrelBlockEntity barrel)) return 0;
+        var flour = BuiltInRegistries.ITEM.get(new ResourceLocation("create", "wheat_flour"));
+        int left = amount;
+        for (int i = 0; i < barrel.getContainerSize() && left > 0; i++) {
+            ItemStack stack = barrel.getItem(i);
+            if (!stack.is(flour)) continue;
+            int n = Math.min(left, Math.max(0, Math.min(stack.getMaxStackSize(), barrel.getMaxStackSize()) - stack.getCount()));
+            if (n > 0) { stack.grow(n); barrel.setItem(i, stack); left -= n; }
+        }
+        for (int i = 0; i < barrel.getContainerSize() && left > 0; i++) {
+            if (!barrel.getItem(i).isEmpty()) continue;
+            int n = Math.min(left, Math.min(64, barrel.getMaxStackSize()));
+            barrel.setItem(i, new ItemStack(flour, n)); left -= n;
+        }
+        return amount - left;
     }
 
     private static boolean isMillstone(ServerLevel level, BlockPos pos) {
