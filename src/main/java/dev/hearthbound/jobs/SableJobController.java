@@ -58,6 +58,20 @@ public final class SableJobController {
         return Command.SINGLE_SUCCESS;
     }
 
+    public static int status(CommandSourceStack source) {
+        Villager sable = nearestSable(source.getLevel(), source.getPosition().x,
+                source.getPosition().y, source.getPosition().z);
+        if (sable == null) {
+            source.sendFailure(Component.literal("No Hearthbound Sable within 32 blocks."));
+            return 0;
+        }
+        var data = sable.getPersistentData();
+        String result = data.contains(RESULT) ? data.getString(RESULT) : "UNASSIGNED";
+        source.sendSuccess(() -> Component.literal("Sable travel: " + result +
+                "; active=" + data.getBoolean(ACTIVE)), false);
+        return 1;
+    }
+
     public static int cancel(CommandSourceStack source) {
         Villager sable = nearestSable(source.getLevel(), source.getPosition().x,
                 source.getPosition().y, source.getPosition().z);
