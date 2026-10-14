@@ -19,11 +19,13 @@ jobs:
           gradle-version: '8.8'
       - name: Start a disposable Forge dedicated server
         shell: bash
+        env:
+          HEARTHBOUND_RCON_PASSWORD: ci-local-disposable-password
         run: |
           set -euo pipefail
           mkdir -p run
           printf 'eula=true\n' > run/eula.txt
-          printf 'online-mode=false\nlevel-name=smoke-world\nmax-players=2\n' > run/server.properties
+          printf 'online-mode=false\nlevel-name=smoke-world\nmax-players=2\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties
           gradle --no-daemon runServer > server-smoke.log 2>&1 &
           pid=$!
           trap 'kill "$pid" 2>/dev/null || true' EXIT
@@ -52,6 +54,7 @@ jobs:
             exit 1
           fi
           echo "Hearthbound mod initialization confirmed"
+          python3 scripts/rcon_smoke.py
           grep -E 'Hearthbound bootstrap loaded|Done \(' server-smoke.log || true
       - name: Upload startup logs
         if: always()
