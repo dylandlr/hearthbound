@@ -3,6 +3,7 @@
 CI-only: downloads public released mod jars, never commits them to git.
 """
 import json
+import hashlib
 import pathlib
 import urllib.parse
 import urllib.request
@@ -36,9 +37,17 @@ def install(project, pinned=None):
     path = OUT / pathlib.Path(jar["filename"]).name
     print("Installing", version["name"], "->", path, flush=True)
     req = urllib.request.Request(jar["url"], headers={"User-Agent": "hearthbound-ci/0.1"})
+    expected = jar.get("hashes", {}).get("sha512")
+    if not expected:
+        raise RuntimeError("No SHA-512 supplied for " + jar["filename"])
+    digest = hashlib.sha512()
     with urllib.request.urlopen(req, timeout=120) as src, path.open("wb") as dst:
         while data := src.read(262144):
+            digest.update(data)
             dst.write(data)
+    if digest.hexdigest().lower() != expected.lower():
+        path.unlink(missing_ok=True)
+        raise RuntimeError("SHA-512 mismatch for " + jar["filename"])
     for dep in version.get("dependencies", []):
         if dep.get("dependency_type") == "required":
             if dep.get("project_id"):
