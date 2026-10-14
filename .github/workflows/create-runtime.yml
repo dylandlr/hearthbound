@@ -5,6 +5,7 @@ on:
     branches: [feature/first-mill-foundation]
     paths:
       - 'src/main/java/dev/hearthbound/create/**'
+      - 'src/main/java/dev/hearthbound/jobs/**'
       - 'scripts/install-create-ci.py'
       - 'scripts/forge-create-probe.py'
       - '.github/workflows/create-runtime.yml'
