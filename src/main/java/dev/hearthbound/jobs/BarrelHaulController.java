@@ -2,6 +2,9 @@ package dev.hearthbound.jobs;
 
 import dev.hearthbound.HearthboundMod;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.UUID;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -27,6 +30,7 @@ import net.minecraftforge.fml.common.Mod;
 public final class BarrelHaulController {
     private static final String ROOT = "HearthboundHaul";
     private static final String SABLE_TAG = "hearthbound.sable";
+    private static final Map<UUID, TravelProgress> TRAVEL = new HashMap<>();
     private BarrelHaulController() {}
 
     public static int assign(CommandSourceStack source, BlockPos from, BlockPos to, int count) {
@@ -57,6 +61,8 @@ public final class BarrelHaulController {
         job.putInt("Requested", count);
         job.putInt("Cargo", 0);
         job.putString("Result", "IN_PROGRESS");
+        job.putString("JobId", java.util.UUID.randomUUID().toString());
+        TRAVEL.remove(sable.getUUID());
         sable.getPersistentData().put(ROOT, job);
         source.sendSuccess(() -> Component.literal("Assigned Sable: carry up to " + count
                 + " wheat between two real barrels."), false);
@@ -95,15 +101,29 @@ public final class BarrelHaulController {
         if (!(sable.level() instanceof ServerLevel level)) return;
         String phase = job.getString("Phase");
         BlockPos target = BlockPos.of(job.getLong(phase.equals("PICKUP") ? "From" : "To"));
+        if (job.getBoolean("Paused")) return;
         if (!level.hasChunkAt(target)) {
             sable.getNavigation().stop();
             job.putString("Result", "WAITING_FOR_CHUNK");
             return;
         }
-        if (sable.distanceToSqr(target.getX() + .5, target.getY() + .5, target.getZ() + .5) > 6.25) {
+        double distanceSq = sable.distanceToSqr(target.getX() + .5, target.getY() + .5, target.getZ() + .5);
+        if (distanceSq > 6.25) {
+            long gameTick = level.getGameTime();
+            TravelProgress watch = TRAVEL.computeIfAbsent(sable.getUUID(),
+                    id -> new TravelProgress(gameTick, distanceSq));
+            TravelProgress.Outcome outcome = watch.sample(gameTick, distanceSq);
+            if (outcome == TravelProgress.Outcome.STALLED || outcome == TravelProgress.Outcome.TIMED_OUT) {
+                job.putBoolean("Paused", true);
+                job.putString("Result", outcome.name() + "_CARGO_" + job.getInt("Cargo"));
+                sable.getNavigation().stop();
+                TRAVEL.remove(sable.getUUID());
+                return;
+            }
             sable.getNavigation().moveTo(target.getX() + .5, target.getY(), target.getZ() + .5, 1.0);
             return;
         }
+        TRAVEL.remove(sable.getUUID());
         sable.getNavigation().stop();
         if (!(level.getBlockEntity(target) instanceof BarrelBlockEntity barrel)) {
             job.putString("Result", "MISSING_BARREL");
@@ -127,6 +147,7 @@ public final class BarrelHaulController {
             if (withdrawn <= 0) return;
             job.putInt("Cargo", withdrawn);
             job.putString("Phase", "DELIVER");
+            TRAVEL.remove(sable.getUUID());
             job.putString("Result", "CARRYING");
         } else if ("DELIVER".equals(phase)) {
             int cargo = job.getInt("Cargo");
