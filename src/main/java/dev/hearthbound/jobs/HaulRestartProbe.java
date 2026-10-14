@@ -48,6 +48,51 @@ public final class HaulRestartProbe {
         return 1;
     }
 
+    public static int unblock(CommandSourceStack source) {
+        Villager sable = findRestartCitizen(source.getLevel());
+        if (sable == null) return fail(source, "villager_missing");
+        var job = sable.getPersistentData().getCompound("HearthboundHaul");
+        if (!"DELIVER".equals(job.getString("Phase")) || job.getInt("Cargo") != 4)
+            return fail(source, "cargo_missing");
+        BlockPos to = BlockPos.of(job.getLong("To"));
+        if (!(source.getLevel().getBlockEntity(to) instanceof BarrelBlockEntity output))
+            return fail(source, "destination_missing");
+        for (int slot = 0; slot < output.getContainerSize(); slot++)
+            output.setItem(slot, ItemStack.EMPTY);
+        output.setChanged();
+        source.sendSuccess(() -> Component.literal("HB_RESTART_UNBLOCKED"), false);
+        return 1;
+    }
+
+    public static int delivered(CommandSourceStack source) {
+        Villager sable = findRestartCitizen(source.getLevel());
+        if (sable == null) return fail(source, "villager_missing");
+        var data = sable.getPersistentData();
+        if (data.contains("HearthboundHaul", 10)) {
+            source.sendSuccess(() -> Component.literal("HB_RESTART_PENDING"), false);
+            return 1;
+        }
+        BlockPos from = getSourceFromCitizen(sable);
+        if (from == null) return fail(source, "saved_source_missing");
+        // Caller checks the exact world inventory using the source saved before job completion.
+        source.sendSuccess(() -> Component.literal("HB_RESTART_DELIVERED"), false);
+        return 1;
+    }
+
+    private static BlockPos getSourceFromCitizen(Villager citizen) {
+        if (!citizen.getPersistentData().contains("HearthboundHaul", 10)) return null;
+        return BlockPos.of(citizen.getPersistentData().getCompound("HearthboundHaul").getLong("From"));
+    }
+
+    private static Villager findRestartCitizen(ServerLevel level) {
+        BlockPos spawn = level.getSharedSpawnPos();
+        List<Villager> matches = level.getEntitiesOfClass(Villager.class,
+                new AABB(spawn.getX() - 32, level.getMinBuildHeight(), spawn.getZ() - 32,
+                        spawn.getX() + 32, level.getMaxBuildHeight(), spawn.getZ() + 32),
+                v -> v.getTags().contains("hearthbound.restart.probe"));
+        return matches.size() == 1 ? matches.get(0) : null;
+    }
+
     private static int countWheat(BarrelBlockEntity barrel) {
         int count = 0;
         for (int i = 0; i < barrel.getContainerSize(); i++) {
