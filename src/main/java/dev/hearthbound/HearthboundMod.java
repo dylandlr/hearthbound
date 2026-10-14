@@ -11,6 +11,11 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.npc.Villager;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.BarrelBlockEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -41,6 +46,50 @@ public final class HearthboundMod {
                                 ctx.getSource().sendSuccess(
                                         () -> Component.literal("Hearthbound dev: Forge bootstrap. Sable embodiment probe available; Create controller pending."),
                                         false);
+                                return 1;
+                            }))
+                    .then(Commands.literal("ci_probe")
+                            .requires(source -> source.hasPermission(2))
+                            .executes(ctx -> {
+                                ServerLevel level = ctx.getSource().getLevel();
+                                BlockPos center = BlockPos.containing(ctx.getSource().getPosition());
+                                // World mutations occur on the Minecraft server command thread.
+                                BlockPos sourcePos = center.offset(2, 0, 0);
+                                BlockPos destPos = center.offset(4, 0, 0);
+                                if (!level.hasChunkAt(sourcePos) || !level.hasChunkAt(destPos)) {
+                                    ctx.getSource().sendFailure(Component.literal("HB_CI_PROBE_FAIL chunks"));
+                                    return 0;
+                                }
+                                level.setBlockAndUpdate(sourcePos, Blocks.BARREL.defaultBlockState());
+                                level.setBlockAndUpdate(destPos, Blocks.BARREL.defaultBlockState());
+                                if (!(level.getBlockEntity(sourcePos) instanceof BarrelBlockEntity input)
+                                        || !(level.getBlockEntity(destPos) instanceof BarrelBlockEntity output)) {
+                                    ctx.getSource().sendFailure(Component.literal("HB_CI_PROBE_FAIL barrels"));
+                                    return 0;
+                                }
+                                input.setItem(0, new ItemStack(Items.WHEAT, 8));
+                                boolean ok = input.getItem(0).getCount() == 8
+                                        && output.isEmpty();
+                                Villager probe = EntityType.VILLAGER.create(level);
+                                if (probe == null) ok = false;
+                                else {
+                                    probe.moveTo(center.getX() + .5, center.getY(), center.getZ() + .5,
+                                            0.0F, 0.0F);
+                                    SableJobController.markSable(probe);
+                                    probe.setCustomName(Component.literal("Sable [CI probe]"));
+                                    probe.setPersistenceRequired();
+                                    ok = level.addFreshEntity(probe)
+                                            && probe.getTags().contains("hearthbound.sable") && ok;
+                                    probe.discard();
+                                }
+                                final boolean passed = ok;
+                                if (!passed) {
+                                    ctx.getSource().sendFailure(Component.literal("HB_CI_PROBE_FAIL entity_or_inventory"));
+                                    return 0;
+                                }
+                                ctx.getSource().sendSuccess(
+                                        () -> Component.literal("HB_CI_PROBE_PASS real_barrels_wheat_8_tagged_villager"),
+                                        true);
                                 return 1;
                             }))
                     .then(Commands.literal("spawn_sable")
