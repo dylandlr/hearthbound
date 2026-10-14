@@ -22,6 +22,13 @@ jobs:
       - name: Compile and test the full Forge project
         shell: bash
         run: gradle --no-daemon --stacktrace build
+      - name: Upload development mod JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: hearthbound-forge-dev-jar
+          path: build/libs/*.jar
+          if-no-files-found: error
+          retention-days: 14
       - name: Upload build diagnostics
         if: always()
         uses: actions/upload-artifact@v4
