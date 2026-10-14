@@ -43,6 +43,12 @@ def execute(command):
         return response
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == "after-restart":
+        restored = execute("hearthbound ci_restart_check")
+        print(restored)
+        if "HB_RESTART_PASS" not in restored:
+            raise AssertionError("Saved cargo did not survive reboot: " + restored)
+        sys.exit(0)
     for attempt in range(30):
         try:
             result = execute("hearthbound ci_probe")
@@ -81,6 +87,17 @@ if __name__ == "__main__":
                     break
             else:
                 raise AssertionError("Post-pickup blockage test failed: " + blocked)
+            assert "HB_HAUL_E2E_STARTED" in execute("hearthbound ci_restart_stage")
+            for n in range(50):
+                time.sleep(1)
+                stage = execute("hearthbound ci_haul_check")
+                if "HB_HAUL_CARGO_BLOCKED_PASS" in stage:
+                    print("HB_RESTART_STAGED")
+                    break
+            else:
+                raise AssertionError("Restart cargo staging failed: " + stage)
+            print(execute("save-all flush"))
+            print(execute("stop"))
             sys.exit(0)
         except (OSError, TimeoutError) as exc:
             if attempt == 29:
