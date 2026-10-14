@@ -81,6 +81,8 @@ public final class HearthboundMod {
                                             BlockPosArgument.getLoadedBlockPos(ctx, "source"),
                                             BlockPosArgument.getLoadedBlockPos(ctx, "destination"),
                                             IntegerArgumentType.getInteger(ctx, "count")))))))
+                    .then(Commands.literal("haul_status")
+                            .executes(ctx -> BarrelHaulController.status(ctx.getSource())))
                     .then(Commands.literal("sable_status")
                             .executes(ctx -> SableJobController.status(ctx.getSource())))
                     .then(Commands.literal("cancel_sable")
