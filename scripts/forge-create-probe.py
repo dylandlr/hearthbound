@@ -93,3 +93,14 @@ for attempt in range(90):
         break
 else:
     raise AssertionError("Create never produced wheat flour from four input wheat: " + processing)
+
+# Exercise Forge automation interface on a different fresh millstone, not /data merge.
+print(module.execute("setblock 2 100 0 create:millstone"), flush=True)
+feed = module.execute("hearthbound ci_mill_feed 2 100 0 4")
+print("Forge item handler feed:", feed, flush=True)
+if "HB_CREATE_WHEAT_INSERTED amount=4" not in feed:
+    raise AssertionError("Real millstone item capability rejected wheat: " + feed)
+input_state = module.execute("hearthbound ci_mill_nbt 2 100 0")
+if "minecraft:wheat" not in input_state:
+    raise AssertionError("Capability insertion did not reach Create inventory: " + input_state)
+print("HB_CREATE_CAPABILITY_INPUT_PASS", flush=True)
