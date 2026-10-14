@@ -1,0 +1,21 @@
+name: Haul ledger regression
+on:
+  pull_request:
+  push:
+    branches:
+      - 'test/forge-gametest-foundation'
+jobs:
+  ledger:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Compile and run policy and ledger tests
+        run: |
+          mkdir -p build/ledger-test
+          javac -d build/ledger-test src/main/java/dev/hearthbound/ai/*.java src/test/java/dev/hearthbound/ai/*.java
+          java -cp build/ledger-test dev.hearthbound.ai.PolicyKernelTest
+          java -cp build/ledger-test dev.hearthbound.ai.HaulLedgerTest
