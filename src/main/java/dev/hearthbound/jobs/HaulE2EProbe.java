@@ -23,6 +23,7 @@ public final class HaulE2EProbe {
     private static boolean fullDestinationMode;
     private static boolean blockAfterPickupMode;
     private static boolean destinationFilledAfterPickup;
+    private static boolean restartScenario;
     private HaulE2EProbe() {}
 
     public static int start(CommandSourceStack command) {
@@ -34,6 +35,12 @@ public final class HaulE2EProbe {
     }
 
     public static int startBlockAfterPickup(CommandSourceStack command) {
+        restartScenario = false;
+        return startScenario(command, false, true);
+    }
+
+    public static int startRestart(CommandSourceStack command) {
+        restartScenario = true;
         return startScenario(command, false, true);
     }
 
@@ -67,7 +74,7 @@ public final class HaulE2EProbe {
         citizen.moveTo(base.getX() + 0.5, base.getY(), base.getZ() + 0.5, 0, 0);
         citizen.setCustomName(Component.literal("Sable [E2E]"));
         citizen.setPersistenceRequired();
-        if (blockAfterPickup) citizen.addTag("hearthbound.restart.probe");
+        if (restartScenario) citizen.addTag("hearthbound.restart.probe");
         SableJobController.markSable(citizen);
         if (!level.addFreshEntity(citizen) ||
                 !BarrelHaulController.assignCitizen(citizen, sourcePos, destinationPos, 4))
