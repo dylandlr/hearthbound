@@ -6,6 +6,7 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import dev.hearthbound.jobs.SableJobController;
 import dev.hearthbound.jobs.BarrelHaulController;
+import dev.hearthbound.jobs.HaulE2EProbe;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -49,6 +50,12 @@ public final class HearthboundMod {
                                         false);
                                 return 1;
                             }))
+                    .then(Commands.literal("ci_haul_start")
+                            .requires(source -> source.hasPermission(2))
+                            .executes(ctx -> HaulE2EProbe.start(ctx.getSource())))
+                    .then(Commands.literal("ci_haul_check")
+                            .requires(source -> source.hasPermission(2))
+                            .executes(ctx -> HaulE2EProbe.check(ctx.getSource())))
                     .then(Commands.literal("ci_probe")
                             .requires(source -> source.hasPermission(2))
                             .executes(ctx -> {
