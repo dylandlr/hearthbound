@@ -3,6 +3,8 @@ package dev.hearthbound;
 import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
+import dev.hearthbound.jobs.SableJobController;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
@@ -54,6 +56,7 @@ public final class HearthboundMod {
                                 sable.setCustomName(Component.literal("Sable [prototype]"));
                                 sable.setCustomNameVisible(true);
                                 sable.setPersistenceRequired();
+                                SableJobController.markSable(sable);
                                 if (!level.addFreshEntity(sable)) {
                                     source.sendFailure(Component.literal("Failed to add Sable to world."));
                                     return 0;
@@ -61,7 +64,15 @@ public final class HearthboundMod {
                                 source.sendSuccess(() -> Component.literal(
                                         "Spawned persistent vanilla Sable. AI jobs and Create milling are NOT active."), true);
                                 return 1;
-                            })));
+                            }))
+                    .then(Commands.literal("assign_sable")
+                            .requires(source -> source.hasPermission(2))
+                            .then(Commands.argument("target", BlockPosArgument.blockPos())
+                                    .executes(ctx -> SableJobController.assign(ctx.getSource(),
+                                            BlockPosArgument.getLoadedBlockPos(ctx, "target")))))
+                    .then(Commands.literal("cancel_sable")
+                            .requires(source -> source.hasPermission(2))
+                            .executes(ctx -> SableJobController.cancel(ctx.getSource()))));
         }
     }
 }
