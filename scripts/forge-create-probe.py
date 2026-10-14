@@ -207,6 +207,15 @@ for attempt in range(140):
                 print("Second cycle sample", extra, second[:400], flush=True)
             if __import__("re").search(r'create:wheat_flour", Count:\s*[2-9]b', second):
                 print("HB_FIRST_MILL_SECOND_CYCLE_PASS", flush=True)
+                current = module.execute("execute positioned 49 100 50 run hearthbound mill_order_status")
+                print("Active work order:", current, flush=True)
+                if "First Mill: state=" not in current:
+                    raise AssertionError("Work-order management status unavailable: " + current)
+                stopped = module.execute("execute positioned 49 100 50 run hearthbound mill_order_stop")
+                print("Stopped work order:", stopped, flush=True)
+                if "First Mill scheduling stopped" not in stopped:
+                    raise AssertionError("Could not disable work-order scheduling: " + stopped)
+                print("HB_FIRST_MILL_CONTROLS_PASS", flush=True)
                 break
         else:
             raise AssertionError("First Mill did not autonomously collect a second flour: " + second)
