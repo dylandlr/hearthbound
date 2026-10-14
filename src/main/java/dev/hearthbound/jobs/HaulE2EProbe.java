@@ -85,8 +85,17 @@ public final class HaulE2EProbe {
                 ? state.getCompound("HearthboundHaul").getInt("Cargo") : 0;
         if (from + to + cargo != 8) return fail(command, "inventory_conservation");
         if (fullDestinationMode) {
-            boolean noWheatLost = from == 8 && to == 0 && cargo == 0;
+            boolean fullOfCobblestone = true;
+            for (int slot = 0; slot < output.getContainerSize(); slot++) {
+                ItemStack stack = output.getItem(slot);
+                if (!stack.is(Items.COBBLESTONE) || stack.getCount() != 64) {
+                    fullOfCobblestone = false;
+                    break;
+                }
+            }
+            boolean noWheatLost = from == 8 && to == 0 && cargo == 0 && fullOfCobblestone;
             boolean rejected = state.contains("HearthboundHaul", 10)
+                    && "PICKUP".equals(state.getCompound("HearthboundHaul").getString("Phase"))
                     && "OUTPUT_FULL".equals(state.getCompound("HearthboundHaul").getString("Result"));
             if (noWheatLost && rejected) {
                 command.sendSuccess(() -> Component.literal("HB_HAUL_FULL_PASS source=8 dest=0 cargo=0"), false);
