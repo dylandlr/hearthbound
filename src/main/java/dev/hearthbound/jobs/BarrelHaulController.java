@@ -54,6 +54,13 @@ public final class BarrelHaulController {
             source.sendFailure(Component.literal("Sable already has a job; finish or recover it first."));
             return 0;
         }
+        return assignCitizen(sable, from, to, count) ? 1 : 0;
+    }
+
+    /** Same server-side job assignment used by commands and world integration probes. */
+    public static boolean assignCitizen(Villager sable, BlockPos from, BlockPos to, int count) {
+        if (count < 1 || count > 64 || from.equals(to) || sable.getPersistentData().contains(ROOT)
+                || sable.getPersistentData().getBoolean("HearthboundTravelActive")) return false;
         CompoundTag job = new CompoundTag();
         job.putString("Phase", "PICKUP");
         job.putLong("From", from.asLong());
@@ -64,9 +71,7 @@ public final class BarrelHaulController {
         job.putString("JobId", java.util.UUID.randomUUID().toString());
         TRAVEL.remove(sable.getUUID());
         sable.getPersistentData().put(ROOT, job);
-        source.sendSuccess(() -> Component.literal("Assigned Sable: carry up to " + count
-                + " wheat between two real barrels."), false);
-        return 1;
+        return true;
     }
 
     public static int status(CommandSourceStack source) {
