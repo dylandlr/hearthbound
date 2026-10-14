@@ -223,6 +223,30 @@ public final class HearthboundMod {
                                             BlockPosArgument.getLoadedBlockPos(ctx, "source"),
                                             BlockPosArgument.getLoadedBlockPos(ctx, "destination"),
                                             IntegerArgumentType.getInteger(ctx, "count")))))))
+                    .then(Commands.literal("haul_flour")
+                            .requires(source -> source.hasPermission(2))
+                            .then(Commands.argument("mill", BlockPosArgument.blockPos())
+                                .then(Commands.argument("storage", BlockPosArgument.blockPos())
+                                    .then(Commands.argument("count", IntegerArgumentType.integer(1, 64))
+                                        .executes(ctx -> {
+                                            ServerLevel level = ctx.getSource().getLevel();
+                                            var villagers = level.getEntitiesOfClass(Villager.class,
+                                                new net.minecraft.world.phys.AABB(ctx.getSource().getPosition(),
+                                                    ctx.getSource().getPosition()).inflate(32),
+                                                v -> v.getTags().contains("hearthbound.sable")
+                                                    && !v.getPersistentData().contains("HearthboundHaul", 10));
+                                            if (villagers.isEmpty()) {
+                                                ctx.getSource().sendFailure(Component.literal("No available Sable nearby."));
+                                                return 0;
+                                            }
+                                            boolean assigned = BarrelHaulController.assignFlourCitizen(villagers.get(0),
+                                                BlockPosArgument.getLoadedBlockPos(ctx, "mill"),
+                                                BlockPosArgument.getLoadedBlockPos(ctx, "storage"),
+                                                IntegerArgumentType.getInteger(ctx, "count"));
+                                            if (!assigned) return 0;
+                                            ctx.getSource().sendSuccess(() -> Component.literal("Sable assigned to collect flour."), false);
+                                            return 1;
+                                        })))))
                     .then(Commands.literal("haul_status")
                             .executes(ctx -> BarrelHaulController.status(ctx.getSource())))
                     .then(Commands.literal("sable_status")
