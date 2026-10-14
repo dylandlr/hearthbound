@@ -17,6 +17,14 @@ minecraft {
     }
 }
 repositories { mavenCentral() }
-dependencies { minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}" }
+dependencies {
+    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+test {
+    useJUnitPlatform()
+}
+
 tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
 jar { manifest { attributes(['Specification-Title': 'hearthbound', 'Implementation-Title': 'hearthbound', 'Implementation-Version': project.version]) } }
