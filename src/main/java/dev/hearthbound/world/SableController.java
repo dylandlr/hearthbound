@@ -81,6 +81,21 @@ public final class SableController {
                 ctx.getSource().sendSuccess(() -> Component.literal(SableHauling.status(sable)), false);
                 return 1;
             }))
+            .then(Commands.literal("haul-cancel").executes(ctx -> {
+                CommandSourceStack source = ctx.getSource();
+                Villager sable = nearestSable(source);
+                if (sable == null) {
+                    source.sendFailure(Component.literal("No Sable within 16 blocks."));
+                    return 0;
+                }
+                if (!SableHauling.cancelBeforePickup(source.getLevel(), sable)) {
+                    source.sendFailure(Component.literal(
+                        "Cannot cancel: cargo may be in transit. Deliver or reconcile it first."));
+                    return 0;
+                }
+                source.sendSuccess(() -> Component.literal("Unpicked haul cancelled; source released."), true);
+                return 1;
+            }))
             .then(Commands.literal("haul-resume").executes(ctx -> {
                 Villager sable = nearestSable(ctx.getSource());
                 if (sable == null || !SableHauling.resume(sable)) return 0;
