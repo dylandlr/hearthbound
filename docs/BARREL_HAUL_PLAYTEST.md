@@ -49,3 +49,10 @@ These are **barrel block coordinates**, not standing coordinates.
 - Run fault cases, concurrent orders, and crash/restart recovery.
 - Capture real Minecraft client video showing entire transfer.
 - Only then bridge to a real powered Create millstone.
+
+## Navigation and arbitration update
+- Travel assignments are rejected while hauling is active; travel cancellation also refuses to overwrite hauling cargo.
+- The hauling controller now pauses the job on STALLED/TIMED_OUT instead of navigating forever, and reports the retained cargo count.
+- **No resume/recover command exists yet.** Paused tasks stay assigned until a tested reconciliation procedure is added; do not remove the villager or edit NBT to clear cargo.
+- Navigation progress tracking is currently in-memory and restarts on chunk load/restart. The job and cargo remain persisted, but this is not crash-atomicity.
+- A real Minecraft/Forge compile and playtest remain mandatory before merging this PR.
