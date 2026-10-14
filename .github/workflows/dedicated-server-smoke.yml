@@ -46,6 +46,12 @@ jobs:
             exit 1
           fi
           echo "Minecraft dedicated server reached ready state"
+          if ! grep -Fq 'Hearthbound bootstrap loaded.' server-smoke.log; then
+            echo "Minecraft started but Hearthbound initialization was not confirmed"
+            tail -n 120 server-smoke.log
+            exit 1
+          fi
+          echo "Hearthbound mod initialization confirmed"
           grep -E 'Hearthbound bootstrap loaded|Done \(' server-smoke.log || true
       - name: Upload startup logs
         if: always()
