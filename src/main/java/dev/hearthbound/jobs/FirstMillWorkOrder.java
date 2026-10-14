@@ -97,13 +97,24 @@ public final class FirstMillWorkOrder {
                 order.putString("State", "COLLECTING_FLOUR");
             return;
         }
-        int wheatCount = 0;
+        // Do not queue fresh deliveries while wheat is still in the millstone.\n        // This avoids a citizen collecting excess wheat and stalling with cargo.\n        if (hasMillInput(level, mill)) {\n            order.putString("State", "MILLING");\n            return;\n        }\n        int wheatCount = 0;
         for (int i = 0; i < supply.getContainerSize(); i++)
             if (supply.getItem(i).is(Items.WHEAT)) wheatCount += supply.getItem(i).getCount();
         if (wheatCount > 0) {
             if (BarrelHaulController.assignCitizen(villager, wheat, mill, Math.min(4, wheatCount)))
                 order.putString("State", "SUPPLYING_WHEAT");
         } else order.putString("State", "WAITING_FOR_WHEAT");
+    }
+
+    private static boolean hasMillInput(ServerLevel level, BlockPos pos) {
+        var entity = level.getBlockEntity(pos);
+        if (entity == null) return false;
+        var handler = entity.getCapability(net.minecraftforge.common.capabilities.ForgeCapabilities.ITEM_HANDLER,
+                net.minecraft.core.Direction.UP).orElse(null);
+        if (handler == null) return false;
+        for (int i = 0; i < handler.getSlots(); i++)
+            if (handler.getStackInSlot(i).is(Items.WHEAT)) return true;
+        return false;
     }
 
     private static boolean hasFlourOutput(ServerLevel level, BlockPos pos) {
