@@ -64,3 +64,10 @@ for attempt in range(25):
         break
 else:
     raise AssertionError("Millstone stayed powered after motor removal: " + measured)
+
+# Expose actual Create block-entity NBT for designing inventory-safe wheat processing.
+nbt = module.execute("hearthbound ci_mill_nbt 0 100 0")
+print(nbt[:2500], flush=True)
+if "HB_MILL_NBT" not in nbt:
+    raise AssertionError("Could not read real Create millstone NBT: " + nbt)
+print("HB_CREATE_NBT_PROBE_PASS", flush=True)
