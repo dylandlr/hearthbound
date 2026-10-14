@@ -63,6 +63,27 @@ public final class BarrelHaulController {
         return 1;
     }
 
+    public static int status(CommandSourceStack source) {
+        ServerLevel level = source.getLevel();
+        List<Villager> citizens = level.getEntitiesOfClass(Villager.class,
+                new AABB(source.getPosition(), source.getPosition()).inflate(32),
+                v -> v.getTags().contains(SABLE_TAG));
+        if (citizens.isEmpty()) {
+            source.sendFailure(Component.literal("No tagged Sable nearby."));
+            return 0;
+        }
+        CompoundTag data = citizens.get(0).getPersistentData();
+        if (!data.contains(ROOT, 10)) {
+            source.sendSuccess(() -> Component.literal("No active haul. Last result: " +
+                    data.getString("HearthboundLastHaulResult")), false);
+            return 1;
+        }
+        CompoundTag job = data.getCompound(ROOT);
+        source.sendSuccess(() -> Component.literal("Haul phase=" + job.getString("Phase")
+                + ", cargo=" + job.getInt("Cargo") + ", status=" + job.getString("Result")), false);
+        return 1;
+    }
+
     @SubscribeEvent
     public static void tick(LivingEvent.LivingTickEvent event) {
         Entity entity = event.getEntity();
