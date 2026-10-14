@@ -31,9 +31,11 @@ public final class SableHauling {
 
     private SableHauling() {}
 
-    public static void assign(Villager citizen, BlockPos source, BlockPos destination) {
+    public static void assign(ServerLevel level, Villager citizen, BlockPos source, BlockPos destination) {
         if (source.equals(destination)) throw new IllegalArgumentException("same endpoint");
         if (active(citizen)) throw new IllegalStateException("already carrying out a haul");
+        if (!HaulClaims.claim(level, source, citizen.getUUID()))
+            throw new IllegalStateException("source already claimed by another citizen");
         CompoundTag tag = new CompoundTag();
         tag.putLong(SOURCE, source.asLong());
         tag.putLong(DESTINATION, destination.asLong());
@@ -61,6 +63,11 @@ public final class SableHauling {
         CompoundTag tag = citizen.getPersistentData().getCompound(KEY);
         if (!tag.contains(PHASE)) return;
         int phase = tag.getInt(PHASE);
+        BlockPos claimedSource = BlockPos.of(tag.getLong(SOURCE));
+        if (phase != COMPLETE && !HaulClaims.claim(level, claimedSource, citizen.getUUID())) {
+            pause(tag, "Source claimed by another citizen; manual recovery required");
+            return;
+        }
         if (phase == PAUSED || phase == COMPLETE) return;
         BlockPos target = BlockPos.of(tag.getLong(phase == TO_SOURCE ? SOURCE : DESTINATION));
         if (!level.hasChunkAt(target)) return; // Never force distant chunk loads.
@@ -103,6 +110,7 @@ public final class SableHauling {
             if (remaining.isEmpty()) {
                 tag.remove(CARGO);
                 tag.putInt(PHASE, COMPLETE);
+                HaulClaims.release(level, claimedSource, citizen.getUUID());
             } else {
                 tag.put(CARGO, remaining.save(new CompoundTag()));
                 pause(tag, "Destination full or incompatible");
