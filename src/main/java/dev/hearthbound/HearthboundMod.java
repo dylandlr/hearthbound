@@ -9,6 +9,7 @@ import dev.hearthbound.create.CreateMillDiscovery;
 import dev.hearthbound.create.MillstoneProbe;
 import dev.hearthbound.create.MillstoneItemInput;
 import dev.hearthbound.create.MillSupplyTransfer;
+import dev.hearthbound.create.FlourCollection;
 import dev.hearthbound.jobs.BarrelHaulController;
 import dev.hearthbound.jobs.HaulE2EProbe;
 import dev.hearthbound.jobs.HaulRestartProbe;
@@ -55,6 +56,15 @@ public final class HearthboundMod {
                                         false);
                                 return 1;
                             }))
+                    .then(Commands.literal("ci_flour_collect")
+                            .requires(source -> source.hasPermission(2))
+                            .then(Commands.argument("mill", BlockPosArgument.blockPos())
+                                .then(Commands.argument("storage", BlockPosArgument.blockPos())
+                                    .then(Commands.argument("count", IntegerArgumentType.integer(1,64))
+                                        .executes(ctx -> FlourCollection.collect(ctx.getSource(),
+                                            BlockPosArgument.getLoadedBlockPos(ctx, "mill"),
+                                            BlockPosArgument.getLoadedBlockPos(ctx, "storage"),
+                                            IntegerArgumentType.getInteger(ctx, "count")))))))
                     .then(Commands.literal("ci_mill_supply")
                             .requires(source -> source.hasPermission(2))
                             .then(Commands.argument("from", BlockPosArgument.blockPos())
