@@ -177,6 +177,7 @@ else:
     raise AssertionError("Sable did not bring flour to stockpile: " + storage)
 
 # Work-order test: only the initial order is player-issued.
+print("Worker-chunk ticking:", module.execute("forceload add 48 48 66 52"), flush=True)
 print(module.execute("fill 48 99 48 66 99 52 minecraft:stone"), flush=True)
 print(module.execute("setblock 51 100 50 minecraft:barrel"), flush=True)
 print(module.execute('data merge block 51 100 50 {Items:[{Slot:0b,id:"minecraft:wheat",Count:8b}]}'), flush=True)
