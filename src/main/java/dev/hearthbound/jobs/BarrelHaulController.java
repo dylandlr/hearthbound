@@ -7,6 +7,12 @@ import java.util.HashMap;
 import java.util.UUID;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.common.capabilities.ForgeCapabilities;
+import net.minecraftforge.items.IItemHandler;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -37,7 +43,8 @@ public final class BarrelHaulController {
         ServerLevel level = source.getLevel();
         if (count < 1 || count > 64 || from.equals(to) || !level.hasChunkAt(from) || !level.hasChunkAt(to)
                 || !(level.getBlockEntity(from) instanceof BarrelBlockEntity)
-                || !(level.getBlockEntity(to) instanceof BarrelBlockEntity)) {
+                || !(level.getBlockEntity(to) instanceof BarrelBlockEntity)
+                    && !isMillstone(level, to)) {
             source.sendFailure(Component.literal("Use two loaded, distinct barrels and 1-64 wheat."));
             return 0;
         }
@@ -135,11 +142,16 @@ public final class BarrelHaulController {
         }
         TRAVEL.remove(sable.getUUID());
         sable.getNavigation().stop();
-        if (!(level.getBlockEntity(target) instanceof BarrelBlockEntity barrel)) {
-            job.putString("Result", "MISSING_BARREL");
+        BlockEntity destinationEntity = level.getBlockEntity(target);
+        if (destinationEntity == null) {
+            job.putString("Result", "MISSING_INVENTORY");
             return;
         }
         if ("PICKUP".equals(phase)) {
+            if (!(destinationEntity instanceof BarrelBlockEntity barrel)) {
+                job.putString("Result", "MISSING_SOURCE_BARREL");
+                return;
+            }
             int quantity = Math.min(job.getInt("Requested"), countWheat(barrel));
             if (quantity == 0) {
                 job.putString("Result", "NO_WHEAT");
@@ -147,9 +159,7 @@ public final class BarrelHaulController {
             }
             // Prevent over-extraction into a destination with no space.
             BlockPos destination = BlockPos.of(job.getLong("To"));
-            if (!level.hasChunkAt(destination) ||
-                    !(level.getBlockEntity(destination) instanceof BarrelBlockEntity receiver)
-                    || wheatCapacity(receiver) < quantity) {
+            if (!level.hasChunkAt(destination) || destinationCapacity(level, destination, quantity) < quantity) {
                 job.putString("Result", "OUTPUT_FULL");
                 return;
             }
@@ -161,7 +171,8 @@ public final class BarrelHaulController {
             job.putString("Result", "CARRYING");
         } else if ("DELIVER".equals(phase)) {
             int cargo = job.getInt("Cargo");
-            int delivered = insertWheat(barrel, cargo);
+            int delivered = destinationEntity instanceof BarrelBlockEntity barrel
+                    ? insertWheat(barrel, cargo) : insertMillWheat(level, target, cargo);
             int left = cargo - delivered;
             job.putInt("Cargo", left);
             if (left == 0) {
@@ -169,6 +180,38 @@ public final class BarrelHaulController {
                 persisted.putString("HearthboundLastHaulResult", "DELIVERED_" + delivered);
             } else job.putString("Result", "OUTPUT_FULL_CARRYING");
         }
+    }
+
+    private static boolean isMillstone(ServerLevel level, BlockPos pos) {
+        return level.getBlockState(pos).is(BuiltInRegistries.BLOCK.get(
+                new ResourceLocation("create", "millstone")));
+    }
+
+    private static IItemHandler millInput(ServerLevel level, BlockPos pos) {
+        if (!isMillstone(level, pos)) return null;
+        BlockEntity entity = level.getBlockEntity(pos);
+        if (entity == null) return null;
+        return entity.getCapability(ForgeCapabilities.ITEM_HANDLER, Direction.UP).orElse(null);
+    }
+
+    private static int destinationCapacity(ServerLevel level, BlockPos pos, int amount) {
+        BlockEntity entity = level.getBlockEntity(pos);
+        if (entity instanceof BarrelBlockEntity barrel) return wheatCapacity(barrel);
+        IItemHandler input = millInput(level, pos);
+        if (input == null) return 0;
+        ItemStack remainder = new ItemStack(Items.WHEAT, amount);
+        for (int i = 0; i < input.getSlots() && !remainder.isEmpty(); i++)
+            remainder = input.insertItem(i, remainder, true);
+        return amount - remainder.getCount();
+    }
+
+    private static int insertMillWheat(ServerLevel level, BlockPos pos, int amount) {
+        IItemHandler input = millInput(level, pos);
+        if (input == null) return 0;
+        ItemStack remainder = new ItemStack(Items.WHEAT, amount);
+        for (int i = 0; i < input.getSlots() && !remainder.isEmpty(); i++)
+            remainder = input.insertItem(i, remainder, false);
+        return amount - remainder.getCount();
     }
 
     private static int countWheat(Container inventory) {
