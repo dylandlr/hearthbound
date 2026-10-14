@@ -38,6 +38,12 @@ public final class PolicyKernelTest {
         try { observation(0, 0, 0, haul, haul); }
         catch (IllegalArgumentException expected) { duplicateRejected = true; }
         check(duplicateRejected, "duplicate IDs rejected");
-        System.out.println("PolicyKernelTest: 10 checks passed");
+        Action follow = new Action("follow", Kind.FOLLOW, 0, true);
+        check(policy.choose(observation(0, 0, 0, follow)).actionId().equals("follow"),
+            "follow is a policy selectable action");
+        check(!ActionGate.allowed(observation(0, 0, 0,
+            new Action("follow", Kind.FOLLOW, 0, false)),
+            new Decision(12, "follow", "not currently allowed")), "blocked follow rejected");
+        System.out.println("PolicyKernelTest: 12 checks passed");
     }
 }

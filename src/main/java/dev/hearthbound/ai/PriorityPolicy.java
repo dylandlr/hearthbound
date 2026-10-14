@@ -25,6 +25,7 @@ public final class PriorityPolicy implements ColonyPolicy {
             case DELIVER -> 350;
             case OPERATE -> 300;
             case HAUL -> 250;
+            case FOLLOW -> 200;
             case IDLE -> -500;
         };
         return urgency + a.priority();
