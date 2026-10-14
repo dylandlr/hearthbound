@@ -43,7 +43,8 @@ public final class FirstMillWorkOrder {
             source.sendFailure(Component.literal("No unassigned Sable within 32 blocks."));
             return 0;
         }
-        Villager worker = sable.get(0);
+        Villager worker = sable.stream().min(java.util.Comparator.comparingDouble(v ->
+                v.distanceToSqr(source.getPosition()))).orElseThrow();
         CompoundTag order = new CompoundTag();
         order.putLong("Wheat", wheat.asLong());
         order.putLong("Mill", mill.asLong());
