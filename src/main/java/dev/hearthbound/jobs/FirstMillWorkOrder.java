@@ -97,7 +97,13 @@ public final class FirstMillWorkOrder {
                 order.putString("State", "COLLECTING_FLOUR");
             return;
         }
-        // Do not queue fresh deliveries while wheat is still in the millstone.\n        // This avoids a citizen collecting excess wheat and stalling with cargo.\n        if (hasMillInput(level, mill)) {\n            order.putString("State", "MILLING");\n            return;\n        }\n        int wheatCount = 0;
+        // Do not queue fresh deliveries while wheat is still in the millstone.
+        // This avoids a citizen collecting excess wheat and stalling with cargo.
+        if (hasMillInput(level, mill)) {
+            order.putString("State", "MILLING");
+            return;
+        }
+        int wheatCount = 0;
         for (int i = 0; i < supply.getContainerSize(); i++)
             if (supply.getItem(i).is(Items.WHEAT)) wheatCount += supply.getItem(i).getCount();
         if (wheatCount > 0) {
