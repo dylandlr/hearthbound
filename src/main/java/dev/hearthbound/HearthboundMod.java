@@ -232,7 +232,7 @@ public final class HearthboundMod {
                                         .executes(ctx -> FirstMillWorkOrder.start(ctx.getSource(),
                                                 BlockPosArgument.getLoadedBlockPos(ctx, "wheat"),
                                                 BlockPosArgument.getLoadedBlockPos(ctx, "mill"),
-                                                BlockPosArgument.getLoadedBlockPos(ctx, "flour"))))))
+                                                BlockPosArgument.getLoadedBlockPos(ctx, "flour")))))))
                     .then(Commands.literal("mill_order_stop")
                             .requires(source -> source.hasPermission(2))
                             .executes(ctx -> FirstMillWorkOrder.stop(ctx.getSource())))
