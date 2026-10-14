@@ -121,6 +121,7 @@ print("HB_CREATE_BARREL_SUPPLY_PASS source=4 mill=4", flush=True)
 
 # Citizen-operated end-to-end production on an isolated walkable stone platform.
 # No direct injection or test-only instantaneous supply command in this scenario.
+print("Citizen mill chunk ticket:", module.execute("forceload add 16 16 47 31"), flush=True)
 print(module.execute("fill 20 99 20 34 99 22 minecraft:stone"), flush=True)
 print(module.execute("setblock 23 100 21 minecraft:barrel"), flush=True)
 print(module.execute('data merge block 23 100 21 {Items:[{Slot:0b,id:"minecraft:wheat",Count:8b}]}'), flush=True)
@@ -137,6 +138,7 @@ for attempt in range(100):
     supply_source = module.execute("data get block 23 100 21 Items")
     production = module.execute("hearthbound ci_mill_nbt 31 100 21")
     if attempt in (0, 9, 19, 39, 69):
+        print("Citizen mill speed:", module.execute("hearthbound inspect_mill 31 100 21"), flush=True)
         progress = module.execute("execute positioned 21 100 21 run hearthbound haul_status")
         villagers = module.execute('execute as @e[type=minecraft:villager,tag=hearthbound.sable,x=21,y=100,z=21,distance=..25,limit=1,sort=nearest] run data get entity @s Pos')
         print("Sable milling tick", attempt, supply_source[:300], production[:700], "job:", progress, "pos:", villagers, flush=True)
