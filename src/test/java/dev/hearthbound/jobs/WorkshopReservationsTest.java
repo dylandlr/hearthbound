@@ -22,6 +22,27 @@ class WorkshopReservationsTest {
         assertEquals(owner, registry.claim(mill, stranger, true)); // operator never silently steals it
         assertFalse(registry.canUse(mill, null, false));
     }
+    @Test void ownersControlBoundedPersistentSharingAndRelease() {
+        var registry = new WorkshopRegistry(); var mill = new BlockPos(4, 90, -7);
+        UUID owner = UUID.randomUUID(), collaborator = UUID.randomUUID(), stranger = UUID.randomUUID();
+        registry.claim(mill, owner, false);
+        assertTrue(registry.share(mill, owner, collaborator, false));
+        assertTrue(registry.canUse(mill, collaborator, false));
+        assertFalse(registry.canManage(mill, collaborator, false));
+        assertFalse(registry.share(mill, stranger, stranger, false));
+        for (int i = 1; i < WorkshopRegistry.MAX_SHARED; i++)
+            assertTrue(registry.share(mill, owner, UUID.randomUUID(), false));
+        assertFalse(registry.share(mill, owner, UUID.randomUUID(), false));
+        var restored = WorkshopRegistry.load(registry.save(new CompoundTag()));
+        assertTrue(restored.isShared(mill, collaborator));
+        assertEquals(WorkshopRegistry.MAX_SHARED, restored.sharedWith(mill).size());
+        assertTrue(restored.revoke(mill, owner, collaborator, false));
+        assertFalse(restored.canUse(mill, collaborator, false));
+        assertTrue(restored.release(mill, owner, false));
+        assertNull(restored.owner(mill));
+        assertTrue(restored.sharedWith(mill).isEmpty());
+    }
+
     @Test void ownersAndBothLeaseEndpointsSurviveAnNbtRoundTrip() {
         UUID owner = UUID.randomUUID(), worker = UUID.randomUUID();
         var mill = new BlockPos(8, -60, 9);

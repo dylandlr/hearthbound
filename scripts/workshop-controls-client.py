@@ -46,6 +46,29 @@ def run_setup(api):
         api['screenshot'](screenshot)
         return status_screen()
 
+    def sharing_screen():
+        rows = [line for line in lines() if 'HB_WORKSHOP_SHARING_SCREEN x=' in line]
+        assert rows, 'No native workshop access page'
+        return {key: int(re.search(key + r'=(\d+)', rows[-1])[1]) for key in ['x', 'y', 'width', 'height']}
+
+    def sharing_open(expected, screenshot):
+        before = len([line for line in lines() if 'HB_WORKSHOP_SHARING_RENDER ' in line])
+        g = status_screen()
+        click(2 * (g['x'] + g['width'] - 42), 2 * (g['y'] + 16))
+        def matching():
+            recent = [line for line in lines() if 'HB_WORKSHOP_SHARING_RENDER ' in line][before:]
+            return next((line for line in recent if all(token in line for token in expected)), None)
+        witness = api['wait_for'](matching, 10, 'server-authorized native workshop access page')
+        print(witness, flush=True)
+        time.sleep(1.3)
+        api['screenshot'](screenshot)
+        return sharing_screen()
+
+    def sharing_back():
+        g = sharing_screen()
+        click(2 * (g['x'] + g['width'] / 2), 2 * (g['y'] + g['height'] - 20))
+        time.sleep(.2)
+
     def status_back():
         g = status_screen()
         click(2 * (g['x'] + g['width'] / 2), 2 * (g['y'] + g['height'] - 20))
@@ -130,4 +153,5 @@ def run_setup(api):
     assert 'HB_WORKSHOP_CONTROLS_AUTH_PASS' in api['command']('execute positioned 48 -60 0 run hearthbound ci_workshop_controls')
     button('close')
     print('HB_WORKSHOP_SETUP_UI_PASS mouse_open four_world_picks escape_cancel numeric_target non_operator_start', flush=True)
-    return {'open': open_screen, 'button': button, 'screen': screen, 'save': save_order, 'status': inspect_status, 'status_back': status_back}
+    return {'open': open_screen, 'button': button, 'screen': screen, 'save': save_order,
+            'status': inspect_status, 'status_back': status_back, 'sharing': sharing_open, 'sharing_back': sharing_back}

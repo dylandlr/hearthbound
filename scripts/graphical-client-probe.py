@@ -208,7 +208,9 @@ try:
             wait_for(lambda: 'HearthboundMillOrder:' not in rcon.execute(f'data get entity {WORKER} ForgeData'), 10, 'UI stops only scheduling')
             assert saved_haul == command(f'data get entity {WORKER} ForgeData.HearthboundHaul'), 'Stop changed in-flight cargo'
             screenshot("controls-stop-carrying.png")
-            controls_ui['status'](['owner=You', 'access=OWNER', 'mill=SELF', 'paused=true'], 'status-paused-reservation.png')
+            controls_ui['status'](['owner=You', 'access=OWNER', 'mill=SELF', 'paused=true', 'manage=true', 'release=false'], 'status-paused-reservation.png')
+            controls_ui['sharing'](['owner=You', 'manage=true', 'release=false'], 'access-paused-reservation.png')
+            controls_ui['sharing_back']()
             controls_ui['status_back']()
             assert saved_haul == command(f'data get entity {WORKER} ForgeData.HearthboundHaul'), 'Status page changed cargo'
             print('HB_WORKSHOP_STATUS_UI_PASS unclaimed_preview owner paused_reservation draft_preserved readonly', flush=True)
@@ -247,11 +249,14 @@ try:
     small_geometry = controls_ui['screen']()
     assert small_geometry['x'] >= 0 and small_geometry['y'] >= 0 and small_geometry['height'] >= 220, small_geometry
     screenshot('controls-small-window.png')
-    status_geometry = controls_ui['status'](['owner=You', 'access=OWNER', 'mill=FREE'], 'status-small-window.png')
+    status_geometry = controls_ui['status'](['owner=You', 'access=OWNER', 'mill=FREE', 'manage=true', 'release=true'], 'status-small-window.png')
     assert status_geometry['width'] <= 304 and status_geometry['height'] >= 220, status_geometry
     assert 183 + 9 < status_geometry['height'] - 30, status_geometry
+    sharing_geometry = controls_ui['sharing'](['owner=You', 'manage=true', 'release=true'], 'access-small-window.png')
+    assert sharing_geometry['width'] <= 304 and sharing_geometry['height'] >= 200, sharing_geometry
+    controls_ui['sharing_back']()
     controls_ui['status_back']()
-    print('HB_WORKSHOP_STATUS_SMALL_WINDOW_PASS owner station_rows back_button native_640x480', flush=True)
+    print('HB_WORKSHOP_STATUS_SMALL_WINDOW_PASS owner station_rows access_controls back_button native_640x480', flush=True)
     subprocess.run(['xdotool', 'windowsize', windows[-1], '1280', '720'], check=True)
     wait_for(lambda: controls_ui['screen']()['width'] == 340, 10, 'restored window layout')
     controls_ui['button']('close')
@@ -269,8 +274,9 @@ try:
         "waiting_position": wait_position, "waiting_order": order_state, "observed_mill_wait": saw_mill_wait,
         "interaction_ticks": 15, "blocked_client": blocked, "delivered_client": delivered, "target_client": target, "flour_client": flour_view,
         "controls": "Actual xdotool right-click, native screen buttons, four world picks, numeric target; player de-opped before setup",
-        "small_window": small_geometry, "status_small_window": status_geometry,
+        "small_window": small_geometry, "status_small_window": status_geometry, "access_small_window": sharing_geometry,
         "status_page": "Server-authored ownership, endpoint holders and queues; unclaimed preview and paused self reservation rendered; Back preserves draft and cargo",
+        "access_page": "Owner-only native sharing controls rendered; release disabled for a reserved mill and enabled once free",
         "control_stop_restart": "UI stops while flour cargo=1, haul NBT unchanged, Start disabled, UI resumes the haul, delivery finishes, UI restarts cached setup",
         "test_pause": "first flour haul paused in persisted job for the visual/stop assertion, then resumed"}, indent=2))
     print("HB_GRAPHICAL_WORKSHOP_CONTROLS_PASS real_mouse_keyboard non_operator_setup stop_with_cargo restart_target", flush=True)

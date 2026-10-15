@@ -1,5 +1,6 @@
 package dev.hearthbound.jobs;
 
+import java.util.UUID;
 import dev.hearthbound.HearthboundMod;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.BlockPos;
@@ -89,7 +90,12 @@ public final class FirstMillWorkOrder {
         } else if (!existing) WorkshopWaiting.setDefault(level, worker, order);
         var registry = WorkshopRegistry.get(level);
         if (!registry.canUse(mill, manager, operator)) return "This mill belongs to another supervisor.";
-        order.putUUID("WorkshopOwner", registry.claim(mill, manager, operator));
+        UUID workshopOwner = registry.claim(mill, manager, operator);
+        UUID workshopManager = manager == null ? WorkshopRegistry.SERVER_OWNER : manager;
+        // An operator repairing someone else's order schedules under the owner's authority.
+        if (operator && !registry.canUse(mill, workshopManager, false)) workshopManager = workshopOwner;
+        order.putUUID("WorkshopOwner", workshopOwner);
+        order.putUUID("WorkshopManager", workshopManager);
         registry.cancelWaiting(worker);
         order.putBoolean("Enabled", true);
         if (!existing) order.putString("State", "WAITING");
@@ -198,7 +204,11 @@ public final class FirstMillWorkOrder {
             }
             order.putUUID("WorkshopOwner", registry.claim(mill, manager, false));
         }
-        if (!order.getUUID("WorkshopOwner").equals(registry.owner(mill))) {
+        UUID manager = order.hasUUID("WorkshopManager") ? order.getUUID("WorkshopManager")
+                : data.hasUUID("HearthboundSupervisor") ? data.getUUID("HearthboundSupervisor")
+                : order.getUUID("WorkshopOwner");
+        if (!order.getUUID("WorkshopOwner").equals(registry.owner(mill))
+                || !registry.canUse(mill, manager, false)) {
             order.putString("State", "WORKSHOP_ACCESS_DENIED"); registry.cancelWaiting(villager); return;
         }
         int targetFlour = order.getInt("TargetFlour");

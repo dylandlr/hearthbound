@@ -48,6 +48,10 @@ public final class WorkshopControls {
             SESSIONS.put(player, new Session(worker.getUUID(), level.dimension().location(), level.getGameTime() + 6000));
             reply(player, worker, "", request); return;
         }
+        if (request.action() == WorkshopAction.SHARE || request.action() == WorkshopAction.REVOKE
+                || request.action() == WorkshopAction.RELEASE) {
+            handleAccess(player, worker, request); return;
+        }
         if (!canEdit(player, worker)) { reply(player, worker, "Only the supervisor or a server operator can edit this worker."); return; }
         if (request.revision() != FirstMillWorkOrder.revision(worker)) {
             reply(player, worker, "The order changed. Review the current setup and try again."); return;
@@ -81,6 +85,48 @@ public final class WorkshopControls {
             worker.getPersistentData().putUUID("HearthboundSupervisor", player.getUUID());
         reply(player, worker, existing ? "Workshop changes saved." : "Work order started.");
         SESSIONS.put(player, new Session(worker.getUUID(), level.dimension().location(), level.getGameTime() + 6000));
+    }
+
+    private static void handleAccess(ServerPlayer player, Villager worker, WorkshopAction request) {
+        var level = player.serverLevel(); BlockPos mill = request.mill();
+        if (request.revision() != FirstMillWorkOrder.revision(worker)) {
+            reply(player, worker, "The order changed. Review the current setup and try again.", request); return;
+        }
+        if (player.isSpectator() || !player.getAbilities().mayBuild || mill == null
+                || !WorkshopStatus.available(level, worker, mill, true) || !level.mayInteract(player, mill)) {
+            reply(player, worker, "Move closer to the loaded millstone where you can build.", request); return;
+        }
+        var registry = dev.hearthbound.jobs.WorkshopRegistry.get(level);
+        if (registry.owner(mill) == null) {
+            reply(player, worker, "Start an order before managing workshop access.", request); return;
+        }
+        boolean operator = player.hasPermissions(2);
+        if (!registry.canManage(mill, player.getUUID(), operator)) {
+            reply(player, worker, "Only the mill owner or a server operator can manage access.", request); return;
+        }
+        if (request.action() == WorkshopAction.RELEASE) {
+            if (!registry.release(mill, player.getUUID(), operator)) {
+                reply(player, worker, "Finish the reserved haul before releasing this workshop.", request); return;
+            }
+            reply(player, worker, "Workshop ownership and sharing released.", request); return;
+        }
+        UUID member = request.player();
+        if (member == null) { reply(player, worker, "Choose a player first.", request); return; }
+        if (request.action() == WorkshopAction.SHARE) {
+            var target = level.getServer().getPlayerList().getPlayer(member);
+            if (target == null || target.isSpectator()) {
+                reply(player, worker, "That player must be online to receive access.", request); return;
+            }
+            if (!registry.share(mill, player.getUUID(), member, operator)) {
+                reply(player, worker, "Access was not changed. A mill can have up to "
+                        + dev.hearthbound.jobs.WorkshopRegistry.MAX_SHARED + " collaborators.", request); return;
+            }
+            reply(player, worker, "Workshop access shared with " + target.getName().getString() + ".", request); return;
+        }
+        if (!registry.revoke(mill, player.getUUID(), member, operator)) {
+            reply(player, worker, "That player does not have shared access.", request); return;
+        }
+        reply(player, worker, "Shared access revoked. Active cargo and reservations are retained.", request);
     }
 
     private static void reply(ServerPlayer player, Villager worker, String notice) { reply(player, worker, notice, null); }

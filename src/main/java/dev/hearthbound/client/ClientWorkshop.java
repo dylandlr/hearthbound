@@ -54,7 +54,8 @@ public final class ClientWorkshop {
         opening = null;
         log("SNAPSHOT order=" + snapshot.worker().view().hasOrder() + " editable=" + snapshot.canEdit()
                 + " busy=" + snapshot.busy() + " revision=" + snapshot.revision() + " notice=" + snapshot.notice());
-        if (selecting < 0 && !(mc.screen instanceof WorkshopStatusScreen) && (replace || !(mc.screen instanceof WorkerOrderScreen))) mc.setScreen(new WorkerOrderScreen());
+        if (selecting < 0 && !(mc.screen instanceof WorkshopStatusScreen) && !(mc.screen instanceof WorkshopSharingScreen)
+                && (replace || !(mc.screen instanceof WorkerOrderScreen))) mc.setScreen(new WorkerOrderScreen());
     }
 
     static boolean validWorker() {
@@ -70,8 +71,16 @@ public final class ClientWorkshop {
         if (draft == null) return;
         var d = draft;
         WorkshopNetwork.CHANNEL.sendToServer(new WorkshopAction(d.snapshot.worker().workerId(), action,
-                d.snapshot.revision(), d.points[0], d.points[1], d.points[2], d.points[3], d.amount()));
+                d.snapshot.revision(), d.points[0], d.points[1], d.points[2], d.points[3], d.amount(), null));
         if (action != WorkshopAction.REFRESH) log("ACTION action=" + action + " target=" + d.amount());
+    }
+
+    static void sendAccess(int action, java.util.UUID player) {
+        if (draft == null) return;
+        var d = draft;
+        WorkshopNetwork.CHANNEL.sendToServer(new WorkshopAction(d.snapshot.worker().workerId(), action,
+                d.snapshot.revision(), d.points[0], d.points[1], d.points[2], d.points[3], d.amount(), player));
+        log("ACCESS_ACTION action=" + action + " player=" + player);
     }
 
     static void select(int slot) {
@@ -122,7 +131,7 @@ public final class ClientWorkshop {
             if (event.getHand() != InteractionHand.MAIN_HAND) return;
             consumeThroughTick = mc.level.getGameTime() + 2;
             draft = null; selecting = -1; opening = worker.getUUID();
-            WorkshopNetwork.CHANNEL.sendToServer(new WorkshopAction(opening, WorkshopAction.OPEN, 0, null, null, null, null, 0));
+            WorkshopNetwork.CHANNEL.sendToServer(new WorkshopAction(opening, WorkshopAction.OPEN, 0, null, null, null, null, 0, null));
         }
     }
 

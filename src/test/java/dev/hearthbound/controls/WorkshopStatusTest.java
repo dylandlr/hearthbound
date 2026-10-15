@@ -16,7 +16,8 @@ class WorkshopStatusTest {
         return new WorkshopStatus("You", WorkshopStatus.Access.OWNER,
                 new WorkshopStatus.Station(WorkshopStatus.State.FREE, new BlockPos(-32, -60, 17), "", 0, false, false),
                 new WorkshopStatus.Station(WorkshopStatus.State.OTHER, BlockPos.ZERO, "Sable [shared a]", 2, true, true),
-                new WorkshopStatus.Station(WorkshopStatus.State.AWAY, new BlockPos(3, 100, -1), "", 1, false, false));
+                new WorkshopStatus.Station(WorkshopStatus.State.AWAY, new BlockPos(3, 100, -1), "", 1, false, false),
+                java.util.List.of(new WorkshopStatus.Person(UUID.randomUUID(), "Alex", true, true)), true, false);
     }
     @Test void stationInspectionRoundTripsExactPositionsQueueAndPausedHolder() {
         var original = status(); var b = new FriendlyByteBuf(Unpooled.buffer());
@@ -37,10 +38,14 @@ class WorkshopStatusTest {
     }
     @Test void publicLabelsAndQueueCountsAreBounded() {
         var empty = new WorkshopStatus.Station(WorkshopStatus.State.NONE, null, "", 0, false, false);
-        assertThrows(IllegalArgumentException.class, () -> new WorkshopStatus("x".repeat(65), WorkshopStatus.Access.DENIED, empty, empty, empty));
+        assertThrows(IllegalArgumentException.class, () -> new WorkshopStatus("x".repeat(65), WorkshopStatus.Access.DENIED, empty, empty, empty, java.util.List.of(), false, false));
         assertThrows(IllegalArgumentException.class, () -> new WorkshopStatus.Station(WorkshopStatus.State.OTHER, BlockPos.ZERO, "x".repeat(65), 0, false, false));
         assertThrows(IllegalArgumentException.class, () -> new WorkshopStatus.Station(WorkshopStatus.State.FREE, BlockPos.ZERO, "", -1, false, false));
         assertThrows(IllegalArgumentException.class, () -> new WorkshopStatus.Station(WorkshopStatus.State.FREE, BlockPos.ZERO, "", 1000, false, false));
+        assertThrows(IllegalArgumentException.class, () -> new WorkshopStatus.Person(UUID.randomUUID(), "x".repeat(65), true, false));
+        assertThrows(IllegalArgumentException.class, () -> new WorkshopStatus("You", WorkshopStatus.Access.OWNER,
+                empty, empty, empty, java.util.Collections.nCopies(17,
+                new WorkshopStatus.Person(UUID.randomUUID(), "Player", false, true)), true, true));
     }
     @Test void statusExplainsTheHolderPauseAndWorkersOwnQueueMembership() {
         var mill = status().mill();
@@ -49,6 +54,9 @@ class WorkshopStatusTest {
         assertTrue(mill.queueDescription().contains("2"));
         assertTrue(mill.queueDescription().contains("this worker is queued"));
         assertTrue(status().flour().description().contains("away"));
+        assertEquals("Alex", status().people().get(0).name());
+        assertTrue(status().canManage());
+        assertFalse(status().canRelease());
         var unavailable = new WorkshopStatus.Station(WorkshopStatus.State.UNAVAILABLE, BlockPos.ZERO, "", 0, false, false);
         assertFalse(unavailable.queueDescription().contains("Waiting: 0"));
     }

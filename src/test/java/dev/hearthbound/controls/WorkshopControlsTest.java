@@ -21,10 +21,10 @@ class WorkshopControlsTest {
     }
     @Test void fixedActionPayloadPreservesWorkerRevisionAndNegativeCoordinates() {
         var request = new WorkshopAction(UUID.randomUUID(), WorkshopAction.SAVE, 987L,
-                new BlockPos(-32, -60, 17), BlockPos.ZERO, new BlockPos(3, 100, -1), null, 4096);
+                new BlockPos(-32, -60, 17), BlockPos.ZERO, new BlockPos(3, 100, -1), null, 4096, UUID.randomUUID());
         var b = new FriendlyByteBuf(Unpooled.buffer());
         try {
-            request.encode(b); assertTrue(b.readableBytes() <= 65);
+            request.encode(b); assertTrue(b.readableBytes() <= 82);
             assertEquals(request, WorkshopAction.decode(b)); assertEquals(0, b.readableBytes());
         } finally { b.release(); }
     }

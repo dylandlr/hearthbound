@@ -26,6 +26,7 @@ public final class SharedWorkshopProbe {
     private static final BlockPos MILL = new BlockPos(140, 100, 134);
     private static final BlockPos FLOUR = new BlockPos(148, 100, 134);
     private static final UUID OWNER = UUID.fromString("bab8c0a1-4c12-45c4-b128-fc048a597960");
+    private static final UUID MEMBER = UUID.fromString("f22c9bb1-d3d8-4efd-9f78-46407fb4ae12");
     private SharedWorkshopProbe() {}
 
     public static int start(CommandSourceStack source) {
@@ -47,9 +48,11 @@ public final class SharedWorkshopProbe {
         var before = b.getPersistentData().copy();
         error = FirstMillWorkOrder.configureFor(b, WHEAT, MILL, FLOUR, new BlockPos(134, 100, 138), 2, UUID.randomUUID(), false);
         if (error.isEmpty() || !before.equals(b.getPersistentData())) return fail(source, "foreign_owner_mutated_worker");
-        error = FirstMillWorkOrder.configureFor(b, WHEAT, MILL, FLOUR, new BlockPos(134, 100, 138), 2, OWNER, false);
-        if (!error.isEmpty()) return fail(source, error);
         var registry = WorkshopRegistry.get(level);
+        if (!registry.share(MILL, OWNER, MEMBER, false)) return fail(source, "share_grant");
+        error = FirstMillWorkOrder.configureFor(b, WHEAT, MILL, FLOUR, new BlockPos(134, 100, 138), 2, MEMBER, false);
+        if (!error.isEmpty() || !MEMBER.equals(b.getPersistentData().getCompound("HearthboundMillOrder").getUUID("WorkshopManager")))
+            return fail(source, "shared_member_order");
         // A discarded empty worker releases its lease without touching stock.
         var temporary = spawn(level, "temporary", 129.5, 130.5);
         if (!BarrelHaulController.assignCitizen(temporary, WHEAT, MILL, 1)) return fail(source, "temporary_assignment");
@@ -60,7 +63,7 @@ public final class SharedWorkshopProbe {
                 || b.getPersistentData().contains("HearthboundHaul", 10)
                 || registry.holder(FLOUR) != null) return fail(source, "contended_or_partial_assignment");
         a.getPersistentData().putBoolean("HearthboundSharedArm", true);
-        source.sendSuccess(() -> Component.literal("HB_SHARED_WORKSHOP_STARTED ownership_denial atomic_pair discard_release"), false);
+        source.sendSuccess(() -> Component.literal("HB_SHARED_WORKSHOP_STARTED ownership_denial shared_grant atomic_pair discard_release"), false);
         return 1;
     }
 
@@ -109,19 +112,22 @@ public final class SharedWorkshopProbe {
             return fail(source, "cargo_owner_or_lease");
         var workerBefore = b.getPersistentData().copy(); var registryBefore = registry.save(new CompoundTag());
         var status = dev.hearthbound.controls.WorkshopStatus.inspect(b, OWNER, false, WHEAT, MILL, FLOUR);
+        var shared = dev.hearthbound.controls.WorkshopStatus.inspect(b, MEMBER, false, WHEAT, MILL, FLOUR);
         var denied = dev.hearthbound.controls.WorkshopStatus.inspect(b, UUID.randomUUID(), false, WHEAT, MILL, FLOUR);
         if (status.access() != dev.hearthbound.controls.WorkshopStatus.Access.OWNER
+                || shared.access() != dev.hearthbound.controls.WorkshopStatus.Access.SHARED
+                || !registry.isShared(MILL, MEMBER) || registry.sharedWith(MILL).size() != 1
                 || denied.access() != dev.hearthbound.controls.WorkshopStatus.Access.DENIED
                 || status.mill().state() != dev.hearthbound.controls.WorkshopStatus.State.OTHER
                 || !status.mill().paused() || !status.mill().holder().equals(a.getName().getString())
                 || (!restarted && (!status.mill().queued() || status.mill().waiting() < 1))
                 || !workerBefore.equals(b.getPersistentData()) || !registryBefore.equals(registry.save(new CompoundTag())))
             return fail(source, "readonly_status_inconsistent");
-        source.sendSuccess(() -> Component.literal("HB_WORKSHOP_STATUS_SERVER_PASS owner denied other_holder paused queue readonly"), false);
+        source.sendSuccess(() -> Component.literal("HB_WORKSHOP_STATUS_SERVER_PASS owner shared denied other_holder paused queue readonly"), false);
         if (restarted && !registry.wasRestored(a.getUUID(), job.getString("JobId"))) return fail(source, "lease_not_loaded_from_disk");
         if (WorkshopRegistry.releaseOwnership(source, MILL) != 0) return fail(source, "released_busy_workshop");
         source.sendSuccess(() -> Component.literal(restarted ? "HB_SHARED_WORKSHOP_RESTART_PASS owner lease cargo=4 source=4"
-                : "HB_SHARED_WORKSHOP_STAGED stop_preserved_cargo_and_lease no_competing_extraction"), false);
+                : "HB_SHARED_WORKSHOP_STAGED stop_preserved_cargo_and_lease shared_persisted no_competing_extraction"), false);
         return 1;
     }
 
@@ -141,19 +147,33 @@ public final class SharedWorkshopProbe {
             if (net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem()).toString().equals("create:wheat_flour"))
                 flour += stack.getCount();
         }
+        var registry = WorkshopRegistry.get(level);
         if (flour < 2 || a.getPersistentData().contains("HearthboundHaul", 10)
-                || b.getPersistentData().contains("HearthboundHaul", 10)
-                || !b.getPersistentData().getCompound("HearthboundMillOrder").getString("State").equals("TARGET_REACHED")) {
+                || b.getPersistentData().contains("HearthboundHaul", 10)) {
             final int stocked = flour;
             source.sendSuccess(() -> Component.literal("HB_SHARED_WORKSHOP_PENDING flour=" + stocked), false); return 1;
         }
-        var registry = WorkshopRegistry.get(level);
+        var bData = b.getPersistentData(); var bOrder = bData.getCompound("HearthboundMillOrder");
+        if (!bData.getBoolean("HearthboundSharedRevoked")) {
+            if (!bOrder.getString("State").equals("TARGET_REACHED") || wheat(level) != 4 || flour != 2
+                    || registry.lease(a.getUUID()) != null || registry.lease(b.getUUID()) != null
+                    || !registry.revoke(MILL, OWNER, MEMBER, false)) return fail(source, "revoke_stage");
+            bOrder.putInt("TargetFlour", 3); bOrder.putString("State", "WAITING");
+            bData.putBoolean("HearthboundSharedRevoked", true);
+            source.sendSuccess(() -> Component.literal("HB_SHARED_WORKSHOP_REVOKED active_work_complete new_work_pending"), false);
+            return 1;
+        }
+        if (!bOrder.getString("State").equals("WORKSHOP_ACCESS_DENIED")) {
+            source.sendSuccess(() -> Component.literal("HB_SHARED_WORKSHOP_PENDING revoked_access_check"), false); return 1;
+        }
         if (wheat(level) != 4 || flour != 2 || registry.lease(a.getUUID()) != null || registry.lease(b.getUUID()) != null
-                || !OWNER.equals(registry.owner(MILL))) return fail(source, "final_inventory_or_lease");
-        var status = dev.hearthbound.controls.WorkshopStatus.inspect(b, OWNER, false, WHEAT, MILL, FLOUR);
-        if (status.mill().state() != dev.hearthbound.controls.WorkshopStatus.State.FREE
+                || !OWNER.equals(registry.owner(MILL)) || registry.isShared(MILL, MEMBER)
+                || registry.canUse(MILL, MEMBER, false)) return fail(source, "final_inventory_lease_or_access");
+        var status = dev.hearthbound.controls.WorkshopStatus.inspect(b, MEMBER, false, WHEAT, MILL, FLOUR);
+        if (status.access() != dev.hearthbound.controls.WorkshopStatus.Access.DENIED
+                || status.mill().state() != dev.hearthbound.controls.WorkshopStatus.State.FREE
                 || status.mill().waiting() != 0 || status.mill().queued()) return fail(source, "finished_status_not_free");
-        source.sendSuccess(() -> Component.literal("HB_SHARED_WORKSHOP_PASS two_workers source=4 flour=2 cargo=0 leases=free owner_retained"), false);
+        source.sendSuccess(() -> Component.literal("HB_SHARED_WORKSHOP_PASS two_workers source=4 flour=2 cargo=0 leases=free owner_retained shared_revoked_new_work_denied"), false);
         return 1;
     }
 

@@ -11,6 +11,7 @@ import net.minecraft.network.chat.Component;
 public final class WorkshopStatusScreen extends Screen {
     private int left, top, panelWidth, panelHeight, ticks;
     private String lastWitness = "", hovered;
+    private Button access;
     public WorkshopStatusScreen() { super(Component.literal("Workshop status")); }
 
     @Override protected void init() {
@@ -18,6 +19,8 @@ public final class WorkshopStatusScreen extends Screen {
         left = (width - panelWidth) / 2; top = (height - panelHeight) / 2;
         addRenderableWidget(Button.builder(Component.literal("Back to setup"), b -> onClose())
                 .bounds(left + 12, top + panelHeight - 30, panelWidth - 24, 20).build());
+        access = addRenderableWidget(Button.builder(Component.literal("Access"), b -> minecraft.setScreen(new WorkshopSharingScreen()))
+                .bounds(left + panelWidth - 72, top + 7, 60, 18).build());
         ClientWorkshop.log("STATUS_SCREEN x=" + left + " y=" + top + " width=" + panelWidth + " height=" + panelHeight);
         ClientWorkshop.send(WorkshopAction.REFRESH);
     }
@@ -41,6 +44,7 @@ public final class WorkshopStatusScreen extends Screen {
         gui.fill(left, top, left + panelWidth, top + panelHeight, 0xFA151B20);
         gui.fill(left, top, left + 3, top + panelHeight, 0xFF75D8AE);
         line(gui, "Workshop status", 10, 0xFFE7DFC5, mouseX, mouseY);
+        access.active = status.canManage();
         line(gui, "Mill owner: " + status.owner(), 31, 0xFFF4F4F4, mouseX, mouseY);
         line(gui, status.accessDescription(), 45, status.access() == WorkshopStatus.Access.DENIED
                 ? 0xFFFFBD66 : 0xFFBBC7CB, mouseX, mouseY);
@@ -55,10 +59,12 @@ public final class WorkshopStatusScreen extends Screen {
                     ? 0xFF75D8AE : 0xFFF4F4F4, mouseX, mouseY);
             line(gui, station.queueDescription(), row + 22, station.queued() ? 0xFFFFBD66 : 0xFFBBC7CB, mouseX, mouseY);
         }
-        line(gui, "Paused or absent workers keep their reservation.", 183, 0xFFBBC7CB, mouseX, mouseY);
+        long shared = status.people().stream().filter(WorkshopStatus.Person::shared).count();
+        line(gui, "Shared access: " + shared + " · paused or absent workers keep reservations.", 183, 0xFFBBC7CB, mouseX, mouseY);
         String witness = "owner=" + status.owner() + " access=" + status.access()
                 + " mill=" + status.mill().state() + " waiting=" + status.mill().waiting()
-                + " queued=" + status.mill().queued() + " paused=" + status.mill().paused();
+                + " queued=" + status.mill().queued() + " paused=" + status.mill().paused()
+                + " shared=" + shared + " manage=" + status.canManage() + " release=" + status.canRelease();
         if (!lastWitness.equals(witness)) {
             ClientWorkshop.log("STATUS_RENDER " + witness); lastWitness = witness;
         }

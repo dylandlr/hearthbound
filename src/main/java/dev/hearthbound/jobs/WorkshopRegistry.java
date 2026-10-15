@@ -1,7 +1,10 @@
 package dev.hearthbound.jobs;
 
 import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import dev.hearthbound.HearthboundMod;
 import net.minecraft.commands.CommandSourceStack;
@@ -21,7 +24,9 @@ import net.minecraftforge.fml.common.Mod;
 @Mod.EventBusSubscriber(modid = HearthboundMod.MOD_ID)
 public final class WorkshopRegistry extends SavedData {
     public static final UUID SERVER_OWNER = new UUID(0, 0);
+    public static final int MAX_SHARED = 8;
     private final Map<Long, UUID> owners = new HashMap<>();
+    private final Map<Long, LinkedHashSet<UUID>> shared = new HashMap<>();
     private final StationReservations reservations = new StationReservations();
     private final Map<UUID, String> restoredJobs = new HashMap<>();
 
@@ -33,9 +38,19 @@ public final class WorkshopRegistry extends SavedData {
                 "hearthbound_workshops");
     }
     public UUID owner(BlockPos mill) { return owners.get(mill.asLong()); }
+    public List<UUID> sharedWith(BlockPos mill) {
+        return List.copyOf(shared.getOrDefault(mill.asLong(), new LinkedHashSet<>()));
+    }
+    public boolean isShared(BlockPos mill, UUID manager) {
+        return manager != null && shared.getOrDefault(mill.asLong(), new LinkedHashSet<>()).contains(manager);
+    }
+    public boolean canManage(BlockPos mill, UUID manager, boolean operator) {
+        UUID owner = owner(mill);
+        return operator || (manager != null && owner != null && owner.equals(manager));
+    }
     public boolean canUse(BlockPos mill, UUID manager, boolean operator) {
         UUID owner = owner(mill);
-        return operator || (manager != null && (owner == null || owner.equals(manager)));
+        return operator || (manager != null && (owner == null || owner.equals(manager) || isShared(mill, manager)));
     }
     public UUID claim(BlockPos mill, UUID manager, boolean operator) {
         if (!canUse(mill, manager, operator)) throw new IllegalStateException("Workshop access denied");
@@ -44,6 +59,29 @@ public final class WorkshopRegistry extends SavedData {
             setDirty();
         }
         return owner(mill);
+    }
+    public boolean share(BlockPos mill, UUID manager, UUID member, boolean operator) {
+        UUID owner = owner(mill);
+        if (owner == null || member == null || member.equals(owner) || member.equals(SERVER_OWNER)
+                || !canManage(mill, manager, operator)) return false;
+        var members = shared.computeIfAbsent(mill.asLong(), ignored -> new LinkedHashSet<>());
+        if (members.contains(member)) return true;
+        if (members.size() >= MAX_SHARED) return false;
+        members.add(member); setDirty(); return true;
+    }
+    public boolean revoke(BlockPos mill, UUID manager, UUID member, boolean operator) {
+        if (member == null || !canManage(mill, manager, operator)) return false;
+        var members = shared.get(mill.asLong());
+        if (members == null || !members.remove(member)) return false;
+        if (members.isEmpty()) shared.remove(mill.asLong());
+        setDirty(); return true;
+    }
+    public boolean release(BlockPos mill, UUID manager, boolean operator) {
+        if (!canManage(mill, manager, operator) || holder(mill) != null) return false;
+        boolean changed = owners.remove(mill.asLong()) != null;
+        changed |= shared.remove(mill.asLong()) != null;
+        if (changed) setDirty();
+        return changed;
     }
     public StationReservations.Lease holder(BlockPos station) { return reservations.holder(station.asLong()); }
     public StationReservations.Lease lease(UUID worker) { return reservations.lease(worker); }
@@ -130,7 +168,8 @@ public final class WorkshopRegistry extends SavedData {
             return 0;
         }
         if (registry.owners.remove(mill.asLong()) != null) registry.setDirty();
-        source.sendSuccess(() -> Component.literal("Workshop ownership released. Save an order to claim it again."), false);
+        if (registry.shared.remove(mill.asLong()) != null) registry.setDirty();
+        source.sendSuccess(() -> Component.literal("Workshop ownership and sharing released. Save an order to claim it again."), false);
         return 1;
     }
 
@@ -140,6 +179,15 @@ public final class WorkshopRegistry extends SavedData {
             var owner = (CompoundTag) entry;
             registry.owners.put(owner.getLong("Mill"), owner.getUUID("Owner"));
         }
+        for (var entry : tag.getList("Shares", 10)) {
+            var share = (CompoundTag) entry;
+            long mill = share.getLong("Mill"); UUID member = share.getUUID("Player");
+            UUID owner = registry.owners.get(mill);
+            var members = registry.shared.computeIfAbsent(mill, ignored -> new LinkedHashSet<>());
+            if (owner != null && !member.equals(owner) && !member.equals(SERVER_OWNER) && members.size() < MAX_SHARED)
+                members.add(member);
+        }
+        registry.shared.entrySet().removeIf(entry -> entry.getValue().isEmpty());
         for (var entry : tag.getList("Leases", 10)) {
             var lease = (CompoundTag) entry;
             registry.reservations.restore(new StationReservations.Lease(lease.getUUID("Worker"),
@@ -155,6 +203,11 @@ public final class WorkshopRegistry extends SavedData {
             var entry = new CompoundTag(); entry.putLong("Mill", mill); entry.putUUID("Owner", owner);
             ownersTag.add(entry);
         });
+        var sharesTag = new ListTag();
+        shared.forEach((mill, members) -> members.forEach(member -> {
+            var entry = new CompoundTag(); entry.putLong("Mill", mill); entry.putUUID("Player", member);
+            sharesTag.add(entry);
+        }));
         var leasesTag = new ListTag();
         for (var lease : reservations.leases()) {
             var entry = new CompoundTag();
@@ -162,7 +215,7 @@ public final class WorkshopRegistry extends SavedData {
             entry.putLong("From", lease.from()); entry.putLong("To", lease.to());
             leasesTag.add(entry);
         }
-        tag.put("Owners", ownersTag); tag.put("Leases", leasesTag);
+        tag.put("Owners", ownersTag); tag.put("Shares", sharesTag); tag.put("Leases", leasesTag);
         return tag;
     }
 }
