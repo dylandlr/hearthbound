@@ -38,8 +38,17 @@ def run_setup(api):
         camera.start()
         try:
             api['aim'](); time.sleep(.5)
-            subprocess.run(['xdotool', 'click', '3'], check=True)
-            api['wait_for'](lambda: len([line for line in lines() if 'HB_WORKSHOP_SCREEN x=' in line]) > before, 10, 'right-click opens native worker screen')
+            deadline = time.monotonic() + 12
+            attempts = 0
+            while len([line for line in lines() if 'HB_WORKSHOP_SCREEN x=' in line]) <= before:
+                if time.monotonic() >= deadline:
+                    raise AssertionError('Real right-click did not open worker screen after '
+                                         + str(attempts) + ' attempts; recent controls: '
+                                         + str([line for line in lines() if 'HB_WORKSHOP_' in line][-12:]))
+                subprocess.run(['xdotool', 'click', '3'], check=True)
+                attempts += 1
+                time.sleep(.4)
+            print('HB_WORKSHOP_OPEN_UI_PASS real_right_click attempts=' + str(attempts), flush=True)
             time.sleep(.3)
         finally:
             follow.set(); camera.join(timeout=2)
