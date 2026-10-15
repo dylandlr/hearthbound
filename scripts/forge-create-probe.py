@@ -261,9 +261,15 @@ def await_wait(state):
     for attempt in range(35):
         time.sleep(.5)
         status = module.execute(prefix + "mill_order_status")
+        if attempt % 6 == 0:
+            print("Waiting point sample", state, attempt, status,
+                  "position:", module.execute("data get entity " + worker + " Pos"),
+                  "motion:", module.execute("data get entity " + worker + " Motion"), flush=True)
         if "waitState=" + state in status:
             return status
-    raise AssertionError("Waiting spot did not reach " + state + ": " + status)
+    raise AssertionError("Waiting spot did not reach " + state + ": " + status
+                         + " " + module.execute("data get entity " + worker + " Pos")
+                         + " " + module.execute("data get entity " + worker + " ForgeData"))
 
 def assert_feet(x, z):
     import re
