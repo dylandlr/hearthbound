@@ -1,0 +1,21 @@
+name: First Mill Core Smoke Tests
+on:
+  push:
+    branches: [main, feature/first-mill-foundation]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  core-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Run every pure Java smoke test
+        shell: bash
+        run: bash scripts/test-core.sh

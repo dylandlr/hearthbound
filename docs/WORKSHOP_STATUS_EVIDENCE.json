@@ -1,0 +1,212 @@
+{
+  "increment": "Native workshop ownership and station status",
+  "source_revision": "5963dc229e0dc399b26aef20faf2dec9a5324cb1",
+  "source_trees": [
+    {
+      "path": "src/main/java",
+      "sha": "95dcd65cf0c5bad12027dd13ef317147a1ce1e06"
+    },
+    {
+      "path": "src/main/resources",
+      "sha": "c577b1153ee76f48fd4e344e87e19a1d8711aa11"
+    },
+    {
+      "path": "src/test/java",
+      "sha": "dfb8cc756e9742b3ec46554c9f12b6eeaa5f9897"
+    }
+  ],
+  "control_protocol": 2,
+  "behaviors": [
+    "Status page displays public owner/access, inspected coordinates, station holders, paused reservations and live waiting counts.",
+    "Read-only draft previews preserve unsaved target/station selections. Back/Escape returns to setup without mutation.",
+    "Only already loaded, correctly typed stations within build height and 32 blocks of the worker are inspected. No chunk is forced to load.",
+    "Unavailable stations show unknown status rather than an empty queue. Active reservations retain their existing lifetime.",
+    "Owner/holder labels are bounded to 64 characters; waiting counts are capped at 999."
+  ],
+  "runs": [
+    {
+      "key": "build",
+      "id": 38764196349,
+      "job": 116523019909,
+      "conclusion": "success",
+      "source_revision": "5963dc229e0dc399b26aef20faf2dec9a5324cb1",
+      "artifacts": [
+        {
+          "id": 11987206451,
+          "name": "hearthbound-forge-dev-jar",
+          "size_in_bytes": 154062,
+          "url": "https://api.github.com/repos/dylandlr/hearthbound/actions/artifacts/11987206451",
+          "archive_download_url": "https://api.github.com/repos/dylandlr/hearthbound/actions/artifacts/11987206451/zip",
+          "expired": false,
+          "created_at": "2026-10-15T15:54:47Z",
+          "expires_at": "2026-10-29T15:54:46Z",
+          "updated_at": "2026-10-15T15:54:47Z",
+          "digest": "sha256:9b20470811f3edcdeb5cf473902a9d7b7c1f48cff1555ad5e9c7bdc6029e3a3d",
+          "workflow_run": {
+            "id": 38764196349,
+            "repository_id": 1418116426,
+            "head_repository_id": 1418116426,
+            "head_branch": "feature/first-mill-foundation",
+            "head_sha": "5963dc229e0dc399b26aef20faf2dec9a5324cb1"
+          }
+        },
+        {
+          "id": 11987117439,
+          "name": "forge-reports",
+          "size_in_bytes": 17511,
+          "url": "https://api.github.com/repos/dylandlr/hearthbound/actions/artifacts/11987117439",
+          "archive_download_url": "https://api.github.com/repos/dylandlr/hearthbound/actions/artifacts/11987117439/zip",
+          "expired": false,
+          "created_at": "2026-10-15T15:54:48Z",
+          "expires_at": "2027-01-13T15:52:52Z",
+          "updated_at": "2026-10-15T15:54:48Z",
+          "digest": "sha256:daf9dc2625e80b027bb3759267f33340dcb5a76b5b1e6b55c72f9b310424c742",
+          "workflow_run": {
+            "id": 38764196349,
+            "repository_id": 1418116426,
+            "head_repository_id": 1418116426,
+            "head_branch": "feature/first-mill-foundation",
+            "head_sha": "5963dc229e0dc399b26aef20faf2dec9a5324cb1"
+          }
+        }
+      ]
+    },
+    {
+      "key": "core",
+      "id": 38764196448,
+      "job": 116523021589,
+      "conclusion": "success",
+      "source_revision": "5963dc229e0dc399b26aef20faf2dec9a5324cb1",
+      "artifacts": []
+    },
+    {
+      "key": "dedicated",
+      "id": 38764196493,
+      "job": 116523020410,
+      "conclusion": "success",
+      "source_revision": "5963dc229e0dc399b26aef20faf2dec9a5324cb1",
+      "artifacts": []
+    },
+    {
+      "key": "create",
+      "id": 38764196404,
+      "job": 116523020627,
+      "conclusion": "success",
+      "source_revision": "5963dc229e0dc399b26aef20faf2dec9a5324cb1",
+      "artifacts": [
+        {
+          "id": 11988126365,
+          "name": "create-compatibility-logs",
+          "size_in_bytes": 108959,
+          "url": "https://api.github.com/repos/dylandlr/hearthbound/actions/artifacts/11988126365",
+          "archive_download_url": "https://api.github.com/repos/dylandlr/hearthbound/actions/artifacts/11988126365/zip",
+          "expired": false,
+          "created_at": "2026-10-15T15:58:52Z",
+          "expires_at": "2027-01-13T15:52:52Z",
+          "updated_at": "2026-10-15T15:58:52Z",
+          "digest": "sha256:1024a1c3d2eea123debe118834f0dd8d53c6c5b712285d52400eebf7538c32eb",
+          "workflow_run": {
+            "id": 38764196404,
+            "repository_id": 1418116426,
+            "head_repository_id": 1418116426,
+            "head_branch": "feature/first-mill-foundation",
+            "head_sha": "5963dc229e0dc399b26aef20faf2dec9a5324cb1"
+          }
+        }
+      ]
+    },
+    {
+      "key": "graphical",
+      "id": 38764196326,
+      "job": 116523020187,
+      "conclusion": "success",
+      "source_revision": "5963dc229e0dc399b26aef20faf2dec9a5324cb1",
+      "artifacts": [
+        {
+          "id": 11987476888,
+          "name": "graphical-client-evidence",
+          "size_in_bytes": 7182148,
+          "url": "https://api.github.com/repos/dylandlr/hearthbound/actions/artifacts/11987476888",
+          "archive_download_url": "https://api.github.com/repos/dylandlr/hearthbound/actions/artifacts/11987476888/zip",
+          "expired": false,
+          "created_at": "2026-10-15T15:58:15Z",
+          "expires_at": "2026-10-29T15:58:14Z",
+          "updated_at": "2026-10-15T15:58:15Z",
+          "digest": "sha256:36b4952f1d28afa37156f0fba3993b3a4d66c5970515a74bf5adb93862a24b81",
+          "workflow_run": {
+            "id": 38764196326,
+            "repository_id": 1418116426,
+            "head_repository_id": 1418116426,
+            "head_branch": "feature/first-mill-foundation",
+            "head_sha": "5963dc229e0dc399b26aef20faf2dec9a5324cb1"
+          }
+        }
+      ]
+    }
+  ],
+  "junit_tests": 21,
+  "core_randomized_transfer_sequences": 20000,
+  "server_witnesses": [
+    "HB_WORKSHOP_STATUS_SERVER_PASS owner denied other_holder paused queue readonly",
+    "HB_SHARED_WORKSHOP_RESTART_PASS owner lease cargo=4 source=4",
+    "HB_SHARED_WORKSHOP_PASS two_workers source=4 flour=2 cargo=0 leases=free owner_retained",
+    "HB_SHARED_WORKSHOP_NO_REPLAY_PASS"
+  ],
+  "client_witnesses": [
+    "HB_WORKSHOP_STATUS_RENDER owner=Unclaimed access=UNCLAIMED mill=FREE",
+    "HB_WORKSHOP_STATUS_PREVIEW_PASS unloaded_rejected readonly_no_claim_or_reservation",
+    "HB_WORKSHOP_STATUS_RENDER owner=You access=OWNER mill=SELF waiting=0 queued=false paused=true",
+    "HB_WORKSHOP_STATUS_UI_PASS unclaimed_preview owner paused_reservation draft_preserved readonly",
+    "HB_WORKSHOP_STATUS_SMALL_WINDOW_PASS owner station_rows back_button native_640x480",
+    "HB_GRAPHICAL_WORKSHOP_CONTROLS_PASS"
+  ],
+  "tested_small_window": {
+    "native_width": 640,
+    "native_height": 480,
+    "gui_scale": 2,
+    "max_status_width": 304,
+    "min_status_height": 220,
+    "footer_bottom": 192,
+    "back_button_top_min": 194
+  },
+  "color_contrast": [
+    {
+      "text": "#F4F4F4",
+      "background": "#202B31",
+      "ratio": 13.16
+    },
+    {
+      "text": "#E7DFC5",
+      "background": "#202B31",
+      "ratio": 10.86
+    },
+    {
+      "text": "#BBC7CB",
+      "background": "#202B31",
+      "ratio": 8.37
+    },
+    {
+      "text": "#75D8AE",
+      "background": "#202B31",
+      "ratio": 8.4
+    },
+    {
+      "text": "#FFBD66",
+      "background": "#202B31",
+      "ratio": 8.77
+    }
+  ],
+  "capture": {
+    "kind": "Continuous actual Minecraft X11 capture with no audio; screenshots and provenance in the graphical workflow artifact.",
+    "worker_teleports": false,
+    "observer_follows_by_teleport": true,
+    "manual_visual_review": false,
+    "manual_review_limit": "The local execution workspace was disconnected; render witnesses, layout assertions and logs were reviewed."
+  },
+  "scope_limits": [
+    "Offline supervisors use a generic offline label; connected supervisors display their name.",
+    "Waiting counts are per station, not queue positions. The same pending two-endpoint haul can appear on two cards.",
+    "Explicit sharing permissions and ownership mutation controls are follow-up work.",
+    "The graphical status flow checks unclaimed/self/paused/free states. Another holder and queued contention are checked by the actual shared-workshop server fixture and packet tests."
+  ]
+}

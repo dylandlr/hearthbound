@@ -1,0 +1,40 @@
+name: Forge Compile
+on:
+  push:
+    branches: [main, feature/first-mill-foundation]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  forge-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.8'
+      - name: Compile and test the full Forge project
+        shell: bash
+        run: gradle --no-daemon --stacktrace build
+      - name: Upload development mod JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: hearthbound-forge-dev-jar
+          path: build/libs/*.jar
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: forge-reports
+          path: |
+            build/reports/
+            build/test-results/
+          if-no-files-found: ignore

@@ -1,0 +1,91 @@
+{
+  "source": "230d5182ccd5bc87ff80c31c01f162cc9caf8ad0",
+  "jar_sha256": "10567943d061955c66e9c2ce86a9e5b68929a778041127ef17b3ab309c0219ab",
+  "minecraft": "1.20.1",
+  "forge": "47.4.10",
+  "create": "6.0.8",
+  "capture": "continuous X11 screen capture; no audio or time acceleration",
+  "camera": "observer player teleported to follow worker; worker never teleported",
+  "waiting_position": "Sable has the following entity data: [46.474290426209556d, -60.0d, 3.47971437207944d]\n",
+  "waiting_order": "Sable has the following entity data: {TargetFlour: 2, WaitState: \"AT_WAIT\", State: \"TARGET_REACHED\", Mill: 13469017444292L, Enabled: 1b, Flour: 15118284885956L, Wait: 12644383735748L, Wheat: 11544872095684L}\n",
+  "observed_mill_wait": true,
+  "interaction_ticks": 15,
+  "blocked_client": "[06:06:33] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] HB_CLIENT_VIEW activity=output_full cargo=4 item=minecraft:wheat flour=-1 target=0 cargoFrames=35 hudFrames=23",
+  "delivered_client": "[06:06:43] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] HB_CLIENT_VIEW activity=idle cargo=0 item=minecraft:air flour=-1 target=0 cargoFrames=0 hudFrames=35",
+  "target_client": "[06:07:18] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] HB_CLIENT_VIEW activity=target_reached cargo=0 item=minecraft:air flour=2 target=2 cargoFrames=0 hudFrames=9",
+  "flour_client": "[06:07:05] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] HB_CLIENT_VIEW activity=paused cargo=1 item=create:wheat_flour flour=0 target=2 cargoFrames=131 hudFrames=119",
+  "test_pause": "first flour haul paused in persisted job for the visual assertion, then resumed",
+  "delivered_video": "Hearthbound_Workshop_Routine.mp4",
+  "delivered_video_sha256": "e7ee82221b988e64aa4f8387c84a1151f3fd920a96f8bee180193575157769d0",
+  "duration_seconds": 34.5,
+  "capture_duration_seconds": 46.5,
+  "capture_fps": 20,
+  "resolution": [
+    1280,
+    720
+  ],
+  "audio": false,
+  "container_processing": "Continuous excerpt from capture seconds 12.0 through 46.5, re-encoded H.264 CRF 18 for exact trimming and faststart; original timing, no generated/interpolated frames.",
+  "capture_video_sha256": "a4f421298788332d45d9a2bb8163db9d85ac548840ebc047ed943b84dca44291",
+  "graphical_artifact": {
+    "id": 11951422425,
+    "sha256": "9510392409bd3f3ecdf2f24c6537f332a9c9ca3d3d2c6a09ccf4e1514b648507"
+  },
+  "workflows": {
+    "forge_build": 38690073104,
+    "core_suite": 38690073119,
+    "dedicated_restart": 38690073111,
+    "create_production": 38690073133,
+    "graphical_client": 38690073141
+  },
+  "workflow_conclusions": "All five source-revision workflows succeeded.",
+  "junit": {
+    "tests": 10,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "dedicated_interaction_evidence": [
+    "Both transfers beside stations; observed dwell at least 15 ticks.",
+    "Graceful save/restart with delivery cargo=4 and remaining interaction ticks=10.",
+    "After resume source=4 destination=4 cargo=0; later no-replay check passes."
+  ],
+  "waiting_evidence": [
+    "Default return across station line.",
+    "Physical return to changed feet point 49,100,52 at platform edge.",
+    "Occupied station point rejected; saved waiting point retained.",
+    "Point 55,100,52 head blocked before arrival: blocked card and unchanged wheat/flour stocks.",
+    "Obstruction removed: automatic retry, physical arrival and later stable feet/stocks."
+  ],
+  "render_witnesses": [
+    "[06:06:40] [Render thread/INFO] [de.he.cl.ClientWorkerViews/]: HB_CLIENT_CARGO activity=putting_down cargo=4",
+    "[06:06:40] [Render thread/INFO] [de.he.cl.ClientWorkerViews/]: HB_CLIENT_HUD activity=putting_down cargo=4",
+    "[06:06:46] [Render thread/INFO] [de.he.cl.ClientWorkerViews/]: HB_CLIENT_HUD activity=returning_to_workshop cargo=0",
+    "[06:06:48] [Render thread/INFO] [de.he.cl.ClientWorkerViews/]: HB_CLIENT_HUD activity=picking_up cargo=0",
+    "[06:06:50] [Render thread/INFO] [de.he.cl.ClientWorkerViews/]: HB_CLIENT_CARGO activity=putting_down cargo=4",
+    "[06:06:50] [Render thread/INFO] [de.he.cl.ClientWorkerViews/]: HB_CLIENT_HUD activity=putting_down cargo=4",
+    "[06:06:51] [Render thread/INFO] [de.he.cl.ClientWorkerViews/]: HB_CLIENT_HUD activity=returning_to_workshop cargo=0",
+    "[06:06:52] [Render thread/INFO] [de.he.cl.ClientWorkerViews/]: HB_CLIENT_HUD activity=milling cargo=0",
+    "[06:07:00] [Render thread/INFO] [de.he.cl.ClientWorkerViews/]: HB_CLIENT_HUD activity=picking_up cargo=0",
+    "[06:07:07] [Render thread/INFO] [de.he.cl.ClientWorkerViews/]: HB_CLIENT_CARGO activity=putting_down cargo=1",
+    "[06:07:07] [Render thread/INFO] [de.he.cl.ClientWorkerViews/]: HB_CLIENT_HUD activity=putting_down cargo=1",
+    "[06:07:08] [Render thread/INFO] [de.he.cl.ClientWorkerViews/]: HB_CLIENT_HUD activity=returning_to_workshop cargo=0",
+    "[06:07:10] [Render thread/INFO] [de.he.cl.ClientWorkerViews/]: HB_CLIENT_HUD activity=picking_up cargo=0",
+    "[06:07:10] [Render thread/INFO] [de.he.cl.ClientWorkerViews/]: HB_CLIENT_HUD activity=picking_up cargo=0",
+    "[06:07:11] [Render thread/INFO] [de.he.cl.ClientWorkerViews/]: HB_CLIENT_HUD activity=picking_up cargo=0",
+    "[06:07:14] [Render thread/INFO] [de.he.cl.ClientWorkerViews/]: HB_CLIENT_CARGO activity=putting_down cargo=1",
+    "[06:07:14] [Render thread/INFO] [de.he.cl.ClientWorkerViews/]: HB_CLIENT_HUD activity=putting_down cargo=1",
+    "[06:07:15] [Render thread/INFO] [de.he.cl.ClientWorkerViews/]: HB_CLIENT_HUD activity=returning_to_workshop cargo=0",
+    "[06:07:16] [Render thread/INFO] [de.he.cl.ClientWorkerViews/]: HB_CLIENT_HUD activity=target_reached cargo=0",
+    "[06:07:17] [Render thread/INFO] [de.he.cl.ClientWorkerViews/]: HB_CLIENT_HUD activity=returning_to_workshop cargo=0",
+    "[06:07:17] [Render thread/INFO] [de.he.cl.ClientWorkerViews/]: HB_CLIENT_HUD activity=target_reached cargo=0",
+    "[06:07:18] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] HB_CLIENT_VIEW activity=target_reached cargo=0 item=minecraft:air flour=2 target=2 cargoFrames=0 hudFrames=9",
+    "[06:07:18] [Render thread/INFO] [de.he.cl.ClientWorkerViews/]: HB_CLIENT_VIEW activity=target_reached cargo=0 item=minecraft:air flour=2 target=2 cargoFrames=0 hudFrames=9"
+  ],
+  "visual_review": "Reviewed full-resolution target image and three-second samples throughout full capture and delivered excerpt. Workshop tile, waiting, flour-carrying phases and target bar are legible. Cargo may be occluded by the body from rear camera angles.",
+  "limits": [
+    "Disposable scene, staged resources and creative-motor power.",
+    "First flour job temporarily paused for its exact visual assertion, then resumed.",
+    "Graceful save/restart tested; crash-atomic saves and shared-machine reservations remain future work."
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "feature": "Native workshop sharing and ownership controls",
+  "source_commit": "2ce1ef68ea146c27434671d8e2b20e18ab7be3fb",
+  "generated_at_utc": "2026-10-15T16:43:00Z",
+  "validation": {
+    "forge_compile": {
+      "run": 38770518098,
+      "conclusion": "success",
+      "artifact_jar": {
+        "id": 11990588671,
+        "digest": "sha256:8b0cedf2582790f670bffbbfda747f2fea723173013b0cd77bc9434258a4b22f",
+        "size": 165483
+      },
+      "artifact_reports": {
+        "id": 11990973345,
+        "digest": "sha256:45103d76fa8e3ebf9af8b6b7840ad82aac7ede2c027b807d47a62f34a847b05a",
+        "size": 17648
+      }
+    },
+    "core": {
+      "run": 38770517957,
+      "conclusion": "success",
+      "randomized_transfer_sequences": 20000
+    },
+    "dedicated": {
+      "run": 38770509452,
+      "conclusion": "success",
+      "witnesses": [
+        "HB_RESTART_PASS source=4 cargo=4 dest=0 lease=restored interactionTicks=10",
+        "HB_RESTART_DELIVERED source=4 dest=4 cargo=0",
+        "HB_RESTART_NO_REPLAY_PASS source=4 dest=4 cargo=0"
+      ]
+    },
+    "create": {
+      "run": 38770509495,
+      "conclusion": "success",
+      "artifact": {
+        "id": 11991706417,
+        "digest": "sha256:69ce3e039e0b99fba49b18a25bcbad9aa6c1258cd5f3b5eb6a57dc66acd9aaf9",
+        "size": 106740
+      },
+      "witnesses": [
+        "HB_WORKSHOP_STATUS_SERVER_PASS owner shared denied other_holder paused queue readonly",
+        "HB_SHARED_WORKSHOP_RESTART_PASS owner lease cargo=4 source=4",
+        "HB_SHARED_WORKSHOP_PASS two_workers source=4 flour=2 cargo=0 leases=free owner_retained shared_revoked_new_work_denied",
+        "HB_SHARED_WORKSHOP_NO_REPLAY_PASS"
+      ]
+    },
+    "graphical": {
+      "run": 38770509364,
+      "conclusion": "success",
+      "artifact": {
+        "id": 11990739115,
+        "digest": "sha256:9af11432f00d6a3cc744cb3fde763958f71a41a4f7502ea1819845a45d1f9c62",
+        "size": 7124315,
+        "expires_at": "2026-10-29T16:42:55Z"
+      },
+      "witnesses": [
+        "HB_WORKSHOP_SHARING_RENDER owner=You people=0 manage=true release=false selected=none",
+        "HB_WORKSHOP_SHARING_RENDER owner=You people=0 manage=true release=true selected=none",
+        "HB_WORKSHOP_STATUS_SMALL_WINDOW_PASS owner station_rows access_controls back_button native_640x480",
+        "HB_GRAPHICAL_WORKSHOP_CONTROLS_PASS"
+      ]
+    }
+  },
+  "boundaries": [
+    "Single-client graphical fixture has no second connected player; grant/revoke lifecycle is covered in the real Create server and JUnit.",
+    "No local manual review of the new graphical recording was possible in the disconnected workspace.",
+    "Ownership coordinates do not replace land-claim or player inventory permissions.",
+    "Entity, inventory and SavedData writes are not crash-atomic."
+  ]
+}
