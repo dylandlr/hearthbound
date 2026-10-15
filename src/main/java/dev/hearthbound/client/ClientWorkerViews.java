@@ -72,7 +72,7 @@ public final class ClientWorkerViews {
                             + " item=" + view.item() + " flour=" + view.stockedFlour()
                             + " target=" + view.targetFlour() + " cargoFrames=" + entry.cargoFrames
                             + " hudFrames=" + entry.hudFrames;
-                    context.getSource().sendSuccess(net.minecraft.network.chat.Component.literal(result));
+                    context.getSource().sendSuccess(() -> net.minecraft.network.chat.Component.literal(result), false);
                     org.apache.logging.log4j.LogManager.getLogger().info(result);
                     return 1;
                 }));
