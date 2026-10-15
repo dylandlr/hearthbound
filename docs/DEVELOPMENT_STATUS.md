@@ -86,3 +86,22 @@ See [workshop status](WORKSHOP_STATUS.md) for behavior and [status evidence](WOR
 4. Reconcile the two historical branch stacks before merging the final implementation to `main`.
 
 This is a deterministic server-side controller. LLM/RL policies, crash-atomic cargo accounting, and multiplayer RTS territory gameplay are future work. Use disposable worlds and resources for tests.
+
+
+## Player sharing and ownership controls increment
+
+Source `2ce1ef6` adds persisted per-mill collaborator grants and native **Status → Access** controls. Owners can grant up to eight connected players, revoke saved collaborators and release an idle mill. Operators can repair access without replacing ownership. The network protocol is 3; requests carry only a bounded optional player UUID selected from the server-authored snapshot.
+
+Orders record the manager whose permission authorized them. Revocation keeps active cargo and exact station leases, then blocks new scheduling with `WORKSHOP_ACCESS_DENIED`. Release clears ownership and grants only when the mill reservation is free.
+
+Validation on the exact source:
+
+- [Forge compile/JUnit](https://github.com/dylandlr/hearthbound/actions/runs/38770518098) passed; the suite now includes bounded share persistence, revoke/release and packet/status round trips.
+- [Controller smoke](https://github.com/dylandlr/hearthbound/actions/runs/38770517957) passed, including 20,000 randomized transfer sequences.
+- [Dedicated Forge restart](https://github.com/dylandlr/hearthbound/actions/runs/38770509452) passed retained cargo, disk-restored lease, delivery and no replay.
+- [Production Forge + Create](https://github.com/dylandlr/hearthbound/actions/runs/38770509495) persisted owner, collaborator, paused cargo and lease through a full restart; two workers stored two flour; revoke then denied new work with source 4, flour 2, cargo 0 and free leases.
+- [Actual graphical client](https://github.com/dylandlr/hearthbound/actions/runs/38770509364) rendered the native Access page with release disabled during a paused reservation and enabled after completion, including 640×480.
+
+The graphical fixture uses one connected client, so player-to-player grant/revoke clicks remain a two-client playtest. The complete grant/persist/revoke scheduler lifecycle is exercised by the production Create server. Exact run/artifact evidence is in [workshop access evidence](WORKSHOP_ACCESS_EVIDENCE.json).
+
+Next: a two-client graphical sharing playtest, then two separate mills feeding one shared stockpile. Reconcile PR #26's older controllers before merging the branch stack.

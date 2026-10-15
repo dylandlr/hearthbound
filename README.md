@@ -10,4 +10,4 @@ With an empty hand, right-click Sable to select workshop stations in the world, 
 
 Workshops keep a mill owner and reserve both hauling endpoints until delivery finishes. Multiple workers can share equipment without planning conflicting hauls; stopped or unloaded workers retain cargo and their reservations. See [shared workshops](docs/WORKSHOP_SHARING.md).
 
-The workshop editor's **Status** page shows mill ownership, station holders, paused reservations and waiting requests. Inspecting selected stations preserves the unsaved setup. See [workshop status](docs/WORKSHOP_STATUS.md).
+The workshop editor's **Status** page shows ownership, shared access, station holders, paused reservations and waiting requests. Owners can open **Access** to grant or revoke collaborators and safely release an idle mill. Inspecting selected stations preserves the unsaved setup. See [workshop status and access](docs/WORKSHOP_STATUS.md).
