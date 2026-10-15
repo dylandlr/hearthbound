@@ -1,0 +1,25 @@
+{
+  "source": "9507e091c3dc50a4efc1f66654110e01316a8925",
+  "jar_sha256": "24df069e63e3fb2d67aae482686e2ea63a41d300a7d220fe55a0b1ab62491e86",
+  "minecraft": "1.20.1",
+  "forge": "47.4.10",
+  "create": "6.0.8",
+  "capture": "continuous X11 screen capture; no audio or time acceleration",
+  "camera": "observer player teleported to follow worker; worker never teleported",
+  "blocked_client": "[05:13:45] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] HB_CLIENT_VIEW activity=output_full cargo=4 item=minecraft:wheat flour=-1 target=0 cargoFrames=43 hudFrames=29",
+  "delivered_client": "[05:13:55] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] HB_CLIENT_VIEW activity=idle cargo=0 item=minecraft:air flour=-1 target=0 cargoFrames=0 hudFrames=41",
+  "target_client": "[05:14:27] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] HB_CLIENT_VIEW activity=target_reached cargo=0 item=minecraft:air flour=2 target=2 cargoFrames=0 hudFrames=43",
+  "flour_client": "[05:14:16] [Render thread/INFO] [minecraft/ChatComponent]: [System] [CHAT] HB_CLIENT_VIEW activity=paused cargo=1 item=create:wheat_flour flour=0 target=2 cargoFrames=137 hudFrames=124",
+  "test_pause": "first flour haul paused in persisted job for the visual assertion, then resumed",
+  "delivered_video": "Hearthbound_Cargo_Progress.mp4",
+  "delivered_video_sha256": "38aa3899fb99e735f3af26ce0ee5563149835345d36a9820840f092bf620c257",
+  "duration_seconds": 43.0,
+  "capture_fps": 20,
+  "resolution": [
+    1280,
+    720
+  ],
+  "audio": false,
+  "container_processing": "Remuxed with faststart; captured H.264 stream copied unchanged.",
+  "graphical_workflow_run": 38685271392
+}

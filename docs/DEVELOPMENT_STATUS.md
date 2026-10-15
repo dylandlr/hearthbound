@@ -1,4 +1,4 @@
-# Hearthbound development handoff — 2026-10-14
+# Hearthbound development handoff — 2026-10-15
 
 Continue from `feature/first-mill-foundation`, reviewed in PR #4. This branch contains the autonomous Create production prototype. The separate `integration/verified-sable-hauling` / PR #26 is an earlier alternative controller implementation, not the latest First Mill implementation; reconcile its overlapping controllers before combining the branches.
 
@@ -32,10 +32,14 @@ Dedicated Forge run [38671784674](https://github.com/dylandlr/hearthbound/action
 Production Forge + Create 6.0.8 run [38671784688](https://github.com/dylandlr/hearthbound/actions/runs/38671784688) passed registry/kinetic checks, genuine wheat grinding, citizen wheat supply and flour hauling, two autonomous flour deliveries, target/stop, and nearest-worker selection on the same source revision. No new graphical capture was made for this change; visual route quality remains a next-playtest task.
 
 
+## Cargo and progress increment
+
+The updated client renders wheat/flour at the worker's crossed arms and shows current activity, cargo count, actual flour stock and the target bar when looking at a worker. The server derives this display from existing cargo and stock; it does not equip another item stack. Build/ten JUnit tests, dedicated-server presentation/restart checks, and the full Create regression have passed. See [worker presentation](WORKER_PRESENTATION.md) for behavior and evidence. Source `9507e09` also passed the real graphical client check [38685271392](https://github.com/dylandlr/hearthbound/actions/runs/38685271392). The delivered 43-second recording shows held wheat/flour, cleared cargo after delivery, and actual flour stock 2/2 with a full target bar. The upper-left card stays clear of chat. Current full Forge build, dedicated restart and Create production runs all pass; exact provenance and client render assertions are recorded in [the presentation evidence](WORKER_PRESENTATION_EVIDENCE.json). The test observer follows by teleporting; the worker uses normal navigation. A flour haul is briefly paused for its visual assertion and then resumed.
+
 ## Next work
 
-1. Add visible cargo and brief station interactions, deriving presentation from existing persisted cargo without introducing another authoritative item inventory.
-2. Give workshops a deliberate waiting location and readable in-world order progress; record the updated build from a closer camera. Server-side interaction-position assertions do not replace a fresh visual playtest.
+1. Add brief station interaction feedback and a deliberate workshop waiting location.
+2. Refine the player-facing work-order controls and visual flow using the updated client capture.
 3. Add explicit colony workshop ownership and shared-machine reservations before enabling general multi-worker production. Command selection alone does not provide machine ownership.
 4. Add citizen needs and ordinary player-facing order controls once the production flow is readable.
 5. Reconcile the two historical branch stacks before merging the final implementation to `main`.

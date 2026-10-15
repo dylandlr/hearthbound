@@ -62,3 +62,8 @@ Separate dedicated-server smoke run `38655462341` passed normal hauling, full-ou
 ## Limits
 
 This is prototype evidence, using deterministic rules, a vanilla villager body, a disposable test scene, and a creative motor. It does not prove survival power construction, general multi-worker resource arbitration, graceful or crash-restart conservation, multiplayer playability, carrying animations, or LLM/RL decision-making. Movement and station interaction need polish.
+
+
+## Later cargo/progress recording
+
+The newer source `9507e09` has a separately verified 43-second graphical client/server recording with visible wheat/flour and an in-world worker progress card. See [worker presentation](WORKER_PRESENTATION.md) for that recording's results, hashes, camera/test staging, and current graceful-restart evidence. The earlier baseline recording and limits above remain historical evidence of their named source revisions.
