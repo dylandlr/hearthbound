@@ -46,12 +46,15 @@ public final class MinecraftMillObservationAdapter {
         int millFlour = millVisible ? countHandler(level, millPos, Direction.EAST, flour) : 0;
         int storeFlour = storeVisible ? countBarrel((BarrelBlockEntity) level.getBlockEntity(storePos), flour) : 0;
 
+        boolean activeHaul = data.contains(HAUL, 10) || data.getBoolean("HearthboundTravelActive");
         CompoundTag haul = data.contains(HAUL, 10) ? data.getCompound(HAUL) : new CompoundTag();
         int cargoFlour = "create:wheat_flour".equals(haul.getString("Item")) ? haul.getInt("Cargo") : 0;
         HierarchicalTask task = task(order.getString("State"), cargoFlour);
         EnumSet<HierarchicalTask> mask = EnumSet.of(HierarchicalTask.WAIT);
-        if (sourceVisible && sourceWheat > 0 && cargoFlour == 0) mask.add(HierarchicalTask.SUPPLY_MILL);
-        if (millVisible && millFlour > 0 && cargoFlour == 0) mask.add(HierarchicalTask.COLLECT_FLOUR);
+        if (!activeHaul && sourceVisible && sourceWheat > 0 && cargoFlour == 0)
+            mask.add(HierarchicalTask.SUPPLY_MILL);
+        if (!activeHaul && millVisible && millFlour > 0 && cargoFlour == 0)
+            mask.add(HierarchicalTask.COLLECT_FLOUR);
         if (cargoFlour > 0) mask.add(HierarchicalTask.RETURN_TO_WAIT);
 
         return new MillObservation(sourceVisible, sourceWheat, millVisible, millWheat, millFlour,
