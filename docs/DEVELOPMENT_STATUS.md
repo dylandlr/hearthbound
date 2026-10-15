@@ -66,9 +66,21 @@ Final Java/resources are on `9956e61`. Later validation commits change only test
 
 See [shared workshops](WORKSHOP_SHARING.md) for behavior/recovery and [sharing evidence](WORKSHOP_SHARING_EVIDENCE.json) for exact source trees, runs and limitations. This continuation reviewed logs and automated assertions; it did not manually review a new video. The two-worker test is a genuine dedicated-server fixture, while the graphical regression covers the existing single-worker control flow.
 
+## Native workshop status increment
+
+The editor now has a separate **Status** page for the selected mill's owner/access and all three station reservations. It identifies the current holder, paused reservations, waiting counts and this worker's queue membership. Block picks can be inspected before Start without claiming a mill or creating a job. Back/Escape preserves the unsaved draft, and refreshes keep the status page open.
+
+Status comes from a bounded server-to-client structure. Inspection checks build height, loaded chunks, station types and a 32-block worker radius before looking up station information. It reads the reservation queue without pruning it, and never mutates the order, cargo or ownership. Unknown/unavailable stations do not display a misleading empty queue. Online supervisors are named; offline owners receive an explicit generic label. The control channel is now protocol 2; install matching client/server builds.
+
+Source `5963dc2` passes [Forge build and 21 JUnit tests](https://github.com/dylandlr/hearthbound/actions/runs/38764196349), [core tests and 20,000 randomized transfer sequences](https://github.com/dylandlr/hearthbound/actions/runs/38764196448), [dedicated cargo/reservation restart](https://github.com/dylandlr/hearthbound/actions/runs/38764196493), [complete Create/shared-workshop production and restart](https://github.com/dylandlr/hearthbound/actions/runs/38764196404), and [actual graphical control/status acceptance](https://github.com/dylandlr/hearthbound/actions/runs/38764196326).
+
+The server compares worker and registry NBT before/after owner/stranger inspection and a paused other-worker/queued view; it also requires free/empty-queue status after completion. The UI-player probe rejects an unloaded preview without loading it. The graphical client renders an unclaimed preview before saving, preserves target 2 on return, renders an owned paused flour reservation after Stop, compares unchanged haul NBT, and completes Resume/restart/target. Both pages fit the native 640×480 window. New card foregrounds have calculated contrast ratios of at least 8.37:1. No new manual video review was performed with the local workspace disconnected.
+
+See [workshop status](WORKSHOP_STATUS.md) for behavior and [status evidence](WORKSHOP_STATUS_EVIDENCE.json) for exact source trees, runs, archive digests, render witnesses and coverage limits. The publication after this source changes documentation only.
+
 ## Next work
 
-1. Expose workshop ownership, station queues and explicit sharing permissions in the native UI.
+1. Add explicit player-to-player sharing permissions and safe ownership-management controls to the native UI.
 2. Review a two-worker graphical playtest and add runtime coverage for separate mills feeding one shared stockpile.
 3. Add citizen needs once the multi-worker production flow and controls are readable.
 4. Reconcile the two historical branch stacks before merging the final implementation to `main`.

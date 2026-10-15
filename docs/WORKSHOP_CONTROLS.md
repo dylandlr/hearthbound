@@ -6,6 +6,8 @@ Enter a flour target from 0 to 4096; zero means unlimited. Start order saves the
 
 While an order is active, Save changes updates its target and waiting point. Stop order stops scheduling; the existing haul finishes with its cargo intact. Start stays disabled while that haul is active. A paused haul exposes Resume haul, including after stopping its order. This retries the same saved cargo and phase. The last setup remains available for another explicit Start after completion. Change station bindings after stopping and finishing the current job.
 
+The **Status** button opens a separate live page for mill ownership/access, endpoint holders, paused reservations and waiting requests. It can inspect the current station draft before Start. Back to setup or Escape preserves unsaved edits. See [workshop status](WORKSHOP_STATUS.md) for its read-only rules and validation.
+
 ## Supervisor and server rules
 
 The first successful UI assignment of an unowned idle worker saves the assigning player's UUID as supervisor. That player or a server operator can manage the worker. Other players can inspect the screen. Unowned workers with existing command-managed jobs require an operator; opening a screen never claims a busy worker. Supervisor identity and the reusable setup are saved on the worker.

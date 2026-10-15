@@ -9,3 +9,5 @@ Current development is on `feature/first-mill-foundation`. Start with [developme
 With an empty hand, right-click Sable to select workshop stations in the world, set a flour target, and start, stop or resume work. See [in-game workshop controls](docs/WORKSHOP_CONTROLS.md).
 
 Workshops keep a mill owner and reserve both hauling endpoints until delivery finishes. Multiple workers can share equipment without planning conflicting hauls; stopped or unloaded workers retain cargo and their reservations. See [shared workshops](docs/WORKSHOP_SHARING.md).
+
+The workshop editor's **Status** page shows mill ownership, station holders, paused reservations and waiting requests. Inspecting selected stations preserves the unsaved setup. See [workshop status](docs/WORKSHOP_STATUS.md).

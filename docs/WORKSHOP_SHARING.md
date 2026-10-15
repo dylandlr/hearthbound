@@ -8,6 +8,8 @@ The reservation stays with the worker UUID and exact job ID through pickup, trav
 
 An ungranted waiting request can expire after 120 server ticks without retrying; it owns no stock or cargo. The queue is rebuilt after restart. Active reservations have no expiry. A job moved to another dimension waits until it returns to its original dimension.
 
+The native editor now exposes this information through its read-only **Status** page. See [workshop status](WORKSHOP_STATUS.md) for selected-station previews, ownership/access, holders and waiting counts.
+
 ## Ownership and recovery
 
 - `/hearthbound workshop_status <mill x y z>` shows the owner and active reservation.
