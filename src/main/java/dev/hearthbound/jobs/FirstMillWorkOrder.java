@@ -48,8 +48,12 @@ public final class FirstMillWorkOrder {
         return worker.getPersistentData().getLong("HearthboundOrderRevision");
     }
 
-    private static void changed(Villager worker) {
+    public static void advanceRevision(Villager worker) {
         worker.getPersistentData().putLong("HearthboundOrderRevision", revision(worker) + 1);
+    }
+
+    private static void changed(Villager worker) {
+        advanceRevision(worker);
         worker.getPersistentData().put("HearthboundWorkshopSetup", worker.getPersistentData().getCompound(ROOT).copy());
     }
 

@@ -2,6 +2,7 @@
 import re
 import subprocess
 import time
+import threading
 
 
 def run_setup(api):
@@ -23,15 +24,31 @@ def run_setup(api):
         elif kind == 'target': click(2 * (x + 134), 2 * (y + 142))
         elif kind == 'save': click(2 * (x + 12 + (width - 100) / 4), 2 * (y + height - 20))
         elif kind == 'stop': click(2 * (x + 18 + 3 * (width - 100) / 4), 2 * (y + height - 20))
+        elif kind == 'resume': click(2 * (x + width - 62), 2 * (y + 163))
         elif kind == 'close': click(2 * (x + width - 44), 2 * (y + height - 20))
 
     def open_screen():
         before = len([line for line in lines() if 'HB_WORKSHOP_SCREEN x=' in line])
-        api['aim'](); time.sleep(.5)
-        subprocess.run(['xdotool', 'click', '3'], check=True)
-        api['wait_for'](lambda: len([line for line in lines() if 'HB_WORKSHOP_SCREEN x=' in line]) > before, 10, 'right-click opens native worker screen')
-        time.sleep(.3)
+        follow = threading.Event()
+        def track():
+            while not follow.wait(.1):
+                try: api['aim']()
+                except OSError: pass
+        camera = threading.Thread(target=track, daemon=True)
+        camera.start()
+        try:
+            api['aim'](); time.sleep(.5)
+            subprocess.run(['xdotool', 'click', '3'], check=True)
+            api['wait_for'](lambda: len([line for line in lines() if 'HB_WORKSHOP_SCREEN x=' in line]) > before, 10, 'right-click opens native worker screen')
+            time.sleep(.3)
+        finally:
+            follow.set(); camera.join(timeout=2)
         return screen()
+
+    def save_order():
+        before = len([line for line in lines() if 'HB_WORKSHOP_SCREEN x=' in line])
+        button('save')
+        api['wait_for'](lambda: len([line for line in lines() if 'HB_WORKSHOP_SCREEN x=' in line]) > before, 10, 'server acknowledges UI save')
 
     def choose(slot, x, y, z):
         button(slot)
@@ -62,9 +79,15 @@ def run_setup(api):
     subprocess.run(['xdotool', 'key', 'ctrl+a', 'type', '--delay', '40', '2'], check=True)
     time.sleep(.3)
     api['screenshot']('controls-configured.png')
-    button('save')
+    save_order()
     api['wait_for'](lambda: 'HearthboundMillOrder:' in api['rcon'].execute(f'data get entity {api["WORKER"]} ForgeData'), 10, 'UI starts persisted work order')
+    for amount in (3, 2):
+        button('target')
+        subprocess.run(['xdotool', 'key', 'ctrl+a', 'type', '--delay', '40', str(amount)], check=True)
+        save_order()
+        api['wait_for'](lambda: re.search(r':\s*' + str(amount) + r'\s*$', api['rcon'].execute(f'data get entity {api["WORKER"]} ForgeData.HearthboundMillOrder.TargetFlour')), 10, 'UI saves active flour target')
+    print('HB_WORKSHOP_EDIT_UI_PASS active_target_3_then_2', flush=True)
     assert 'HB_WORKSHOP_CONTROLS_AUTH_PASS' in api['command']('execute positioned 48 -60 0 run hearthbound ci_workshop_controls')
     button('close')
     print('HB_WORKSHOP_SETUP_UI_PASS mouse_open four_world_picks escape_cancel numeric_target non_operator_start', flush=True)
-    return {'open': open_screen, 'button': button, 'screen': screen}
+    return {'open': open_screen, 'button': button, 'screen': screen, 'save': save_order}

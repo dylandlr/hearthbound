@@ -12,7 +12,7 @@ public final class WorkerOrderScreen extends Screen {
     private int left, top, panelWidth, panelHeight, ticks;
     private EditBox target;
     private final Button[] picks = new Button[4];
-    private Button save, stop;
+    private Button save, stop, resume;
     public WorkerOrderScreen() { super(Component.literal("First Mill workshop")); }
 
     @Override protected void init() {
@@ -28,6 +28,8 @@ public final class WorkerOrderScreen extends Screen {
         target = addRenderableWidget(new EditBox(font, left + 100, top + 132, 68, 20, Component.literal("Flour target")));
         target.setMaxLength(4); target.setFilter(s -> s.matches("[0-9]*")); target.setValue(d.target);
         target.setResponder(s -> { if (ClientWorkshop.draft != null) ClientWorkshop.draft.target = s; });
+        resume = addRenderableWidget(Button.builder(Component.literal("Resume haul"), b -> ClientWorkshop.send(WorkshopAction.RESUME))
+                .bounds(left + panelWidth - 112, top + 154, 100, 18).build());
         int small = (panelWidth - 100) / 2, by = top + panelHeight - 30;
         save = addRenderableWidget(Button.builder(Component.literal("Start order"), b -> ClientWorkshop.send(WorkshopAction.SAVE))
                 .bounds(left + 12, by, small, 20).build());
@@ -41,6 +43,9 @@ public final class WorkerOrderScreen extends Screen {
     @Override public void tick() {
         if (ClientWorkshop.draft == null || minecraft.player == null || minecraft.level == null
                 || !minecraft.level.dimension().location().equals(ClientWorkshop.draft.snapshot.worker().dimension())) { onClose(); return; }
+        var worker = minecraft.level.getEntity(ClientWorkshop.draft.snapshot.worker().entityId());
+        if (worker == null || !worker.isAlive() || !worker.getUUID().equals(ClientWorkshop.draft.snapshot.worker().workerId())
+                || minecraft.player.distanceToSqr(worker) > 32 * 32) { onClose(); return; }
         target.tick();
         if (++ticks % 20 == 0) ClientWorkshop.send(WorkshopAction.REFRESH);
     }
@@ -79,6 +84,8 @@ public final class WorkerOrderScreen extends Screen {
         save.setMessage(Component.literal(view.hasOrder() ? "Save changes" : "Start order"));
         save.active = s.canEdit() && d.ready() && d.amount() >= 0 && d.amount() <= 4096 && (!s.busy() || view.hasOrder());
         stop.active = s.canEdit() && view.hasOrder();
+        resume.visible = s.busy() && view.activity().equals("paused");
+        resume.active = s.canEdit() && resume.visible;
         super.render(gui, mouseX, mouseY, partialTick);
     }
 

@@ -210,15 +210,16 @@ try:
             screenshot("controls-stop-carrying.png")
             controls_ui['button']('save')  # Disabled until this haul completes.
             assert 'HearthboundMillOrder:' not in rcon.execute(f'data get entity {WORKER} ForgeData')
+            controls_ui['button']('resume')
+            wait_for(lambda: 'activity=paused' not in rcon.execute('execute positioned 48 -60 0 run hearthbound worker_view'), 10, 'UI resumes retained haul')
             controls_ui['button']('close')
-            command(f'data merge entity {WORKER} {{ForgeData:{{HearthboundHaul:{{Paused:0b}}}}}}')
             wait_for(lambda: 'cargo=0' in rcon.execute('execute positioned 48 -60 0 run hearthbound worker_view'), 15, 'stopped order finishes its current haul')
             assert re.search(r'Count:\s*1b', command('data get block 55 -60 0 Items'))
             controls_ui['open']()
-            controls_ui['button']('save')
+            controls_ui['save']()
             wait_for(lambda: 'HearthboundMillOrder:' in rcon.execute(f'data get entity {WORKER} ForgeData'), 10, 'UI restarts saved setup')
             controls_ui['button']('close')
-            print('HB_WORKSHOP_STOP_RESTART_UI_PASS cargo_preserved start_disabled_during_haul cached_setup_restarted', flush=True)
+            print('HB_WORKSHOP_STOP_RESTART_UI_PASS cargo_preserved start_disabled_during_haul UI_resume cached_setup_restarted', flush=True)
         order_state = rcon.execute(f"data get entity {WORKER} ForgeData.HearthboundMillOrder")
         if 'WaitState: "AT_WAIT"' in order_state and 'State: "MILLING"' in order_state:
             saw_mill_wait = True
@@ -234,6 +235,18 @@ try:
     coords = [float(n) for n in re.findall(r"(-?\d+(?:\.\d+)?)d", wait_position)]
     assert len(coords) == 3 and 46 <= coords[0] < 47 and -60 <= coords[1] < -59 and 3 <= coords[2] < 4, wait_position
     screenshot("flour-target.png")
+    # Keep the gameplay capture focused on the full native-control production flow.
+    recording.stdin.write("q\n"); recording.stdin.flush(); recording.wait(timeout=20); recording = None
+    controls_ui['open']()
+    subprocess.run(['xdotool', 'windowsize', windows[-1], '640', '480'], check=True)
+    wait_for(lambda: controls_ui['screen']()['width'] < 340, 10, 'small-window layout')
+    small_geometry = controls_ui['screen']()
+    assert small_geometry['x'] >= 0 and small_geometry['y'] >= 0 and small_geometry['height'] >= 220, small_geometry
+    screenshot('controls-small-window.png')
+    subprocess.run(['xdotool', 'windowsize', windows[-1], '1280', '720'], check=True)
+    wait_for(lambda: controls_ui['screen']()['width'] == 340, 10, 'restored window layout')
+    controls_ui['button']('close')
+    print('HB_WORKSHOP_SMALL_WINDOW_PASS native_640x480_layout', flush=True)
     rendered = (OUT / "client.log").read_text()
     for witness in ["HB_CLIENT_HUD activity=picking_up", "HB_CLIENT_HUD activity=putting_down",
                     "HB_CLIENT_CARGO activity=putting_down", "HB_CLIENT_HUD activity=returning_to_workshop"]:
@@ -247,7 +260,7 @@ try:
         "waiting_position": wait_position, "waiting_order": order_state, "observed_mill_wait": saw_mill_wait,
         "interaction_ticks": 15, "blocked_client": blocked, "delivered_client": delivered, "target_client": target, "flour_client": flour_view,
         "controls": "Actual xdotool right-click, native screen buttons, four world picks, numeric target; player de-opped before setup",
-        "control_stop_restart": "UI stops while flour cargo=1, haul NBT unchanged, Start disabled, delivery finishes, UI restarts cached setup",
+        "small_window": small_geometry, "control_stop_restart": "UI stops while flour cargo=1, haul NBT unchanged, Start disabled, UI resumes the haul, delivery finishes, UI restarts cached setup",
         "test_pause": "first flour haul paused in persisted job for the visual/stop assertion, then resumed"}, indent=2))
     print("HB_GRAPHICAL_WORKSHOP_CONTROLS_PASS real_mouse_keyboard non_operator_setup stop_with_cargo restart_target", flush=True)
     print("HB_GRAPHICAL_CARGO_PROGRESS_PASS real packets, cargo rendering, HUD rendering, delivery clear and flour target", flush=True)

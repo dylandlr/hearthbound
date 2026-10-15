@@ -56,6 +56,15 @@ public final class WorkshopControls {
             if (worker.getPersistentData().contains("HearthboundMillOrder", 10)) FirstMillWorkOrder.stopWorker(worker);
             reply(player, worker, "Scheduling stopped. The current haul will finish."); return;
         }
+        if (request.action() == WorkshopAction.RESUME) {
+            var data = worker.getPersistentData();
+            if (data.contains("HearthboundHaul", 10) && data.getCompound("HearthboundHaul").getBoolean("Paused")) {
+                data.getCompound("HearthboundHaul").putBoolean("Paused", false);
+                FirstMillWorkOrder.advanceRevision(worker);
+                reply(player, worker, "Haul resumed.");
+            } else reply(player, worker, "The current haul is not paused.");
+            return;
+        }
         if (request.action() != WorkshopAction.SAVE) return;
         for (BlockPos point : new BlockPos[] {request.wheat(), request.mill(), request.flour(), request.waiting()}) {
             if (point != null && (point.getY() < level.getMinBuildHeight() || point.getY() >= level.getMaxBuildHeight()
