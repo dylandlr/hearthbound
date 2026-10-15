@@ -31,6 +31,8 @@ public final class HaulE2EProbe {
     private static boolean restartScenario;
     private static BlockPos pickupFeet;
     private static BlockPos deliveryFeet;
+    private static long pickupStarted, deliveryStarted;
+    private static boolean pickupDwellPassed, deliveryDwellPassed, earlyTransfer;
     private HaulE2EProbe() {}
 
     public static int start(CommandSourceStack command) {
@@ -114,6 +116,8 @@ public final class HaulE2EProbe {
         observedDeliveryTravel = false;
         pickupFeet = null;
         deliveryFeet = null;
+        pickupStarted = deliveryStarted = -1;
+        pickupDwellPassed = deliveryDwellPassed = earlyTransfer = false;
         command.sendSuccess(() -> Component.literal("HB_HAUL_E2E_STARTED tickingChunks="
                 + level.getForcedChunks().size()), false);
         return 1;
@@ -125,13 +129,21 @@ public final class HaulE2EProbe {
         if (event.getEntity() != citizen || testLevel == null) return;
         var state = citizen.getPersistentData();
         int cargo = state.getCompound("HearthboundHaul").getInt("Cargo");
+        String result = state.getCompound("HearthboundHaul").getString("Result");
+        long now = testLevel.getGameTime();
+        if (result.equals("PICKING_UP") && pickupStarted < 0) pickupStarted = now;
+        if (result.equals("PUTTING_DOWN") && deliveryStarted < 0) deliveryStarted = now;
+        if (result.equals("PICKING_UP") && cargo != 0 || result.equals("PUTTING_DOWN") && cargo != 4)
+            earlyTransfer = true;
         if (cargo > 0) {
+            if (!observedPickup) pickupDwellPassed = pickupStarted >= 0 && now - pickupStarted >= 15;
             observedPickup = true;
             if (pickupFeet == null) pickupFeet = citizen.blockPosition().immutable();
             if (citizen.distanceToSqr(destinationPos.getX() + .5,
                     destinationPos.getY() + .5, destinationPos.getZ() + .5) > 6.25)
                 observedDeliveryTravel = true;
         } else if (observedPickup && !state.contains("HearthboundHaul", 10) && deliveryFeet == null) {
+            deliveryDwellPassed = deliveryStarted >= 0 && now - deliveryStarted >= 15;
             deliveryFeet = citizen.blockPosition().immutable();
         }
     }
@@ -147,6 +159,7 @@ public final class HaulE2EProbe {
         int cargo = state.contains("HearthboundHaul", 10)
                 ? state.getCompound("HearthboundHaul").getInt("Cargo") : 0;
         if (from + to + cargo != 8) return fail(command, "inventory_conservation");
+        if (earlyTransfer) return fail(command, "transfer_during_interaction");
         var view = dev.hearthbound.presentation.WorkerPresentation.inspect(citizen);
         if (!view.visible() || view.cargo() != cargo
                 || cargo > 0 && !view.item().equals("minecraft:wheat")
@@ -207,11 +220,12 @@ public final class HaulE2EProbe {
             observedDeliveryTravel = true;
         if (from == 4 && to == 4 && cargo == 0 && !state.contains("HearthboundHaul", 10)
                 && observedPickup && observedDeliveryTravel) {
+            if (!pickupDwellPassed || !deliveryDwellPassed) return fail(command, "missing_15_tick_dwell");
             if (pickupFeet == null || deliveryFeet == null
                     || !besideStation(pickupFeet, sourcePos) || !besideStation(deliveryFeet, destinationPos))
                 return fail(command, "interaction_on_station pickup=" + pickupFeet + " delivery=" + deliveryFeet);
             command.sendSuccess(() -> Component.literal("HB_HAUL_E2E_PASS source=4 dest=4 cargo=0 approachedBeside=true"
-                    + " presentation=true pickup=" + pickupFeet.toShortString() + " delivery=" + deliveryFeet.toShortString()), false);
+                    + " presentation=true dwellTicks=15 pickup=" + pickupFeet.toShortString() + " delivery=" + deliveryFeet.toShortString()), false);
             return 1;
         }
         command.sendSuccess(() -> Component.literal("HB_HAUL_E2E_PENDING source=" + from

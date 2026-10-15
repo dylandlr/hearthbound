@@ -20,8 +20,9 @@ import net.minecraftforge.fml.common.Mod;
 public final class ClientWorkerViews {
     private static final class Entry {
         final WorkerViewPacket packet;
+        final long receivedTick;
         int cargoFrames, hudFrames;
-        Entry(WorkerViewPacket packet) { this.packet = packet; }
+        Entry(WorkerViewPacket packet, long receivedTick) { this.packet = packet; this.receivedTick = receivedTick; }
     }
     private static final Map<Integer, Entry> VIEWS = new HashMap<>();
     private ClientWorkerViews() {}
@@ -32,7 +33,7 @@ public final class ClientWorkerViews {
         var previous = VIEWS.get(packet.entityId());
         if (packet.view().visible()) {
             if (previous == null || !previous.packet.equals(packet))
-                VIEWS.put(packet.entityId(), new Entry(packet));
+                VIEWS.put(packet.entityId(), new Entry(packet, level.getGameTime()));
         }
         else if (previous != null && previous.packet.workerId().equals(packet.workerId()))
             VIEWS.remove(packet.entityId());
@@ -47,12 +48,25 @@ public final class ClientWorkerViews {
 
     public static void cargoRendered(Entity worker) {
         var entry = VIEWS.get(worker.getId());
-        if (entry != null) entry.cargoFrames++;
+        if (entry != null && entry.cargoFrames++ == 0) recordFrame("CARGO", entry);
     }
 
     public static void hudRendered(Entity worker) {
         var entry = VIEWS.get(worker.getId());
-        if (entry != null) entry.hudFrames++;
+        if (entry != null && entry.hudFrames++ == 0) recordFrame("HUD", entry);
+    }
+
+    public static float interactionProgress(Entity worker, float partialTick) {
+        var entry = VIEWS.get(worker.getId());
+        return entry == null || get(worker) == null ? 0 : Math.min(1, Math.max(0,
+                (worker.level().getGameTime() - entry.receivedTick + partialTick) / 15F));
+    }
+
+    private static void recordFrame(String layer, Entry entry) {
+        // Opt-in graphical acceptance evidence; ordinary clients produce no per-state logs.
+        if (Boolean.getBoolean("hearthbound.recordWorkerViews"))
+            org.apache.logging.log4j.LogManager.getLogger().info("HB_CLIENT_" + layer + " activity="
+                    + entry.packet.view().activity() + " cargo=" + entry.packet.view().cargo());
     }
 
     /** Explicit diagnostic for real client playtests; reads only received/rendered state. */

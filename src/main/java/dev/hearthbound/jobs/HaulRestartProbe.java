@@ -14,6 +14,7 @@ import java.util.List;
 /** Detects a saved in-flight haul after a complete Forge server restart.
  * The test stage is set up by HaulE2EProbe and uses entity/world NBT, never static state.
  */
+@net.minecraftforge.fml.common.Mod.EventBusSubscriber(modid = dev.hearthbound.HearthboundMod.MOD_ID)
 public final class HaulRestartProbe {
     private HaulRestartProbe() {}
 
@@ -34,6 +35,10 @@ public final class HaulRestartProbe {
         var job = state.getCompound("HearthboundHaul");
         if (!"DELIVER".equals(job.getString("Phase")) || job.getInt("Cargo") != 4)
             return fail(source, "cargo_or_phase");
+        if (state.getBoolean("HearthboundRestartInteractionStaged")
+                && (!job.getBoolean("Paused") || job.getInt("InteractionTicks") != 10
+                || !job.getString("InteractionPhase").equals("DELIVER")))
+            return fail(source, "interaction_not_restored");
         BlockPos from = BlockPos.of(job.getLong("From"));
         sable.getPersistentData().putLong("HearthboundRestartFrom", job.getLong("From"));
         sable.getPersistentData().putLong("HearthboundRestartTo", job.getLong("To"));
@@ -46,7 +51,8 @@ public final class HaulRestartProbe {
         if (wheatInSource != 4 || wheatInOutput != 0
                 || wheatInSource + job.getInt("Cargo") + wheatInOutput != 8)
             return fail(source, "inventory_conservation");
-        source.sendSuccess(() -> Component.literal("HB_RESTART_PASS source=4 cargo=4 dest=0"), true);
+        source.sendSuccess(() -> Component.literal("HB_RESTART_PASS source=4 cargo=4 dest=0 interactionTicks="
+                + job.getInt("InteractionTicks")), true);
         return 1;
     }
 
@@ -62,7 +68,41 @@ public final class HaulRestartProbe {
         for (int slot = 0; slot < output.getContainerSize(); slot++)
             output.setItem(slot, ItemStack.EMPTY);
         output.setChanged();
+        job.putBoolean("Paused", false);
         source.sendSuccess(() -> Component.literal("HB_RESTART_UNBLOCKED"), false);
+        return 1;
+    }
+
+    public static int stageInteraction(CommandSourceStack source) {
+        Villager worker = findRestartCitizen(source.getLevel());
+        if (worker == null || unblock(source) == 0) return fail(source, "stage_missing");
+        worker.getPersistentData().putBoolean("HearthboundRestartInteractionArmed", true);
+        source.sendSuccess(() -> Component.literal("HB_RESTART_INTERACTION_ARMED"), false);
+        return 1;
+    }
+
+    @net.minecraftforge.eventbus.api.SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOWEST)
+    public static void observe(net.minecraftforge.event.entity.living.LivingEvent.LivingTickEvent event) {
+        if (!(event.getEntity() instanceof Villager worker) || worker.level().isClientSide()) return;
+        var data = worker.getPersistentData();
+        if (!data.getBoolean("HearthboundRestartInteractionArmed")) return;
+        var job = data.getCompound("HearthboundHaul");
+        if (job.getString("Result").equals("PUTTING_DOWN") && job.getInt("InteractionTicks") == 10) {
+            job.putBoolean("Paused", true);
+            data.remove("HearthboundRestartInteractionArmed");
+            data.putBoolean("HearthboundRestartInteractionStaged", true);
+        }
+    }
+
+    public static int interactionStaged(CommandSourceStack source) {
+        Villager worker = findRestartCitizen(source.getLevel());
+        if (worker == null) return fail(source, "villager_missing");
+        if (!worker.getPersistentData().getBoolean("HearthboundRestartInteractionStaged")) {
+            source.sendSuccess(() -> Component.literal("HB_RESTART_INTERACTION_PENDING"), false);
+            return 1;
+        }
+        if (check(source) == 0) return 0;
+        source.sendSuccess(() -> Component.literal("HB_RESTART_INTERACTION_STAGED remaining=10"), false);
         return 1;
     }
 

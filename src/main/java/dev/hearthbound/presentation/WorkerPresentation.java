@@ -59,16 +59,25 @@ public final class WorkerPresentation {
             if (result.equals("WAITING_FOR_CHUNK")) return "waiting_for_chunks";
             if (result.equals("NO_ACCESSIBLE_STATION")) return "no_access";
             if (result.equals("NO_WHEAT")) return "waiting_for_supplies";
+            if (result.equals("PICKING_UP")) return "picking_up";
+            if (result.equals("PUTTING_DOWN")) return "putting_down";
             return haul.getString("Phase").equals("PICKUP") ? "collecting" : "delivering";
         }
-        if (hasOrder) return switch (order.getString("State")) {
-            case "MILLING" -> "milling";
-            case "TARGET_REACHED" -> "target_reached";
-            case "WAITING_FOR_WHEAT" -> "waiting_for_supplies";
-            case "WAITING_FOR_CHUNKS" -> "waiting_for_chunks";
-            case "MISSING_STATION" -> "missing_station";
-            default -> "waiting";
-        };
+        if (hasOrder) {
+            switch (order.getString("WaitState")) {
+                case "RETURNING": return "returning_to_workshop";
+                case "BLOCKED": return "wait_blocked";
+                case "UNLOADED": return "waiting_for_chunks";
+            }
+            return switch (order.getString("State")) {
+                case "MILLING" -> "milling";
+                case "TARGET_REACHED" -> "target_reached";
+                case "WAITING_FOR_WHEAT" -> "waiting_for_supplies";
+                case "WAITING_FOR_CHUNKS" -> "waiting_for_chunks";
+                case "MISSING_STATION" -> "missing_station";
+                default -> "waiting";
+            };
+        }
         return data.getBoolean("HearthboundTravelActive") ? "travelling" : "idle";
     }
 }

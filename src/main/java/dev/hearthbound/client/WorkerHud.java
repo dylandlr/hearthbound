@@ -49,7 +49,7 @@ public final class WorkerHud {
         var gui = event.getGuiGraphics();
         gui.fill(x, y, x + width, y + height, 0xED151B20);
         boolean blocked = switch (view.activity()) {
-            case "paused", "output_full", "no_access", "missing_station" -> true;
+            case "paused", "output_full", "no_access", "missing_station", "wait_blocked" -> true;
             default -> false;
         };
         gui.fill(x, y, x + 3, y + height, blocked ? 0xFFFFBD66 : 0xFF75D8AE);

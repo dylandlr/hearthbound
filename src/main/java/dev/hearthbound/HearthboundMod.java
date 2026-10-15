@@ -119,6 +119,12 @@ public final class HearthboundMod {
                     .then(Commands.literal("ci_restart_check")
                             .requires(source -> source.hasPermission(2))
                             .executes(ctx -> HaulRestartProbe.check(ctx.getSource())))
+                    .then(Commands.literal("ci_restart_interaction_stage")
+                            .requires(source -> source.hasPermission(2))
+                            .executes(ctx -> HaulRestartProbe.stageInteraction(ctx.getSource())))
+                    .then(Commands.literal("ci_restart_interaction_check")
+                            .requires(source -> source.hasPermission(2))
+                            .executes(ctx -> HaulRestartProbe.interactionStaged(ctx.getSource())))
                     .then(Commands.literal("ci_haul_check")
                             .requires(source -> source.hasPermission(2))
                             .executes(ctx -> HaulE2EProbe.check(ctx.getSource())))
@@ -238,6 +244,11 @@ public final class HearthboundMod {
                                                 BlockPosArgument.getLoadedBlockPos(ctx, "wheat"),
                                                 BlockPosArgument.getLoadedBlockPos(ctx, "mill"),
                                                 BlockPosArgument.getLoadedBlockPos(ctx, "flour")))))))
+                    .then(Commands.literal("mill_order_wait")
+                            .requires(source -> source.hasPermission(2))
+                            .then(Commands.argument("position", BlockPosArgument.blockPos())
+                                .executes(ctx -> FirstMillWorkOrder.waitingPoint(ctx.getSource(),
+                                        BlockPosArgument.getLoadedBlockPos(ctx, "position")))))
                     .then(Commands.literal("mill_order_target")
                             .requires(source -> source.hasPermission(2))
                             .then(Commands.argument("flour_count", IntegerArgumentType.integer(1, 4096))

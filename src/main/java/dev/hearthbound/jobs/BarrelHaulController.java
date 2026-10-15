@@ -105,7 +105,7 @@ public final class BarrelHaulController {
     public static void tick(LivingEvent.LivingTickEvent event) {
         Entity entity = event.getEntity();
         if (!(entity instanceof Villager sable) || sable.level().isClientSide()
-                || !sable.getTags().contains(SABLE_TAG) || sable.tickCount % 20 != 0) return;
+                || !sable.getTags().contains(SABLE_TAG) || sable.tickCount % 5 != 0) return;
         CompoundTag persisted = sable.getPersistentData();
         if (!persisted.contains(ROOT, 10)) return;
         CompoundTag job = persisted.getCompound(ROOT);
@@ -114,12 +114,16 @@ public final class BarrelHaulController {
         BlockPos target = BlockPos.of(job.getLong(phase.equals("PICKUP") ? "From" : "To"));
         if (job.getBoolean("Paused")) return;
         if (!level.hasChunkAt(target)) {
+            clearInteraction(job);
             sable.getNavigation().stop();
             job.putString("Result", "WAITING_FOR_CHUNK");
             return;
         }
         double distanceSq = sable.distanceToSqr(target.getX() + .5, target.getY() + .5, target.getZ() + .5);
         if (!StationApproach.inReach(sable, target)) {
+            clearInteraction(job);
+            // Interaction updates are frequent; navigation/watchdog samples stay at one second.
+            if (sable.tickCount % 20 != 0) return;
             long gameTick = level.getGameTime();
             // A worker on top of a station is physically close but has not
             // reached an interaction position; the watchdog must still run.
@@ -136,6 +140,7 @@ public final class BarrelHaulController {
             }
             if (!StationApproach.moveTo(level, sable, target))
                 job.putString("Result", "NO_ACCESSIBLE_STATION");
+            else job.putString("Result", phase.equals("PICKUP") ? "IN_PROGRESS" : "CARRYING");
             return;
         }
         TRAVEL.remove(sable.getUUID());
@@ -143,12 +148,14 @@ public final class BarrelHaulController {
         sable.getLookControl().setLookAt(target.getX() + .5, target.getY() + .5, target.getZ() + .5);
         BlockEntity destinationEntity = level.getBlockEntity(target);
         if (destinationEntity == null) {
+            clearInteraction(job);
             job.putString("Result", "MISSING_INVENTORY");
             return;
         }
         if ("PICKUP".equals(phase)) {
             boolean flourJob = "create:wheat_flour".equals(job.getString("Item"));
             if (!flourJob && !(destinationEntity instanceof BarrelBlockEntity)) {
+                clearInteraction(job);
                 job.putString("Result", "MISSING_SOURCE_BARREL");
                 return;
             }
@@ -157,6 +164,7 @@ public final class BarrelHaulController {
             int quantity = Math.min(job.getInt("Requested"), flourJob
                     ? extractableFlour(level, target) : countWheat((BarrelBlockEntity) destinationEntity));
             if (quantity == 0) {
+                clearInteraction(job);
                 job.putString("Result", "NO_WHEAT");
                 return;
             }
@@ -164,29 +172,57 @@ public final class BarrelHaulController {
             BlockPos destination = BlockPos.of(job.getLong("To"));
             if (!level.hasChunkAt(destination) || (flourJob
                     ? flourBarrelCapacity(level, destination, item) : destinationCapacity(level, destination, quantity)) < quantity) {
+                clearInteraction(job);
                 job.putString("Result", "OUTPUT_FULL");
                 return;
             }
+            if (!readyToTransfer(job, phase)) return;
             int withdrawn = flourJob ? takeFlour(level, target, quantity)
                     : removeWheat((BarrelBlockEntity) destinationEntity, quantity);
             if (withdrawn <= 0) return;
             job.putInt("Cargo", withdrawn);
+            clearInteraction(job);
             job.putString("Phase", "DELIVER");
             TRAVEL.remove(sable.getUUID());
             job.putString("Result", "CARRYING");
         } else if ("DELIVER".equals(phase)) {
             int cargo = job.getInt("Cargo");
+            boolean flourJob = "create:wheat_flour".equals(job.getString("Item"));
+            int space = flourJob ? flourBarrelCapacity(level, target, BuiltInRegistries.ITEM.get(
+                    new ResourceLocation("create", "wheat_flour"))) : destinationCapacity(level, target, cargo);
+            if (space <= 0) {
+                clearInteraction(job);
+                job.putString("Result", "OUTPUT_FULL_CARRYING");
+                return;
+            }
+            if (!readyToTransfer(job, phase)) return;
             int delivered = "create:wheat_flour".equals(job.getString("Item"))
                     ? insertFlour(level, target, cargo)
                     : destinationEntity instanceof BarrelBlockEntity barrel
                     ? insertWheat(barrel, cargo) : insertMillWheat(level, target, cargo);
             int left = cargo - delivered;
             job.putInt("Cargo", left);
+            clearInteraction(job);
             if (left == 0) {
                 persisted.remove(ROOT);
                 persisted.putString("HearthboundLastHaulResult", "DELIVERED_" + delivered);
             } else job.putString("Result", "OUTPUT_FULL_CARRYING");
         }
+    }
+
+    /** Persisted dwell; no item leaves either inventory until all 15 valid ticks elapse. */
+    private static boolean readyToTransfer(CompoundTag job, String phase) {
+        if (!phase.equals(job.getString("InteractionPhase"))) {
+            job.putString("InteractionPhase", phase);
+            job.putInt("InteractionTicks", 15);
+        } else job.putInt("InteractionTicks", Math.max(0, job.getInt("InteractionTicks") - 5));
+        job.putString("Result", phase.equals("PICKUP") ? "PICKING_UP" : "PUTTING_DOWN");
+        return job.getInt("InteractionTicks") == 0;
+    }
+
+    private static void clearInteraction(CompoundTag job) {
+        job.remove("InteractionPhase");
+        job.remove("InteractionTicks");
     }
 
     private static IItemHandler millOutput(ServerLevel level, BlockPos pos) {

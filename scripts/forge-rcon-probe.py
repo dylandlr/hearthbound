@@ -46,7 +46,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "after-restart":
         restored = execute("hearthbound ci_restart_check")
         print(restored)
-        if "HB_RESTART_PASS" not in restored:
+        if "HB_RESTART_PASS" not in restored or "interactionTicks=10" not in restored:
             raise AssertionError("Saved cargo did not survive reboot: " + restored)
         unblocked = execute("hearthbound ci_restart_unblock")
         print(unblocked)
@@ -141,6 +141,17 @@ if __name__ == "__main__":
                     break
             else:
                 raise AssertionError("Restart cargo staging failed: " + stage)
+            assert "HB_RESTART_INTERACTION_ARMED" in execute("hearthbound ci_restart_interaction_stage")
+            for n in range(30):
+                time.sleep(.5)
+                interaction = execute("hearthbound ci_restart_interaction_check")
+                if "HB_RESTART_FAIL" in interaction:
+                    raise AssertionError(interaction)
+                if "HB_RESTART_INTERACTION_STAGED remaining=10" in interaction:
+                    print(interaction, flush=True)
+                    break
+            else:
+                raise AssertionError("Delivery interaction did not stage: " + interaction)
             print(execute("save-all flush"))
             print(execute("stop"))
             sys.exit(0)

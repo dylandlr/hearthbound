@@ -231,7 +231,13 @@ cap = module.execute("execute positioned 49 100 50 run hearthbound mill_order_ta
 print("Flour target command:", cap, flush=True)
 if "First Mill flour target set to 1" not in cap:
     raise AssertionError("Production target command rejected order: " + cap)
-time.sleep(3)
+for attempt in range(30):
+    time.sleep(1)
+    wait_status = module.execute("execute positioned 49 100 50 run hearthbound mill_order_status")
+    if "TARGET_REACHED" in wait_status and "waitState=AT_WAIT" in wait_status:
+        break
+else:
+    raise AssertionError("Worker did not return to its waiting spot: " + wait_status)
 target_state = module.execute("execute positioned 49 100 50 run hearthbound mill_order_status")
 print("Flour capped status:", target_state, flush=True)
 if "TARGET_REACHED" not in target_state:
@@ -243,6 +249,44 @@ stocked = __import__("re").search(r"flour=(\d+)", target_view)
 if "activity=target_reached cargo=0" not in target_view or "target=1" not in target_view or not stocked or int(stocked[1]) < 2:
     raise AssertionError("Worker presentation lost actual stock/target: " + target_view)
 print("HB_WORKER_PROGRESS_VIEW_PASS", flush=True)
+
+# Waiting-point commands and physical return, without changing target or stocks.
+worker = "@e[type=minecraft:villager,tag=hearthbound.sable,x=49,y=100,z=50,distance=..25,sort=nearest,limit=1]"
+prefix = "execute positioned 49 100 50 run hearthbound "
+before = (module.execute("data get block 51 100 50 Items"), module.execute("data get block 63 100 50 Items"))
+assert "waiting spot set" in module.execute(prefix + "mill_order_wait 49 100 52")
+assert "Choose clear floor" in module.execute(prefix + "mill_order_wait 51 100 50")
+
+def await_wait(state):
+    for attempt in range(35):
+        time.sleep(.5)
+        status = module.execute(prefix + "mill_order_status")
+        if "waitState=" + state in status:
+            return status
+    raise AssertionError("Waiting spot did not reach " + state + ": " + status)
+
+def assert_feet(x, z):
+    import re
+    pos = module.execute("data get entity " + worker + " Pos")
+    coords = [float(n) for n in re.findall(r"(-?\d+(?:\.\d+)?)d", pos)]
+    assert len(coords) == 3 and int(coords[0] // 1) == x and int(coords[1] // 1) == 100 and int(coords[2] // 1) == z, pos
+
+assert "wait=49, 100, 52" in await_wait("AT_WAIT")
+assert_feet(49, 52)
+# Choose a distant clear point, then obstruct its head space before arrival.
+assert "waiting spot set" in module.execute(prefix + "mill_order_wait 55 100 52")
+module.execute("setblock 55 101 52 minecraft:stone")
+await_wait("BLOCKED")
+blocked_view = module.execute(prefix + "worker_view")
+assert "activity=wait_blocked cargo=0" in blocked_view, blocked_view
+assert before == (module.execute("data get block 51 100 50 Items"), module.execute("data get block 63 100 50 Items"))
+module.execute("setblock 55 101 52 minecraft:air")
+assert "wait=55, 100, 52" in await_wait("AT_WAIT")
+assert_feet(55, 52)
+time.sleep(2)
+assert_feet(55, 52)
+assert before == (module.execute("data get block 51 100 50 Items"), module.execute("data get block 63 100 50 Items"))
+print("HB_WORKSHOP_WAITING_PASS physical_return invalid_point blocked_head automatic_retry stable_stocks", flush=True)
 
 # Stop only after production-target validation, preserving the active work order.
 stopped = module.execute("execute positioned 49 100 50 run hearthbound mill_order_stop")

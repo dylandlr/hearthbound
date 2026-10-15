@@ -140,7 +140,7 @@ try:
         return value
     args = ["java", "-Xms512M", "-Xmx2G", "-Djava.library.path=" + str(CLIENT / "natives"),
             "-Dorg.lwjgl.librarypath=" + str(CLIENT / "natives"), "-Dminecraft.launcher.brand=hearthbound-playtest",
-            "-Dminecraft.launcher.version=1"]
+            "-Dminecraft.launcher.version=1", "-Dhearthbound.recordWorkerViews=true"]
     args += [resolve(value) for value in profile["arguments"]["jvm"]]
     args += ["-cp", (CLIENT / "classpath.txt").read_text(), profile["mainClass"], "--username", PLAYER,
              "--uuid", str(player_id), "--accessToken", "0", "--userType", "legacy", "--version", profile["id"],
@@ -161,7 +161,7 @@ try:
     screenshot("cargo-blocked.png")
     recording = launch(["ffmpeg", "-y", "-f", "x11grab", "-video_size", "1280x720", "-framerate", "20",
                         "-i", os.environ["DISPLAY"], "-an", "-c:v", "libx264", "-preset", "fast", "-crf", "22",
-                        "-pix_fmt", "yuv420p", str(OUT / "Hearthbound_Cargo_Progress.mp4")], ROOT, "capture.log")
+                        "-pix_fmt", "yuv420p", str(OUT / "Hearthbound_Workshop_Routine.mp4")], ROOT, "capture.log")
     time.sleep(5)
     packed = int(re.search(r":\s*(-?\d+)L?\s*$", command(f"data get entity {WORKER} ForgeData.HearthboundHaul.To"))[1])
     x, y, z = packed >> 38, packed & 4095, (packed >> 12) & ((1 << 26) - 1)
@@ -176,7 +176,7 @@ try:
     command(f"kill {WORKER}")  # Completed disposable fixture only; no in-flight cargo.
     time.sleep(1.5)
     for text in ["forceload add 32 0 63 15", "fill 37 -61 -3 58 -61 5 minecraft:oak_planks",
-                 "setblock 42 -60 0 minecraft:barrel", "setblock 49 -60 0 create:millstone",
+                 "setblock 46 -61 3 minecraft:yellow_wool", "setblock 42 -60 0 minecraft:barrel", "setblock 49 -60 0 create:millstone",
                  "setblock 49 -61 0 create:creative_motor[facing=up]", "setblock 55 -60 0 minecraft:barrel",
                  'data merge block 42 -60 0 {Items:[{Slot:0b,id:"minecraft:wheat",Count:8b}]}',
                  'summon minecraft:villager 40.5 -60 0.5 {Tags:["hearthbound.sable"],CustomName:\'{"text":"Sable"}\',CustomNameVisible:1b,PersistenceRequired:1b}']:
@@ -184,8 +184,10 @@ try:
     wait_for(lambda: "following entity data" in rcon.execute(f"data get entity {WORKER} Pos"), 10, "worker query readiness")
     assert "enabled" in command("execute positioned 40 -60 0 run hearthbound mill_order 42 -60 0 49 -60 0 55 -60 0")
     command("execute positioned 40 -60 0 run hearthbound mill_order_target 2")
+    assert "waiting spot set" in command("execute positioned 40 -60 0 run hearthbound mill_order_wait 46 -60 3")
     deadline = time.monotonic() + 80
     saw_flour = False
+    saw_mill_wait = False
     while time.monotonic() < deadline:
         aim()
         view = rcon.execute("execute positioned 48 -60 0 run hearthbound worker_view")
@@ -198,7 +200,10 @@ try:
             flour_view = client_check("paused", 1, "create:wheat_flour")
             screenshot("flour-carrying.png")
             command(f'data merge entity {WORKER} {{ForgeData:{{HearthboundHaul:{{Paused:0b}}}}}}')
-        if "activity=target_reached cargo=0" in view:
+        order_state = rcon.execute(f"data get entity {WORKER} ForgeData.HearthboundMillOrder")
+        if 'WaitState: "AT_WAIT"' in order_state and 'State: "MILLING"' in order_state:
+            saw_mill_wait = True
+        if "activity=target_reached cargo=0" in view and 'WaitState: "AT_WAIT"' in order_state:
             break
         time.sleep(.2)
     else:
@@ -206,13 +211,22 @@ try:
     assert saw_flour, "No real flour carrying phase observed"
     target = client_check("target_reached", 0, "minecraft:air", flour=2, target=2)
     time.sleep(3)
+    wait_position = command(f"data get entity {WORKER} Pos")
+    coords = [float(n) for n in re.findall(r"(-?\d+(?:\.\d+)?)d", wait_position)]
+    assert len(coords) == 3 and 46 <= coords[0] < 47 and -60 <= coords[1] < -59 and 3 <= coords[2] < 4, wait_position
     screenshot("flour-target.png")
+    rendered = (OUT / "client.log").read_text()
+    for witness in ["HB_CLIENT_HUD activity=picking_up", "HB_CLIENT_HUD activity=putting_down",
+                    "HB_CLIENT_CARGO activity=putting_down", "HB_CLIENT_HUD activity=returning_to_workshop"]:
+        assert witness in rendered, "Missing actual render witness: " + witness
+    print("HB_GRAPHICAL_WORKSHOP_PASS actual_interaction_HUD cargo_reach return_to_saved_wait", flush=True)
     jar = next((SERVER / "mods").glob("hearthbound-*.jar"))
     (OUT / "provenance.json").write_text(json.dumps({"source": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
         "jar_sha256": hashlib.sha256(jar.read_bytes()).hexdigest(), "minecraft": "1.20.1", "forge": "47.4.10",
         "create": "6.0.8", "capture": "continuous X11 screen capture; no audio or time acceleration",
         "camera": "observer player teleported to follow worker; worker never teleported",
-        "blocked_client": blocked, "delivered_client": delivered, "target_client": target, "flour_client": flour_view,
+        "waiting_position": wait_position, "waiting_order": order_state, "observed_mill_wait": saw_mill_wait,
+        "interaction_ticks": 15, "blocked_client": blocked, "delivered_client": delivered, "target_client": target, "flour_client": flour_view,
         "test_pause": "first flour haul paused in persisted job for the visual assertion, then resumed"}, indent=2))
     print("HB_GRAPHICAL_CARGO_PROGRESS_PASS real packets, cargo rendering, HUD rendering, delivery clear and flour target", flush=True)
 except Exception:

@@ -34,6 +34,10 @@ public final class WorkerCargoLayer extends RenderLayer<Villager, VillagerModel<
         if (visual.isEmpty()) return;
         pose.pushPose();
         pose.translate(0, .4F, -.4F);
+        if (view.activity().equals("putting_down")) {
+            float reach = ClientWorkerViews.interactionProgress(worker, partialTick);
+            pose.translate(0, .12F * reach, -.18F * reach);
+        }
         pose.mulPose(Axis.XP.rotationDegrees(180));
         items.renderItem(worker, visual, ItemDisplayContext.GROUND, false, pose, buffers, light);
         pose.popPose();

@@ -44,8 +44,29 @@ public final class FirstMillWorkOrder {
         order.putLong("Flour", flour.asLong());
         order.putBoolean("Enabled", true);
         order.putString("State", "WAITING");
+        WorkshopWaiting.setDefault(level, worker, order);
         worker.getPersistentData().put(ROOT, order);
         source.sendSuccess(() -> Component.literal("First Mill work order enabled for Sable."), false);
+        return 1;
+    }
+
+    public static int waitingPoint(CommandSourceStack source, BlockPos feet) {
+        Villager worker = SableSelection.nearest(source, v -> v.getPersistentData().contains(ROOT, 10));
+        if (worker == null) {
+            source.sendFailure(Component.literal("No First Mill work order nearby."));
+            return 0;
+        }
+        var order = worker.getPersistentData().getCompound(ROOT);
+        if (!WorkshopWaiting.valid(source.getLevel(), feet, order)) {
+            source.sendFailure(Component.literal("Choose clear floor within 32 blocks of the mill, away from station blocks."));
+            return 0;
+        }
+        order.putLong("Wait", feet.asLong());
+        order.remove("WaitState");
+        order.remove("WaitRetryAfter");
+        WorkshopWaiting.forget(worker);
+        if (!worker.getPersistentData().contains("HearthboundHaul", 10)) worker.getNavigation().stop();
+        source.sendSuccess(() -> Component.literal("First Mill waiting spot set to " + feet.toShortString()), false);
         return 1;
     }
 
@@ -73,6 +94,8 @@ public final class FirstMillWorkOrder {
             return 0;
         }
         // Stop scheduling new jobs; never erase cargo from an active haul.
+        if (!worker.getPersistentData().contains("HearthboundHaul", 10)) worker.getNavigation().stop();
+        WorkshopWaiting.forget(worker);
         worker.getPersistentData().remove(ROOT);
         source.sendSuccess(() -> Component.literal("First Mill scheduling stopped; existing haul retained."), false);
         return 1;
@@ -93,6 +116,8 @@ public final class FirstMillWorkOrder {
                 + ", worker=" + worker.getUUID() + ", hauling=" + hauling
                 + ", target=" + (order.getInt("TargetFlour") > 0
                         ? order.getInt("TargetFlour") : "unlimited")
+                + ", wait=" + (order.contains("Wait") ? BlockPos.of(order.getLong("Wait")).toShortString() : "unavailable")
+                + ", waitState=" + order.getString("WaitState")
                 + ", wheat=" + BlockPos.of(order.getLong("Wheat"))
                 + ", mill=" + BlockPos.of(order.getLong("Mill"))
                 + ", flour=" + BlockPos.of(order.getLong("Flour"))), false);
@@ -136,8 +161,10 @@ public final class FirstMillWorkOrder {
         }
         // Prioritize finished goods. Otherwise supply up to four wheat.
         if (hasFlourOutput(level, mill)) {
-            if (BarrelHaulController.assignFlourCitizen(villager, mill, flour, 1))
+            if (BarrelHaulController.assignFlourCitizen(villager, mill, flour, 1)) {
+                WorkshopWaiting.beginWork(villager, order);
                 order.putString("State", "COLLECTING_FLOUR");
+            }
             return;
         }
         // Do not queue fresh deliveries while wheat is still in the millstone.
@@ -150,8 +177,10 @@ public final class FirstMillWorkOrder {
         for (int i = 0; i < supply.getContainerSize(); i++)
             if (supply.getItem(i).is(Items.WHEAT)) wheatCount += supply.getItem(i).getCount();
         if (wheatCount > 0) {
-            if (BarrelHaulController.assignCitizen(villager, wheat, mill, Math.min(4, wheatCount)))
+            if (BarrelHaulController.assignCitizen(villager, wheat, mill, Math.min(4, wheatCount))) {
+                WorkshopWaiting.beginWork(villager, order);
                 order.putString("State", "SUPPLYING_WHEAT");
+            }
         } else order.putString("State", "WAITING_FOR_WHEAT");
     }
 
