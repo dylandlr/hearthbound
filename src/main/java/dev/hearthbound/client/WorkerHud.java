@@ -40,6 +40,7 @@ public final class WorkerHud {
                 : view.targetFlour() > 0
                 ? Component.translatable("hearthbound.stock_target", view.stockedFlour(), view.targetFlour())
                 : Component.translatable("hearthbound.stock", view.stockedFlour()));
+        lines.add(Component.literal("Empty-hand right-click: workshop"));
         int screenWidth = event.getWindow().getGuiScaledWidth();
         int width = Math.min(Math.min(280, screenWidth - 24),
                 lines.stream().mapToInt(mc.font::width).max().orElse(120) + 24);

@@ -28,8 +28,7 @@ public final class FirstMillWorkOrder {
                 || !level.hasChunkAt(wheat) || !level.hasChunkAt(mill) || !level.hasChunkAt(flour)
                 || !(level.getBlockEntity(wheat) instanceof BarrelBlockEntity)
                 || !(level.getBlockEntity(flour) instanceof BarrelBlockEntity)
-                || !level.getBlockState(mill).is(BuiltInRegistries.BLOCK.get(
-                        new ResourceLocation("create", "millstone")))) {
+                || !isMillstone(level, mill)) {
             source.sendFailure(Component.literal("Work order needs two loaded barrels and a Create millstone."));
             return 0;
         }
@@ -66,7 +65,7 @@ public final class FirstMillWorkOrder {
                 || mill.equals(flour) || !level.hasChunkAt(wheat) || !level.hasChunkAt(mill) || !level.hasChunkAt(flour)
                 || !(level.getBlockEntity(wheat) instanceof BarrelBlockEntity)
                 || !(level.getBlockEntity(flour) instanceof BarrelBlockEntity)
-                || !level.getBlockState(mill).is(BuiltInRegistries.BLOCK.get(new ResourceLocation("create", "millstone"))))
+                || !isMillstone(level, mill))
             return "Choose two distinct loaded barrels and a Create millstone.";
         var data = worker.getPersistentData();
         boolean existing = data.contains(ROOT, 10);
@@ -173,8 +172,7 @@ public final class FirstMillWorkOrder {
         }
         if (!(level.getBlockEntity(wheat) instanceof BarrelBlockEntity supply)
                 || !(level.getBlockEntity(flour) instanceof BarrelBlockEntity)
-                || !level.getBlockState(mill).is(BuiltInRegistries.BLOCK.get(
-                        new ResourceLocation("create", "millstone")))) {
+                || !isMillstone(level, mill)) {
             order.putString("State", "MISSING_STATION");
             return;
         }
@@ -212,6 +210,11 @@ public final class FirstMillWorkOrder {
                 order.putString("State", "SUPPLYING_WHEAT");
             }
         } else order.putString("State", "WAITING_FOR_WHEAT");
+    }
+
+    private static boolean isMillstone(ServerLevel level, BlockPos pos) {
+        return BuiltInRegistries.BLOCK.getKey(level.getBlockState(pos).getBlock())
+                .equals(new ResourceLocation("create", "millstone"));
     }
 
     private static boolean hasMillInput(ServerLevel level, BlockPos pos) {

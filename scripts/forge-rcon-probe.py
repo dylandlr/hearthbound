@@ -87,6 +87,10 @@ if __name__ == "__main__":
             print(haul)
             if "HB_HAUL_SETUP_PASS" not in haul:
                 raise AssertionError("Real Forge hauling baseline failed")
+            execute("forceload add 0 0")
+            no_create = execute("hearthbound ci_workshop_no_create")
+            assert "HB_WORKSHOP_OPTIONAL_CREATE_PASS" in no_create, no_create
+            print(no_create, flush=True)
             print("PASS: real-world Forge entity and inventory setup probes")
             assert "HB_HAUL_E2E_STARTED" in execute("hearthbound ci_haul_start")
             for n in range(70):

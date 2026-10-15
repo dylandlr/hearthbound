@@ -42,6 +42,27 @@ public final class WorkshopControlsProbe {
         source.sendSuccess(() -> Component.literal("HB_WORKSHOP_CONTROLS_AUTH_PASS non_operator_owner stale_revision wrong_worker invalid_target unloaded_point stranger_denied cargo_unchanged"), false);
         return 1;
     }
+    public static int withoutCreate(CommandSourceStack source) {
+        var level = source.getLevel();
+        var key = new net.minecraft.resources.ResourceLocation("create", "millstone");
+        if (net.minecraft.core.registries.BuiltInRegistries.BLOCK.containsKey(key)) return fail(source, "expected_optional_create_absence");
+        BlockPos from = new BlockPos(2, 100, 2), mill = new BlockPos(4, 100, 2), to = new BlockPos(6, 100, 2);
+        if (!level.hasChunkAt(from)) return fail(source, "negative_fixture_chunk_missing");
+        level.setBlockAndUpdate(from, net.minecraft.world.level.block.Blocks.BARREL.defaultBlockState());
+        level.setBlockAndUpdate(to, net.minecraft.world.level.block.Blocks.BARREL.defaultBlockState());
+        level.setBlockAndUpdate(mill, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
+        var input = (net.minecraft.world.level.block.entity.BarrelBlockEntity) level.getBlockEntity(from);
+        var output = (net.minecraft.world.level.block.entity.BarrelBlockEntity) level.getBlockEntity(to);
+        input.setItem(0, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.WHEAT, 8));
+        var worker = net.minecraft.world.entity.EntityType.VILLAGER.create(level);
+        if (worker == null) return fail(source, "worker_fixture_missing");
+        String error = FirstMillWorkOrder.configure(worker, from, mill, to, null, 2);
+        if (error.isEmpty() || worker.getPersistentData().contains("HearthboundMillOrder", 10)
+                || input.getItem(0).getCount() != 8 || !output.isEmpty()) return fail(source, "air_accepted_without_create");
+        source.sendSuccess(() -> Component.literal("HB_WORKSHOP_OPTIONAL_CREATE_PASS air_rejected no_order no_extraction"), false);
+        return 1;
+    }
+
     private static int fail(CommandSourceStack source, String reason) {
         source.sendFailure(Component.literal("HB_WORKSHOP_CONTROLS_AUTH_FAIL " + reason)); return 0;
     }

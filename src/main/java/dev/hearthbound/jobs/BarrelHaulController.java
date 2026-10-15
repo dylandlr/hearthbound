@@ -284,8 +284,8 @@ public final class BarrelHaulController {
     }
 
     private static boolean isMillstone(ServerLevel level, BlockPos pos) {
-        return level.getBlockState(pos).is(BuiltInRegistries.BLOCK.get(
-                new ResourceLocation("create", "millstone")));
+        return BuiltInRegistries.BLOCK.getKey(level.getBlockState(pos).getBlock())
+                .equals(new ResourceLocation("create", "millstone"));
     }
 
     private static IItemHandler millInput(ServerLevel level, BlockPos pos) {
