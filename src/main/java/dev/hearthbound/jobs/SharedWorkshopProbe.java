@@ -43,14 +43,14 @@ public final class SharedWorkshopProbe {
         ((BarrelBlockEntity) level.getBlockEntity(WHEAT)).setItem(0, new ItemStack(Items.WHEAT, 8));
         var a = spawn(level, "a", 130.5, 132.5);
         var b = spawn(level, "b", 130.5, 136.5);
-        String error = FirstMillWorkOrder.configureFor(a, WHEAT, MILL, FLOUR, new BlockPos(134, 100, 130), 2, OWNER, false);
+        String error = FirstMillWorkOrder.configureFor(a, WHEAT, MILL, FLOUR, null, 2, OWNER, false);
         if (!error.isEmpty()) return fail(source, error);
         var before = b.getPersistentData().copy();
-        error = FirstMillWorkOrder.configureFor(b, WHEAT, MILL, FLOUR, new BlockPos(134, 100, 138), 2, UUID.randomUUID(), false);
+        error = FirstMillWorkOrder.configureFor(b, WHEAT, MILL, FLOUR, null, 2, UUID.randomUUID(), false);
         if (error.isEmpty() || !before.equals(b.getPersistentData())) return fail(source, "foreign_owner_mutated_worker");
         var registry = WorkshopRegistry.get(level);
         if (!registry.share(MILL, OWNER, MEMBER, false)) return fail(source, "share_grant");
-        error = FirstMillWorkOrder.configureFor(b, WHEAT, MILL, FLOUR, new BlockPos(134, 100, 138), 2, MEMBER, false);
+        error = FirstMillWorkOrder.configureFor(b, WHEAT, MILL, FLOUR, null, 2, MEMBER, false);
         if (!error.isEmpty() || !MEMBER.equals(b.getPersistentData().getCompound("HearthboundMillOrder").getUUID("WorkshopManager")))
             return fail(source, "shared_member_order");
         // A discarded empty worker releases its lease without touching stock.

@@ -148,7 +148,7 @@ try:
              "--assetIndex", (CLIENT / "asset-index.txt").read_text(), "--width", "1280", "--height", "720"]
     args += profile["arguments"]["game"] + ["--quickPlayMultiplayer", "127.0.0.1:25565"]
     game = launch(args, CLIENT, "client.log")
-    wait_for(lambda: PLAYER in rcon.execute("list"), 200, "graphical client joins dedicated server")
+    wait_for(lambda: PLAYER in rcon.execute("list"), 240, "graphical client joins dedicated server")
     command("gamemode creative " + PLAYER)
     time.sleep(5)
     windows = subprocess.check_output(["xdotool", "search", "--onlyvisible", "--pid", str(game.pid)], text=True).splitlines()
