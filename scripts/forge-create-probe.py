@@ -186,7 +186,10 @@ else:
     raise AssertionError("Sable did not bring flour to stockpile: " + storage)
 
 # Work-order test: only the initial order is player-issued.
-print("Worker-chunk ticking:", module.execute("forceload add 48 48 66 52"), flush=True)
+# Floor detours can briefly cross a chunk edge beside the platform. The
+# disposable arena owns a ticking margin around the whole route, including
+# those turns; production controllers do not supply chunk tickets.
+print("Worker-chunk ticking:", module.execute("forceload add 32 32 82 68"), flush=True)
 print(module.execute("fill 48 99 48 66 99 52 minecraft:stone"), flush=True)
 print(module.execute("setblock 51 100 50 minecraft:barrel"), flush=True)
 print(module.execute('data merge block 51 100 50 {Items:[{Slot:0b,id:"minecraft:wheat",Count:8b}]}'), flush=True)
