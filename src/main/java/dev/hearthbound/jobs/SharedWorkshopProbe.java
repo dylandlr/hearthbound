@@ -133,7 +133,8 @@ public final class SharedWorkshopProbe {
         if (flour < 2 || a.getPersistentData().contains("HearthboundHaul", 10)
                 || b.getPersistentData().contains("HearthboundHaul", 10)
                 || !b.getPersistentData().getCompound("HearthboundMillOrder").getString("State").equals("TARGET_REACHED")) {
-            source.sendSuccess(() -> Component.literal("HB_SHARED_WORKSHOP_PENDING flour=" + flour), false); return 1;
+            final int stocked = flour;
+            source.sendSuccess(() -> Component.literal("HB_SHARED_WORKSHOP_PENDING flour=" + stocked), false); return 1;
         }
         var registry = WorkshopRegistry.get(level);
         if (wheat(level) != 4 || flour != 2 || registry.lease(a.getUUID()) != null || registry.lease(b.getUUID()) != null
