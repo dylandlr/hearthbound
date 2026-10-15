@@ -57,6 +57,8 @@ jobs:
             client-evidence/
             client-run/logs/
             client-run/crash-reports/
+            guest-run/logs/
+            guest-run/crash-reports/
             run/logs/
             run/crash-reports/
           if-no-files-found: warn

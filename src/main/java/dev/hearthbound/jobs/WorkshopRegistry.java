@@ -157,6 +157,7 @@ public final class WorkshopRegistry extends SavedData {
         var registry = get(source.getLevel());
         var lease = registry.holder(mill);
         source.sendSuccess(() -> Component.literal("Workshop owner=" + registry.owner(mill)
+                + ", shared=" + registry.sharedWith(mill).size()
                 + ", reservation=" + (lease == null ? "free" : lease.worker() + "/" + lease.job())), false);
         return 1;
     }

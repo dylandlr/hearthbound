@@ -16,6 +16,7 @@ import uuid
 
 ROOT = Path.cwd()
 CLIENT = ROOT / "client-run"
+GUEST = ROOT / "guest-run"
 SERVER = ROOT / "run"
 OUT = ROOT / "client-evidence"
 OUT.mkdir(exist_ok=True)
@@ -23,6 +24,7 @@ spec = importlib.util.spec_from_file_location("rcon", ROOT / "scripts/forge-rcon
 rcon = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(rcon)
 PLAYER = "HearthboundQA"
+GUEST_PLAYER = "HearthboundGuest"
 WORKER = "@e[type=minecraft:villager,tag=hearthbound.sable,limit=1]"
 children = []
 recording = None
@@ -118,7 +120,7 @@ try:
                         {"block": "minecraft:grass_block", "height": 1}], "biome": "minecraft:plains"}
     properties = {"online-mode": "false", "enforce-secure-profile": "false", "level-name": "visual-ci",
                   "level-type": "minecraft:flat", "generator-settings": json.dumps(flat), "level-seed": "20261014",
-                  "max-players": "1", "enable-rcon": "true", "rcon.password": "hearthbound-ci-only-password",
+                  "max-players": "2", "enable-rcon": "true", "rcon.password": "hearthbound-ci-only-password",
                   "rcon.port": "25575", "view-distance": "4", "simulation-distance": "5", "allow-flight": "true"}
     (SERVER / "server.properties").write_text("\n".join(k + "=" + v for k, v in properties.items()) + "\n")
     player_id = uuid.UUID(bytes=hashlib.md5(("OfflinePlayer:" + PLAYER).encode()).digest(), version=3)
@@ -129,26 +131,41 @@ try:
     wait_for(lambda: "Hearthbound" in rcon.execute("hearthbound status"), 150, "Forge server readiness")
     for text in ["gamerule doMobSpawning false", "gamerule doDaylightCycle false", "gamerule sendCommandFeedback false", "gamerule logAdminCommands false", "time set 6000", "weather clear"]:
         command(text)
-    (CLIENT / "options.txt").write_text("maxFps:30\nrenderDistance:4\nsimulationDistance:5\nguiScale:2\n"
+    options = ("maxFps:30\nrenderDistance:4\nsimulationDistance:5\nguiScale:2\n"
         "fullscreen:false\npauseOnLostFocus:false\nonboardAccessibility:false\njoinedFirstServer:true\n"
         "skipMultiplayerWarning:true\ntutorialStep:none\nfov:0.0\ngamma:1.0\nsoundCategory_master:0.0\nnarrator:0\nbobView:false\n")
+    (CLIENT / "options.txt").write_text(options)
+    GUEST.mkdir(exist_ok=True)
+    (GUEST / "options.txt").write_text(options.replace("maxFps:30", "maxFps:15").replace("renderDistance:4", "renderDistance:2"))
+    (GUEST / "mods").mkdir(exist_ok=True)
+    for mod in (CLIENT / "mods").glob("*.jar"):
+        target = GUEST / "mods" / mod.name
+        if not target.exists(): target.symlink_to(mod.resolve())
     profile = json.loads((CLIENT / "versions/1.20.1-forge-47.4.10/1.20.1-forge-47.4.10.json").read_text())
     replacements = {"library_directory": str(CLIENT / "libraries"), "classpath_separator": ":", "version_name": "1.20.1"}
     def resolve(value):
         for key, replacement in replacements.items():
             value = value.replace("${" + key + "}", replacement)
         return value
-    args = ["java", "-Xms512M", "-Xmx2G", "-Djava.library.path=" + str(CLIENT / "natives"),
-            "-Dorg.lwjgl.librarypath=" + str(CLIENT / "natives"), "-Dminecraft.launcher.brand=hearthbound-playtest",
-            "-Dminecraft.launcher.version=1", "-Dhearthbound.recordWorkerViews=true", "-Dhearthbound.recordWorkshopControls=true"]
-    args += [resolve(value) for value in profile["arguments"]["jvm"]]
-    args += ["-cp", (CLIENT / "classpath.txt").read_text(), profile["mainClass"], "--username", PLAYER,
-             "--uuid", str(player_id), "--accessToken", "0", "--userType", "legacy", "--version", profile["id"],
-             "--versionType", "release", "--gameDir", str(CLIENT), "--assetsDir", str(CLIENT / "assets"),
-             "--assetIndex", (CLIENT / "asset-index.txt").read_text(), "--width", "1280", "--height", "720"]
-    args += profile["arguments"]["game"] + ["--quickPlayMultiplayer", "127.0.0.1:25565"]
-    game = launch(args, CLIENT, "client.log")
+    def client_args(name, identity, game_dir, width, height, memory):
+        args = ["java", "-Xms384M", "-Xmx" + memory, "-Djava.library.path=" + str(CLIENT / "natives"),
+                "-Dorg.lwjgl.librarypath=" + str(CLIENT / "natives"), "-Dminecraft.launcher.brand=hearthbound-playtest",
+                "-Dminecraft.launcher.version=1", "-Dhearthbound.recordWorkerViews=true",
+                "-Dhearthbound.recordWorkshopControls=true"]
+        args += [resolve(value) for value in profile["arguments"]["jvm"]]
+        args += ["-cp", (CLIENT / "classpath.txt").read_text(), profile["mainClass"], "--username", name,
+                 "--uuid", str(identity), "--accessToken", "0", "--userType", "legacy", "--version", profile["id"],
+                 "--versionType", "release", "--gameDir", str(game_dir), "--assetsDir", str(CLIENT / "assets"),
+                 "--assetIndex", (CLIENT / "asset-index.txt").read_text(), "--width", str(width), "--height", str(height)]
+        return args + profile["arguments"]["game"] + ["--quickPlayMultiplayer", "127.0.0.1:25565"]
+    game = launch(client_args(PLAYER, player_id, CLIENT, 1280, 720, "1536M"), CLIENT, "client.log")
     wait_for(lambda: PLAYER in rcon.execute("list"), 240, "graphical client joins dedicated server")
+    guest_id = uuid.UUID(bytes=hashlib.md5(("OfflinePlayer:" + GUEST_PLAYER).encode()).digest(), version=3)
+    guest = launch(["xvfb-run", "-a", "-s", "-screen 0 640x480x24"]
+                   + client_args(GUEST_PLAYER, guest_id, GUEST, 640, 480, "1024M"), GUEST, "guest-client.log")
+    wait_for(lambda: PLAYER in rcon.execute("list") and GUEST_PLAYER in rcon.execute("list"),
+             240, "two graphical clients join dedicated server")
+    print("HB_TWO_CLIENT_JOIN_PASS owner=" + PLAYER + " guest=" + GUEST_PLAYER, flush=True)
     command("gamemode creative " + PLAYER)
     time.sleep(5)
     windows = subprocess.check_output(["xdotool", "search", "--onlyvisible", "--pid", str(game.pid)], text=True).splitlines()
@@ -208,8 +225,13 @@ try:
             wait_for(lambda: 'HearthboundMillOrder:' not in rcon.execute(f'data get entity {WORKER} ForgeData'), 10, 'UI stops only scheduling')
             assert saved_haul == command(f'data get entity {WORKER} ForgeData.HearthboundHaul'), 'Stop changed in-flight cargo'
             screenshot("controls-stop-carrying.png")
-            controls_ui['status'](['owner=You', 'access=OWNER', 'mill=SELF', 'paused=true', 'manage=true', 'release=false'], 'status-paused-reservation.png')
-            controls_ui['sharing'](['owner=You', 'manage=true', 'release=false'], 'access-paused-reservation.png')
+            controls_ui['status'](['owner=You', 'access=OWNER', 'mill=SELF', 'paused=true', 'shared=0', 'manage=true', 'release=false'], 'status-paused-reservation.png')
+            controls_ui['sharing'](['owner=You', 'people=1', 'manage=true', 'release=false',
+                                    'selected=HearthboundGuest/false/true'], 'access-paused-reservation.png')
+            controls_ui['sharing_click']('share', ['people=1', 'manage=true', 'release=false',
+                                                   'selected=HearthboundGuest/true/true'])
+            assert 'shared=1' in command('hearthbound workshop_status 49 -60 0')
+            screenshot('access-shared-while-paused.png')
             controls_ui['sharing_back']()
             controls_ui['status_back']()
             assert saved_haul == command(f'data get entity {WORKER} ForgeData.HearthboundHaul'), 'Status page changed cargo'
@@ -241,6 +263,19 @@ try:
     coords = [float(n) for n in re.findall(r"(-?\d+(?:\.\d+)?)d", wait_position)]
     assert len(coords) == 3 and 46 <= coords[0] < 47 and -60 <= coords[1] < -59 and 3 <= coords[2] < 4, wait_position
     screenshot("flour-target.png")
+    controls_ui['open']()
+    controls_ui['status'](['owner=You', 'access=OWNER', 'mill=FREE', 'shared=1',
+                           'manage=true', 'release=true'], 'status-shared-free.png')
+    controls_ui['sharing'](['owner=You', 'people=1', 'manage=true', 'release=true',
+                            'selected=HearthboundGuest/true/true'], 'access-shared-free.png')
+    controls_ui['sharing_click']('revoke', ['people=1', 'manage=true', 'release=true',
+                                            'selected=HearthboundGuest/false/true'])
+    assert 'shared=0' in command('hearthbound workshop_status 49 -60 0')
+    screenshot('access-revoked.png')
+    controls_ui['sharing_back']()
+    controls_ui['status_back']()
+    controls_ui['button']('close')
+    print('HB_TWO_CLIENT_SHARING_UI_PASS online_guest grant_while_reserved persisted_until_revoke native_clicks', flush=True)
     # Keep the gameplay capture focused on the full native-control production flow.
     recording.stdin.write("q\n"); recording.stdin.flush(); recording.wait(timeout=20); recording = None
     controls_ui['open']()
@@ -249,10 +284,11 @@ try:
     small_geometry = controls_ui['screen']()
     assert small_geometry['x'] >= 0 and small_geometry['y'] >= 0 and small_geometry['height'] >= 220, small_geometry
     screenshot('controls-small-window.png')
-    status_geometry = controls_ui['status'](['owner=You', 'access=OWNER', 'mill=FREE', 'manage=true', 'release=true'], 'status-small-window.png')
+    status_geometry = controls_ui['status'](['owner=You', 'access=OWNER', 'mill=FREE', 'shared=0', 'manage=true', 'release=true'], 'status-small-window.png')
     assert status_geometry['width'] <= 304 and status_geometry['height'] >= 220, status_geometry
     assert 183 + 9 < status_geometry['height'] - 30, status_geometry
-    sharing_geometry = controls_ui['sharing'](['owner=You', 'manage=true', 'release=true'], 'access-small-window.png')
+    sharing_geometry = controls_ui['sharing'](['owner=You', 'people=1', 'manage=true', 'release=true',
+                                              'selected=HearthboundGuest/false/true'], 'access-small-window.png')
     assert sharing_geometry['width'] <= 304 and sharing_geometry['height'] >= 200, sharing_geometry
     controls_ui['sharing_back']()
     controls_ui['status_back']()
@@ -276,8 +312,9 @@ try:
         "controls": "Actual xdotool right-click, native screen buttons, four world picks, numeric target; player de-opped before setup",
         "small_window": small_geometry, "status_small_window": status_geometry, "access_small_window": sharing_geometry,
         "status_page": "Server-authored ownership, endpoint holders and queues; unclaimed preview and paused self reservation rendered; Back preserves draft and cargo",
-        "access_page": "Owner-only native sharing controls rendered; release disabled for a reserved mill and enabled once free",
+        "access_page": "Two actual connected clients; owner grants guest while reserved, grant persists until native revoke; release disabled while reserved and enabled once free",
         "control_stop_restart": "UI stops while flour cargo=1, haul NBT unchanged, Start disabled, UI resumes the haul, delivery finishes, UI restarts cached setup",
+        "two_client_sharing": "HearthboundQA and HearthboundGuest connected concurrently; real Share/Revoke buttons confirmed by server status and server-authored render state",
         "test_pause": "first flour haul paused in persisted job for the visual/stop assertion, then resumed"}, indent=2))
     print("HB_GRAPHICAL_WORKSHOP_CONTROLS_PASS real_mouse_keyboard non_operator_setup stop_with_cargo restart_target", flush=True)
     print("HB_GRAPHICAL_CARGO_PROGRESS_PASS real packets, cargo rendering, HUD rendering, delivery clear and flour target", flush=True)

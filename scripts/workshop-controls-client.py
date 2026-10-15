@@ -64,6 +64,19 @@ def run_setup(api):
         api['screenshot'](screenshot)
         return sharing_screen()
 
+    def sharing_click(kind, expected):
+        before = len([line for line in lines() if 'HB_WORKSHOP_SHARING_RENDER ' in line])
+        g = sharing_screen()
+        centers = {'share': (136, 82), 'revoke': (214, 82), 'previous': (31, 82), 'next': (73, 82)}
+        dx, dy = centers[kind]
+        click(2 * (g['x'] + dx), 2 * (g['y'] + dy))
+        def matching():
+            recent = [line for line in lines() if 'HB_WORKSHOP_SHARING_RENDER ' in line][before:]
+            return next((line for line in recent if all(token in line for token in expected)), None)
+        witness = api['wait_for'](matching, 10, 'server-confirmed workshop access mutation')
+        print(witness, flush=True)
+        return witness
+
     def sharing_back():
         g = sharing_screen()
         click(2 * (g['x'] + g['width'] / 2), 2 * (g['y'] + g['height'] - 20))
@@ -154,4 +167,5 @@ def run_setup(api):
     button('close')
     print('HB_WORKSHOP_SETUP_UI_PASS mouse_open four_world_picks escape_cancel numeric_target non_operator_start', flush=True)
     return {'open': open_screen, 'button': button, 'screen': screen, 'save': save_order,
-            'status': inspect_status, 'status_back': status_back, 'sharing': sharing_open, 'sharing_back': sharing_back}
+            'status': inspect_status, 'status_back': status_back, 'sharing': sharing_open,
+            'sharing_click': sharing_click, 'sharing_back': sharing_back}
