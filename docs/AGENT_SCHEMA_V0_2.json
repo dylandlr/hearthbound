@@ -1,0 +1,20 @@
+{
+  "schema": "hearthbound.agent.vector.v0.2",
+  "observation": "hearthbound.agent.observation.v0.2",
+  "simulator": "hearthbound.agent.simulator.v0.2",
+  "partial_observability": {
+    "hidden_value": 0,
+    "visibility_features": ["source_visible", "mill_visible", "store_visible"]
+  },
+  "features": [
+    "bias", "cargo_flour", "source_visible", "source_wheat",
+    "mill_visible", "mill_wheat", "mill_flour", "store_visible",
+    "store_flour", "target_remaining", "source_available",
+    "mill_input_available", "mill_output_available", "cargo_available",
+    "at_wait", "task_wait", "task_supply", "task_collect",
+    "task_return", "last_action_failed"
+  ],
+  "actions": ["WAIT", "SUPPLY_MILL", "COLLECT_FLOUR", "RETURN_TO_WAIT"],
+  "reward_channels": ["personal", "colony"],
+  "llm_policy": false
+}
