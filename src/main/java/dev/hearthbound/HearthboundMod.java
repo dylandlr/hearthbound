@@ -42,6 +42,7 @@ public final class HearthboundMod {
     private static final Logger LOGGER = LogManager.getLogger();
 
     public HearthboundMod() {
+        dev.hearthbound.presentation.WorkerNetwork.register();
         LOGGER.info("Hearthbound bootstrap loaded. First Mill work orders available.");
     }
 
@@ -269,6 +270,8 @@ public final class HearthboundMod {
                                         })))))
                     .then(Commands.literal("haul_status")
                             .executes(ctx -> BarrelHaulController.status(ctx.getSource())))
+                    .then(Commands.literal("worker_view")
+                            .executes(ctx -> dev.hearthbound.presentation.WorkerPresentation.status(ctx.getSource())))
                     .then(Commands.literal("sable_status")
                             .executes(ctx -> SableJobController.status(ctx.getSource())))
                     .then(Commands.literal("cancel_sable")

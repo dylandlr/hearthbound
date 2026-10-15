@@ -1,0 +1,19 @@
+{
+  "hearthbound.activity.collecting": "Collecting supplies",
+  "hearthbound.activity.delivering": "Delivering cargo",
+  "hearthbound.activity.milling": "Waiting for the mill",
+  "hearthbound.activity.target_reached": "Flour target reached",
+  "hearthbound.activity.waiting": "Waiting for work",
+  "hearthbound.activity.waiting_for_supplies": "Waiting for supplies",
+  "hearthbound.activity.waiting_for_chunks": "Waiting for the workshop to load",
+  "hearthbound.activity.missing_station": "Workshop station missing",
+  "hearthbound.activity.no_access": "Cannot reach the station",
+  "hearthbound.activity.output_full": "Storage full",
+  "hearthbound.activity.paused": "Hauling paused",
+  "hearthbound.activity.travelling": "Walking to destination",
+  "hearthbound.activity.idle": "Ready for work",
+  "hearthbound.cargo": "Carrying %s × %s",
+  "hearthbound.stock_target": "Flour stored: %s / %s",
+  "hearthbound.stock": "Flour stored: %s",
+  "hearthbound.stock_unavailable": "Flour storage unavailable"
+}

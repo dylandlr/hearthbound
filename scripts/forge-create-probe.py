@@ -169,11 +169,18 @@ pickup = module.execute("execute positioned 0 100 2 run hearthbound haul_flour 0
 print("Flour courier:", pickup, flush=True)
 if "Sable assigned to collect flour" not in pickup:
     raise AssertionError("No Sable assigned to retrieve flour: " + pickup)
+saw_flour_cargo = False
 for attempt in range(80):
     time.sleep(1)
+    courier_view = module.execute("execute positioned 0 100 2 run hearthbound worker_view")
+    if "cargo=1 item=create:wheat_flour" in courier_view:
+        saw_flour_cargo = True
     storage = module.execute("data get block 7 100 0 Items")
     if "create:wheat_flour" in storage:
+        if not saw_flour_cargo:
+            raise AssertionError("Flour courier never exposed its in-flight cargo: " + courier_view)
         print("HB_SABLE_FLOUR_COURIER_PASS " + storage, flush=True)
+        print("HB_FLOUR_CARGO_VIEW_PASS", flush=True)
         break
 else:
     raise AssertionError("Sable did not bring flour to stockpile: " + storage)
@@ -230,6 +237,12 @@ print("Flour capped status:", target_state, flush=True)
 if "TARGET_REACHED" not in target_state:
     raise AssertionError("Scheduler did not honor flour stockpile target: " + target_state)
 print("HB_FIRST_MILL_TARGET_PASS", flush=True)
+target_view = module.execute("execute positioned 49 100 50 run hearthbound worker_view")
+print("Target presentation:", target_view, flush=True)
+stocked = __import__("re").search(r"flour=(\d+)", target_view)
+if "activity=target_reached cargo=0" not in target_view or "target=1" not in target_view or not stocked or int(stocked[1]) < 2:
+    raise AssertionError("Worker presentation lost actual stock/target: " + target_view)
+print("HB_WORKER_PROGRESS_VIEW_PASS", flush=True)
 
 # Stop only after production-target validation, preserving the active work order.
 stopped = module.execute("execute positioned 49 100 50 run hearthbound mill_order_stop")

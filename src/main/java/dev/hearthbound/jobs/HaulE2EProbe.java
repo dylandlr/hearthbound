@@ -147,6 +147,11 @@ public final class HaulE2EProbe {
         int cargo = state.contains("HearthboundHaul", 10)
                 ? state.getCompound("HearthboundHaul").getInt("Cargo") : 0;
         if (from + to + cargo != 8) return fail(command, "inventory_conservation");
+        var view = dev.hearthbound.presentation.WorkerPresentation.inspect(citizen);
+        if (!view.visible() || view.cargo() != cargo
+                || cargo > 0 && !view.item().equals("minecraft:wheat")
+                || !citizen.getMainHandItem().isEmpty() || !citizen.getOffhandItem().isEmpty())
+            return fail(command, "cargo_presentation_or_equipment");
         if (blockAfterPickupMode) {
             if (!destinationFilledAfterPickup && from == 4 && cargo == 4 && to == 0) {
                 for (int slot = 0; slot < output.getContainerSize(); slot++)
@@ -158,6 +163,7 @@ public final class HaulE2EProbe {
             boolean outputBlocked = carrying
                     && "OUTPUT_FULL_CARRYING".equals(state.getCompound("HearthboundHaul").getString("Result"));
             if (destinationFilledAfterPickup && outputBlocked && from == 4 && to == 0 && cargo == 4) {
+                if (!view.activity().equals("output_full")) return fail(command, "blocked_presentation");
                 command.sendSuccess(() -> Component.literal("HB_HAUL_CARGO_BLOCKED_PASS source=4 cargo=4 dest=0"), false);
                 return 1;
             }
@@ -187,6 +193,7 @@ public final class HaulE2EProbe {
                     && "PICKUP".equals(state.getCompound("HearthboundHaul").getString("Phase"))
                     && "OUTPUT_FULL".equals(state.getCompound("HearthboundHaul").getString("Result"));
             if (noWheatLost && rejected) {
+                if (!view.activity().equals("output_full")) return fail(command, "full_presentation");
                 command.sendSuccess(() -> Component.literal("HB_HAUL_FULL_PASS source=8 dest=0 cargo=0"), false);
                 return 1;
             }
@@ -204,7 +211,7 @@ public final class HaulE2EProbe {
                     || !besideStation(pickupFeet, sourcePos) || !besideStation(deliveryFeet, destinationPos))
                 return fail(command, "interaction_on_station pickup=" + pickupFeet + " delivery=" + deliveryFeet);
             command.sendSuccess(() -> Component.literal("HB_HAUL_E2E_PASS source=4 dest=4 cargo=0 approachedBeside=true"
-                    + " pickup=" + pickupFeet.toShortString() + " delivery=" + deliveryFeet.toShortString()), false);
+                    + " presentation=true pickup=" + pickupFeet.toShortString() + " delivery=" + deliveryFeet.toShortString()), false);
             return 1;
         }
         command.sendSuccess(() -> Component.literal("HB_HAUL_E2E_PENDING source=" + from
