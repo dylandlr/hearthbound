@@ -36,12 +36,21 @@ Production Forge + Create 6.0.8 run [38671784688](https://github.com/dylandlr/he
 
 The updated client renders wheat/flour at the worker's crossed arms and shows current activity, cargo count, actual flour stock and the target bar when looking at a worker. The server derives this display from existing cargo and stock; it does not equip another item stack. Build/ten JUnit tests, dedicated-server presentation/restart checks, and the full Create regression have passed. See [worker presentation](WORKER_PRESENTATION.md) for behavior and evidence. Source `9507e09` also passed the real graphical client check [38685271392](https://github.com/dylandlr/hearthbound/actions/runs/38685271392). The delivered 43-second recording shows held wheat/flour, cleared cargo after delivery, and actual flour stock 2/2 with a full target bar. The upper-left card stays clear of chat. Current full Forge build, dedicated restart and Create production runs all pass; exact provenance and client render assertions are recorded in [the presentation evidence](WORKER_PRESENTATION_EVIDENCE.json). The test observer follows by teleporting; the worker uses normal navigation. A flour haul is briefly paused for its visual assertion and then resumed.
 
+## Workshop routine increment
+
+Work orders now save a clear, supported waiting point. `/hearthbound mill_order_wait <x> <y> <z>` changes it for the nearest ordered worker. Idle workers return while milling or at their target, report an obstructed point, retry after clearing it, and immediately yield to a new haul. Return navigation checks station avoidance and can use floor waypoints around the machines. Stopping scheduling leaves an active haul intact.
+
+Pickup and put-down now dwell for 15 server ticks beside a station before the existing inventory transfer. Remaining dwell is saved with the haul. The card names each interaction and the cargo visual reaches slightly forward/lower during put-down. See [workshop routine](WORKSHOP_ROUTINE.md) for the behavior, controls and acceptance coverage.
+
+The first runtime pass on `52f0acf` passed the build/core suites, dedicated 15-tick interaction and partial-dwell restart checks, and the real graphical client. Create production completed two flour deliveries, then exposed a return-path choice over station blocks; it was correctly rejected but prevented a valid floor return. `d895607` adds checked floor detours. The original edge-point test then exposed a second issue: one-second arrival samples could miss a whole tile and make the worker reverse repeatedly. Actual position/motion traces established the overshoot; `230d518` checks final/turn arrival every tick while retaining once-per-second pathfinding and watchdog sampling. The unchanged edge-point test now passes, including changing points, head obstruction, automatic retry and stable inventory counts.
+
+Final source `230d518` passes [build/ten JUnit tests](https://github.com/dylandlr/hearthbound/actions/runs/38690073104), [core suite](https://github.com/dylandlr/hearthbound/actions/runs/38690073119), [dedicated partial-dwell restart](https://github.com/dylandlr/hearthbound/actions/runs/38690073111), [Create production/waiting/selection](https://github.com/dylandlr/hearthbound/actions/runs/38690073133), and [actual graphical client](https://github.com/dylandlr/hearthbound/actions/runs/38690073141). The delivered 34.5-second continuous production excerpt shows real milling waits, flour transport and final return to the yellow tile at stock 2/2. It comes from the 46.5-second raw client capture, with observer following and a brief test pause for the first flour assertion. Exact source/JAR/video provenance and render witnesses: [workshop evidence](WORKSHOP_ROUTINE_EVIDENCE.json).
+
 ## Next work
 
-1. Add brief station interaction feedback and a deliberate workshop waiting location.
-2. Refine the player-facing work-order controls and visual flow using the updated client capture.
-3. Add explicit colony workshop ownership and shared-machine reservations before enabling general multi-worker production. Command selection alone does not provide machine ownership.
-4. Add citizen needs and ordinary player-facing order controls once the production flow is readable.
-5. Reconcile the two historical branch stacks before merging the final implementation to `main`.
+1. Add ordinary player-facing work-order controls and refine their visual flow using the updated client capture.
+2. Add explicit colony workshop ownership and shared-machine reservations before enabling general multi-worker production. Command selection alone does not provide machine ownership.
+3. Add citizen needs once the production flow and order controls are readable.
+4. Reconcile the two historical branch stacks before merging the final implementation to `main`.
 
 This is a deterministic server-side controller. LLM/RL policies, crash-atomic cargo accounting, and multiplayer RTS territory gameplay are future work. Use disposable worlds and resources for tests.

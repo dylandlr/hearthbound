@@ -6,6 +6,10 @@ Updated clients show a colony worker's carried wheat or Create flour at the vill
 | --- | --- |
 | Walking to collect input or finished flour | Collecting supplies |
 | Carrying goods to a station | Delivering cargo |
+| Station dwell before extraction | Picking up supplies |
+| Station dwell before insertion | Putting down cargo |
+| No active haul, returning to saved floor position | Returning to waiting spot |
+| Saved waiting point is obstructed or unreachable | Waiting spot blocked |
 | Destination has no room | Storage full |
 | Travel watchdog paused the haul | Hauling paused |
 | Create is processing supplied wheat | Waiting for the mill |
@@ -44,6 +48,10 @@ Reviewed full-resolution key frames and three-second samples throughout the clip
 
 The code creates no additional server equipment or dropped cargo. The dedicated inventory tests and the graphical check confirm source=4/destination=4 after the four-wheat transfer. The real Create order then produces and stores two flour and reports its target reached.
 
+## Workshop routine follow-up
+
+Source `230d518` adds saved waiting points, checked floor detours, per-tick arrival detection, and 15-tick pickup/put-down feedback. Its full Forge build, core suite, dedicated partial-dwell restart, Create production/waiting regression, and real graphical client all pass. The new 34.5-second delivered excerpt shows the production routine and return to the saved tile. See [workshop routine](WORKSHOP_ROUTINE.md) and its [separate evidence record](WORKSHOP_ROUTINE_EVIDENCE.json); the older 43-second capture above retains its original source and provenance.
+
 ## Remaining gameplay work
 
-Add a deliberate workshop waiting location and brief station interaction feedback. Work assignment is still command driven. Workshop ownership and machine reservations are required before general multi-worker production. The new item visual does not add an animation system, citizen needs, or learned policies.
+A saved waiting location and brief station interaction feedback are implemented; see [workshop routine](WORKSHOP_ROUTINE.md). Work assignment is still command driven. Workshop ownership and machine reservations are required before general multi-worker production. The new item visual does not add an animation system, citizen needs, or learned policies.
