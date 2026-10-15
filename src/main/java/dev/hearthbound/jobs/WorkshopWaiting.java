@@ -3,6 +3,8 @@ package dev.hearthbound.jobs;
 import dev.hearthbound.HearthboundMod;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.ArrayList;
+import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
@@ -16,6 +18,7 @@ import net.minecraftforge.fml.common.Mod;
 @Mod.EventBusSubscriber(modid = HearthboundMod.MOD_ID)
 public final class WorkshopWaiting {
     private static final Map<Villager, TravelProgress> TRAVEL = new WeakHashMap<>();
+    private static final Map<Villager, List<BlockPos>> DETOURS = new WeakHashMap<>();
     private WorkshopWaiting() {}
 
     private static BlockPos[] stations(CompoundTag order) {
@@ -53,7 +56,7 @@ public final class WorkshopWaiting {
         order.putString("WaitState", "BLOCKED");
     }
 
-    public static void forget(Villager worker) { TRAVEL.remove(worker); }
+    public static void forget(Villager worker) { TRAVEL.remove(worker); DETOURS.remove(worker); }
 
     public static void beginWork(Villager worker, CompoundTag order) {
         forget(worker);
@@ -86,8 +89,7 @@ public final class WorkshopWaiting {
         long now = level.getGameTime();
         if (now < order.getLong("WaitRetryAfter")) return;
         if (!valid(level, feet, order)) { blocked(worker, order, now); return; }
-        if (worker.blockPosition().equals(feet)
-                && worker.distanceToSqr(feet.getX() + .5, feet.getY(), feet.getZ() + .5) <= .64) {
+        if (atFeet(worker, feet)) {
             worker.getNavigation().stop();
             order.putString("WaitState", "AT_WAIT");
             BlockPos mill = BlockPos.of(order.getLong("Mill"));
@@ -99,11 +101,51 @@ public final class WorkshopWaiting {
         var watch = TRAVEL.computeIfAbsent(worker, ignored -> new TravelProgress(now, distance));
         var outcome = watch.sample(now, distance);
         if (outcome == TravelProgress.Outcome.STALLED || outcome == TravelProgress.Outcome.TIMED_OUT
-                || !StationApproach.moveToFeet(level, worker, feet, stations(order))) {
+                || !moveToWaiting(level, worker, feet, stations(order))) {
             blocked(worker, order, now);
             return;
         }
         order.putString("WaitState", "RETURNING");
+    }
+
+    private static boolean atFeet(Villager worker, BlockPos feet) {
+        return worker.blockPosition().equals(feet)
+                && worker.distanceToSqr(feet.getX() + .5, feet.getY(), feet.getZ() + .5) <= .64;
+    }
+
+    /** Vanilla A* may prefer climbing a barrel over an equally reachable floor route.
+     * Keep that route rejected, then try supported lanes outside the station bounds.
+     * Every leg still uses a complete, checked vanilla navigation path.
+     */
+    private static boolean moveToWaiting(ServerLevel level, Villager worker, BlockPos feet, BlockPos[] stations) {
+        var route = DETOURS.get(worker);
+        if (route != null) {
+            while (!route.isEmpty() && atFeet(worker, route.get(0))) route.remove(0);
+            if (!route.isEmpty()) return StationApproach.moveToFeet(level, worker, route.get(0), stations);
+            DETOURS.remove(worker);
+        }
+        if (StationApproach.moveToFeet(level, worker, feet, stations)) return true;
+        int minX = feet.getX(), maxX = feet.getX(), minZ = feet.getZ(), maxZ = feet.getZ();
+        for (BlockPos station : stations) {
+            minX = Math.min(minX, station.getX()); maxX = Math.max(maxX, station.getX());
+            minZ = Math.min(minZ, station.getZ()); maxZ = Math.max(maxZ, station.getZ());
+        }
+        BlockPos start = worker.blockPosition();
+        var candidates = List.of(
+                List.of(new BlockPos(start.getX(), feet.getY(), minZ - 2), new BlockPos(feet.getX(), feet.getY(), minZ - 2), feet),
+                List.of(new BlockPos(start.getX(), feet.getY(), maxZ + 2), new BlockPos(feet.getX(), feet.getY(), maxZ + 2), feet),
+                List.of(new BlockPos(minX - 2, feet.getY(), start.getZ()), new BlockPos(minX - 2, feet.getY(), feet.getZ()), feet),
+                List.of(new BlockPos(maxX + 2, feet.getY(), start.getZ()), new BlockPos(maxX + 2, feet.getY(), feet.getZ()), feet));
+        for (var candidate : candidates) {
+            if (candidate.stream().anyMatch(point -> !StationApproach.standable(level, point))) continue;
+            route = new ArrayList<>(candidate);
+            while (!route.isEmpty() && atFeet(worker, route.get(0))) route.remove(0);
+            if (!route.isEmpty() && StationApproach.moveToFeet(level, worker, route.get(0), stations)) {
+                DETOURS.put(worker, route);
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void blocked(Villager worker, CompoundTag order, long now) {
