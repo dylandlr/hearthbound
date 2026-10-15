@@ -68,7 +68,7 @@ public final class WorkshopWaiting {
     @SubscribeEvent(priority = EventPriority.LOW)
     public static void tick(LivingEvent.LivingTickEvent event) {
         if (!(event.getEntity() instanceof Villager worker) || !(worker.level() instanceof ServerLevel level)
-                || worker.tickCount % 20 != 0 || !worker.getTags().contains("hearthbound.sable")) return;
+                || !worker.getTags().contains("hearthbound.sable")) return;
         var data = worker.getPersistentData();
         if (!data.contains("HearthboundMillOrder", 10)) { forget(worker); return; }
         var order = data.getCompound("HearthboundMillOrder");
@@ -80,21 +80,35 @@ public final class WorkshopWaiting {
         if (!order.contains("Wait")) setDefault(level, worker, order);
         if (!order.contains("Wait")) { worker.getNavigation().stop(); return; }
         BlockPos feet = BlockPos.of(order.getLong("Wait"));
+        long now = level.getGameTime();
+        if (now < order.getLong("WaitRetryAfter")) return;
+        // A one-second arrival sample can miss a whole floor tile at walking speed.
+        // Observe final/turn arrival every tick; retain bounded pathfinding below.
+        boolean arrived = atFeet(worker, feet);
+        var route = DETOURS.get(worker);
+        boolean turn = route != null && !route.isEmpty() && atFeet(worker, route.get(0));
+        if (!arrived && !turn && worker.tickCount % 20 != 0) return;
         if (!level.hasChunkAt(feet)) {
             worker.getNavigation().stop();
             order.putString("WaitState", "UNLOADED");
             forget(worker);
             return;
         }
-        long now = level.getGameTime();
-        if (now < order.getLong("WaitRetryAfter")) return;
         if (!valid(level, feet, order)) { blocked(worker, order, now); return; }
-        if (atFeet(worker, feet)) {
+        if (arrived) {
             worker.getNavigation().stop();
             order.putString("WaitState", "AT_WAIT");
             BlockPos mill = BlockPos.of(order.getLong("Mill"));
             worker.getLookControl().setLookAt(mill.getX() + .5, mill.getY() + .5, mill.getZ() + .5);
             forget(worker);
+            return;
+        }
+        if (turn) {
+            route.remove(0);
+            worker.getNavigation().stop();
+        }
+        if (worker.tickCount % 20 != 0) {
+            order.putString("WaitState", "RETURNING");
             return;
         }
         double distance = Math.max(5.0, worker.distanceToSqr(feet.getX() + .5, feet.getY(), feet.getZ() + .5));
