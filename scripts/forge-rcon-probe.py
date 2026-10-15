@@ -62,7 +62,17 @@ if __name__ == "__main__":
                 raise AssertionError("Recovered delivery failed: " + result)
         else:
             raise AssertionError("Recovery delivery timed out: " + result)
+        # Keep ticking after completion: the persisted cargo must not be replayed.
+        time.sleep(3)
+        stable = execute("hearthbound ci_restart_delivered")
+        if "HB_RESTART_DELIVERED" not in stable:
+            raise AssertionError("Delivery was not stable after completion: " + stable)
+        print("HB_RESTART_NO_REPLAY_PASS source=4 dest=4 cargo=0", flush=True)
         sys.exit(0)
+    # Let Minecraft enter its empty-server entity-idle state before dispatch.
+    # The disposable arena must explicitly provide its own ticking tickets.
+    print("Idling playerless server for 20s before dispatch", flush=True)
+    time.sleep(20)
     for attempt in range(30):
         try:
             create = execute("hearthbound create_status")
@@ -82,11 +92,26 @@ if __name__ == "__main__":
             for n in range(70):
                 time.sleep(1)
                 state = execute("hearthbound ci_haul_check")
+                if "HB_HAUL_E2E_FAIL" in state:
+                    raise AssertionError("Hauling failed: " + state)
                 if "HB_HAUL_E2E_PASS" in state:
                     print(state)
                     break
             else:
                 raise AssertionError("Hauling did not finish: " + state)
+            # Start atop the source: extraction must wait until the worker steps
+            # to an accessible side, and delivery must happen beside its barrel.
+            assert "HB_HAUL_E2E_STARTED" in execute("hearthbound ci_station_approach_start")
+            for n in range(70):
+                time.sleep(1)
+                approach = execute("hearthbound ci_haul_check")
+                if "HB_HAUL_E2E_FAIL" in approach:
+                    raise AssertionError("Station approach failed: " + approach)
+                if "HB_HAUL_E2E_PASS" in approach and "approachedBeside=true" in approach:
+                    print("HB_STATION_APPROACH_PASS " + approach, flush=True)
+                    break
+            else:
+                raise AssertionError("Station approach timed out: " + approach)
             assert "HB_HAUL_E2E_STARTED" in execute("hearthbound ci_haul_full_start")
             for n in range(30):
                 time.sleep(1)
@@ -109,6 +134,8 @@ if __name__ == "__main__":
             for n in range(50):
                 time.sleep(1)
                 stage = execute("hearthbound ci_haul_check")
+                if n in (0, 4, 9, 19, 34, 49):
+                    print("Restart staging", n, stage, flush=True)
                 if "HB_HAUL_CARGO_BLOCKED_PASS" in stage:
                     print("HB_RESTART_STAGED")
                     break

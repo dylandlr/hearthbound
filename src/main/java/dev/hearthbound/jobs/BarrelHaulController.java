@@ -119,11 +119,14 @@ public final class BarrelHaulController {
             return;
         }
         double distanceSq = sable.distanceToSqr(target.getX() + .5, target.getY() + .5, target.getZ() + .5);
-        if (distanceSq > 6.25) {
+        if (!StationApproach.inReach(sable, target)) {
             long gameTick = level.getGameTime();
+            // A worker on top of a station is physically close but has not
+            // reached an interaction position; the watchdog must still run.
+            double travelDistanceSq = Math.max(distanceSq, StationApproach.REACH_SQUARED + 1.0);
             TravelProgress watch = TRAVEL.computeIfAbsent(sable.getUUID(),
-                    id -> new TravelProgress(gameTick, distanceSq));
-            TravelProgress.Outcome outcome = watch.sample(gameTick, distanceSq);
+                    id -> new TravelProgress(gameTick, travelDistanceSq));
+            TravelProgress.Outcome outcome = watch.sample(gameTick, travelDistanceSq);
             if (outcome == TravelProgress.Outcome.STALLED || outcome == TravelProgress.Outcome.TIMED_OUT) {
                 job.putBoolean("Paused", true);
                 job.putString("Result", outcome.name() + "_CARGO_" + job.getInt("Cargo"));
@@ -131,11 +134,13 @@ public final class BarrelHaulController {
                 TRAVEL.remove(sable.getUUID());
                 return;
             }
-            sable.getNavigation().moveTo(target.getX() + .5, target.getY(), target.getZ() + .5, 1.0);
+            if (!StationApproach.moveTo(level, sable, target))
+                job.putString("Result", "NO_ACCESSIBLE_STATION");
             return;
         }
         TRAVEL.remove(sable.getUUID());
         sable.getNavigation().stop();
+        sable.getLookControl().setLookAt(target.getX() + .5, target.getY() + .5, target.getZ() + .5);
         BlockEntity destinationEntity = level.getBlockEntity(target);
         if (destinationEntity == null) {
             job.putString("Result", "MISSING_INVENTORY");

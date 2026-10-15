@@ -64,7 +64,7 @@ jobs:
             exit 1
           fi
           echo 'PASS: observed Hearthbound bootstrap and Minecraft world-ready log in real Forge dedicated server process'
-          python3 scripts/forge-rcon-probe.py
+          python3 -u scripts/forge-rcon-probe.py
           # Probe issued 'save-all flush' and 'stop' over local RCON.
           wait "$pid" || true
           echo 'Restarting Forge against the same persisted world'
@@ -86,7 +86,7 @@ jobs:
             tail -120 forge-server-restart.log
             exit 1
           fi
-          python3 scripts/forge-rcon-probe.py after-restart
+          python3 -u scripts/forge-rcon-probe.py after-restart
           kill -INT "$restart_pid" 2>/dev/null || true
           wait "$restart_pid" || true
       - name: Upload server logs

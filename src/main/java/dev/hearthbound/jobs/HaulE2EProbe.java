@@ -11,8 +11,13 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BarrelBlockEntity;
+import net.minecraftforge.event.entity.living.LivingEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
 
 /** Disposable single-run world test. Uses real tick-driven citizen hauling code. */
+@Mod.EventBusSubscriber(modid = HearthboundMod.MOD_ID)
 public final class HaulE2EProbe {
     private static BlockPos sourcePos;
     private static BlockPos destinationPos;
@@ -24,13 +29,22 @@ public final class HaulE2EProbe {
     private static boolean blockAfterPickupMode;
     private static boolean destinationFilledAfterPickup;
     private static boolean restartScenario;
+    private static BlockPos pickupFeet;
+    private static BlockPos deliveryFeet;
     private HaulE2EProbe() {}
 
     public static int start(CommandSourceStack command) {
+        restartScenario = false;
         return startScenario(command, false, false);
     }
 
+    public static int startOnSource(CommandSourceStack command) {
+        restartScenario = false;
+        return startScenario(command, false, false, true);
+    }
+
     public static int startFullDestination(CommandSourceStack command) {
+        restartScenario = false;
         return startScenario(command, true, false);
     }
 
@@ -45,11 +59,23 @@ public final class HaulE2EProbe {
     }
 
     private static int startScenario(CommandSourceStack command, boolean fillOutput, boolean blockAfterPickup) {
+        return startScenario(command, fillOutput, blockAfterPickup, false);
+    }
+
+    private static int startScenario(CommandSourceStack command, boolean fillOutput,
+            boolean blockAfterPickup, boolean spawnOnSource) {
         ServerLevel level = command.getLevel();
         BlockPos spawn = level.getSharedSpawnPos();
         int y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
                 spawn.getX(), spawn.getZ()) + 3;
         BlockPos base = new BlockPos(spawn.getX(), y, spawn.getZ());
+        // An empty dedicated server stops entity ticks after 300 ticks unless
+        // it has a player or forced chunks. Spawn chunks alone are insufficient.
+        // Keep only this disposable acceptance arena ticking, including after
+        // save/restart. Production hauling never creates these chunk tickets.
+        for (int chunkX = (base.getX() - 2) >> 4; chunkX <= (base.getX() + 12) >> 4; chunkX++)
+            for (int chunkZ = (base.getZ() - 2) >> 4; chunkZ <= (base.getZ() + 2) >> 4; chunkZ++)
+                level.setChunkForced(chunkX, chunkZ, true);
         // Safe isolated elevated test platform. Only used in disposable CI world.
         for (int x = -2; x <= 12; x++)
             for (int z = -2; z <= 2; z++) {
@@ -71,7 +97,8 @@ public final class HaulE2EProbe {
         }
         citizen = EntityType.VILLAGER.create(level);
         if (citizen == null) return fail(command, "villager");
-        citizen.moveTo(base.getX() + 0.5, base.getY(), base.getZ() + 0.5, 0, 0);
+        citizen.moveTo(spawnOnSource ? sourcePos.getX() + .5 : base.getX() + .5,
+                spawnOnSource ? sourcePos.getY() + 1 : base.getY(), base.getZ() + .5, 0, 0);
         citizen.setCustomName(Component.literal("Sable [E2E]"));
         citizen.setPersistenceRequired();
         if (restartScenario) citizen.addTag("hearthbound.restart.probe");
@@ -85,8 +112,28 @@ public final class HaulE2EProbe {
         destinationFilledAfterPickup = false;
         observedPickup = false;
         observedDeliveryTravel = false;
-        command.sendSuccess(() -> Component.literal("HB_HAUL_E2E_STARTED"), false);
+        pickupFeet = null;
+        deliveryFeet = null;
+        command.sendSuccess(() -> Component.literal("HB_HAUL_E2E_STARTED tickingChunks="
+                + level.getForcedChunks().size()), false);
         return 1;
+    }
+
+    /** Observe exact transfer ticks, before movement can obscure where it happened. */
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void observe(LivingEvent.LivingTickEvent event) {
+        if (event.getEntity() != citizen || testLevel == null) return;
+        var state = citizen.getPersistentData();
+        int cargo = state.getCompound("HearthboundHaul").getInt("Cargo");
+        if (cargo > 0) {
+            observedPickup = true;
+            if (pickupFeet == null) pickupFeet = citizen.blockPosition().immutable();
+            if (citizen.distanceToSqr(destinationPos.getX() + .5,
+                    destinationPos.getY() + .5, destinationPos.getZ() + .5) > 6.25)
+                observedDeliveryTravel = true;
+        } else if (observedPickup && !state.contains("HearthboundHaul", 10) && deliveryFeet == null) {
+            deliveryFeet = citizen.blockPosition().immutable();
+        }
     }
 
     public static int check(CommandSourceStack command) {
@@ -115,7 +162,15 @@ public final class HaulE2EProbe {
                 return 1;
             }
             command.sendSuccess(() -> Component.literal("HB_HAUL_CARGO_BLOCKED_PENDING source=" + from
-                    + " cargo=" + cargo + " dest=" + to), false);
+                    + " cargo=" + cargo + " dest=" + to
+                    + " phase=" + state.getCompound("HearthboundHaul").getString("Phase")
+                    + " result=" + state.getCompound("HearthboundHaul").getString("Result")
+                    + " paused=" + state.getCompound("HearthboundHaul").getBoolean("Paused")
+                    + " alive=" + citizen.isAlive()
+                    + " entityTick=" + citizen.tickCount
+                    + " worldTick=" + testLevel.getGameTime()
+                    + " pos=" + citizen.position()
+                    + " destination=" + destinationPos.toShortString()), false);
             return 1;
         }
         if (fullDestinationMode) {
@@ -145,13 +200,22 @@ public final class HaulE2EProbe {
             observedDeliveryTravel = true;
         if (from == 4 && to == 4 && cargo == 0 && !state.contains("HearthboundHaul", 10)
                 && observedPickup && observedDeliveryTravel) {
-            command.sendSuccess(() -> Component.literal("HB_HAUL_E2E_PASS source=4 dest=4 cargo=0"), false);
+            if (pickupFeet == null || deliveryFeet == null
+                    || !besideStation(pickupFeet, sourcePos) || !besideStation(deliveryFeet, destinationPos))
+                return fail(command, "interaction_on_station pickup=" + pickupFeet + " delivery=" + deliveryFeet);
+            command.sendSuccess(() -> Component.literal("HB_HAUL_E2E_PASS source=4 dest=4 cargo=0 approachedBeside=true"
+                    + " pickup=" + pickupFeet.toShortString() + " delivery=" + deliveryFeet.toShortString()), false);
             return 1;
         }
         command.sendSuccess(() -> Component.literal("HB_HAUL_E2E_PENDING source=" + from
                 + " dest=" + to + " cargo=" + cargo
                 + " pickupSeen=" + observedPickup + " travelingSeen=" + observedDeliveryTravel), false);
         return 1;
+    }
+
+    private static boolean besideStation(BlockPos feet, BlockPos station) {
+        return Math.abs(feet.getX() - station.getX()) + Math.abs(feet.getZ() - station.getZ()) == 1
+                && Math.abs(feet.getY() - station.getY()) <= 1;
     }
 
     private static int countWheat(BarrelBlockEntity barrel) {
