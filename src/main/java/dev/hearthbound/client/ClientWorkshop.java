@@ -54,7 +54,16 @@ public final class ClientWorkshop {
         opening = null;
         log("SNAPSHOT order=" + snapshot.worker().view().hasOrder() + " editable=" + snapshot.canEdit()
                 + " busy=" + snapshot.busy() + " revision=" + snapshot.revision() + " notice=" + snapshot.notice());
-        if (selecting < 0 && (replace || !(mc.screen instanceof WorkerOrderScreen))) mc.setScreen(new WorkerOrderScreen());
+        if (selecting < 0 && !(mc.screen instanceof WorkshopStatusScreen) && (replace || !(mc.screen instanceof WorkerOrderScreen))) mc.setScreen(new WorkerOrderScreen());
+    }
+
+    static boolean validWorker() {
+        var mc = Minecraft.getInstance();
+        if (draft == null || mc.player == null || mc.level == null
+                || !mc.level.dimension().location().equals(draft.snapshot.worker().dimension())) return false;
+        var worker = mc.level.getEntity(draft.snapshot.worker().entityId());
+        return worker != null && worker.isAlive() && worker.getUUID().equals(draft.snapshot.worker().workerId())
+                && mc.player.distanceToSqr(worker) <= 32 * 32;
     }
 
     static void send(int action) {
@@ -103,6 +112,7 @@ public final class ClientWorkshop {
             draft.points[selecting] = point.immutable();
             log("PICK kind=" + KEYS[selecting] + " point=" + point.toShortString());
             selecting = -1;
+            send(WorkshopAction.REFRESH);
             mc.setScreen(new WorkerOrderScreen());
             return;
         }

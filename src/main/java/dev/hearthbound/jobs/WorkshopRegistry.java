@@ -47,6 +47,10 @@ public final class WorkshopRegistry extends SavedData {
     }
     public StationReservations.Lease holder(BlockPos station) { return reservations.holder(station.asLong()); }
     public StationReservations.Lease lease(UUID worker) { return reservations.lease(worker); }
+    public int waitingAt(BlockPos station, long now) { return reservations.waitingAt(station.asLong(), now); }
+    public boolean isWaiting(UUID worker, BlockPos station, long now) {
+        return reservations.isWaiting(worker, station.asLong(), now);
+    }
 
     public boolean reserve(Villager worker, CompoundTag job) {
         reconcile(worker);

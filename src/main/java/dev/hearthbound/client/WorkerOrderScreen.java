@@ -37,15 +37,13 @@ public final class WorkerOrderScreen extends Screen {
                 .bounds(left + 18 + small, by, small, 20).build());
         addRenderableWidget(Button.builder(Component.literal("Close"), b -> onClose())
                 .bounds(left + panelWidth - 76, by, 64, 20).build());
-        ClientWorkshop.log("SCREEN x=" + left + " y=" + top + " width=" + panelWidth + " height=" + panelHeight);
+        addRenderableWidget(Button.builder(Component.literal("Status"), b -> minecraft.setScreen(new WorkshopStatusScreen()))
+                .bounds(left + panelWidth - 66, top + 7, 54, 18).build());
+        ClientWorkshop.log("SCREEN x=" + left + " y=" + top + " width=" + panelWidth + " height=" + panelHeight + " draftTarget=" + d.target);
     }
 
     @Override public void tick() {
-        if (ClientWorkshop.draft == null || minecraft.player == null || minecraft.level == null
-                || !minecraft.level.dimension().location().equals(ClientWorkshop.draft.snapshot.worker().dimension())) { onClose(); return; }
-        var worker = minecraft.level.getEntity(ClientWorkshop.draft.snapshot.worker().entityId());
-        if (worker == null || !worker.isAlive() || !worker.getUUID().equals(ClientWorkshop.draft.snapshot.worker().workerId())
-                || minecraft.player.distanceToSqr(worker) > 32 * 32) { onClose(); return; }
+        if (!ClientWorkshop.validWorker()) { onClose(); return; }
         target.tick();
         if (++ticks % 20 == 0) ClientWorkshop.send(WorkshopAction.REFRESH);
     }
@@ -56,7 +54,7 @@ public final class WorkerOrderScreen extends Screen {
         renderBackground(gui);
         gui.fill(left, top, left + panelWidth, top + panelHeight, 0xFA151B20);
         gui.fill(left, top, left + 3, top + panelHeight, s.canEdit() ? 0xFF75D8AE : 0xFFFFBD66);
-        gui.drawString(font, font.plainSubstrByWidth(s.name() + " — First Mill", panelWidth - 24), left + 12, top + 10, 0xFFE7DFC5);
+        gui.drawString(font, font.plainSubstrByWidth(s.name() + " — First Mill", panelWidth - 90), left + 12, top + 10, 0xFFE7DFC5);
         gui.drawString(font, Component.translatable("hearthbound.activity." + view.activity()), left + 12, top + 25, 0xFFF4F4F4);
         for (int i = 0; i < 4; i++) {
             picks[i].active = s.canEdit() && (i == 3 ? d.ready() : !view.hasOrder()) && !(s.busy() && !view.hasOrder());

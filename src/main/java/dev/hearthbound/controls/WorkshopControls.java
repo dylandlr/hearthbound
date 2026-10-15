@@ -46,7 +46,7 @@ public final class WorkshopControls {
         }
         if (request.action() == WorkshopAction.REFRESH) {
             SESSIONS.put(player, new Session(worker.getUUID(), level.dimension().location(), level.getGameTime() + 6000));
-            reply(player, worker, ""); return;
+            reply(player, worker, "", request); return;
         }
         if (!canEdit(player, worker)) { reply(player, worker, "Only the supervisor or a server operator can edit this worker."); return; }
         if (request.revision() != FirstMillWorkOrder.revision(worker)) {
@@ -83,18 +83,28 @@ public final class WorkshopControls {
         SESSIONS.put(player, new Session(worker.getUUID(), level.dimension().location(), level.getGameTime() + 6000));
     }
 
-    private static void reply(ServerPlayer player, Villager worker, String notice) {
+    private static void reply(ServerPlayer player, Villager worker, String notice) { reply(player, worker, notice, null); }
+
+    private static void reply(ServerPlayer player, Villager worker, String notice, WorkshopAction preview) {
         var data = worker.getPersistentData();
         var source = data.getCompound(data.contains("HearthboundMillOrder", 10) ? "HearthboundMillOrder" : "HearthboundWorkshopSetup");
         var settings = new CompoundTag();
         for (String key : new String[] {"Wheat", "Mill", "Flour", "Wait"})
             if (source.contains(key, 4)) settings.putLong(key, source.getLong(key));
         settings.putInt("TargetFlour", source.contains("TargetFlour") ? source.getInt("TargetFlour") : 16);
+        BlockPos wheat = preview == null ? savedPoint(settings, "Wheat") : preview.wheat();
+        BlockPos mill = preview == null ? savedPoint(settings, "Mill") : preview.mill();
+        BlockPos flour = preview == null ? savedPoint(settings, "Flour") : preview.flour();
+        var status = WorkshopStatus.inspect(worker, player.getUUID(), player.hasPermissions(2), wheat, mill, flour);
         var view = WorkerPresentation.inspect(worker);
         var packet = new WorkerViewPacket(worker.getId(), worker.getUUID(), worker.level().dimension().location(), view);
         String name = worker.getName().getString(); if (name.length() > 128) name = name.substring(0, 128);
         WorkshopNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new WorkshopSnapshot(packet, name,
                 canEdit(player, worker), data.contains("HearthboundHaul", 10) || data.getBoolean("HearthboundTravelActive"),
-                FirstMillWorkOrder.revision(worker), settings, notice));
+                FirstMillWorkOrder.revision(worker), settings, status, notice));
+    }
+
+    private static BlockPos savedPoint(CompoundTag settings, String key) {
+        return settings.contains(key, 4) ? BlockPos.of(settings.getLong(key)) : null;
     }
 }

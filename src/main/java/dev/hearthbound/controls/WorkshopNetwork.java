@@ -11,7 +11,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 
 public final class WorkshopNetwork {
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
-            new ResourceLocation(HearthboundMod.MOD_ID, "workshop_controls"), () -> "1", "1"::equals, "1"::equals);
+            new ResourceLocation(HearthboundMod.MOD_ID, "workshop_controls"), () -> "2", "2"::equals, "2"::equals);
     private WorkshopNetwork() {}
     public static void register() {
         CHANNEL.messageBuilder(WorkshopAction.class, 0, NetworkDirection.PLAY_TO_SERVER)

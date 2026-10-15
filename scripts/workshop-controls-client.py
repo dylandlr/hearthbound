@@ -21,11 +21,35 @@ def run_setup(api):
     def button(kind):
         g = screen(); x, y, width, height = [g[k] for k in ['x', 'y', 'width', 'height']]
         if isinstance(kind, int): click(2 * (x + 64), 2 * (y + 50 + kind * 22))
+        elif kind == 'status': click(2 * (x + width - 39), 2 * (y + 16))
         elif kind == 'target': click(2 * (x + 134), 2 * (y + 142))
         elif kind == 'save': click(2 * (x + 12 + (width - 100) / 4), 2 * (y + height - 20))
         elif kind == 'stop': click(2 * (x + 18 + 3 * (width - 100) / 4), 2 * (y + height - 20))
         elif kind == 'resume': click(2 * (x + width - 62), 2 * (y + 163))
         elif kind == 'close': click(2 * (x + width - 44), 2 * (y + height - 20))
+
+    def status_screen():
+        rows = [line for line in lines() if 'HB_WORKSHOP_STATUS_SCREEN x=' in line]
+        assert rows, 'No native status page'
+        return {key: int(re.search(key + r'=(\d+)', rows[-1])[1]) for key in ['x', 'y', 'width', 'height']}
+
+    def inspect_status(expected, screenshot):
+        before = len([line for line in lines() if 'HB_WORKSHOP_STATUS_RENDER ' in line])
+        button('status')
+        def matching():
+            recent = [line for line in lines() if 'HB_WORKSHOP_STATUS_RENDER ' in line][before:]
+            return next((line for line in recent if all(token in line for token in expected)), None)
+        witness = api['wait_for'](matching, 10, 'server-authored native workshop status')
+        print(witness, flush=True)
+        # Periodic refresh must keep the status page open, preserving the editor draft.
+        time.sleep(1.3)
+        api['screenshot'](screenshot)
+        return status_screen()
+
+    def status_back():
+        g = status_screen()
+        click(2 * (g['x'] + g['width'] / 2), 2 * (g['y'] + g['height'] - 20))
+        time.sleep(.2)
 
     def open_screen():
         before = len([line for line in lines() if 'HB_WORKSHOP_SCREEN x=' in line])
@@ -88,6 +112,13 @@ def run_setup(api):
     subprocess.run(['xdotool', 'key', 'ctrl+a', 'type', '--delay', '40', '2'], check=True)
     time.sleep(.3)
     api['screenshot']('controls-configured.png')
+    inspect_status(['owner=Unclaimed', 'access=UNCLAIMED', 'mill=FREE'], 'status-unclaimed.png')
+    ownership = api['rcon'].execute('hearthbound workshop_status 49 -60 0')
+    assert 'owner=null' in ownership and 'reservation=free' in ownership, ownership
+    assert 'HearthboundMillOrder:' not in api['rcon'].execute(f'data get entity {api["WORKER"]} ForgeData')
+    status_back()
+    latest = [line for line in lines() if 'HB_WORKSHOP_SCREEN x=' in line][-1]
+    assert 'draftTarget=2' in latest, latest
     save_order()
     api['wait_for'](lambda: 'HearthboundMillOrder:' in api['rcon'].execute(f'data get entity {api["WORKER"]} ForgeData'), 10, 'UI starts persisted work order')
     for amount in (3, 2):
@@ -99,4 +130,4 @@ def run_setup(api):
     assert 'HB_WORKSHOP_CONTROLS_AUTH_PASS' in api['command']('execute positioned 48 -60 0 run hearthbound ci_workshop_controls')
     button('close')
     print('HB_WORKSHOP_SETUP_UI_PASS mouse_open four_world_picks escape_cancel numeric_target non_operator_start', flush=True)
-    return {'open': open_screen, 'button': button, 'screen': screen, 'save': save_order}
+    return {'open': open_screen, 'button': button, 'screen': screen, 'save': save_order, 'status': inspect_status, 'status_back': status_back}

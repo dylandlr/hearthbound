@@ -30,6 +30,16 @@ public final class WorkshopControlsProbe {
         if (source.getLevel().hasChunkAt(unloaded)) return fail(source, "negative_point_already_loaded");
         WorkshopControls.handle(player, new WorkshopAction(worker.getUUID(), WorkshopAction.SAVE, revision, unloaded, mill, flour, wait, 2));
         if (!before.equals(data) || source.getLevel().hasChunkAt(unloaded)) return fail(source, "unloaded_point_mutated_or_loaded");
+        var registry = dev.hearthbound.jobs.WorkshopRegistry.get(source.getLevel());
+        var registryBefore = registry.save(new net.minecraft.nbt.CompoundTag());
+        var status = WorkshopStatus.inspect(worker, player.getUUID(), false, unloaded, unloaded, unloaded);
+        WorkshopControls.handle(player, new WorkshopAction(worker.getUUID(), WorkshopAction.REFRESH, revision,
+                unloaded, unloaded, unloaded, null, 0));
+        if (status.access() != WorkshopStatus.Access.UNAVAILABLE || status.mill().state() != WorkshopStatus.State.UNAVAILABLE
+                || source.getLevel().hasChunkAt(unloaded) || !before.equals(data)
+                || !registryBefore.equals(registry.save(new net.minecraft.nbt.CompoundTag())))
+            return fail(source, "preview_loaded_or_mutated");
+        source.sendSuccess(() -> Component.literal("HB_WORKSHOP_STATUS_PREVIEW_PASS unloaded_rejected readonly_no_claim_or_reservation"), false);
         UUID owner = data.getUUID("HearthboundSupervisor");
         data.putUUID("HearthboundSupervisor", UUID.randomUUID());
         var strangerBefore = data.copy();
@@ -38,7 +48,7 @@ public final class WorkshopControlsProbe {
             if (!strangerBefore.equals(data)) return fail(source, "stranger_stopped_order");
         } finally { data.putUUID("HearthboundSupervisor", owner); }
         if (!before.equals(data)) return fail(source, "state_not_restored");
-        WorkshopControls.handle(player, new WorkshopAction(worker.getUUID(), WorkshopAction.REFRESH, revision, null, null, null, null, 0));
+        WorkshopControls.handle(player, new WorkshopAction(worker.getUUID(), WorkshopAction.REFRESH, revision, wheat, mill, flour, wait, 0));
         source.sendSuccess(() -> Component.literal("HB_WORKSHOP_CONTROLS_AUTH_PASS non_operator_owner stale_revision wrong_worker invalid_target unloaded_point stranger_denied cargo_unchanged"), false);
         return 1;
     }

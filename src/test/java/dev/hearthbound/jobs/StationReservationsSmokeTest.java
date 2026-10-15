@@ -12,6 +12,11 @@ public final class StationReservationsSmokeTest {
         check(!ledger.acquire(b, "b", 2, 3, 1));
         check(ledger.holder(3) == null); // no partial acquisition
         check(!ledger.acquire(c, "c", 3, 4, 2)); // earlier overlapping waiter
+        check(ledger.waitingAt(2, 2) == 1 && ledger.waitingAt(3, 2) == 2);
+        check(ledger.isWaiting(b, 2, 2) && !ledger.isWaiting(a, 2, 2));
+        check(ledger.waitingAt(3, 123) == 0 && !ledger.isWaiting(b, 2, 123));
+        check(ledger.waitingAt(3, 2) == 2); // inspection never prunes the queue
+        check(ledger.holder(2).worker().equals(a));
         check(ledger.acquire(UUID.randomUUID(), "independent", 8, 9, 2));
         check(!ledger.release(a, "wrong-job"));
         check(ledger.acquire(a, "a", 1, 2, 100000)); // leases never time out

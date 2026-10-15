@@ -22,6 +22,14 @@ public final class StationReservations {
         return leases.values().stream().filter(l -> l.touches(station)).findFirst().orElse(null);
     }
     public Lease lease(UUID worker) { return leases.get(worker); }
+    public int waitingAt(long station, long now) {
+        return (int) Math.min(999, waiting.values().stream()
+                .filter(r -> now - r.seen() <= 120 && r.overlaps(station, station)).count());
+    }
+    public boolean isWaiting(UUID worker, long station, long now) {
+        var request = waiting.get(worker);
+        return request != null && now - request.seen() <= 120 && request.overlaps(station, station);
+    }
     public Collection<Lease> leases() { return List.copyOf(leases.values()); }
 
     public boolean acquire(UUID worker, String job, long from, long to, long now) {

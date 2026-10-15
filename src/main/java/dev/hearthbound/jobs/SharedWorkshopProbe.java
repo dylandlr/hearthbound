@@ -107,6 +107,17 @@ public final class SharedWorkshopProbe {
                 || registry.holder(WHEAT) == null || registry.holder(FLOUR) != null
                 || !OWNER.equals(registry.owner(MILL)) || wheat(level) != 4)
             return fail(source, "cargo_owner_or_lease");
+        var workerBefore = b.getPersistentData().copy(); var registryBefore = registry.save(new CompoundTag());
+        var status = dev.hearthbound.controls.WorkshopStatus.inspect(b, OWNER, false, WHEAT, MILL, FLOUR);
+        var denied = dev.hearthbound.controls.WorkshopStatus.inspect(b, UUID.randomUUID(), false, WHEAT, MILL, FLOUR);
+        if (status.access() != dev.hearthbound.controls.WorkshopStatus.Access.OWNER
+                || denied.access() != dev.hearthbound.controls.WorkshopStatus.Access.DENIED
+                || status.mill().state() != dev.hearthbound.controls.WorkshopStatus.State.OTHER
+                || !status.mill().paused() || !status.mill().holder().equals(a.getName().getString())
+                || (!restarted && (!status.mill().queued() || status.mill().waiting() < 1))
+                || !workerBefore.equals(b.getPersistentData()) || !registryBefore.equals(registry.save(new CompoundTag())))
+            return fail(source, "readonly_status_inconsistent");
+        source.sendSuccess(() -> Component.literal("HB_WORKSHOP_STATUS_SERVER_PASS owner denied other_holder paused queue readonly"), false);
         if (restarted && !registry.wasRestored(a.getUUID(), job.getString("JobId"))) return fail(source, "lease_not_loaded_from_disk");
         if (WorkshopRegistry.releaseOwnership(source, MILL) != 0) return fail(source, "released_busy_workshop");
         source.sendSuccess(() -> Component.literal(restarted ? "HB_SHARED_WORKSHOP_RESTART_PASS owner lease cargo=4 source=4"
@@ -139,6 +150,9 @@ public final class SharedWorkshopProbe {
         var registry = WorkshopRegistry.get(level);
         if (wheat(level) != 4 || flour != 2 || registry.lease(a.getUUID()) != null || registry.lease(b.getUUID()) != null
                 || !OWNER.equals(registry.owner(MILL))) return fail(source, "final_inventory_or_lease");
+        var status = dev.hearthbound.controls.WorkshopStatus.inspect(b, OWNER, false, WHEAT, MILL, FLOUR);
+        if (status.mill().state() != dev.hearthbound.controls.WorkshopStatus.State.FREE
+                || status.mill().waiting() != 0 || status.mill().queued()) return fail(source, "finished_status_not_free");
         source.sendSuccess(() -> Component.literal("HB_SHARED_WORKSHOP_PASS two_workers source=4 flour=2 cargo=0 leases=free owner_retained"), false);
         return 1;
     }
