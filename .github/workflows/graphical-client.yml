@@ -4,8 +4,7 @@ on:
   push:
     branches: [feature/first-mill-foundation]
     paths:
-      - 'src/main/java/dev/hearthbound/client/**'
-      - 'src/main/java/dev/hearthbound/presentation/**'
+      - 'src/main/java/**'
       - 'src/main/resources/assets/hearthbound/**'
       - 'scripts/prepare-minecraft-client.py'
       - 'scripts/graphical-client-probe.py'

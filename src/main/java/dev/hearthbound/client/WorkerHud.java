@@ -45,7 +45,7 @@ public final class WorkerHud {
                 lines.stream().mapToInt(mc.font::width).max().orElse(120) + 24);
         boolean bar = view.hasOrder() && view.targetFlour() > 0 && view.stockedFlour() >= 0;
         int height = 16 + lines.size() * 12 + (bar ? 10 : 0);
-        int x = 12, y = Math.max(8, event.getWindow().getGuiScaledHeight() - height - 48);
+        int x = 12, y = 12;
         var gui = event.getGuiGraphics();
         gui.fill(x, y, x + width, y + height, 0xED151B20);
         boolean blocked = switch (view.activity()) {

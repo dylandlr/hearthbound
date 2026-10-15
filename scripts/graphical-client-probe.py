@@ -11,6 +11,7 @@ from pathlib import Path
 import re
 import subprocess
 import time
+import threading
 import uuid
 
 ROOT = Path.cwd()
@@ -62,10 +63,25 @@ def screenshot(name):
 
 def aim():
     # Camera only, outside the worker's route, close enough for the normal entity picker.
-    rcon.execute(f"execute at {WORKER} run tp {PLAYER} ~1.8 ~ ~2.2 facing entity {WORKER} eyes")
+    rcon.execute(f"execute at {WORKER} run tp {PLAYER} ~1.8 ~ ~2.2 140.71 0")
 
 
 def client_check(activity, cargo, item=None, flour=None, target=None):
+    follow = threading.Event()
+    def track():
+        while not follow.wait(.1):
+            try: aim()
+            except OSError: pass
+    camera = threading.Thread(target=track, daemon=True)
+    camera.start()
+    try:
+        return inspect_client(activity, cargo, item, flour, target)
+    finally:
+        follow.set()
+        camera.join(timeout=2)
+
+
+def inspect_client(activity, cargo, item=None, flour=None, target=None):
     aim()
     time.sleep(1.5)
     log = OUT / "client.log"
@@ -111,11 +127,11 @@ try:
     (SERVER / "user_jvm_args.txt").write_text("-Xms512M -Xmx2G\n")
     server = launch(["bash", "run.sh", "nogui"], SERVER, "server.log")
     wait_for(lambda: "Hearthbound" in rcon.execute("hearthbound status"), 150, "Forge server readiness")
-    for text in ["gamerule doMobSpawning false", "gamerule doDaylightCycle false", "time set 6000", "weather clear"]:
+    for text in ["gamerule doMobSpawning false", "gamerule doDaylightCycle false", "gamerule sendCommandFeedback false", "gamerule logAdminCommands false", "time set 6000", "weather clear"]:
         command(text)
     (CLIENT / "options.txt").write_text("maxFps:30\nrenderDistance:4\nsimulationDistance:5\nguiScale:2\n"
         "fullscreen:false\npauseOnLostFocus:false\nonboardAccessibility:false\njoinedFirstServer:true\n"
-        "skipMultiplayerWarning:true\nfov:0.0\ngamma:1.0\nsoundCategory_master:0.0\nnarrator:0\nbobView:false\n")
+        "skipMultiplayerWarning:true\ntutorialStep:none\nfov:0.0\ngamma:1.0\nsoundCategory_master:0.0\nnarrator:0\nbobView:false\n")
     profile = json.loads((CLIENT / "versions/1.20.1-forge-47.4.10/1.20.1-forge-47.4.10.json").read_text())
     replacements = {"library_directory": str(CLIENT / "libraries"), "classpath_separator": ":", "version_name": "1.20.1"}
     def resolve(value):
