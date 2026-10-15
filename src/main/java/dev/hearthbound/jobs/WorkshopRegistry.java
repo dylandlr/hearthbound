@@ -92,15 +92,21 @@ public final class WorkshopRegistry extends SavedData {
 
     @SubscribeEvent
     public static void leave(EntityLeaveLevelEvent event) {
-        if (event.getEntity() instanceof Villager worker && event.getLevel() instanceof ServerLevel level) {
+        if (event.getEntity() instanceof Villager worker && event.getLevel() instanceof ServerLevel level
+                && (worker.getTags().contains("hearthbound.sable") || worker.getPersistentData().contains("HearthboundHaul", 10))) {
             var registry = get(level);
             registry.cancelWaiting(worker);
             var reason = worker.getRemovalReason();
             // Unload, shutdown and dimension changes keep the lease.
             if (reason == net.minecraft.world.entity.Entity.RemovalReason.KILLED
                     || reason == net.minecraft.world.entity.Entity.RemovalReason.DISCARDED) {
-                var lease = registry.lease(worker.getUUID());
-                if (lease != null) registry.release(worker, lease.job());
+                // A worker may have crossed dimensions while its original haul waited.
+                // Clear its destroyed identity in each registry, without loading chunks.
+                for (var savedLevel : level.getServer().getAllLevels()) {
+                    var savedRegistry = get(savedLevel);
+                    var lease = savedRegistry.lease(worker.getUUID());
+                    if (lease != null) savedRegistry.release(worker, lease.job());
+                }
             }
         }
     }
