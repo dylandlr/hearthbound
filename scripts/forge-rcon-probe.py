@@ -68,6 +68,12 @@ if __name__ == "__main__":
         if "HB_RESTART_DELIVERED" not in stable:
             raise AssertionError("Delivery was not stable after completion: " + stable)
         print("HB_RESTART_NO_REPLAY_PASS source=4 dest=4 cargo=0", flush=True)
+        # Run the optional-Create boundary fixture after the playerless-idle and
+        # arena-ticket regression, so its ticket cannot wake that earlier test.
+        execute("forceload add 0 0")
+        no_create = execute("hearthbound ci_workshop_no_create")
+        assert "HB_WORKSHOP_OPTIONAL_CREATE_PASS" in no_create, no_create
+        print(no_create, flush=True)
         sys.exit(0)
     # Let Minecraft enter its empty-server entity-idle state before dispatch.
     # The disposable arena must explicitly provide its own ticking tickets.
@@ -87,10 +93,6 @@ if __name__ == "__main__":
             print(haul)
             if "HB_HAUL_SETUP_PASS" not in haul:
                 raise AssertionError("Real Forge hauling baseline failed")
-            execute("forceload add 0 0")
-            no_create = execute("hearthbound ci_workshop_no_create")
-            assert "HB_WORKSHOP_OPTIONAL_CREATE_PASS" in no_create, no_create
-            print(no_create, flush=True)
             print("PASS: real-world Forge entity and inventory setup probes")
             assert "HB_HAUL_E2E_STARTED" in execute("hearthbound ci_haul_start")
             for n in range(70):
