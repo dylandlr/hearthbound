@@ -155,9 +155,12 @@ public final class SharedWorkshopProbe {
         }
         var bData = b.getPersistentData(); var bOrder = bData.getCompound("HearthboundMillOrder");
         if (!bData.getBoolean("HearthboundSharedRevoked")) {
-            if (!bOrder.getString("State").equals("TARGET_REACHED") || wheat(level) != 4 || flour != 2
-                    || registry.lease(a.getUUID()) != null || registry.lease(b.getUUID()) != null
-                    || !registry.revoke(MILL, OWNER, MEMBER, false)) return fail(source, "revoke_stage");
+            if (!bOrder.getString("State").equals("TARGET_REACHED")) {
+                source.sendSuccess(() -> Component.literal("HB_SHARED_WORKSHOP_PENDING target_state"), false); return 1;
+            }
+            if (wheat(level) != 4 || flour != 2 || registry.lease(a.getUUID()) != null
+                    || registry.lease(b.getUUID()) != null || !registry.revoke(MILL, OWNER, MEMBER, false))
+                return fail(source, "revoke_stage");
             bOrder.putInt("TargetFlour", 3); bOrder.putString("State", "WAITING");
             bData.putBoolean("HearthboundSharedRevoked", true);
             source.sendSuccess(() -> Component.literal("HB_SHARED_WORKSHOP_REVOKED active_work_complete new_work_pending"), false);
