@@ -28,6 +28,8 @@ public record WorkshopStatus(String owner, Access access, Station wheat, Station
             };
         }
         public String queueDescription() {
+            if (state == State.NONE) return "Select a station in setup";
+            if (state == State.UNAVAILABLE) return "Move closer to inspect this station";
             return "Waiting: " + waiting + (queued ? " — this worker is queued" : "");
         }
         private void encode(FriendlyByteBuf b) {

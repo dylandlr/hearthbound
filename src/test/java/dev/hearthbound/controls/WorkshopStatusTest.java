@@ -49,5 +49,7 @@ class WorkshopStatusTest {
         assertTrue(mill.queueDescription().contains("2"));
         assertTrue(mill.queueDescription().contains("this worker is queued"));
         assertTrue(status().flour().description().contains("away"));
+        var unavailable = new WorkshopStatus.Station(WorkshopStatus.State.UNAVAILABLE, BlockPos.ZERO, "", 0, false, false);
+        assertFalse(unavailable.queueDescription().contains("Waiting: 0"));
     }
 }
