@@ -180,6 +180,7 @@ public final class FirstMillWorkOrder {
                 || !villager.getPersistentData().contains(ROOT, 10)
                 || !(entity.level() instanceof ServerLevel level)) return;
         CompoundTag data = villager.getPersistentData();
+        if (data.getBoolean("HearthboundAgentPolicyEnabled")) return;
         CompoundTag order = data.getCompound(ROOT);
         if (!order.getBoolean("Enabled") || data.contains("HearthboundHaul", 10)) return;
         BlockPos wheat = BlockPos.of(order.getLong("Wheat"));
