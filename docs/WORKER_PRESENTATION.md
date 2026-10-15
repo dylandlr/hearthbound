@@ -54,4 +54,4 @@ Source `230d518` adds saved waiting points, checked floor detours, per-tick arri
 
 ## Remaining gameplay work
 
-A saved waiting location and brief station interaction feedback are implemented; see [workshop routine](WORKSHOP_ROUTINE.md). Work assignment is still command driven. Workshop ownership and machine reservations are required before general multi-worker production. The new item visual does not add an animation system, citizen needs, or learned policies.
+A saved waiting location and brief station interaction feedback are implemented; see [workshop routine](WORKSHOP_ROUTINE.md). Work assignment is now available through the native [workshop controls](WORKSHOP_CONTROLS.md). Workshop ownership and machine reservations are required before general multi-worker production. The new item visual does not add an animation system, citizen needs, or learned policies.

@@ -46,10 +46,18 @@ The first runtime pass on `52f0acf` passed the build/core suites, dedicated 15-t
 
 Final source `230d518` passes [build/ten JUnit tests](https://github.com/dylandlr/hearthbound/actions/runs/38690073104), [core suite](https://github.com/dylandlr/hearthbound/actions/runs/38690073119), [dedicated partial-dwell restart](https://github.com/dylandlr/hearthbound/actions/runs/38690073111), [Create production/waiting/selection](https://github.com/dylandlr/hearthbound/actions/runs/38690073133), and [actual graphical client](https://github.com/dylandlr/hearthbound/actions/runs/38690073141). The delivered 34.5-second continuous production excerpt shows real milling waits, flour transport and final return to the yellow tile at stock 2/2. It comes from the 46.5-second raw client capture, with observer following and a brief test pause for the first flour assertion. Exact source/JAR/video provenance and render witnesses: [workshop evidence](WORKSHOP_ROUTINE_EVIDENCE.json).
 
+## In-game controls increment
+
+Empty-hand right-click now opens a native First Mill screen. Players select stations and a waiting floor block in the world, type a target, and start without server commands. Active targets/waiting spots can be saved; Stop preserves the current haul and cached setup, Resume retries a paused haul, and an explicit later Start reuses the setup. The first successful assignment binds a supervisor; another player can inspect, while the supervisor and operators can edit. Server sessions resolve exact worker UUIDs and reject stale revisions, wrong workers, invalid/unloaded stations and unauthorized edits before mutation. Worker supervision does not reserve shared machines.
+
+Gameplay `3fd0c48` passes the real Create regression and [actual non-operator graphical click-through](https://github.com/dylandlr/hearthbound/actions/runs/38694479221), including target 3→2, stop with unchanged flour cargo, disabled Start, UI resume, cached restart and final target 2/2. The 640×480 native layout is verified. `024ba00` changes the dedicated test ordering only and passes build/thirteen JUnit tests, core tests, the original empty-server/cargo/restart/no-replay regression, and missing-Create air rejection. The UI test initially missed a moving worker after delivery; the observer now follows while opening, as it already did for presentation checks. No worker is teleported.
+
+The reviewed 44.45-second continuous recording shows the actual controls and production. Exact revisions, runs, hashes and test staging are in [control evidence](WORKSHOP_CONTROLS_EVIDENCE.json); usage and boundaries are in [workshop controls](WORKSHOP_CONTROLS.md). No source or resource change follows the captured build; the final publication adds documentation only.
+
 ## Next work
 
-1. Add ordinary player-facing work-order controls and refine their visual flow using the updated client capture.
-2. Add explicit colony workshop ownership and shared-machine reservations before enabling general multi-worker production. Command selection alone does not provide machine ownership.
+1. Add explicit workshop ownership and shared-machine reservations to complement per-worker supervisor permissions.
+2. Verify two independently managed workers sharing machines and stockpiles under reservations before general multi-worker production.
 3. Add citizen needs once the production flow and order controls are readable.
 4. Reconcile the two historical branch stacks before merging the final implementation to `main`.
 

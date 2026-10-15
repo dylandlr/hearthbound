@@ -33,4 +33,8 @@ Source `230d518` passes the [Forge distribution build and ten JUnit tests](https
 
 The delivered `Hearthbound_Workshop_Routine.mp4` is a continuous 34.5-second excerpt, starting 12 seconds into the original 46.5-second capture. It shows wheat delivery, waiting while the mill works, flour pickup/delivery, and the final return to the saved yellow tile with actual stock 2/2. Exact trimming re-encodes the original frames at 1280×720/20 FPS, with no audio or time acceleration. The full capture and diagnostics remain in the graphical workflow artifact. Source/JAR/video hashes, diagnostic lines and test results are in [the evidence record](WORKSHOP_ROUTINE_EVIDENCE.json).
 
-Reviewed full-resolution target imagery and three-second samples across the capture and excerpt. Rear camera angles sometimes hide the crossed-arm item behind the villager's body. Diagnostics remain visible; this is development acceptance footage. Player-facing controls, workshop ownership and machine reservations remain the next product work.
+Reviewed full-resolution target imagery and three-second samples across the capture and excerpt. Rear camera angles sometimes hide the crossed-arm item behind the villager's body. Diagnostics remain visible; this is development acceptance footage. Later increments are listed below; workshop ownership and machine reservations remain future product work.
+
+## In-game management
+
+Workshop controls are now available through an empty-hand right-click on Sable, including world station picking, targets, stop, paused-haul resume, and saved-setup restart. See [controls and current evidence](WORKSHOP_CONTROLS.md). Per-worker supervision is implemented; shared-machine reservations remain future work.
