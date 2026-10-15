@@ -140,7 +140,7 @@ try:
         return value
     args = ["java", "-Xms512M", "-Xmx2G", "-Djava.library.path=" + str(CLIENT / "natives"),
             "-Dorg.lwjgl.librarypath=" + str(CLIENT / "natives"), "-Dminecraft.launcher.brand=hearthbound-playtest",
-            "-Dminecraft.launcher.version=1", "-Dhearthbound.recordWorkerViews=true"]
+            "-Dminecraft.launcher.version=1", "-Dhearthbound.recordWorkerViews=true", "-Dhearthbound.recordWorkshopControls=true"]
     args += [resolve(value) for value in profile["arguments"]["jvm"]]
     args += ["-cp", (CLIENT / "classpath.txt").read_text(), profile["mainClass"], "--username", PLAYER,
              "--uuid", str(player_id), "--accessToken", "0", "--userType", "legacy", "--version", profile["id"],
@@ -159,9 +159,6 @@ try:
     blocked = client_check("output_full", 4, "minecraft:wheat")
     time.sleep(2)
     screenshot("cargo-blocked.png")
-    recording = launch(["ffmpeg", "-y", "-f", "x11grab", "-video_size", "1280x720", "-framerate", "20",
-                        "-i", os.environ["DISPLAY"], "-an", "-c:v", "libx264", "-preset", "fast", "-crf", "22",
-                        "-pix_fmt", "yuv420p", str(OUT / "Hearthbound_Workshop_Routine.mp4")], ROOT, "capture.log")
     time.sleep(5)
     packed = int(re.search(r":\s*(-?\d+)L?\s*$", command(f"data get entity {WORKER} ForgeData.HearthboundHaul.To"))[1])
     x, y, z = packed >> 38, packed & 4095, (packed >> 12) & ((1 << 26) - 1)
@@ -182,9 +179,14 @@ try:
                  'summon minecraft:villager 40.5 -60 0.5 {Tags:["hearthbound.sable"],CustomName:\'{"text":"Sable"}\',CustomNameVisible:1b,PersistenceRequired:1b}']:
         command(text)
     wait_for(lambda: "following entity data" in rcon.execute(f"data get entity {WORKER} Pos"), 10, "worker query readiness")
-    assert "enabled" in command("execute positioned 40 -60 0 run hearthbound mill_order 42 -60 0 49 -60 0 55 -60 0")
-    command("execute positioned 40 -60 0 run hearthbound mill_order_target 2")
-    assert "waiting spot set" in command("execute positioned 40 -60 0 run hearthbound mill_order_wait 46 -60 3")
+    aim()
+    recording = launch(["ffmpeg", "-y", "-f", "x11grab", "-video_size", "1280x720", "-framerate", "20",
+                        "-i", os.environ["DISPLAY"], "-an", "-c:v", "libx264", "-preset", "fast", "-crf", "22",
+                        "-pix_fmt", "yuv420p", str(OUT / "Hearthbound_Workshop_Controls.mp4")], ROOT, "capture.log")
+    controls_spec = importlib.util.spec_from_file_location("controls_client", ROOT / "scripts/workshop-controls-client.py")
+    controls_module = importlib.util.module_from_spec(controls_spec)
+    controls_spec.loader.exec_module(controls_module)
+    controls_ui = controls_module.run_setup(globals())
     deadline = time.monotonic() + 80
     saw_flour = False
     saw_mill_wait = False
@@ -199,7 +201,24 @@ try:
             time.sleep(3)
             flour_view = client_check("paused", 1, "create:wheat_flour")
             screenshot("flour-carrying.png")
+            # Stop via the native screen while real flour is in persisted cargo.
+            saved_haul = command(f'data get entity {WORKER} ForgeData.HearthboundHaul')
+            controls_ui['open']()
+            controls_ui['button']('stop')
+            wait_for(lambda: 'HearthboundMillOrder:' not in rcon.execute(f'data get entity {WORKER} ForgeData'), 10, 'UI stops only scheduling')
+            assert saved_haul == command(f'data get entity {WORKER} ForgeData.HearthboundHaul'), 'Stop changed in-flight cargo'
+            screenshot("controls-stop-carrying.png")
+            controls_ui['button']('save')  # Disabled until this haul completes.
+            assert 'HearthboundMillOrder:' not in rcon.execute(f'data get entity {WORKER} ForgeData')
+            controls_ui['button']('close')
             command(f'data merge entity {WORKER} {{ForgeData:{{HearthboundHaul:{{Paused:0b}}}}}}')
+            wait_for(lambda: 'cargo=0' in rcon.execute('execute positioned 48 -60 0 run hearthbound worker_view'), 15, 'stopped order finishes its current haul')
+            assert re.search(r'Count:\s*1b', command('data get block 55 -60 0 Items'))
+            controls_ui['open']()
+            controls_ui['button']('save')
+            wait_for(lambda: 'HearthboundMillOrder:' in rcon.execute(f'data get entity {WORKER} ForgeData'), 10, 'UI restarts saved setup')
+            controls_ui['button']('close')
+            print('HB_WORKSHOP_STOP_RESTART_UI_PASS cargo_preserved start_disabled_during_haul cached_setup_restarted', flush=True)
         order_state = rcon.execute(f"data get entity {WORKER} ForgeData.HearthboundMillOrder")
         if 'WaitState: "AT_WAIT"' in order_state and 'State: "MILLING"' in order_state:
             saw_mill_wait = True
@@ -227,7 +246,10 @@ try:
         "camera": "observer player teleported to follow worker; worker never teleported",
         "waiting_position": wait_position, "waiting_order": order_state, "observed_mill_wait": saw_mill_wait,
         "interaction_ticks": 15, "blocked_client": blocked, "delivered_client": delivered, "target_client": target, "flour_client": flour_view,
-        "test_pause": "first flour haul paused in persisted job for the visual assertion, then resumed"}, indent=2))
+        "controls": "Actual xdotool right-click, native screen buttons, four world picks, numeric target; player de-opped before setup",
+        "control_stop_restart": "UI stops while flour cargo=1, haul NBT unchanged, Start disabled, delivery finishes, UI restarts cached setup",
+        "test_pause": "first flour haul paused in persisted job for the visual/stop assertion, then resumed"}, indent=2))
+    print("HB_GRAPHICAL_WORKSHOP_CONTROLS_PASS real_mouse_keyboard non_operator_setup stop_with_cargo restart_target", flush=True)
     print("HB_GRAPHICAL_CARGO_PROGRESS_PASS real packets, cargo rendering, HUD rendering, delivery clear and flour target", flush=True)
 except Exception:
     try: screenshot("failure.png")

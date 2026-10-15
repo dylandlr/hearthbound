@@ -8,6 +8,7 @@ on:
       - 'src/main/resources/assets/hearthbound/**'
       - 'scripts/prepare-minecraft-client.py'
       - 'scripts/graphical-client-probe.py'
+      - 'scripts/workshop-controls-client.py'
       - '.github/workflows/graphical-client.yml'
 permissions:
   contents: read

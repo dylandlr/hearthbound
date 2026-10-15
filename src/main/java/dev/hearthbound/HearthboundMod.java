@@ -43,6 +43,7 @@ public final class HearthboundMod {
 
     public HearthboundMod() {
         dev.hearthbound.presentation.WorkerNetwork.register();
+        dev.hearthbound.controls.WorkshopNetwork.register();
         LOGGER.info("Hearthbound bootstrap loaded. First Mill work orders available.");
     }
 
@@ -281,6 +282,9 @@ public final class HearthboundMod {
                                         })))))
                     .then(Commands.literal("haul_status")
                             .executes(ctx -> BarrelHaulController.status(ctx.getSource())))
+                    .then(Commands.literal("ci_workshop_controls")
+                            .requires(source -> source.hasPermission(2))
+                            .executes(ctx -> dev.hearthbound.controls.WorkshopControlsProbe.run(ctx.getSource())))
                     .then(Commands.literal("worker_view")
                             .executes(ctx -> dev.hearthbound.presentation.WorkerPresentation.status(ctx.getSource())))
                     .then(Commands.literal("sable_status")

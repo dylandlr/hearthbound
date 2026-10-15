@@ -38,65 +38,91 @@ public final class FirstMillWorkOrder {
             source.sendFailure(Component.literal("No unassigned Sable within 32 blocks."));
             return 0;
         }
-        CompoundTag order = new CompoundTag();
-        order.putLong("Wheat", wheat.asLong());
-        order.putLong("Mill", mill.asLong());
-        order.putLong("Flour", flour.asLong());
-        order.putBoolean("Enabled", true);
-        order.putString("State", "WAITING");
-        WorkshopWaiting.setDefault(level, worker, order);
-        worker.getPersistentData().put(ROOT, order);
+        String error = configure(worker, wheat, mill, flour, null, 0);
+        if (!error.isEmpty()) { source.sendFailure(Component.literal(error)); return 0; }
         source.sendSuccess(() -> Component.literal("First Mill work order enabled for Sable."), false);
         return 1;
     }
 
+    public static long revision(Villager worker) {
+        return worker.getPersistentData().getLong("HearthboundOrderRevision");
+    }
+
+    private static void changed(Villager worker) {
+        worker.getPersistentData().putLong("HearthboundOrderRevision", revision(worker) + 1);
+        worker.getPersistentData().put("HearthboundWorkshopSetup", worker.getPersistentData().getCompound(ROOT).copy());
+    }
+
+    /** Shared command/UI mutation. Validate everything before touching the order or cargo. */
+    public static String configure(Villager worker, BlockPos wheat, BlockPos mill, BlockPos flour,
+            BlockPos wait, int target) {
+        if (!(worker.level() instanceof ServerLevel level)) return "Workshop is unavailable.";
+        if (target < 0 || target > 4096) return "Use a flour target from 0 to 4096.";
+        if (wheat == null || mill == null || flour == null || wheat.equals(mill) || wheat.equals(flour)
+                || mill.equals(flour) || !level.hasChunkAt(wheat) || !level.hasChunkAt(mill) || !level.hasChunkAt(flour)
+                || !(level.getBlockEntity(wheat) instanceof BarrelBlockEntity)
+                || !(level.getBlockEntity(flour) instanceof BarrelBlockEntity)
+                || !level.getBlockState(mill).is(BuiltInRegistries.BLOCK.get(new ResourceLocation("create", "millstone"))))
+            return "Choose two distinct loaded barrels and a Create millstone.";
+        var data = worker.getPersistentData();
+        boolean existing = data.contains(ROOT, 10);
+        if (!existing && !SableSelection.idle(worker)) return "Wait for the current job to finish.";
+        var order = existing ? data.getCompound(ROOT).copy() : new CompoundTag();
+        if (existing && (order.getLong("Wheat") != wheat.asLong() || order.getLong("Mill") != mill.asLong()
+                || order.getLong("Flour") != flour.asLong())) return "Stop the order before changing its stations.";
+        order.putLong("Wheat", wheat.asLong()); order.putLong("Mill", mill.asLong()); order.putLong("Flour", flour.asLong());
+        order.putInt("TargetFlour", target);
+        if (wait != null) {
+            if (!WorkshopWaiting.valid(level, wait, order)) return "Choose clear supported floor away from the stations.";
+            order.putLong("Wait", wait.asLong());
+        } else if (!existing) WorkshopWaiting.setDefault(level, worker, order);
+        order.putBoolean("Enabled", true);
+        if (!existing) order.putString("State", "WAITING");
+        order.remove("WaitState"); order.remove("WaitRetryAfter");
+        data.put(ROOT, order);
+        WorkshopWaiting.forget(worker);
+        if (!data.contains("HearthboundHaul", 10)) worker.getNavigation().stop();
+        changed(worker);
+        return "";
+    }
+
     public static int waitingPoint(CommandSourceStack source, BlockPos feet) {
         Villager worker = SableSelection.nearest(source, v -> v.getPersistentData().contains(ROOT, 10));
-        if (worker == null) {
-            source.sendFailure(Component.literal("No First Mill work order nearby."));
-            return 0;
-        }
+        if (worker == null) { source.sendFailure(Component.literal("No First Mill work order nearby.")); return 0; }
         var order = worker.getPersistentData().getCompound(ROOT);
         if (!WorkshopWaiting.valid(source.getLevel(), feet, order)) {
-            source.sendFailure(Component.literal("Choose clear floor within 32 blocks of the mill, away from station blocks."));
-            return 0;
+            source.sendFailure(Component.literal("Choose clear floor within 32 blocks of the mill, away from station blocks.")); return 0;
         }
-        order.putLong("Wait", feet.asLong());
-        order.remove("WaitState");
-        order.remove("WaitRetryAfter");
+        order.putLong("Wait", feet.asLong()); order.remove("WaitState"); order.remove("WaitRetryAfter");
         WorkshopWaiting.forget(worker);
         if (!worker.getPersistentData().contains("HearthboundHaul", 10)) worker.getNavigation().stop();
+        changed(worker);
         source.sendSuccess(() -> Component.literal("First Mill waiting spot set to " + feet.toShortString()), false);
         return 1;
     }
 
     public static int target(CommandSourceStack source, int amount) {
-        if (amount < 1 || amount > 4096) {
-            source.sendFailure(Component.literal("Target must be between 1 and 4096 flour."));
-            return 0;
-        }
-        Villager worker = SableSelection.nearest(source,
-                v -> v.getPersistentData().contains(ROOT, 10));
-        if (worker == null) {
-            source.sendFailure(Component.literal("No First Mill work order nearby."));
-            return 0;
-        }
+        if (amount < 1 || amount > 4096) { source.sendFailure(Component.literal("Target must be between 1 and 4096 flour.")); return 0; }
+        Villager worker = SableSelection.nearest(source, v -> v.getPersistentData().contains(ROOT, 10));
+        if (worker == null) { source.sendFailure(Component.literal("No First Mill work order nearby.")); return 0; }
         worker.getPersistentData().getCompound(ROOT).putInt("TargetFlour", amount);
+        changed(worker);
         source.sendSuccess(() -> Component.literal("First Mill flour target set to " + amount), false);
         return 1;
     }
 
-    public static int stop(CommandSourceStack source) {
-        Villager worker = SableSelection.nearest(source,
-                v -> v.getPersistentData().contains(ROOT, 10));
-        if (worker == null) {
-            source.sendFailure(Component.literal("No First Mill work order nearby."));
-            return 0;
-        }
-        // Stop scheduling new jobs; never erase cargo from an active haul.
+    public static void stopWorker(Villager worker) {
+        // Keep a reusable setup, and never erase the active haul or its cargo.
+        changed(worker);
         if (!worker.getPersistentData().contains("HearthboundHaul", 10)) worker.getNavigation().stop();
         WorkshopWaiting.forget(worker);
         worker.getPersistentData().remove(ROOT);
+    }
+
+    public static int stop(CommandSourceStack source) {
+        Villager worker = SableSelection.nearest(source, v -> v.getPersistentData().contains(ROOT, 10));
+        if (worker == null) { source.sendFailure(Component.literal("No First Mill work order nearby.")); return 0; }
+        stopWorker(worker);
         source.sendSuccess(() -> Component.literal("First Mill scheduling stopped; existing haul retained."), false);
         return 1;
     }
