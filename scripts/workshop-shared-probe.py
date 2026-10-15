@@ -39,6 +39,19 @@ if sys.argv[1] == "stage":
     command("save-all flush", "Saved")
     rcon.execute("stop")
 elif sys.argv[1] == "after-restart":
+    # "Done" precedes asynchronous entity-section loading in remote forced chunks.
+    # Observe both saved workers before asserting their cargo and saved reservations.
+    for attempt in range(100):
+        positions = [rcon.execute('data get entity @e[type=minecraft:villager,tag=hearthbound.shared.'
+                                  + role + ',limit=1] Pos') for role in ('a', 'b')]
+        if all('following entity data' in position for position in positions):
+            print('HB_SHARED_WORKERS_READY ' + str(positions), flush=True)
+            break
+        if attempt % 20 == 0:
+            print('Waiting for saved shared-workshop entity sections: ' + str(positions), flush=True)
+        time.sleep(.25)
+    else:
+        raise AssertionError('Saved shared workers did not load: ' + str(positions))
     # The Java witness requires a lease read from disk, not merely recreated on tick.
     command("hearthbound ci_workshop_shared_restart", "HB_SHARED_WORKSHOP_RESTART_PASS")
     time.sleep(3)
