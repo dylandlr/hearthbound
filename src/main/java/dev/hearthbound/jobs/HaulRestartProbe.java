@@ -18,7 +18,9 @@ import java.util.List;
 public final class HaulRestartProbe {
     private HaulRestartProbe() {}
 
-    public static int check(CommandSourceStack source) {
+    public static int check(CommandSourceStack source) { return check(source, true); }
+
+    private static int check(CommandSourceStack source, boolean requireRestoredLease) {
         ServerLevel level = source.getLevel();
         BlockPos spawn = level.getSharedSpawnPos();
         int top = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
@@ -54,9 +56,10 @@ public final class HaulRestartProbe {
         var registry = WorkshopRegistry.get(level);
         var lease = registry.lease(sable.getUUID());
         if (lease == null || !lease.job().equals(job.getString("JobId"))
-                || !registry.wasRestored(sable.getUUID(), job.getString("JobId")))
+                || (requireRestoredLease && !registry.wasRestored(sable.getUUID(), job.getString("JobId"))))
             return fail(source, "station_lease_not_restored");
-        source.sendSuccess(() -> Component.literal("HB_RESTART_PASS source=4 cargo=4 dest=0 lease=restored interactionTicks="
+        source.sendSuccess(() -> Component.literal("HB_RESTART_PASS source=4 cargo=4 dest=0 lease="
+                + (requireRestoredLease ? "restored" : "held") + " interactionTicks="
                 + job.getInt("InteractionTicks")), true);
         return 1;
     }
@@ -106,7 +109,7 @@ public final class HaulRestartProbe {
             source.sendSuccess(() -> Component.literal("HB_RESTART_INTERACTION_PENDING"), false);
             return 1;
         }
-        if (check(source) == 0) return 0;
+        if (check(source, false) == 0) return 0;
         source.sendSuccess(() -> Component.literal("HB_RESTART_INTERACTION_STAGED remaining=10"), false);
         return 1;
     }
