@@ -74,7 +74,8 @@ public final class WorkshopControls {
             }
         }
         boolean existing = worker.getPersistentData().contains("HearthboundMillOrder", 10);
-        String error = FirstMillWorkOrder.configure(worker, request.wheat(), request.mill(), request.flour(), request.waiting(), request.target());
+        String error = FirstMillWorkOrder.configureFor(worker, request.wheat(), request.mill(), request.flour(), request.waiting(), request.target(),
+                player.getUUID(), player.hasPermissions(2));
         if (!error.isEmpty()) { reply(player, worker, error); return; }
         if (!existing && !worker.getPersistentData().hasUUID("HearthboundSupervisor"))
             worker.getPersistentData().putUUID("HearthboundSupervisor", player.getUUID());

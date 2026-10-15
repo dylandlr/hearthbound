@@ -51,7 +51,12 @@ public final class HaulRestartProbe {
         if (wheatInSource != 4 || wheatInOutput != 0
                 || wheatInSource + job.getInt("Cargo") + wheatInOutput != 8)
             return fail(source, "inventory_conservation");
-        source.sendSuccess(() -> Component.literal("HB_RESTART_PASS source=4 cargo=4 dest=0 interactionTicks="
+        var registry = WorkshopRegistry.get(level);
+        var lease = registry.lease(sable.getUUID());
+        if (lease == null || !lease.job().equals(job.getString("JobId"))
+                || !registry.wasRestored(sable.getUUID(), job.getString("JobId")))
+            return fail(source, "station_lease_not_restored");
+        source.sendSuccess(() -> Component.literal("HB_RESTART_PASS source=4 cargo=4 dest=0 lease=restored interactionTicks="
                 + job.getInt("InteractionTicks")), true);
         return 1;
     }

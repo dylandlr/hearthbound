@@ -63,6 +63,7 @@ public final class BarrelHaulController {
     public static boolean assignCitizen(Villager sable, BlockPos from, BlockPos to, int count) {
         if (count < 1 || count > 64 || from.equals(to) || sable.getPersistentData().contains(ROOT)
                 || sable.getPersistentData().getBoolean("HearthboundTravelActive")) return false;
+        if (!(sable.level() instanceof ServerLevel level)) return false;
         CompoundTag job = new CompoundTag();
         job.putString("Phase", "PICKUP");
         job.putLong("From", from.asLong());
@@ -72,6 +73,8 @@ public final class BarrelHaulController {
         job.putString("Result", "IN_PROGRESS");
         job.putString("JobId", java.util.UUID.randomUUID().toString());
         job.putString("Item", "minecraft:wheat");
+        job.putString("Dimension", level.dimension().location().toString());
+        if (!WorkshopRegistry.get(level).reserveNew(sable, job)) return false;
         TRAVEL.remove(sable.getUUID());
         sable.getPersistentData().put(ROOT, job);
         return true;
@@ -110,6 +113,18 @@ public final class BarrelHaulController {
         if (!persisted.contains(ROOT, 10)) return;
         CompoundTag job = persisted.getCompound(ROOT);
         if (!(sable.level() instanceof ServerLevel level)) return;
+        if (!job.contains("Dimension")) job.putString("Dimension", level.dimension().location().toString());
+        if (!job.getString("Dimension").equals(level.dimension().location().toString())) {
+            sable.getNavigation().stop(); job.putString("Result", "WRONG_DIMENSION"); return;
+        }
+        if (job.getString("JobId").isEmpty()) job.putString("JobId", UUID.randomUUID().toString());
+        if (!WorkshopRegistry.get(level).reserve(sable, job)) {
+            if (!job.getBoolean("Paused")) {
+                clearInteraction(job); sable.getNavigation().stop();
+                job.putString("Result", "WAITING_FOR_STATION");
+            }
+            return;
+        }
         String phase = job.getString("Phase");
         BlockPos target = BlockPos.of(job.getLong(phase.equals("PICKUP") ? "From" : "To"));
         if (job.getBoolean("Paused")) return;
@@ -205,6 +220,7 @@ public final class BarrelHaulController {
             clearInteraction(job);
             if (left == 0) {
                 persisted.remove(ROOT);
+                WorkshopRegistry.get(level).release(sable, job.getString("JobId"));
                 persisted.putString("HearthboundLastHaulResult", "DELIVERED_" + delivered);
             } else job.putString("Result", "OUTPUT_FULL_CARRYING");
         }

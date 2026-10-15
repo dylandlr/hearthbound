@@ -59,6 +59,14 @@ public final class FirstMillWorkOrder {
     /** Shared command/UI mutation. Validate everything before touching the order or cargo. */
     public static String configure(Villager worker, BlockPos wheat, BlockPos mill, BlockPos flour,
             BlockPos wait, int target) {
+        var data = worker.getPersistentData();
+        return configureFor(worker, wheat, mill, flour, wait, target,
+                data.hasUUID("HearthboundSupervisor") ? data.getUUID("HearthboundSupervisor") : null, true);
+    }
+
+    /** UI callers supply the actual sender; operator commands use the trusted wrapper. */
+    public static String configureFor(Villager worker, BlockPos wheat, BlockPos mill, BlockPos flour,
+            BlockPos wait, int target, java.util.UUID manager, boolean operator) {
         if (!(worker.level() instanceof ServerLevel level)) return "Workshop is unavailable.";
         if (target < 0 || target > 4096) return "Use a flour target from 0 to 4096.";
         if (wheat == null || mill == null || flour == null || wheat.equals(mill) || wheat.equals(flour)
@@ -79,6 +87,10 @@ public final class FirstMillWorkOrder {
             if (!WorkshopWaiting.valid(level, wait, order)) return "Choose clear supported floor away from the stations.";
             order.putLong("Wait", wait.asLong());
         } else if (!existing) WorkshopWaiting.setDefault(level, worker, order);
+        var registry = WorkshopRegistry.get(level);
+        if (!registry.canUse(mill, manager, operator)) return "This mill belongs to another supervisor.";
+        order.putUUID("WorkshopOwner", registry.claim(mill, manager, operator));
+        registry.cancelWaiting(worker);
         order.putBoolean("Enabled", true);
         if (!existing) order.putString("State", "WAITING");
         order.remove("WaitState"); order.remove("WaitRetryAfter");
@@ -120,6 +132,7 @@ public final class FirstMillWorkOrder {
         if (!worker.getPersistentData().contains("HearthboundHaul", 10)) worker.getNavigation().stop();
         WorkshopWaiting.forget(worker);
         worker.getPersistentData().remove(ROOT);
+        if (worker.level() instanceof ServerLevel level) WorkshopRegistry.get(level).cancelWaiting(worker);
     }
 
     public static int stop(CommandSourceStack source) {
@@ -176,6 +189,18 @@ public final class FirstMillWorkOrder {
             order.putString("State", "MISSING_STATION");
             return;
         }
+        var registry = WorkshopRegistry.get(level);
+        // Existing worlds adopt their old supervisor (or server ownership) once.
+        if (!order.hasUUID("WorkshopOwner")) {
+            var manager = data.hasUUID("HearthboundSupervisor") ? data.getUUID("HearthboundSupervisor") : WorkshopRegistry.SERVER_OWNER;
+            if (!registry.canUse(mill, manager, false)) {
+                order.putString("State", "WORKSHOP_ACCESS_DENIED"); registry.cancelWaiting(villager); return;
+            }
+            order.putUUID("WorkshopOwner", registry.claim(mill, manager, false));
+        }
+        if (!order.getUUID("WorkshopOwner").equals(registry.owner(mill))) {
+            order.putString("State", "WORKSHOP_ACCESS_DENIED"); registry.cancelWaiting(villager); return;
+        }
         int targetFlour = order.getInt("TargetFlour");
         if (targetFlour > 0 && level.getBlockEntity(flour) instanceof BarrelBlockEntity store) {
             var flourItem = BuiltInRegistries.ITEM.get(new ResourceLocation("create", "wheat_flour"));
@@ -183,6 +208,7 @@ public final class FirstMillWorkOrder {
             for (int i = 0; i < store.getContainerSize(); i++)
                 if (store.getItem(i).is(flourItem)) stocked += store.getItem(i).getCount();
             if (stocked >= targetFlour) {
+                registry.cancelWaiting(villager);
                 order.putString("State", "TARGET_REACHED");
                 return;
             }
@@ -192,12 +218,13 @@ public final class FirstMillWorkOrder {
             if (BarrelHaulController.assignFlourCitizen(villager, mill, flour, 1)) {
                 WorkshopWaiting.beginWork(villager, order);
                 order.putString("State", "COLLECTING_FLOUR");
-            }
+            } else order.putString("State", "WAITING_FOR_STATION");
             return;
         }
         // Do not queue fresh deliveries while wheat is still in the millstone.
         // This avoids a citizen collecting excess wheat and stalling with cargo.
         if (hasMillInput(level, mill)) {
+            registry.cancelWaiting(villager);
             order.putString("State", "MILLING");
             return;
         }
@@ -208,8 +235,11 @@ public final class FirstMillWorkOrder {
             if (BarrelHaulController.assignCitizen(villager, wheat, mill, Math.min(4, wheatCount))) {
                 WorkshopWaiting.beginWork(villager, order);
                 order.putString("State", "SUPPLYING_WHEAT");
-            }
-        } else order.putString("State", "WAITING_FOR_WHEAT");
+            } else order.putString("State", "WAITING_FOR_STATION");
+        } else {
+            registry.cancelWaiting(villager);
+            order.putString("State", "WAITING_FOR_WHEAT");
+        }
     }
 
     private static boolean isMillstone(ServerLevel level, BlockPos pos) {

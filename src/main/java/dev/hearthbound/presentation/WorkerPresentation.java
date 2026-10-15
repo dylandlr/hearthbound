@@ -56,6 +56,8 @@ public final class WorkerPresentation {
             String result = haul.getString("Result");
             if (result.startsWith("OUTPUT_FULL")) return "output_full";
             if (result.startsWith("MISSING_")) return "missing_station";
+            if (result.equals("WAITING_FOR_STATION")) return "waiting_for_station";
+            if (result.equals("WRONG_DIMENSION")) return "wrong_dimension";
             if (result.equals("WAITING_FOR_CHUNK")) return "waiting_for_chunks";
             if (result.equals("NO_ACCESSIBLE_STATION")) return "no_access";
             if (result.equals("NO_WHEAT")) return "waiting_for_supplies";
@@ -71,6 +73,8 @@ public final class WorkerPresentation {
             }
             return switch (order.getString("State")) {
                 case "MILLING" -> "milling";
+                case "WAITING_FOR_STATION" -> "waiting_for_station";
+                case "WORKSHOP_ACCESS_DENIED" -> "workshop_access_denied";
                 case "TARGET_REACHED" -> "target_reached";
                 case "WAITING_FOR_WHEAT" -> "waiting_for_supplies";
                 case "WAITING_FOR_CHUNKS" -> "waiting_for_chunks";

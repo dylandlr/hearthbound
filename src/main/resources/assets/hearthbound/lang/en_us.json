@@ -12,12 +12,15 @@
   "hearthbound.activity.paused": "Hauling paused",
   "hearthbound.activity.travelling": "Walking to destination",
   "hearthbound.activity.idle": "Ready for work",
-  "hearthbound.cargo": "Carrying %s \u00d7 %s",
+  "hearthbound.cargo": "Carrying %s × %s",
   "hearthbound.stock_target": "Flour stored: %s / %s",
   "hearthbound.stock": "Flour stored: %s",
   "hearthbound.stock_unavailable": "Flour storage unavailable",
   "hearthbound.activity.picking_up": "Picking up supplies",
   "hearthbound.activity.putting_down": "Putting down cargo",
   "hearthbound.activity.returning_to_workshop": "Returning to waiting spot",
-  "hearthbound.activity.wait_blocked": "Waiting spot blocked"
+  "hearthbound.activity.wait_blocked": "Waiting spot blocked",
+  "hearthbound.activity.waiting_for_station": "Waiting for a shared station",
+  "hearthbound.activity.workshop_access_denied": "Workshop permission needed",
+  "hearthbound.activity.wrong_dimension": "Return to the haul's dimension"
 }
