@@ -4,8 +4,8 @@ on:
   push:
     branches: [feature/first-mill-foundation]
     paths:
-      - 'src/main/java/dev/hearthbound/create/**'
-      - 'src/main/java/dev/hearthbound/jobs/**'
+      - 'src/main/java/**'
+      - 'src/main/resources/**'
       - 'scripts/install-create-ci.py'
       - 'scripts/forge-create-probe.py'
       - 'scripts/worker-selection-probe.py'
