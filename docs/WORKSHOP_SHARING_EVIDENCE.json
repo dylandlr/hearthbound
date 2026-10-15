@@ -1,0 +1,136 @@
+{
+  "increment": "Shared workshop ownership and station reservations",
+  "implementation_revision": "9956e6179cc4bec3f135bfee62b6f7680d72ae5c",
+  "acceptance_revision": "1f147dfcda989ba351370f196a8af08151352e9b",
+  "verified_trees": [
+    {
+      "path": "src/main/java",
+      "sha": "c505a9f9d425ea2ad8cb7b3ecdc7801e70e9d174"
+    },
+    {
+      "path": "src/main/resources",
+      "sha": "c577b1153ee76f48fd4e344e87e19a1d8711aa11"
+    },
+    {
+      "path": "src/test/java",
+      "sha": "3377639302f53ff4b0ed0d25c54e8018e56b3bc4"
+    }
+  ],
+  "behavior": {
+    "ownership": "Mill coordinate plus dimension; first UI assignment claims the mill for its player. Operators can authorize use without replacing its owner.",
+    "reservation": "Worker UUID and exact job ID reserve both endpoints or neither, until delivery completes. No cargo or haul is created for denied assignments.",
+    "waiting": "Earlier overlapping requests have priority; unrelated endpoints can proceed. Only ungranted requests expire (120 ticks).",
+    "persistence": "Stop, pause, chunk unload and graceful restart retain active cargo and leases. Holders are not loaded or timed out to free reservations.",
+    "cleanup": "Loaded job reconciliation or worker destruction releases the matching lease; dimension changes retain the original lease and job waits in the wrong dimension."
+  },
+  "runs": {
+    "forge_build": {
+      "id": 38751846656,
+      "job": 116479977228,
+      "revision": "1f147dfcda989ba351370f196a8af08151352e9b",
+      "conclusion": "success",
+      "junit_tests": 17,
+      "reports_artifact": {
+        "id": 11980664261,
+        "sha256": "90ddd2e24bb094e2381201b6c549f384d8c51448cb84d4ad58f0a6fbcbbb0ced"
+      }
+    },
+    "core": {
+      "id": 38751846608,
+      "job": 116479977189,
+      "revision": "1f147dfcda989ba351370f196a8af08151352e9b",
+      "conclusion": "success",
+      "randomized_transfer_sequences": 20000
+    },
+    "dedicated": {
+      "id": 38750870569,
+      "job": 116476606615,
+      "revision": "9956e6179cc4bec3f135bfee62b6f7680d72ae5c",
+      "conclusion": "success",
+      "witnesses": [
+        "source=4 cargo=4 dest=0 lease=restored interactionTicks=10",
+        "HB_RESTART_DELIVERED source=4 dest=4 cargo=0",
+        "HB_RESTART_NO_REPLAY_PASS",
+        "HB_WORKSHOP_OPTIONAL_CREATE_PASS"
+      ]
+    },
+    "graphical": {
+      "id": 38751176563,
+      "job": 116477667745,
+      "revision": "ba2a749571c47e3ce7a0db11e4554160516a1dea",
+      "conclusion": "success",
+      "artifact": {
+        "id": 11981622415,
+        "name": "graphical-client-evidence",
+        "size_in_bytes": 8590904,
+        "url": "https://api.github.com/repos/dylandlr/hearthbound/actions/artifacts/11981622415",
+        "archive_download_url": "https://api.github.com/repos/dylandlr/hearthbound/actions/artifacts/11981622415/zip",
+        "expired": false,
+        "created_at": "2026-10-15T14:30:29Z",
+        "expires_at": "2026-10-29T14:30:28Z",
+        "updated_at": "2026-10-15T14:30:29Z",
+        "digest": "sha256:017f10d62c2b22cb9f9d1fed66c416bab669a8b48f5c1307aae6e2041a2f07a0",
+        "workflow_run": {
+          "id": 38751176563,
+          "repository_id": 1418116426,
+          "head_repository_id": 1418116426,
+          "head_branch": "feature/first-mill-foundation",
+          "head_sha": "ba2a749571c47e3ce7a0db11e4554160516a1dea"
+        }
+      },
+      "witnesses": [
+        "HB_WORKSHOP_CONTROLS_AUTH_PASS",
+        "HB_WORKSHOP_STOP_RESTART_UI_PASS",
+        "HB_WORKSHOP_SMALL_WINDOW_PASS",
+        "HB_GRAPHICAL_WORKSHOP_CONTROLS_PASS"
+      ],
+      "opening_click_attempts": [
+        1,
+        1,
+        2,
+        1
+      ]
+    },
+    "create": {
+      "id": 38751846524,
+      "job": 116479976743,
+      "revision": "1f147dfcda989ba351370f196a8af08151352e9b",
+      "conclusion": "success",
+      "artifact": {
+        "id": 11982057130,
+        "sha256": "ac42b421feeeac97f1b50a3e32138ce9fb1bf5a9a8aa5d8afa96d249e3793457"
+      },
+      "witnesses": [
+        "HB_SHARED_WORKSHOP_STARTED ownership_denial atomic_pair discard_release",
+        "HB_SHARED_WORKSHOP_PENDING",
+        "HB_SHARED_WORKSHOP_STAGED stop_preserved_cargo_and_lease no_competing_extraction",
+        "HB_SHARED_WORKSHOP_STAGED stop_preserved_cargo_and_lease no_competing_extraction",
+        "HB_SHARED_WORKERS_READY ['Sable [shared a] has the following entity data: [132.55799209555116d, 100.0d, 133.69999998807907d]\\n', 'Sable [shared b] has the following entity data: [134.56756479892522d, 100.0d, 138.9210055397388d]\\n']",
+        "HB_SHARED_WORKSHOP_RESTART_PASS owner lease cargo=4 source=4",
+        "HB_SHARED_WORKSHOP_RESTART_PASS owner lease cargo=4 source=4",
+        "HB_SHARED_WORKSHOP_RESUMED",
+        "HB_SHARED_WORKSHOP_PENDING flour=0",
+        "HB_SHARED_WORKSHOP_PENDING flour=0",
+        "HB_SHARED_WORKSHOP_PENDING flour=0",
+        "HB_SHARED_WORKSHOP_PENDING flour=1",
+        "HB_SHARED_WORKSHOP_PENDING flour=2",
+        "HB_SHARED_WORKSHOP_PASS two_workers source=4 flour=2 cargo=0 leases=free owner_retained",
+        "HB_SHARED_WORKSHOP_PASS two_workers source=4 flour=2 cargo=0 leases=free owner_retained",
+        "HB_SHARED_WORKSHOP_NO_REPLAY_PASS"
+      ]
+    }
+  },
+  "coverage_limits": [
+    "The graphical run is the existing single-worker controls regression; the two-worker fixture runs on the real dedicated Forge/Create server.",
+    "No manual video or screenshot review was performed during this continuation because the local workspace was disconnected.",
+    "Actual portal travel and destruction in a different dimension, and different mills sharing one stockpile, remain additional runtime coverage.",
+    "Player-to-player sharing permissions and native ownership controls remain future work. Ownership is not a land-claim system; inventory/entity/registry saves are not crash-atomic."
+  ],
+  "test_staging": [
+    "Resources and creative-motor power are staged in disposable worlds.",
+    "A real four-wheat pickup is paused after stopping the first worker's order, then saved and recovered across a complete server process restart.",
+    "Only the observer player is moved in graphical automation. Production workers are never teleported.",
+    "The Create arena owns a ticking margin around return paths. The restart script waits for saved entity sections; the graphical observer retries actual right-clicks."
+  ],
+  "source_relationship": "9956e61 contains the final Java/resources. ba2a749 adds only the graphical right-click retry. 5471326 adds only the Create arena ticking margin; 1f147df adds only saved-worker readiness checks. Documentation follows without gameplay changes."
+}

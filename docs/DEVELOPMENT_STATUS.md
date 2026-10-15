@@ -52,13 +52,25 @@ Empty-hand right-click now opens a native First Mill screen. Players select stat
 
 Gameplay `3fd0c48` passes the real Create regression and [actual non-operator graphical click-through](https://github.com/dylandlr/hearthbound/actions/runs/38694479221), including target 3→2, stop with unchanged flour cargo, disabled Start, UI resume, cached restart and final target 2/2. The 640×480 native layout is verified. `024ba00` changes the dedicated test ordering only and passes build/thirteen JUnit tests, core tests, the original empty-server/cargo/restart/no-replay regression, and missing-Create air rejection. The UI test initially missed a moving worker after delivery; the observer now follows while opening, as it already did for presentation checks. No worker is teleported.
 
-The reviewed 44.45-second continuous recording shows the actual controls and production. Exact revisions, runs, hashes and test staging are in [control evidence](WORKSHOP_CONTROLS_EVIDENCE.json); usage and boundaries are in [workshop controls](WORKSHOP_CONTROLS.md). No source or resource change follows the captured build; the final publication adds documentation only.
+The reviewed 44.45-second continuous recording shows the actual controls and production. Exact revisions, runs, hashes and test staging are in [control evidence](WORKSHOP_CONTROLS_EVIDENCE.json); usage and boundaries are in [workshop controls](WORKSHOP_CONTROLS.md). That control-increment publication added documentation only; the later sharing changes are described below.
+
+## Shared workshop increment
+
+Millstones now keep an owner in dimension-scoped SavedData. Successful UI setup claims an unowned mill for the assigning player; other supervisors cannot bind it through their worker. Operators can authorize use without replacing the owner. Existing orders adopt their supervisor or server ownership.
+
+Every hauling job now acquires its source and destination together before assignment. Other workers queue without creating cargo or taking stock. The saved lease identifies the worker and exact job, survives stop/pause/unload/restart, and ends after delivery or reconciliation of a completed/destroyed worker. Only ungranted requests can expire. The HUD reports shared-station waits and lost workshop access. Operator status/release commands expose ownership; release refuses a reserved mill.
+
+The real Forge + Create test configures two workers against one mill and shared stockpiles, rejects a different owner's assignment without mutation, verifies acquisition has no partial lock, and checks discard cleanup. It stops and pauses the first worker after a genuine four-wheat pickup. After a full process restart, owner, cargo and the exact lease read from disk remain intact; the other worker has taken no stock. Resuming finishes the first delivery, and the second worker stores two flour and reaches its target with no remaining cargo or leases. A later check remains stable.
+
+Final Java/resources are on `9956e61`. Later validation commits change only test scripts: real right-click retries for a moving idle worker, an arena ticking margin covering return paths, and readiness checks for saved entity sections. [Forge build/17 JUnit tests](https://github.com/dylandlr/hearthbound/actions/runs/38751846656) and the [core suite](https://github.com/dylandlr/hearthbound/actions/runs/38751846608) pass on `1f147df`. The [dedicated restart suite](https://github.com/dylandlr/hearthbound/actions/runs/38750870569) verifies a disk-restored reservation, four wheat, ten saved put-down ticks, delivery and no replay. The [full Create regression and shared-workshop restart](https://github.com/dylandlr/hearthbound/actions/runs/38751846524) pass with the final fixtures. The [actual graphical control regression](https://github.com/dylandlr/hearthbound/actions/runs/38751176563) passes setup, active edits, stop/resume, saved setup restart, target 2/2 and the 640×480 layout; the moving-worker open needed two genuine right-click attempts once.
+
+See [shared workshops](WORKSHOP_SHARING.md) for behavior/recovery and [sharing evidence](WORKSHOP_SHARING_EVIDENCE.json) for exact source trees, runs and limitations. This continuation reviewed logs and automated assertions; it did not manually review a new video. The two-worker test is a genuine dedicated-server fixture, while the graphical regression covers the existing single-worker control flow.
 
 ## Next work
 
-1. Add explicit workshop ownership and shared-machine reservations to complement per-worker supervisor permissions.
-2. Verify two independently managed workers sharing machines and stockpiles under reservations before general multi-worker production.
-3. Add citizen needs once the production flow and order controls are readable.
+1. Expose workshop ownership, station queues and explicit sharing permissions in the native UI.
+2. Review a two-worker graphical playtest and add runtime coverage for separate mills feeding one shared stockpile.
+3. Add citizen needs once the multi-worker production flow and controls are readable.
 4. Reconcile the two historical branch stacks before merging the final implementation to `main`.
 
 This is a deterministic server-side controller. LLM/RL policies, crash-atomic cargo accounting, and multiplayer RTS territory gameplay are future work. Use disposable worlds and resources for tests.

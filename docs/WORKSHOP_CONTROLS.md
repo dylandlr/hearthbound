@@ -14,7 +14,7 @@ The screen uses a separate client/server control channel. Every mutation resolve
 
 Picking is an unsaved client draft. Only explicit Start/Save/Stop requests change the order. An active order's station bindings cannot be replaced. Hauling owns the only transferable cargo, and stopping never erases it. The setup cache contains configuration, not an active job or another inventory. Existing operator commands use the same order mutations and revision counter.
 
-Supervisor permission applies to workers. It does not reserve barrels or Create machines, establish colony territory, or integrate third-party land claims. Workshop ownership and shared-machine reservations remain the next multiplayer foundation.
+Supervisor permission applies to workers. Persistent mill ownership and whole-haul station reservations now complement it; see [shared workshops](WORKSHOP_SHARING.md). A worker's supervisor must also have access to the chosen mill. Colony territory and third-party land claims remain separate work.
 
 ## Verification
 
