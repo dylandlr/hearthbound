@@ -195,6 +195,15 @@ with Rcon() as r:
         new_lease=r.run("sable mill-reservation 7 101 1")
         if "MILL_RESERVATION HELD" not in new_lease or f"job={job_match.group(1)}" in new_lease:
             raise AssertionError("New job does not own reused mill: "+new_lease)
+        # Real Forge capability route must deny insertion from an outside actor
+        # without a Sable authorization scope. This must not contaminate inputs.
+        denied=r.run("sable mill-probe-external-insert 7 101 1")
+        if "EXTERNAL_INSERT DENIED" not in denied:
+            raise AssertionError("Reserved mill accepted unsanctioned Forge insert: "+denied)
+        state=r.run("sable mill-inspect 7 101 1")
+        if not re.search(r"wheat=0(\D|$)",state):
+            raise AssertionError("Outside insertion modified reserved input: "+state)
+
         # Inject flour AFTER this second reservation, but BEFORE Sable's
         # pickup. Hearthbound must permanently taint this job, not extract wheat.
         second_job=re.search(r"job=([0-9a-fA-F-]{36})",new_lease)
