@@ -17,6 +17,7 @@ public final class LibraryStudyEvents {
                 && citizen.level() instanceof ServerLevel level) {
             AutonomousLibraryStudy.tick(level, citizen);
             LibraryStudyRuntime.tick(level, citizen);
+            LibraryAutonomyTick.tick(level, citizen);
         }
     }
 }
