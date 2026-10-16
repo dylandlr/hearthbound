@@ -18,7 +18,7 @@ public interface ColonyPolicy {
         }
     }
 
-    enum Kind { EAT, FLEE, REST, HAUL, OPERATE, DELIVER, FOLLOW, IDLE }
+    enum Kind { EAT, FLEE, REST, HAUL, OPERATE, DELIVER, FOLLOW, IDLE, STUDY }
 
     record Observation(long version, String citizenId, int hunger, int danger,
                        int fatigue, List<Action> availableActions) {
