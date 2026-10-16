@@ -67,7 +67,8 @@ public final class MillProcessReceipts extends SavedData {
             pos, level.getGameTime(), wheatBefore, wheatAfter, flourBefore, flourAfter);
         if (wheatBefore != 1 || wheatAfter != 0 || flourBefore != 0
                 || flourAfter <= flourBefore) {
-            LOG.info("HEARTHBOUND_PROCESS_REJECT invalid-transition");
+            MillReservations.taintUnexpectedProcess(level, pos);
+            LOG.info("HEARTHBOUND_PROCESS_REJECT invalid-transition; reservation tainted if held");
             return;
         }
         // This experimental integration intentionally requires exactly one
@@ -100,7 +101,8 @@ public final class MillProcessReceipts extends SavedData {
     /** Read-only proof that a direct Create processing receipt was recorded. */
     public static boolean hasReceipt(ServerLevel level, UUID job, UUID citizen, BlockPos machine) {
         Receipt receipt = get(level).receipts.get(job);
-        return receipt != null && receipt.citizen().equals(citizen)
+        return !MillReservations.isTainted(level, job)
+            && receipt != null && receipt.citizen().equals(citizen)
             && receipt.pos() == machine.asLong()
             && receipt.wheatBefore() - receipt.wheatAfter() == 1
             && receipt.flourAfter() > receipt.flourBefore();
@@ -108,6 +110,8 @@ public final class MillProcessReceipts extends SavedData {
 
     public static String inspect(ServerLevel level, UUID job) {
         Receipt receipt=get(level).receipts.get(job);
+        if (MillReservations.isTainted(level, job))
+            return "MILL_PROCESS INVALIDATED job="+job+" reason=TAINTED NO_RESEARCH_CREDIT";
         if (receipt==null) return "MILL_PROCESS NONE job="+job+" NO_RESEARCH_CREDIT";
         return "MILL_PROCESS VERIFIED_CALLBACK job="+job+" citizen="+receipt.citizen()
             +" wheatBefore="+receipt.wheatBefore()+" wheatAfter="+receipt.wheatAfter()
