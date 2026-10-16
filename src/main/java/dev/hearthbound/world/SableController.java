@@ -126,6 +126,19 @@ public final class SableController {
                             return 0;
                         }
                     })))
+            .then(Commands.literal("mill-process")
+                .then(Commands.argument("jobId", StringArgumentType.word())
+                    .executes(ctx -> {
+                        try {
+                            UUID job = UUID.fromString(StringArgumentType.getString(ctx, "jobId"));
+                            String receipt = MillProcessReceipts.inspect(ctx.getSource().getLevel(), job);
+                            ctx.getSource().sendSuccess(() -> Component.literal(receipt), false);
+                            return 1;
+                        } catch (IllegalArgumentException ex) {
+                            ctx.getSource().sendFailure(Component.literal("Invalid job UUID"));
+                            return 0;
+                        }
+                    })))
             .then(Commands.literal("mill-evidence")
                 .then(Commands.argument("jobId", StringArgumentType.word())
                     .executes(ctx -> {
