@@ -1,0 +1,67 @@
+name: Minecraft hauling restart regression
+on:
+  push:
+    branches:
+      - feat/haul-restart-quarantine-v2-3
+  workflow_dispatch:
+jobs:
+  restart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.8'
+      - name: Save cargo and verify quarantine after restart
+        shell: bash
+        env:
+          HEARTHBOUND_RCON_PASSWORD: ci-local-disposable-password
+        run: |
+          set -euo pipefail
+          mkdir -p run
+          printf 'eula=true\n' > run/eula.txt
+          printf 'online-mode=false\nlevel-name=restart-world\nmax-players=2\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties
+          boot() {
+            local logfile="$1"
+            gradle --no-daemon runServer > "$logfile" 2>&1 &
+            pid=$!
+            local ready=0
+            for i in $(seq 1 240); do
+              if grep -Eq 'Done \([0-9.]+s\)! For help, type "help"' "$logfile"; then
+                ready=1
+                break
+              fi
+              if ! kill -0 "$pid" 2>/dev/null; then
+                tail -n 120 "$logfile"
+                return 1
+              fi
+              sleep 2
+            done
+            if [ "$ready" -ne 1 ]; then
+              tail -n 120 "$logfile"
+              return 1
+            fi
+          }
+          trap 'kill "${pid:-0}" 2>/dev/null || true' EXIT
+          boot restart-boot-1.log
+          python3 scripts/rcon_restart_smoke.py prepare
+          wait "$pid"
+          boot restart-boot-2.log
+          python3 scripts/rcon_restart_smoke.py verify
+          python3 -m py_compile scripts/rcon_restart_smoke.py
+      - name: Upload restart test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: minecraft-haul-restart-logs
+          path: |
+            restart-boot-1.log
+            restart-boot-2.log
+            run/logs/latest.log
+          if-no-files-found: warn
+          retention-days: 14
