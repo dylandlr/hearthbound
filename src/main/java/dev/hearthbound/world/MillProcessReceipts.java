@@ -65,7 +65,8 @@ public final class MillProcessReceipts extends SavedData {
                               int flourBefore, int flourAfter) {
         LOG.info("HEARTHBOUND_PROCESS_CALLBACK pos={} tick={} wheat={}->{} flour={}->{}",
             pos, level.getGameTime(), wheatBefore, wheatAfter, flourBefore, flourAfter);
-        if (wheatBefore-wheatAfter!=1 || flourAfter<=flourBefore) {
+        if (wheatBefore != 1 || wheatAfter != 0 || flourBefore != 0
+                || flourAfter <= flourBefore) {
             LOG.info("HEARTHBOUND_PROCESS_REJECT invalid-transition");
             return;
         }
@@ -73,7 +74,8 @@ public final class MillProcessReceipts extends SavedData {
         // matching delivered job. Ambiguous ownership means no receipt.
         var candidates = level.getEntitiesOfClass(net.minecraft.world.entity.npc.Villager.class,
             new net.minecraft.world.phys.AABB(pos).inflate(32),
-            citizen -> MillExperimentTrace.matchesDelivery(citizen,pos,level.getGameTime()));
+            citizen -> MillExperimentTrace.matchesAuthorizedProcessing(
+                citizen, pos, level.getGameTime(), wheatBefore, flourBefore));
         if (candidates.size()!=1) {
             LOG.info("HEARTHBOUND_PROCESS_REJECT candidate-count={}", candidates.size());
             return;
