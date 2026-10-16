@@ -76,13 +76,17 @@ public final class SableHauling {
     public static void assign(ServerLevel level, Villager citizen, BlockPos source, BlockPos destination) {
         if (source.equals(destination)) throw new IllegalArgumentException("same endpoint");
         if (active(citizen)) throw new IllegalStateException("already carrying out a haul");
+        UUID job = UUID.randomUUID();
         if (!HaulClaims.claim(level, source, citizen.getUUID()))
             throw new IllegalStateException("source already claimed by another citizen");
+        if (!MillReservations.acquireIfMill(level, destination, job, citizen.getUUID())) {
+            HaulClaims.release(level, source, citizen.getUUID());
+            throw new IllegalStateException("millstone reserved by another Hearthbound job");
+        }
         CompoundTag tag = new CompoundTag();
         tag.putLong(SOURCE, source.asLong());
         tag.putLong(DESTINATION, destination.asLong());
         tag.putInt(PHASE, TO_SOURCE);
-        UUID job = UUID.randomUUID();
         tag.putUUID(JOB_ID, job);
         citizen.getPersistentData().put(KEY, tag);
         markLive(level.getServer(), job);
