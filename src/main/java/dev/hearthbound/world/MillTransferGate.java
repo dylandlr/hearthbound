@@ -18,9 +18,9 @@ public final class MillTransferGate {
 
     private MillTransferGate() {}
 
-    public static ItemStack insert(ServerLevel level, BlockPos pos, UUID job,
+    public static <T> T authorize(ServerLevel level, BlockPos pos, UUID job,
                                    UUID citizen, boolean simulation,
-                                   java.util.function.Supplier<ItemStack> action) {
+                                   java.util.function.Supplier<T> action) {
         if (CURRENT.get() != null)
             throw new IllegalStateException("Nested authorized mill insertion is forbidden");
         if (!MillReservations.matches(level, pos, job, citizen))
