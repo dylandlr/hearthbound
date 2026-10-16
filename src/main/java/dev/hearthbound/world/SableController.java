@@ -126,6 +126,14 @@ public final class SableController {
                             return 0;
                         }
                     })))
+            .then(Commands.literal("mill-reservation")
+                .then(Commands.argument("position", BlockPosArgument.blockPos())
+                    .executes(ctx -> {
+                        BlockPos pos = BlockPosArgument.getLoadedBlockPos(ctx, "position");
+                        String audit = MillReservations.audit(ctx.getSource().getLevel(), pos);
+                        ctx.getSource().sendSuccess(() -> Component.literal(audit), false);
+                        return 1;
+                    })))
             .then(Commands.literal("mill-process")
                 .then(Commands.argument("jobId", StringArgumentType.word())
                     .executes(ctx -> {
