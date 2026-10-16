@@ -25,6 +25,8 @@ public final class MillReservations extends SavedData {
     private final Map<Long, Reservation> leases = new HashMap<>();
     // Released-job tombstones remain saved to support replay rejection and audit.
     private final Map<UUID, Long> released = new HashMap<>();
+    // Irreversible contamination marker; deliberately survives restart.
+    private final java.util.Set<UUID> tainted = new java.util.HashSet<>();
 
     public record Reservation(UUID job, UUID citizen, long position) {}
 
@@ -51,6 +53,13 @@ public final class MillReservations extends SavedData {
             if (data.released.putIfAbsent(entry.getUUID("job"), entry.getLong("position")) != null)
                 throw new IllegalStateException("Duplicate release tombstone");
         }
+        ListTag invalid = root.getList("tainted", Tag.TAG_COMPOUND);
+        for (int i = 0; i < invalid.size(); i++) {
+            CompoundTag entry = invalid.getCompound(i);
+            if (!entry.hasUUID("job")) throw new IllegalStateException("Corrupt taint record");
+            if (!data.tainted.add(entry.getUUID("job")))
+                throw new IllegalStateException("Duplicate taint record");
+        }
         return data;
     }
 
@@ -74,6 +83,13 @@ public final class MillReservations extends SavedData {
             history.add(tag);
         });
         root.put("released", history);
+        ListTag invalid = new ListTag();
+        tainted.stream().sorted().forEach(job -> {
+            CompoundTag record = new CompoundTag();
+            record.putUUID("job", job);
+            invalid.add(record);
+        });
+        root.put("tainted", invalid);
         return root;
     }
 
@@ -132,6 +148,8 @@ public final class MillReservations extends SavedData {
             throw new IllegalStateException("Mill reservation does not match job and citizen");
         if (!isMill(level, pos))
             throw new IllegalStateException("Loaded millstone required for release");
+        if (journal.tainted.contains(job))
+            throw new IllegalStateException("Experiment tainted; manual recovery required");
         if (!SableHauling.completedJob(citizen, job, pos))
             throw new IllegalStateException("Job is not a cargo-free completed delivery");
         if (!MillProcessReceipts.hasReceipt(level, job, citizen.getUUID(), pos))
@@ -152,15 +170,39 @@ public final class MillReservations extends SavedData {
         journal.setDirty();
     }
 
+    /**
+     * Called at task boundaries before the authorized delivery. Unsolicited
+     * inputs/outputs permanently invalidate the job; no automatic healing.
+     */
+    public static boolean preDeliveryClean(ServerLevel level, BlockPos pos, UUID job, UUID citizen) {
+        MillReservations journal = get(level);
+        Reservation lease = journal.leases.get(pos.asLong());
+        if (lease == null || !lease.job().equals(job) || !lease.citizen().equals(citizen)
+                || journal.tainted.contains(job)) return false;
+        if (!(level.getBlockEntity(pos) instanceof
+                com.simibubi.create.content.kinetics.millstone.MillstoneBlockEntity mill)) return false;
+        boolean empty = true;
+        for (int i = 0; i < mill.inputInv.getSlots(); i++)
+            empty &= mill.inputInv.getStackInSlot(i).isEmpty();
+        for (int i = 0; i < mill.outputInv.getSlots(); i++)
+            empty &= mill.outputInv.getStackInSlot(i).isEmpty();
+        if (!empty) {
+            journal.tainted.add(job);
+            journal.setDirty();
+        }
+        return empty;
+    }
+
     public static boolean matches(ServerLevel level, BlockPos pos, UUID job, UUID citizen) {
         Reservation lease = get(level).leases.get(pos.asLong());
-        return lease != null && lease.job().equals(job) && lease.citizen().equals(citizen);
+        return lease != null && lease.job().equals(job) && lease.citizen().equals(citizen)
+            && !get(level).tainted.contains(job);
     }
 
     public static String audit(ServerLevel level, BlockPos pos) {
         Reservation lease = get(level).leases.get(pos.asLong());
         if (lease == null) return "MILL_RESERVATION NONE pos=" + pos + " NO_RESEARCH_CREDIT";
-        return "MILL_RESERVATION HELD pos=" + pos + " job=" + lease.job()
+        return "MILL_RESERVATION " + (get(level).tainted.contains(lease.job()) ? "TAINTED" : "HELD") + " pos=" + pos + " job=" + lease.job()
             + " citizen=" + lease.citizen() + " NO_RESEARCH_CREDIT";
     }
 }
