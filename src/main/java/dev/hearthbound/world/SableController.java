@@ -147,6 +147,28 @@ public final class SableController {
                                 return 0;
                             }
                         }))))
+            .then(Commands.literal("mill-probe-external-insert")
+                .then(Commands.argument("position", BlockPosArgument.blockPos())
+                    .executes(ctx -> {
+                        BlockPos pos = BlockPosArgument.getLoadedBlockPos(ctx, "position");
+                        ServerLevel level = ctx.getSource().getLevel();
+                        if (!MillReservations.held(level, pos)) {
+                            ctx.getSource().sendFailure(Component.literal("Probe requires a reserved millstone"));
+                            return 0;
+                        }
+                        var block = level.getBlockEntity(pos);
+                        if (block == null) return 0;
+                        var capability = block.getCapability(net.minecraftforge.common.capabilities.ForgeCapabilities.ITEM_HANDLER);
+                        if (!capability.isPresent()) return 0;
+                        var handler = capability.orElseThrow(IllegalStateException::new);
+                        var wheat = new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.WHEAT);
+                        var remaining = handler.insertItem(0, wheat, false);
+                        boolean denied = remaining.getCount() == 1;
+                        String result = denied ? "EXTERNAL_INSERT DENIED NO_RESEARCH_CREDIT"
+                            : "EXTERNAL_INSERT ACCEPTED WARNING_NO_RESEARCH_CREDIT";
+                        ctx.getSource().sendSuccess(() -> Component.literal(result), false);
+                        return denied ? 1 : 0;
+                    })))
             .then(Commands.literal("mill-reservation")
                 .then(Commands.argument("position", BlockPosArgument.blockPos())
                     .executes(ctx -> {
