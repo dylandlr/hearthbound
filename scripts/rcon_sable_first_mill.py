@@ -94,7 +94,7 @@ with Rcon() as r:
     if not produced: raise AssertionError("Sable delivered wheat but Create produced no flour")
     trace=r.run(f"execute at {villager} run sable mill-trace")
     # The server sampled the *running Create machine* before its output.
-    timing=re.search(r"processingTick=(\\d+) outputTick=(\\d+)",trace)
+    timing=re.search(r"processingTick=(\d+) outputTick=(\d+)",trace)
     if not timing or int(timing.group(1))<=0 or int(timing.group(2))<=int(timing.group(1)):
         raise AssertionError("No ordered powered-cycle observations: "+trace)
     if "verdict=CANDIDATE_WHEAT_TO_FLOUR" not in trace:
