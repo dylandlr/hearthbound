@@ -33,6 +33,8 @@ public abstract class MillstoneProcessingMixin {
         MillstoneBlockEntity mill=(MillstoneBlockEntity)(Object)this;
         var input=mill.inputInv.getStackInSlot(0);
         hearthbound$beforeWheat=input.is(Items.WHEAT) ? input.getCount() : 0;
+        org.apache.logging.log4j.LogManager.getLogger("HearthboundMillProcess")
+            .info("HEARTHBOUND_PROCESS_MIXIN_HEAD pos={} wheat={}", mill.getBlockPos(), hearthbound$beforeWheat);
         hearthbound$beforeFlour=hearthbound$countFlour(mill);
     }
 
