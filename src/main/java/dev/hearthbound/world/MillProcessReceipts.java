@@ -139,6 +139,11 @@ public final class MillProcessReceipts extends SavedData {
         LOG.info("HEARTHBOUND_PROCESS_RECEIPT job={} citizen={}", job, citizen.getUUID());
     }
 
+    /** Read-only raw receipt presence, including subsequently invalidated jobs. */
+    public static boolean recorded(ServerLevel level, UUID job) {
+        return get(level).receipts.containsKey(job);
+    }
+
     /** Read-only proof that a direct Create processing receipt was recorded. */
     public static boolean hasReceipt(ServerLevel level, UUID job, UUID citizen, BlockPos machine) {
         Receipt receipt = get(level).receipts.get(job);
