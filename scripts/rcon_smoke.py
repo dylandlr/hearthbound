@@ -83,6 +83,13 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
         "[observations only; no reconciliation performed]")):
         raise AssertionError("Haul audit missing or invalid: " + audit_output)
 
+    # A vanilla chest must NOT masquerade as a processed Create recipe.
+    sock.sendall(packet(91, 2, 'sable mill-inspect 3 100 1'))
+    mill_id, _, mill_output = response(sock)
+    print("sable mill-inspect:", mill_output)
+    if mill_id != 91 or "MILL NOT_CREATE_MILLSTONE" not in mill_output:
+        raise AssertionError("Mill inspection failed closed incorrectly: " + mill_output)
+
     # This is a true Minecraft server-side behavior check: inventories must move.
     # It may expose pathfinding or vanilla villager AI interference; failed CI is useful evidence.
     transferred = False
