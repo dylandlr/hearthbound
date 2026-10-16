@@ -147,6 +147,29 @@ public final class SableController {
                                 return 0;
                             }
                         }))))
+            .then(Commands.literal("mill-probe-open-belt")
+                .then(Commands.argument("position", BlockPosArgument.blockPos())
+                    .executes(ctx -> {
+                        BlockPos pos = BlockPosArgument.getLoadedBlockPos(ctx, "position");
+                        ServerLevel level = ctx.getSource().getLevel();
+                        if (MillReservations.held(level, pos)) {
+                            ctx.getSource().sendFailure(Component.literal("Positive control requires unreserved millstone"));
+                            return 0;
+                        }
+                        var block = level.getBlockEntity(pos);
+                        if (!(block instanceof com.simibubi.create.content.kinetics.millstone.MillstoneBlockEntity mill))
+                            return 0;
+                        var behaviour = com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour.get(
+                            mill, com.simibubi.create.content.kinetics.belt.behaviour.DirectBeltInputBehaviour.TYPE);
+                        if (behaviour == null) return 0;
+                        var wheat = new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.WHEAT);
+                        var remainder = behaviour.handleInsertion(wheat, net.minecraft.core.Direction.NORTH, false);
+                        boolean accepted = remainder.isEmpty();
+                        ctx.getSource().sendSuccess(() -> Component.literal(accepted
+                            ? "OPEN_BELT ACCEPTED NO_RESEARCH_CREDIT"
+                            : "OPEN_BELT REJECTED NO_RESEARCH_CREDIT"), false);
+                        return accepted ? 1 : 0;
+                    })))
             .then(Commands.literal("mill-probe-belt-insert")
                 .then(Commands.argument("position", BlockPosArgument.blockPos())
                     .executes(ctx -> {
