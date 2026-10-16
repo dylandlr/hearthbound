@@ -36,6 +36,18 @@ public final class SableHauling {
     private static final int QUARANTINED = 4;
     private static final int INSERTING = 5;
     private static final String JOB_ID = "jobId";
+    private static final String FAULT = "faultInsertion";
+
+    /**
+     * Dedicated test-world fault injection. NEVER expose through normal
+     * player commands; admin permission is enforced by SableController.
+     */
+    public static void injectInsertionFault(Villager citizen, boolean afterInsert) {
+        CompoundTag tag = citizen.getPersistentData().getCompound(KEY);
+        if (!active(citizen) || !tag.hasUUID(JOB_ID))
+            throw new IllegalStateException("No active hauling job");
+        tag.putString(FAULT, afterInsert ? "after" : "before");
+    }
 
     // Runtime-only provenance: intentionally NOT restored after a server restart.
     // A restored cargo-bearing job cannot prove whether destination insertion
@@ -164,7 +176,15 @@ public final class SableHauling {
             tag.putInt(PHASE, INSERTING);
             ItemStack remaining;
             try {
+                String fault = tag.getString(FAULT);
+                tag.remove(FAULT);
+                if ("before".equals(fault)) {
+                    throw new IllegalStateException("Injected failure before inventory insertion");
+                }
                 remaining = insert(entity, cargo);
+                if ("after".equals(fault)) {
+                    throw new IllegalStateException("Injected failure after inventory insertion");
+                }
             } catch (RuntimeException ex) {
                 quarantine(tag, "Inventory insertion raised an exception; review contents");
                 entity.setChanged();
