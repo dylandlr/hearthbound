@@ -66,7 +66,7 @@ public final class HearthboundMod {
                                                 () -> Component.literal(LibraryStudyRuntime.inspect(citizen)
                                                         + " " + CitizenTechnologyKnowledge.inspect(citizen)), false);
                                         return 1;
-                                    })))
+                                    }))))
                     .then(Commands.literal("status")
                             .executes(ctx -> {
                                 ctx.getSource().sendSuccess(
