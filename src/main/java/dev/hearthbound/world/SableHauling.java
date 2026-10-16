@@ -1,6 +1,11 @@
 package dev.hearthbound.world;
 
 import net.minecraft.core.BlockPos;
+import java.util.Set;
+import java.util.UUID;
+import java.util.HashSet;
+import java.util.WeakHashMap;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
@@ -28,6 +33,30 @@ public final class SableHauling {
     private static final int TO_DEST = 1;
     private static final int COMPLETE = 2;
     private static final int PAUSED = 3;
+    private static final int QUARANTINED = 4;
+    private static final String JOB_ID = "jobId";
+
+    // Runtime-only provenance: intentionally NOT restored after a server restart.
+    // A restored cargo-bearing job cannot prove whether destination insertion
+    // committed before the last crash, so it must be quarantined for review.
+    private static final WeakHashMap<MinecraftServer, Set<UUID>> LIVE_JOBS = new WeakHashMap<>();
+
+    private static synchronized void markLive(MinecraftServer server, UUID job) {
+        LIVE_JOBS.computeIfAbsent(server, ignored -> new HashSet<>()).add(job);
+    }
+
+    private static synchronized boolean isLive(MinecraftServer server, UUID job) {
+        return LIVE_JOBS.containsKey(server) && LIVE_JOBS.get(server).contains(job);
+    }
+
+    public static synchronized void serverStopped(MinecraftServer server) {
+        LIVE_JOBS.remove(server);
+    }
+
+    private static void quarantine(CompoundTag tag, String reason) {
+        tag.putInt(PHASE, QUARANTINED);
+        tag.putString(ERROR, reason);
+    }
 
     private SableHauling() {}
 
@@ -40,7 +69,10 @@ public final class SableHauling {
         tag.putLong(SOURCE, source.asLong());
         tag.putLong(DESTINATION, destination.asLong());
         tag.putInt(PHASE, TO_SOURCE);
+        UUID job = UUID.randomUUID();
+        tag.putUUID(JOB_ID, job);
         citizen.getPersistentData().put(KEY, tag);
+        markLive(level.getServer(), job);
     }
 
     public static boolean active(Villager citizen) {
@@ -55,6 +87,7 @@ public final class SableHauling {
             case TO_SOURCE -> "Walking to source";
             case TO_DEST -> "Carrying wheat to destination";
             case COMPLETE -> "Haul complete";
+            case QUARANTINED -> "QUARANTINED (operator review): " + tag.getString(ERROR);
             default -> "Paused: " + tag.getString(ERROR);
         };
     }
@@ -63,12 +96,26 @@ public final class SableHauling {
         CompoundTag tag = citizen.getPersistentData().getCompound(KEY);
         if (!tag.contains(PHASE)) return;
         int phase = tag.getInt(PHASE);
+        if (phase == QUARANTINED || phase == COMPLETE) return;
+        // Fail closed if cargo is restored from disk or lacks a current job identity.
+        // No inference from destination item counts is sufficient for automatic retry.
+        if (tag.contains(CARGO)
+                && (!tag.hasUUID(JOB_ID)
+                    || !isLive(level.getServer(), tag.getUUID(JOB_ID)))) {
+            quarantine(tag, "Cargo state restored or unrecognized; manual reconciliation required");
+            return;
+        }
+        // Jobs that have not picked up cargo may safely continue after restart.
+        if (!tag.contains(CARGO) && tag.hasUUID(JOB_ID)
+                && !isLive(level.getServer(), tag.getUUID(JOB_ID))) {
+            markLive(level.getServer(), tag.getUUID(JOB_ID));
+        }
         BlockPos claimedSource = BlockPos.of(tag.getLong(SOURCE));
         if (phase != COMPLETE && !HaulClaims.claim(level, claimedSource, citizen.getUUID())) {
             pause(tag, "Source claimed by another citizen; manual recovery required");
             return;
         }
-        if (phase == PAUSED || phase == COMPLETE) return;
+        if (phase == PAUSED || phase == COMPLETE || phase == QUARANTINED) return;
         BlockPos target = BlockPos.of(tag.getLong(phase == TO_SOURCE ? SOURCE : DESTINATION));
         if (!level.hasChunkAt(target)) return; // Never force distant chunk loads.
         if (citizen.distanceToSqr(target.getX() + .5, target.getY() + .5, target.getZ() + .5) > 6.25) {
@@ -130,7 +177,8 @@ public final class SableHauling {
      */
     public static boolean cancelBeforePickup(ServerLevel level, Villager citizen) {
         CompoundTag tag = citizen.getPersistentData().getCompound(KEY);
-        if (!tag.contains(PHASE) || tag.getInt(PHASE) == COMPLETE || tag.contains(CARGO))
+        if (!tag.contains(PHASE) || tag.getInt(PHASE) == COMPLETE
+            || tag.getInt(PHASE) == QUARANTINED || tag.contains(CARGO))
             return false;
         BlockPos source = BlockPos.of(tag.getLong(SOURCE));
         tag.putInt(PHASE, COMPLETE);
@@ -141,7 +189,7 @@ public final class SableHauling {
 
     public static boolean resume(Villager citizen) {
         CompoundTag tag = citizen.getPersistentData().getCompound(KEY);
-        if (tag.getInt(PHASE) != PAUSED) return false;
+        if (tag.getInt(PHASE) != PAUSED || tag.contains(CARGO)) return false;
         tag.putInt(PHASE, tag.contains(CARGO) ? TO_DEST : TO_SOURCE);
         tag.remove(ERROR);
         return true;
