@@ -202,6 +202,54 @@ public final class SableHauling {
         }
     }
 
+    /**
+     * Read-only operator snapshot. Inventory counts are observations, never
+     * evidence that a particular job caused those items to arrive.
+     */
+    public static String audit(ServerLevel level, Villager citizen) {
+        CompoundTag tag = citizen.getPersistentData().getCompound(KEY);
+        if (!tag.contains(PHASE)) return "AUDIT: no hauling job";
+        BlockPos source = BlockPos.of(tag.getLong(SOURCE));
+        BlockPos destination = BlockPos.of(tag.getLong(DESTINATION));
+        UUID owner = HaulClaims.owner(level, source);
+        String claim = owner == null ? "unclaimed"
+            : owner.equals(citizen.getUUID()) ? "owned" : "OTHER:" + owner;
+        String job = tag.hasUUID(JOB_ID) ? tag.getUUID(JOB_ID).toString() : "legacy/no-id";
+        ItemStack carried = tag.contains(CARGO) ? ItemStack.of(tag.getCompound(CARGO)) : ItemStack.EMPTY;
+        String sourceCount = observedWheat(level, source);
+        String destinationCount = observedWheat(level, destination);
+        return "AUDIT job=" + job + " phase=" + tag.getInt(PHASE)
+            + " cargo=" + carried.getCount() + "x" + carried.getItem()
+            + " source=" + source + " wheat=" + sourceCount
+            + " destination=" + destination + " wheat=" + destinationCount
+            + " claim=" + claim + " status=" + status(citizen)
+            + " [observations only; no reconciliation performed]";
+    }
+
+    private static String observedWheat(ServerLevel level, BlockPos pos) {
+        if (!level.hasChunkAt(pos)) return "CHUNK_UNLOADED";
+        BlockEntity block = level.getBlockEntity(pos);
+        if (block == null) return "NO_INVENTORY";
+        LazyOptional<IItemHandler> cap = block.getCapability(ForgeCapabilities.ITEM_HANDLER);
+        int count = 0;
+        if (cap.isPresent()) {
+            IItemHandler handler = cap.orElseThrow(IllegalStateException::new);
+            for (int i = 0; i < handler.getSlots(); i++) {
+                ItemStack stack = handler.getStackInSlot(i);
+                if (stack.is(Items.WHEAT)) count += stack.getCount();
+            }
+            return Integer.toString(count);
+        }
+        if (block instanceof Container container) {
+            for (int i = 0; i < container.getContainerSize(); i++) {
+                ItemStack stack = container.getItem(i);
+                if (stack.is(Items.WHEAT)) count += stack.getCount();
+            }
+            return Integer.toString(count);
+        }
+        return "UNSUPPORTED_INVENTORY";
+    }
+
     private static void pause(CompoundTag tag, String message) {
         tag.putInt(PHASE, PAUSED);
         tag.putString(ERROR, message);
