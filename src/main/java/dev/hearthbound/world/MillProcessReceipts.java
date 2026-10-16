@@ -14,6 +14,8 @@ import net.minecraft.world.level.saveddata.SavedData;
  * one item in a shared/multi-input machine. No research reward is granted.
  */
 public final class MillProcessReceipts extends SavedData {
+    private static final org.apache.logging.log4j.Logger LOG =
+        org.apache.logging.log4j.LogManager.getLogger("HearthboundMillProcess");
     private static final String NAME = "hearthbound_mill_process_receipts_v1";
     private final java.util.Map<UUID, Receipt> receipts = new java.util.HashMap<>();
 
@@ -61,20 +63,32 @@ public final class MillProcessReceipts extends SavedData {
 
     public static void record(ServerLevel level, BlockPos pos, int wheatBefore, int wheatAfter,
                               int flourBefore, int flourAfter) {
-        if (wheatBefore-wheatAfter!=1 || flourAfter<=flourBefore) return;
+        LOG.info("HEARTHBOUND_PROCESS_CALLBACK pos={} tick={} wheat={}->{} flour={}->{}",
+            pos, level.getGameTime(), wheatBefore, wheatAfter, flourBefore, flourAfter);
+        if (wheatBefore-wheatAfter!=1 || flourAfter<=flourBefore) {
+            LOG.info("HEARTHBOUND_PROCESS_REJECT invalid-transition");
+            return;
+        }
         // This experimental integration intentionally requires exactly one
         // matching delivered job. Ambiguous ownership means no receipt.
         var candidates = level.getEntitiesOfClass(net.minecraft.world.entity.npc.Villager.class,
             new net.minecraft.world.phys.AABB(pos).inflate(32),
             citizen -> MillExperimentTrace.matchesDelivery(citizen,pos,level.getGameTime()));
-        if (candidates.size()!=1) return;
+        if (candidates.size()!=1) {
+            LOG.info("HEARTHBOUND_PROCESS_REJECT candidate-count={}", candidates.size());
+            return;
+        }
         var citizen=candidates.get(0);
         UUID job=MillExperimentTrace.jobId(citizen);
         MillProcessReceipts ledger=get(level);
-        if (ledger.receipts.containsKey(job)) return;
+        if (ledger.receipts.containsKey(job)) {
+            LOG.info("HEARTHBOUND_PROCESS_REPLAY job={}", job);
+            return;
+        }
         ledger.receipts.put(job,new Receipt(job,citizen.getUUID(),pos.asLong(),level.getGameTime(),
             wheatBefore,wheatAfter,flourBefore,flourAfter));
         ledger.setDirty();
+        LOG.info("HEARTHBOUND_PROCESS_RECEIPT job={} citizen={}", job, citizen.getUUID());
     }
 
     public static String inspect(ServerLevel level, UUID job) {
