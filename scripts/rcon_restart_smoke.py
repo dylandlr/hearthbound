@@ -69,7 +69,7 @@ class Rcon:
         if "test passed" not in output.lower():
             raise AssertionError(f"Expected test passed: {command}, got {output!r}")
 
-def prepare():
+def prepare(crash=False):
     with Rcon() as r:
         for command in [
             "gamerule doMobSpawning false",
@@ -96,7 +96,8 @@ def prepare():
                 # Reassert that destination did not receive cargo before stop.
                 r.must_pass(EMPTY_DEST)
                 r.must_pass(CARGO)
-                r.run("stop")
+                if not crash:
+                    r.run("stop")
                 return
             time.sleep(0.5)
         raise AssertionError("Sable never reached in-transit cargo state before timeout")
@@ -129,7 +130,9 @@ def verify():
 if __name__ == "__main__":
     if sys.argv[1:] == ["prepare"]:
         prepare()
+    elif sys.argv[1:] == ["prepare-crash"]:
+        prepare(crash=True)
     elif sys.argv[1:] == ["verify"]:
         verify()
     else:
-        raise SystemExit("Usage: rcon_restart_smoke.py prepare|verify")
+        raise SystemExit("Usage: rcon_restart_smoke.py prepare|prepare-crash|verify")
