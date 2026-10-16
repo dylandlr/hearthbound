@@ -49,4 +49,9 @@ with socket.create_connection(("127.0.0.1",25575),timeout=20) as s:
     print("RESTART MILL RESERVATION:",reservation,flush=True)
     assert response==4
     assert "MILL_RESERVATION HELD" in reservation and "job="+job in reservation
+    s.sendall(packet(5,2,"sable mill-reservation 11 101 2"))
+    response,cancelled=receive(s)
+    print("RESTART CANCELLED RESERVATION:",cancelled,flush=True)
+    assert response==5
+    assert "MILL_RESERVATION NONE" in cancelled, "Cancelled reservation reappeared after restart"
     print("PASS: Minecraft SavedData milling candidate and direct processing receipt survived server restart",flush=True)
