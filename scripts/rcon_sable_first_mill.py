@@ -92,4 +92,9 @@ with Rcon() as r:
                 raise AssertionError("Unverified science credit")
             break
     if not produced: raise AssertionError("Sable delivered wheat but Create produced no flour")
+    trace=r.run(f"execute at {villager} run sable mill-trace")
+    if "verdict=CANDIDATE_WHEAT_TO_FLOUR" not in trace:
+        raise AssertionError("Physical delivery trace did not link to observed output: "+trace)
+    if "NO_RESEARCH_CREDIT" not in trace or "phase=DELIVERED" not in trace:
+        raise AssertionError("Trace improperly attributed confirmed recipe knowledge: "+trace)
     print("PASS: Sable physically hauled wheat into powered Create millstone, flour observed, no false discovery credit",flush=True)
