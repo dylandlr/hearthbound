@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+"""Integration: Sable physically hauls wheat from a chest into powered Create millstone.
+
+World-backed behavioral test, not evidence that Sable autonomously discovered a
+recipe. No automatic research credit or teaching occurs.
+"""
+import os, re, socket, struct, time
+
+def packet(req, typ, value):
+    body=struct.pack("<ii",req,typ)+value.encode()+b"\0\0"
+    return struct.pack("<i",len(body))+body
+
+class Rcon:
+    def __enter__(self):
+        self.s=socket.create_connection(("127.0.0.1",25575),timeout=20)
+        self.s.settimeout(20)
+        self.seq=10
+        self.s.sendall(packet(1,3,os.environ["HEARTHBOUND_RCON_PASSWORD"]))
+        req,_=self.recv()
+        if req!=1: req,_=self.recv()
+        if req!=1: raise RuntimeError("Bad RCON authentication")
+        return self
+    def __exit__(self,*_): self.s.close()
+    def recv(self):
+        def exact(n):
+            b=b""
+            while len(b)<n:
+                chunk=self.s.recv(n-len(b))
+                if not chunk: raise ConnectionError("RCON disconnected")
+                b+=chunk
+            return b
+        n=struct.unpack("<i",exact(4))[0]
+        if n<10 or n>1000000: raise ValueError("Bad RCON response size")
+        data=exact(n)
+        return struct.unpack("<i",data[:4])[0],data[8:-2].decode(errors="replace")
+    def run(self,cmd):
+        self.seq+=1
+        self.s.sendall(packet(self.seq,2,cmd))
+        req,out=self.recv()
+        if req!=self.seq: raise AssertionError(f"Wrong RCON ID: {req}")
+        print(f"{cmd} => {out}",flush=True)
+        return out
+    def contains(self,cmd,want):
+        output=self.run(cmd)
+        if want.lower() not in output.lower(): raise AssertionError(f"{cmd}: expected {want}, got {output}")
+        return output
+
+with Rcon() as r:
+    for cmd in (
+        "gamerule doMobSpawning false",
+        "forceload add 0 0",
+        "fill 0 99 0 12 105 4 minecraft:air",
+        "fill 0 100 0 12 100 4 minecraft:stone",
+        'setblock 3 101 1 minecraft:chest{Items:[{Slot:0b,id:"minecraft:wheat",Count:8b}]} replace',
+        "setblock 7 100 1 create:creative_motor[facing=up] replace",
+        "setblock 7 101 1 create:millstone replace",
+    ): r.run(cmd)
+    speed=0.
+    for _ in range(40):
+        obs=r.run("data get block 7 101 1 Speed")
+        m=re.search(r"data: (-?\d+(?:\.\d+)?)f",obs)
+        if m:
+            speed=float(m.group(1))
+            if abs(speed)>0: break
+        time.sleep(.5)
+    if speed==0: raise AssertionError("Create millstone not powered")
+    r.contains("sable spawn","Sable spawned")
+    villager="@e[type=minecraft:villager,name=Sable,limit=1]"
+    r.run(f"tp {villager} 2 101 1")
+    r.contains(f"execute at {villager} run sable haul 3 101 1 7 101 1","Sable assigned wheat haul")
+    # Only Sable is allowed to transport the wheat; no /summon item.
+    complete=False
+    for _ in range(180):
+        time.sleep(1)
+        status=r.run(f"execute at {villager} run sable haul-status")
+        if "Haul complete" in status:
+            complete=True
+            break
+        if "quarantined" in status.lower() or "paused" in status.lower():
+            audit=r.run(f"execute at {villager} run sable haul-audit")
+            raise AssertionError("Haul stopped: "+audit)
+    if not complete: raise AssertionError("Sable did not deliver wheat to Create millstone")
+    r.contains('execute if data block 3 101 1 Items[{id:"minecraft:wheat",Count:7b}]',"Test passed")
+    produced=False
+    for _ in range(100):
+        time.sleep(.75)
+        observation=r.run("sable mill-inspect 7 101 1")
+        match=re.search(r"flour=(\d+)",observation)
+        if match and int(match.group(1))>0:
+            produced=True
+            if "NO_RESEARCH_CREDIT" not in observation:
+                raise AssertionError("Unverified science credit")
+            break
+    if not produced: raise AssertionError("Sable delivered wheat but Create produced no flour")
+    print("PASS: Sable physically hauled wheat into powered Create millstone, flour observed, no false discovery credit",flush=True)
