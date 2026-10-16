@@ -88,6 +88,20 @@ def scenario(r, mode, source_x):
     else:
         r.check('execute if data block 7 100 1 Items[{id:"minecraft:wheat",Count:1b}]')
     r.check(f'execute if data entity {VILLAGER} ForgeData."hearthbound.haul".cargo')
+    # Even with a real quarantined job, closure must fail while Sable retains
+    # cargo. The job ID comes from Minecraft's actual persistent NBT.
+    job_text = r.cmd(f"data get entity {VILLAGER} ForgeData.\\"hearthbound.haul\\".jobId")
+    # NBT UUID is encoded as an int array; read-only audit provides a printable UUID.
+    audit = r.cmd(f"execute at {VILLAGER} run sable haul-audit")
+    import re
+    match = re.search(r"job=([0-9a-fA-F-]{36})", audit)
+    if not match:
+        raise AssertionError("Missing UUID in haul audit: " + audit)
+    close_out = r.cmd(f"execute at {VILLAGER} run sable haul-reconcile-close {match.group(1)}")
+    if "closed" in close_out.lower():
+        raise AssertionError("Cargo-bearing quarantined job was incorrectly closed")
+    if "cargo still held" not in close_out.lower():
+        raise AssertionError("Closure did not reject cargo-bearing job: " + close_out)
     denied = r.cmd(f"execute at {VILLAGER} run sable haul-resume")
     if "resumed" in denied.lower():
         raise AssertionError("Quarantined haul was resumed")
