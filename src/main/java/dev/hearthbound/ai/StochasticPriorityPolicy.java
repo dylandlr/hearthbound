@@ -67,7 +67,8 @@ public final class StochasticPriorityPolicy implements ColonyPolicy {
         for (Action a : candidates) {
             int p = profile.priorityByKind().getOrDefault(a.kind(), 3);
             double score = 2.0 * (5-p)/4.0 + .3*a.priority()/100.0;
-            if (a.kind() == Kind.OPERATE) score += .3*profile.curiosity();
+            if (a.kind() == Kind.OPERATE || a.kind() == Kind.STUDY)
+                score += .3*profile.curiosity();
             if (a.kind() == Kind.HAUL || a.kind() == Kind.DELIVER)
                 score += .2*profile.conscientiousness();
             scores.add(score);
