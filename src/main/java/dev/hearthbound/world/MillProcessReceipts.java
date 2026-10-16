@@ -61,6 +61,38 @@ public final class MillProcessReceipts extends SavedData {
         return tag;
     }
 
+    /**
+     * Fail-closed at Create's process() entry on a reserved machine.
+     * Unreserved Create mills are completely unaffected.
+     */
+    public static boolean admitProcessing(ServerLevel level, BlockPos pos,
+                                          int wheatBefore, int flourBefore) {
+        if (!MillReservations.held(level, pos)) return true;
+        if (wheatBefore != 1 || flourBefore != 0) {
+            MillReservations.taintUnexpectedProcess(level, pos);
+            LOG.warn("HEARTHBOUND_PROCESS_VETO unexpected-input pos={} wheat={} flour={}",
+                pos, wheatBefore, flourBefore);
+            return false;
+        }
+        var candidates = level.getEntitiesOfClass(net.minecraft.world.entity.npc.Villager.class,
+            new net.minecraft.world.phys.AABB(pos).inflate(32),
+            citizen -> MillExperimentTrace.matchesAuthorizedProcessing(
+                citizen, pos, level.getGameTime(), wheatBefore, flourBefore));
+        if (candidates.size() != 1) {
+            MillReservations.taintUnexpectedProcess(level, pos);
+            LOG.warn("HEARTHBOUND_PROCESS_VETO unauthorized-input pos={} candidates={}",
+                pos, candidates.size());
+            return false;
+        }
+        var citizen = candidates.get(0);
+        if (!MillReservations.matches(level, pos, MillExperimentTrace.jobId(citizen), citizen.getUUID())) {
+            MillReservations.taintUnexpectedProcess(level, pos);
+            LOG.warn("HEARTHBOUND_PROCESS_VETO lease-mismatch pos={}", pos);
+            return false;
+        }
+        return true;
+    }
+
     public static void record(ServerLevel level, BlockPos pos, int wheatBefore, int wheatAfter,
                               int flourBefore, int flourAfter) {
         LOG.info("HEARTHBOUND_PROCESS_CALLBACK pos={} tick={} wheat={}->{} flour={}->{}",
