@@ -116,4 +116,9 @@ with Rcon() as r:
         raise AssertionError("Candidate milling evidence not persisted: "+persisted)
     if f"job={job_match.group(1)}" not in persisted:
         raise AssertionError("World journal evidence not associated with Sable job: "+persisted)
+    if os.environ.get("HEARTHBOUND_RESTART_PROBE") == "1":
+        with open("mill-evidence-job.txt", "w", encoding="utf-8") as out:
+            out.write(job_match.group(1) + "\\n")
+        r.run("save-all flush")
+        print("Saved journal for restart verification", flush=True)
     print("PASS: Sable physically hauled wheat into powered Create millstone, flour observed, no false discovery credit",flush=True)
