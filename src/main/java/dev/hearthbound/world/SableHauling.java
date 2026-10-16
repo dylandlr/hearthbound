@@ -132,6 +132,16 @@ public final class SableHauling {
                 && !isLive(level.getServer(), tag.getUUID(JOB_ID))) {
             markLive(level.getServer(), tag.getUUID(JOB_ID));
         }
+        // A mill reservation is mandatory throughout the task, not merely at
+        // assignment. Never pick up or deposit wheat after losing ownership.
+        BlockPos jobDestination = BlockPos.of(tag.getLong(DESTINATION));
+        if (MillReservations.isMill(level, jobDestination) &&
+                (!tag.hasUUID(JOB_ID) || !MillReservations.matches(
+                    level, jobDestination, tag.getUUID(JOB_ID), citizen.getUUID()))) {
+            if (tag.contains(CARGO)) quarantine(tag, "Mill reservation lost with cargo in transit");
+            else pause(tag, "Mill reservation not owned by hauling job");
+            return;
+        }
         BlockPos claimedSource = BlockPos.of(tag.getLong(SOURCE));
         if (phase != COMPLETE && !HaulClaims.claim(level, claimedSource, citizen.getUUID())) {
             pause(tag, "Source claimed by another citizen; manual recovery required");
@@ -313,6 +323,11 @@ public final class SableHauling {
             || tag.getInt(PHASE) == QUARANTINED || tag.contains(CARGO))
             return false;
         BlockPos source = BlockPos.of(tag.getLong(SOURCE));
+        BlockPos destination = BlockPos.of(tag.getLong(DESTINATION));
+        if (MillReservations.isMill(level, destination)) {
+            if (!tag.hasUUID(JOB_ID) || !MillReservations.releaseUnpicked(
+                    level, destination, tag.getUUID(JOB_ID), citizen.getUUID())) return false;
+        }
         tag.putInt(PHASE, COMPLETE);
         tag.remove(ERROR);
         HaulClaims.release(level, source, citizen.getUUID());
