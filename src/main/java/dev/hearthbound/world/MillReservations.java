@@ -90,6 +90,15 @@ public final class MillReservations extends SavedData {
         Reservation prior = data.leases.get(pos.asLong());
         if (prior != null)
             return prior.job().equals(job) && prior.citizen().equals(citizen);
+        // A fresh experimental lease requires an empty physical machine.
+        // Otherwise pre-existing inputs or outputs make result attribution unsafe.
+        if (!(level.getBlockEntity(pos) instanceof
+                com.simibubi.create.content.kinetics.millstone.MillstoneBlockEntity machine))
+            return false;
+        for (int i = 0; i < machine.inputInv.getSlots(); i++)
+            if (!machine.inputInv.getStackInSlot(i).isEmpty()) return false;
+        for (int i = 0; i < machine.outputInv.getSlots(); i++)
+            if (!machine.outputInv.getStackInSlot(i).isEmpty()) return false;
         data.leases.put(pos.asLong(), new Reservation(job, citizen, pos.asLong()));
         data.setDirty();
         return true;
