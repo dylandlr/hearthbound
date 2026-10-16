@@ -164,16 +164,16 @@ with Rcon() as r:
         if not re.search(r"flour=0(\D|$)", cleared):
             raise AssertionError("Output not cleared before audited release: "+cleared)
         # A job UUID mismatch must never release another citizen's lease.
-        mismatch=r.run("execute positioned 7 101 1 run sable mill-release 7 101 1 00000000-0000-4000-8000-000000000001")
+        mismatch=r.run("execute positioned 2 101 1 run sable mill-release 7 101 1 00000000-0000-4000-8000-000000000001")
         if "does not match" not in mismatch:
             raise AssertionError("Wrong job ID was not rejected: "+mismatch)
-        released_ok=r.run(f"execute positioned 7 101 1 run sable mill-release 7 101 1 {job_match.group(1)}")
+        released_ok=r.run(f"execute positioned 2 101 1 run sable mill-release 7 101 1 {job_match.group(1)}")
         if "Mill reservation released with audit tombstone" not in released_ok:
             raise AssertionError("Validated completed mill was not released: "+released_ok)
         after_release=r.run("sable mill-reservation 7 101 1")
         if "MILL_RESERVATION NONE" not in after_release:
             raise AssertionError("Released mill still occupied: "+after_release)
-        replay=r.run(f"execute positioned 7 101 1 run sable mill-release 7 101 1 {job_match.group(1)}")
+        replay=r.run(f"execute positioned 2 101 1 run sable mill-release 7 101 1 {job_match.group(1)}")
         if "does not match" not in replay:
             raise AssertionError("Duplicate release was not rejected: "+replay)
         # Negative control: external flour left in a released machine must
