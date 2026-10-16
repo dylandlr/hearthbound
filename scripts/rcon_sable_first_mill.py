@@ -248,6 +248,17 @@ with Rcon() as r:
         added=r.run("data get block 11 101 3 InputInventory")
         if "Count: 2" not in added and "Count:2" not in added:
             raise AssertionError("Failed to introduce extra wheat: "+added)
+        # Processing is deliberately still unpowered. Per-tick surveillance
+        # must taint this reservation before Create gets any chance to mill it.
+        pre_power_tainted=False
+        for _ in range(8):
+            time.sleep(.5)
+            pre_power=r.run("sable mill-reservation 11 101 3")
+            if "MILL_RESERVATION TAINTED" in pre_power:
+                pre_power_tainted=True
+                break
+        if not pre_power_tainted:
+            raise AssertionError("Per-tick monitor missed extra wheat while motor was stopped: "+pre_power)
         r.run("setblock 11 100 3 create:creative_motor[facing=up] replace")
         callback_seen=False
         for _ in range(100):
