@@ -192,6 +192,31 @@ with Rcon() as r:
         new_lease=r.run("sable mill-reservation 7 101 1")
         if "MILL_RESERVATION HELD" not in new_lease or f"job={job_match.group(1)}" in new_lease:
             raise AssertionError("New job does not own reused mill: "+new_lease)
+        # Inject flour AFTER this second reservation, but BEFORE Sable's
+        # pickup. Hearthbound must permanently taint this job, not extract wheat.
+        second_job=re.search(r"job=([0-9a-fA-F-]{36})",new_lease)
+        if not second_job:
+            raise AssertionError("Fresh mill lease has no job UUID: "+new_lease)
+        r.run('data modify block 7 101 1 OutputInventory.Items set value [{Slot:0,id:"create:wheat_flour",Count:1b}]')
+        tainted=False
+        for _ in range(12):
+            time.sleep(1)
+            status2=r.run("execute positioned 12 101 1 run sable haul-status")
+            lease2=r.run("sable mill-reservation 7 101 1")
+            if "MILL_RESERVATION TAINTED" in lease2 and "tainted" in status2.lower():
+                tainted=True
+                break
+        if not tainted:
+            raise AssertionError("Post-admission flour mutation did not taint experiment: "+lease2+" "+status2)
+        evidence2=r.run(f"sable mill-process {second_job.group(1)}")
+        if "MILL_PROCESS NONE" not in evidence2:
+            raise AssertionError("Tainted second experiment received processing credit: "+evidence2)
+        # Cleaning the inventory must not remove the persistent taint marker.
+        r.run("data modify block 7 101 1 OutputInventory.Items set value []")
+        persisted_taint=r.run("sable mill-reservation 7 101 1")
+        if "MILL_RESERVATION TAINTED" not in persisted_taint:
+            raise AssertionError("Cleaning physical output silently healed taint: "+persisted_taint)
+
     if os.environ.get("HEARTHBOUND_RESTART_PROBE") == "1":
         with open("mill-evidence-job.txt", "w", encoding="utf-8") as out:
             out.write(job_match.group(1) + "\n")
