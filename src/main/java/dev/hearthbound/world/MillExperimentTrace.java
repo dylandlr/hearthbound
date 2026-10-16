@@ -100,6 +100,12 @@ public final class MillExperimentTrace {
             trace.putString("phase", "CYCLE_OUTPUT_OBSERVED");
             trace.putLong("outputObservedTick", level.getGameTime());
             trace.putInt("observedFlour", flourNow);
+            // The job is linked to the citizen and physical machine, but
+            // this observation is NOT the machine's private process() callback.
+            MillEvidenceJournal.recordCandidate(level, new MillEvidenceJournal.Entry(
+                trace.getUUID("jobId"), citizen.getUUID(), pos.asLong(),
+                trace.getLong("processingObservedTick"), level.getGameTime(),
+                trace.getInt("baselineFlour"), flourNow));
         }
     }
 
