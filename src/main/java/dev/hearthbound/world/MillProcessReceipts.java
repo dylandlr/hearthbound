@@ -10,8 +10,9 @@ import net.minecraft.world.level.saveddata.SavedData;
 
 /**
  * Trusted point-of-execution observation of Create's millstone process().
- * A receipt proves a machine processing call, not exclusive provenance of
- * one item in a shared/multi-input machine. No research reward is granted.
+ * A receipt proves a machine processing call. For reserved First Mill experiments,
+ * upstream admission rules enforce exclusive one-wheat provenance before this receipt
+ * may later be converted into research credit.
  */
 public final class MillProcessReceipts extends SavedData {
     private static final org.apache.logging.log4j.Logger LOG =
@@ -146,12 +147,31 @@ public final class MillProcessReceipts extends SavedData {
 
     /** Read-only proof that a direct Create processing receipt was recorded. */
     public static boolean hasReceipt(ServerLevel level, UUID job, UUID citizen, BlockPos machine) {
+        try {
+            requireVerifiedReceipt(level, job, citizen, machine);
+            return true;
+        } catch (IllegalStateException ex) {
+            return false;
+        }
+    }
+
+    /** Returns the verified receipt so downstream reward code uses the same physical proof. */
+    public static Receipt requireVerifiedReceipt(
+            ServerLevel level, UUID job, UUID citizen, BlockPos machine) {
+        if (MillReservations.isTainted(level, job))
+            throw new IllegalStateException("Experiment is tainted");
         Receipt receipt = get(level).receipts.get(job);
-        return !MillReservations.isTainted(level, job)
-            && receipt != null && receipt.citizen().equals(citizen)
-            && receipt.pos() == machine.asLong()
-            && receipt.wheatBefore() - receipt.wheatAfter() == 1
-            && receipt.flourAfter() > receipt.flourBefore();
+        if (receipt == null)
+            throw new IllegalStateException("Direct Create processing receipt missing");
+        if (!receipt.citizen().equals(citizen))
+            throw new IllegalStateException("Receipt citizen mismatch");
+        if (receipt.pos() != machine.asLong())
+            throw new IllegalStateException("Receipt machine mismatch");
+        if (receipt.wheatBefore() - receipt.wheatAfter() != 1)
+            throw new IllegalStateException("Receipt input delta invalid");
+        if (receipt.flourAfter() <= receipt.flourBefore())
+            throw new IllegalStateException("Receipt output delta invalid");
+        return receipt;
     }
 
     public static String inspect(ServerLevel level, UUID job) {
