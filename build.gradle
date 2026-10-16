@@ -47,6 +47,8 @@ dependencies {
     implementation fg.deobf("com.tterrag.registrate:Registrate:${registrate_version}")
     compileOnly(annotationProcessor("io.github.llamalad7:mixinextras-common:0.4.1"))
     implementation "io.github.llamalad7:mixinextras-forge:0.4.1"
+    testImplementation "org.junit.jupiter:junit-jupiter:5.10.2"
 }
 tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
+tasks.named('test', Test).configure { useJUnitPlatform() }
 jar { manifest { attributes(['Specification-Title': 'hearthbound', 'Implementation-Title': 'hearthbound', 'Implementation-Version': project.version, 'MixinConfigs': 'hearthbound.mixins.json']) } }
