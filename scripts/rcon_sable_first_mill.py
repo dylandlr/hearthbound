@@ -158,7 +158,7 @@ with Rcon() as r:
         # In real play an item transport mechanism must remove the flour.
         r.run("data modify block 7 101 1 OutputInventory.Items set value []")
         cleared=r.run("sable mill-inspect 7 101 1")
-        if not re.search(r"flour=0(\\D|$)", cleared):
+        if not re.search(r"flour=0(\D|$)", cleared):
             raise AssertionError("Output not cleared before audited release: "+cleared)
         # A job UUID mismatch must never release another citizen's lease.
         mismatch=r.run("execute positioned 7 101 1 run sable mill-release 7 101 1 00000000-0000-4000-8000-000000000001")
