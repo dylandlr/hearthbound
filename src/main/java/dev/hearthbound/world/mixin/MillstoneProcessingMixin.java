@@ -28,7 +28,7 @@ public abstract class MillstoneProcessingMixin {
         return count;
     }
 
-    @Inject(method = "process", at = @At("HEAD"))
+    @Inject(method = "process", at = @At("HEAD"), cancellable = true)
     private void hearthbound$beforeProcess(CallbackInfo ci) {
         MillstoneBlockEntity mill=(MillstoneBlockEntity)(Object)this;
         var input=mill.inputInv.getStackInSlot(0);
@@ -36,6 +36,11 @@ public abstract class MillstoneProcessingMixin {
         org.apache.logging.log4j.LogManager.getLogger("HearthboundMillProcess")
             .info("HEARTHBOUND_PROCESS_MIXIN_HEAD pos={} wheat={}", mill.getBlockPos(), hearthbound$beforeWheat);
         hearthbound$beforeFlour=hearthbound$countFlour(mill);
+        if (mill.getLevel() instanceof ServerLevel level
+                && !MillProcessReceipts.admitProcessing(level, mill.getBlockPos(),
+                    hearthbound$beforeWheat, hearthbound$beforeFlour)) {
+            ci.cancel(); // Preserve compromised items for operator inspection.
+        }
     }
 
     @Inject(method = "process", at = @At("TAIL"))
