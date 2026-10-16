@@ -201,6 +201,9 @@ public final class SableController {
         if (!(villager.level() instanceof ServerLevel level)) return;
         if (!villager.getPersistentData().getBoolean(MARKER)) return;
         if (villager.tickCount % 20 != 0) return;
+        // Observation is read-only with respect to the millstone and never
+        // awards research points or knowledge unlocks.
+        MillExperimentTrace.sampleCycle(level, villager);
 
         if (SableHauling.active(villager)) {
             SableHauling.tick(level, villager);
