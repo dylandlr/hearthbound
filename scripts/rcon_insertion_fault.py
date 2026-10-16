@@ -90,8 +90,7 @@ def scenario(r, mode, source_x):
     r.check(f'execute if data entity {VILLAGER} ForgeData."hearthbound.haul".cargo')
     # Even with a real quarantined job, closure must fail while Sable retains
     # cargo. The job ID comes from Minecraft's actual persistent NBT.
-    job_text = r.cmd(f"data get entity {VILLAGER} ForgeData.\\"hearthbound.haul\\".jobId")
-    # NBT UUID is encoded as an int array; read-only audit provides a printable UUID.
+    # The read-only audit provides the job UUID in a command-safe format.
     audit = r.cmd(f"execute at {VILLAGER} run sable haul-audit")
     import re
     match = re.search(r"job=([0-9a-fA-F-]{36})", audit)
