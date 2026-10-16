@@ -174,6 +174,9 @@ public final class SableHauling {
             // A persistent in-progress marker prevents the next tick from silently
             // trying insertion again if this call fails partway through.
             tag.putInt(PHASE, INSERTING);
+            if (tag.hasUUID(JOB_ID)) {
+                MillExperimentTrace.beforeDelivery(level, citizen, tag.getUUID(JOB_ID), target, cargo);
+            }
             ItemStack remaining;
             try {
                 String fault = tag.getString(FAULT);
@@ -191,6 +194,9 @@ public final class SableHauling {
                 return;
             }
             if (remaining.isEmpty()) {
+                if (tag.hasUUID(JOB_ID)) {
+                    MillExperimentTrace.deliveryComplete(citizen, tag.getUUID(JOB_ID));
+                }
                 tag.remove(CARGO);
                 tag.putInt(PHASE, COMPLETE);
                 HaulClaims.release(level, claimedSource, citizen.getUUID());
