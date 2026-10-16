@@ -147,6 +147,29 @@ public final class SableController {
                                 return 0;
                             }
                         }))))
+            .then(Commands.literal("mill-probe-belt-insert")
+                .then(Commands.argument("position", BlockPosArgument.blockPos())
+                    .executes(ctx -> {
+                        BlockPos pos = BlockPosArgument.getLoadedBlockPos(ctx, "position");
+                        ServerLevel level = ctx.getSource().getLevel();
+                        if (!MillReservations.held(level, pos)) {
+                            ctx.getSource().sendFailure(Component.literal("Probe requires a reserved millstone"));
+                            return 0;
+                        }
+                        var block = level.getBlockEntity(pos);
+                        if (!(block instanceof com.simibubi.create.content.kinetics.millstone.MillstoneBlockEntity mill))
+                            return 0;
+                        var behaviour = com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour.get(
+                            mill, com.simibubi.create.content.kinetics.belt.behaviour.DirectBeltInputBehaviour.TYPE);
+                        if (behaviour == null) return 0;
+                        var wheat = new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.WHEAT);
+                        var remainder = behaviour.handleInsertion(wheat, net.minecraft.core.Direction.NORTH, false);
+                        boolean denied = remainder.getCount() == 1;
+                        String result = denied ? "BELT_INSERT DENIED NO_RESEARCH_CREDIT"
+                            : "BELT_INSERT ACCEPTED WARNING_NO_RESEARCH_CREDIT";
+                        ctx.getSource().sendSuccess(() -> Component.literal(result), false);
+                        return denied ? 1 : 0;
+                    })))
             .then(Commands.literal("mill-probe-external-insert")
                 .then(Commands.argument("position", BlockPosArgument.blockPos())
                     .executes(ctx -> {
