@@ -105,6 +105,16 @@ public final class SableController {
                     return 0;
                 }
             }))
+            .then(Commands.literal("haul-audit").executes(ctx -> {
+                Villager sable = nearestSable(ctx.getSource());
+                if (sable == null) {
+                    ctx.getSource().sendFailure(Component.literal("No Sable within 16 blocks."));
+                    return 0;
+                }
+                String snapshot = SableHauling.audit(ctx.getSource().getLevel(), sable);
+                ctx.getSource().sendSuccess(() -> Component.literal(snapshot), false);
+                return 1;
+            }))
             .then(Commands.literal("haul-status").executes(ctx -> {
                 Villager sable = nearestSable(ctx.getSource());
                 if (sable == null) return 0;
