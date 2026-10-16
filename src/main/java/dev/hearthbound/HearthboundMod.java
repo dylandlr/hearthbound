@@ -7,6 +7,8 @@ import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.phys.AABB;
 import dev.hearthbound.research.LibraryStudyRuntime;
 import dev.hearthbound.research.AutonomousLibraryStudy;
+import dev.hearthbound.research.LibraryPolicyBridge;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import dev.hearthbound.research.CitizenTechnologyKnowledge;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -35,6 +37,45 @@ public final class HearthboundMod {
             dispatcher.register(Commands.literal("hearthbound")
                     .then(Commands.literal("library")
                             .requires(source -> source.hasPermission(2))
+                            .then(Commands.literal("priority")
+                                    .then(Commands.argument("level", IntegerArgumentType.integer(0, 4))
+                                            .executes(ctx -> {
+                                                Villager citizen = nearestVillager(ctx.getSource());
+                                                if (citizen == null) {
+                                                    ctx.getSource().sendFailure(Component.literal("No villager within 8 blocks"));
+                                                    return 0;
+                                                }
+                                                int level = IntegerArgumentType.getInteger(ctx, "level");
+                                                LibraryPolicyBridge.setStudyPriority(citizen, level);
+                                                ctx.getSource().sendSuccess(() -> Component.literal(
+                                                        "Set study priority " + level + " for " + citizen.getUUID()), false);
+                                                return 1;
+                                            })))
+                            .then(Commands.literal("consider")
+                                    .then(Commands.argument("shelf", BlockPosArgument.blockPos())
+                                            .executes(ctx -> {
+                                                Villager citizen = nearestVillager(ctx.getSource());
+                                                if (citizen == null) {
+                                                    ctx.getSource().sendFailure(Component.literal("No villager within 8 blocks"));
+                                                    return 0;
+                                                }
+                                                try {
+                                                    boolean selected = LibraryPolicyBridge.consider(
+                                                            ctx.getSource().getLevel(), citizen,
+                                                            BlockPosArgument.getLoadedBlockPos(ctx, "shelf"));
+                                                    if (!selected) {
+                                                        ctx.getSource().sendFailure(Component.literal("Study not selected or unavailable"));
+                                                        return 0;
+                                                    }
+                                                    ctx.getSource().sendSuccess(() -> Component.literal(
+                                                            "Study assignment accepted by policy and action gate"), false);
+                                                    return 1;
+                                                } catch (IllegalArgumentException | IllegalStateException ex) {
+                                                    ctx.getSource().sendFailure(Component.literal(
+                                                            "Study assignment rejected: " + ex.getMessage()));
+                                                    return 0;
+                                                }
+                                            })))
                             .then(Commands.literal("assign")
                                     .then(Commands.argument("shelf", BlockPosArgument.blockPos())
                                             .executes(ctx -> {
@@ -84,7 +125,8 @@ public final class HearthboundMod {
                                             return 0;
                                         }
                                         ctx.getSource().sendSuccess(
-                                                () -> Component.literal(AutonomousLibraryStudy.inspect(citizen) + " " + LibraryStudyRuntime.inspect(citizen)
+                                                () -> Component.literal("STUDY_PRIORITY " + LibraryPolicyBridge.studyPriority(citizen)
+                                                        + " " + AutonomousLibraryStudy.inspect(citizen) + " " + LibraryStudyRuntime.inspect(citizen)
                                                         + " " + CitizenTechnologyKnowledge.inspect(citizen)), false);
                                         return 1;
                                     }))))
