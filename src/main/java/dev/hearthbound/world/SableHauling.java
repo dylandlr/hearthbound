@@ -183,7 +183,12 @@ public final class SableHauling {
                 return;
             }
             BlockEntity output = level.getBlockEntity(destination);
-            if (output == null || !canAccept(output, new ItemStack(Items.WHEAT))) {
+            boolean acceptable = output != null && (!MillReservations.isMill(level, destination)
+                ? canAccept(output, new ItemStack(Items.WHEAT))
+                : MillTransferGate.authorize(level, destination, tag.getUUID(JOB_ID),
+                    citizen.getUUID(), true,
+                    () -> canAccept(output, new ItemStack(Items.WHEAT))));
+            if (!acceptable) {
                 pause(tag, "Destination unavailable or full before pickup");
                 return;
             }
@@ -224,7 +229,10 @@ public final class SableHauling {
                 if ("before".equals(fault)) {
                     throw new IllegalStateException("Injected failure before inventory insertion");
                 }
-                remaining = insert(entity, cargo);
+                remaining = !MillReservations.isMill(level, target)
+                    ? insert(entity, cargo)
+                    : MillTransferGate.authorize(level, target, tag.getUUID(JOB_ID),
+                        citizen.getUUID(), false, () -> insert(entity, cargo));
                 if ("after".equals(fault)) {
                     throw new IllegalStateException("Injected failure after inventory insertion");
                 }
