@@ -174,6 +174,14 @@ public final class MillReservations extends SavedData {
      * Called at task boundaries before the authorized delivery. Unsolicited
      * inputs/outputs permanently invalidate the job; no automatic healing.
      */
+    /** Invalidates an experimental lease if the authorized insertion snapshot disagrees. */
+    public static void taint(ServerLevel level, BlockPos pos, UUID job, UUID citizen) {
+        MillReservations data = get(level);
+        Reservation lease = data.leases.get(pos.asLong());
+        if (lease != null && lease.job().equals(job) && lease.citizen().equals(citizen)
+                && data.tainted.add(job)) data.setDirty();
+    }
+
     public static boolean preDeliveryClean(ServerLevel level, BlockPos pos, UUID job, UUID citizen) {
         MillReservations journal = get(level);
         Reservation lease = journal.leases.get(pos.asLong());
