@@ -47,6 +47,14 @@ jobs:
             exit 1
           fi
           python3 scripts/rcon_powered_mill.py
+          echo "--- Hearthbound process Mixin events ---"
+          grep 'HEARTHBOUND_PROCESS_' powered-mill.log || true
+          # The powered mill has no assigned citizen, but its real processing
+          # operation MUST still execute our HEAD instrumentation.
+          if ! grep -q 'HEARTHBOUND_PROCESS_MIXIN_HEAD' powered-mill.log; then
+            echo 'ERROR: Create produced flour without entering Hearthbound process mixin'
+            exit 1
+          fi
       - name: Upload powered milling logs
         if: always()
         uses: actions/upload-artifact@v4
