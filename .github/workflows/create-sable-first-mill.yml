@@ -51,6 +51,14 @@ jobs:
           result=$?
           echo "--- Create callback diagnostics ---"
           grep 'HEARTHBOUND_PROCESS_' sable-first-mill.log || true
+          echo "--- Physical ingress veto diagnostics ---"
+          grep 'HEARTHBOUND_FALLING_ITEM_DENIED' sable-first-mill.log || true
+          if [ "$result" -eq 0 ]; then
+            grep -q 'HEARTHBOUND_FALLING_ITEM_DENIED' sable-first-mill.log || {
+              echo "Physical ingress hook never intercepted the falling wheat entity" >&2
+              exit 1
+            }
+          fi
           exit "$result"
       - name: Upload logs
         if: always()
