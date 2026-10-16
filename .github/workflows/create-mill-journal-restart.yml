@@ -33,7 +33,7 @@ jobs:
             gradle --no-daemon runServer > "$filename" 2>&1 &
             pid=$!
             ready=0
-            for i in $(seq 1 240); do
+            for i in $(seq 1 360); do
               if grep -Eq 'Done \([0-9.]+s\)! For help, type "help"' "$filename"; then
                 ready=1
                 break
