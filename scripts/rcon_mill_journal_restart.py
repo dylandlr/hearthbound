@@ -44,4 +44,9 @@ with socket.create_connection(("127.0.0.1",25575),timeout=20) as s:
     assert "MILL_PROCESS VERIFIED_CALLBACK job="+job in receipt
     assert "wheatBefore=1 wheatAfter=0" in receipt
     assert "NO_RESEARCH_CREDIT" in receipt
+    s.sendall(packet(4,2,"sable mill-reservation 7 101 1"))
+    response,reservation=receive(s)
+    print("RESTART MILL RESERVATION:",reservation,flush=True)
+    assert response==4
+    assert "MILL_RESERVATION HELD" in reservation and "job="+job in reservation
     print("PASS: Minecraft SavedData milling candidate and direct processing receipt survived server restart",flush=True)
