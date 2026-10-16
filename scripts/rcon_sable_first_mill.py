@@ -101,4 +101,12 @@ with Rcon() as r:
         raise AssertionError("Physical delivery trace did not link to observed output: "+trace)
     if "NO_RESEARCH_CREDIT" not in trace or "phase=CYCLE_OUTPUT_OBSERVED" not in trace:
         raise AssertionError("Trace improperly attributed confirmed recipe knowledge: "+trace)
+    job_match=re.search(r"job=([0-9a-fA-F-]{36})",trace)
+    if not job_match:
+        raise AssertionError("No job identity in machine trace: "+trace)
+    persisted=r.run(f"sable mill-evidence {job_match.group(1)}")
+    if "MILL_EVIDENCE CANDIDATE" not in persisted or "NO_RESEARCH_CREDIT" not in persisted:
+        raise AssertionError("Candidate milling evidence not persisted: "+persisted)
+    if f"job={job_match.group(1)}" not in persisted:
+        raise AssertionError("World journal evidence not associated with Sable job: "+persisted)
     print("PASS: Sable physically hauled wheat into powered Create millstone, flour observed, no false discovery credit",flush=True)
