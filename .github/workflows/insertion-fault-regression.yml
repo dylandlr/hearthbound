@@ -1,0 +1,59 @@
+name: Minecraft insertion fault regression
+on:
+  push:
+    branches:
+      - feat/haul-restart-quarantine-v2-3
+  workflow_dispatch:
+jobs:
+  insertion-faults:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.8'
+      - name: Run actual chest insertion fault scenarios
+        shell: bash
+        env:
+          HEARTHBOUND_RCON_PASSWORD: ci-local-disposable-password
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/rcon_insertion_fault.py
+          mkdir -p run
+          printf 'eula=true\n' > run/eula.txt
+          printf 'online-mode=false\nlevel-name=fault-world\nmax-players=2\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties
+          gradle --no-daemon runServer > insertion-fault.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 240); do
+            if grep -Eq 'Done \([0-9.]+s\)! For help, type "help"' insertion-fault.log; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "$pid" 2>/dev/null; then
+              tail -n 120 insertion-fault.log
+              exit 1
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            tail -n 120 insertion-fault.log
+            exit 1
+          fi
+          python3 scripts/rcon_insertion_fault.py
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: minecraft-insertion-fault-logs
+          path: |
+            insertion-fault.log
+            run/logs/latest.log
+          retention-days: 14
+          if-no-files-found: warn
