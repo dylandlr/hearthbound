@@ -174,6 +174,14 @@ public final class SableHauling {
             // when the destination is already known to reject it.
             BlockPos destination = BlockPos.of(tag.getLong(DESTINATION));
             if (!level.hasChunkAt(destination)) return;
+            // At the pickup boundary, reject unexpected items in an
+            // experimentally reserved mill before removing any wheat.
+            if (MillReservations.isMill(level, destination)
+                    && !MillReservations.preDeliveryClean(level, destination,
+                        tag.getUUID(JOB_ID), citizen.getUUID())) {
+                pause(tag, "Mill experiment tainted before pickup; operator review required");
+                return;
+            }
             BlockEntity output = level.getBlockEntity(destination);
             if (output == null || !canAccept(output, new ItemStack(Items.WHEAT))) {
                 pause(tag, "Destination unavailable or full before pickup");
@@ -192,6 +200,15 @@ public final class SableHauling {
             ItemStack cargo = ItemStack.of(tag.getCompound(CARGO));
             if (cargo.isEmpty()) {
                 pause(tag, "Cargo missing");
+                return;
+            }
+            // Check once more immediately before depositing the carried item.
+            // If the environment changed while Sable walked, quarantine the
+            // cargo and keep the reservation tainted for operator review.
+            if (MillReservations.isMill(level, target)
+                    && !MillReservations.preDeliveryClean(level, target,
+                        tag.getUUID(JOB_ID), citizen.getUUID())) {
+                quarantine(tag, "Mill experiment tainted during delivery; cargo quarantined");
                 return;
             }
             // A persistent in-progress marker prevents the next tick from silently
