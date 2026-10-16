@@ -37,4 +37,11 @@ with socket.create_connection(("127.0.0.1",25575),timeout=20) as s:
     assert "MILL_EVIDENCE CANDIDATE job="+job in output
     assert "processingTick=" in output and "outputTick=" in output
     assert "NO_RESEARCH_CREDIT" in output
-    print("PASS: Minecraft SavedData milling candidate survived server restart",flush=True)
+    s.sendall(packet(3,2,"sable mill-process "+job))
+    response,receipt=receive(s)
+    print("RESTART PROCESS RECEIPT:",receipt,flush=True)
+    assert response==3
+    assert "MILL_PROCESS VERIFIED_CALLBACK job="+job in receipt
+    assert "wheatBefore=1 wheatAfter=0" in receipt
+    assert "NO_RESEARCH_CREDIT" in receipt
+    print("PASS: Minecraft SavedData milling candidate and direct processing receipt survived server restart",flush=True)
