@@ -1,0 +1,75 @@
+name: First Mill evidence restart regression
+on:
+  push:
+    branches:
+      - feat/first-mill-create-v3-2
+  workflow_dispatch:
+jobs:
+  journal-restart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.8'
+      - name: Run physical milling and verify persisted journal after restart
+        shell: bash
+        env:
+          HEARTHBOUND_RCON_PASSWORD: ci-local-disposable-password
+          HEARTHBOUND_RESTART_PROBE: '1'
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/rcon_sable_first_mill.py scripts/rcon_mill_journal_restart.py
+          mkdir -p run
+          printf 'eula=true\n' > run/eula.txt
+          printf 'online-mode=false\nlevel-name=mill-journal-restart\nmax-players=2\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties
+          boot() {
+            local filename="$1"
+            gradle --no-daemon runServer > "$filename" 2>&1 &
+            pid=$!
+            ready=0
+            for i in $(seq 1 240); do
+              if grep -Eq 'Done \([0-9.]+s\)! For help, type "help"' "$filename"; then
+                ready=1
+                break
+              fi
+              if ! kill -0 "$pid" 2>/dev/null; then
+                tail -n 100 "$filename"
+                exit 1
+              fi
+              sleep 2
+            done
+            if [ "$ready" -ne 1 ]; then tail -n 100 "$filename"; exit 1; fi
+          }
+          pid=''
+          trap 'if [ -n "$pid" ]; then kill "$pid" 2>/dev/null || true; fi' EXIT
+          boot mill-restart-first.log
+          python3 scripts/rcon_sable_first_mill.py
+          for i in $(seq 1 60); do
+            if ! kill -0 "$pid" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          if kill -0 "$pid" 2>/dev/null; then
+            echo 'Minecraft server did not stop after RCON stop'
+            exit 1
+          fi
+          wait "$pid" || true
+          boot mill-restart-second.log
+          python3 scripts/rcon_mill_journal_restart.py
+      - name: Upload restart logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: first-mill-journal-restart-logs
+          path: |
+            mill-restart-first.log
+            mill-restart-second.log
+            run/logs/latest.log
+            mill-evidence-job.txt
+          if-no-files-found: warn
+          retention-days: 14
