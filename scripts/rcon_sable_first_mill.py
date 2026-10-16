@@ -220,6 +220,48 @@ with Rcon() as r:
         if "MILL_RESERVATION TAINTED" not in persisted_taint:
             raise AssertionError("Cleaning physical output silently healed taint: "+persisted_taint)
 
+    if os.environ.get("HEARTHBOUND_RESTART_PROBE") != "1":
+        # Post-delivery substitution experiment on a separate unpowered Create
+        # mill. Removing the motor ensures Create cannot process before the
+        # adversarial insertion. All changes are done by the server test fixture.
+        r.run('setblock 10 101 3 minecraft:chest{Items:[{Slot:0b,id:"minecraft:wheat",Count:8b}]} replace')
+        r.run("setblock 11 100 3 minecraft:stone replace")
+        r.run("setblock 11 101 3 create:millstone replace")
+        r.contains("execute positioned 12 101 3 run sable spawn", "Sable spawned")
+        r.contains("execute positioned 12 101 3 run sable haul 10 101 3 11 101 3",
+                   "Sable assigned wheat haul")
+        third_job=None
+        for _ in range(150):
+            time.sleep(1)
+            result=r.run("sable mill-reservation 11 101 3")
+            found=re.search(r"job=([0-9a-fA-F-]{36})",result)
+            if found: third_job=found.group(1)
+            delivered=r.run("execute positioned 12 101 3 run sable haul-status")
+            if "Haul complete" in delivered: break
+            if "quarantined" in delivered.lower() or "paused" in delivered.lower():
+                raise AssertionError("Third citizen failed to deliver wheat: "+delivered)
+        else:
+            raise AssertionError("Third citizen did not deliver into stopped Create mill")
+        if not third_job: raise AssertionError("Third job reservation missing")
+        # External actor adds identical wheat after the authorized insertion.
+        r.run('data modify block 11 101 3 InputInventory.Items set value [{Slot:0,id:"minecraft:wheat",Count:2b}]')
+        added=r.run("data get block 11 101 3 InputInventory")
+        if "Count: 2" not in added and "Count:2" not in added:
+            raise AssertionError("Failed to introduce extra wheat: "+added)
+        r.run("setblock 11 100 3 create:creative_motor[facing=up] replace")
+        callback_seen=False
+        for _ in range(100):
+            time.sleep(.75)
+            audit=r.run("sable mill-reservation 11 101 3")
+            if "MILL_RESERVATION TAINTED" in audit:
+                callback_seen=True
+                break
+        if not callback_seen:
+            raise AssertionError("Create processing with extra wheat did not taint job")
+        blocked=r.run(f"sable mill-process {third_job}")
+        if "MILL_PROCESS INVALIDATED" not in blocked or "NO_RESEARCH_CREDIT" not in blocked:
+            raise AssertionError("Extra-input processing was accepted: "+blocked)
+        print("PASS: extra wheat inserted after authorized delivery invalidated processing evidence",flush=True)
     if os.environ.get("HEARTHBOUND_RESTART_PROBE") == "1":
         with open("mill-evidence-job.txt", "w", encoding="utf-8") as out:
             out.write(job_match.group(1) + "\n")
