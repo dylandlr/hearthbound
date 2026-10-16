@@ -116,6 +116,9 @@ with Rcon() as r:
         raise AssertionError("Candidate milling evidence not persisted: "+persisted)
     if f"job={job_match.group(1)}" not in persisted:
         raise AssertionError("World journal evidence not associated with Sable job: "+persisted)
+    reservation=r.run("sable mill-reservation 7 101 1")
+    if "MILL_RESERVATION HELD" not in reservation or f"job={job_match.group(1)}" not in reservation:
+        raise AssertionError("Sable millstone reservation absent or mismatched: "+reservation)
     receipt=r.run(f"sable mill-process {job_match.group(1)}")
     if "MILL_PROCESS VERIFIED_CALLBACK" not in receipt:
         raise AssertionError("No direct Create processing callback receipt: "+receipt)
