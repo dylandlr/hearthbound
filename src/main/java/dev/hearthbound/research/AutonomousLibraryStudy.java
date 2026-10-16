@@ -64,7 +64,14 @@ public final class AutonomousLibraryStudy {
 
     public static String inspect(Villager citizen) {
         CompoundTag tag = citizen.getPersistentData().getCompound(KEY);
-        return "AUTONOMOUS_LIBRARY " + (tag.getString("state").isEmpty()
-                ? "UNASSIGNED" : tag.getString("state"));
+        String state = tag.getString("state");
+        if ("STUDYING".equals(state)) {
+            state = switch (LibraryStudyRuntime.state(citizen)) {
+                case COMPLETED -> "COMPLETED";
+                case INTERRUPTED -> "INTERRUPTED";
+                default -> state;
+            };
+        }
+        return "AUTONOMOUS_LIBRARY " + (state.isEmpty() ? "UNASSIGNED" : state);
     }
 }
