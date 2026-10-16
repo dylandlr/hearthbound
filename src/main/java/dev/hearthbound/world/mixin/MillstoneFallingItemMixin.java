@@ -29,6 +29,9 @@ public abstract class MillstoneFallingItemMixin {
         BlockPos here = entity.blockPosition();
         if (MillReservations.held(level, here) ||
                 MillReservations.held(level, here.below())) {
+            org.apache.logging.log4j.LogManager.getLogger("HearthboundMillIngress")
+                .info("HEARTHBOUND_FALLING_ITEM_DENIED pos={} entity={}",
+                    here, entity.getUUID());
             ci.cancel(); // The item remains a physical entity, unchanged.
         }
     }
