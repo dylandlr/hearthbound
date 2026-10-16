@@ -63,12 +63,12 @@ class Rcon:
         if phrase.lower() not in out.lower():
             raise AssertionError(f"Unexpected response: {command}: {out}")
 
-def scenario(r, mode):
+def scenario(r, mode, source_x):
     # Use a fresh disposable Sable each scenario.
     r.cmd(f"kill {VILLAGER}")
     r.expect("sable spawn", "Sable spawned")
     r.cmd(f"tp {VILLAGER} 2 100 1")
-    r.expect(f"execute at {VILLAGER} run sable haul 3 100 1 7 100 1",
+    r.expect(f"execute at {VILLAGER} run sable haul {source_x} 100 1 7 100 1",
              "Sable assigned wheat haul")
     r.expect(f"execute at {VILLAGER} run sable fault-insert-{mode}",
              "Injection armed")
@@ -82,7 +82,7 @@ def scenario(r, mode):
         time.sleep(1)
     else:
         raise AssertionError(f"No quarantine after injected {mode} fault")
-    r.check('execute if data block 3 100 1 Items[{id:"minecraft:wheat",Count:7b}]')
+    r.check(f'execute if data block {source_x} 100 1 Items[{{id:"minecraft:wheat",Count:7b}}]')
     if mode == "before":
         r.check('execute unless data block 7 100 1 Items[{id:"minecraft:wheat"}]')
     else:
@@ -106,8 +106,8 @@ with Rcon() as r:
         "fill 0 100 0 10 103 4 minecraft:air",
     ]:
         r.cmd(cmd)
-    for mode in ("before", "after"):
-        r.cmd('setblock 3 100 1 minecraft:chest{Items:[{Slot:0b,id:"minecraft:wheat",Count:8b}]} replace')
+    for mode, source_x in (("before", 3), ("after", 4)):
+        r.cmd(f'setblock {source_x} 100 1 minecraft:chest{{Items:[{{Slot:0b,id:"minecraft:wheat",Count:8b}}]}} replace')
         r.cmd("setblock 7 100 1 minecraft:chest replace")
-        scenario(r, mode)
+        scenario(r, mode, source_x)
 print("Real Minecraft insertion-fault regressions passed")
