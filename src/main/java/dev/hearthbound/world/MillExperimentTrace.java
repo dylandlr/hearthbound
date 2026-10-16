@@ -109,6 +109,21 @@ public final class MillExperimentTrace {
         }
     }
 
+    public static boolean matchesDelivery(Villager citizen, BlockPos machine, long now) {
+        CompoundTag trace = citizen.getPersistentData().getCompound(KEY);
+        if (!trace.hasUUID("jobId") || trace.getLong("millstone") != machine.asLong())
+            return false;
+        String phase = trace.getString("phase");
+        return ("DELIVERED".equals(phase) || "PROCESSING_OBSERVED".equals(phase)
+            || "CYCLE_OUTPUT_OBSERVED".equals(phase))
+            && now >= trace.getLong("startedTick")
+            && now - trace.getLong("startedTick") <= 2400L;
+    }
+
+    public static UUID jobId(Villager citizen) {
+        return citizen.getPersistentData().getCompound(KEY).getUUID("jobId");
+    }
+
     public static String observe(ServerLevel level, Villager citizen) {
         CompoundTag trace = citizen.getPersistentData().getCompound(KEY);
         if (!trace.hasUUID("jobId")) return "MILL_TRACE NONE NO_RESEARCH_CREDIT";
