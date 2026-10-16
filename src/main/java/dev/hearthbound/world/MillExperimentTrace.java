@@ -62,12 +62,35 @@ public final class MillExperimentTrace {
         citizen.getPersistentData().put(KEY, trace);
     }
 
-    public static void deliveryComplete(Villager citizen, UUID jobId) {
+    public static void deliveryComplete(ServerLevel level, Villager citizen, UUID jobId) {
         CompoundTag trace = citizen.getPersistentData().getCompound(KEY);
-        if (trace.hasUUID("jobId") && trace.getUUID("jobId").equals(jobId)
-                && "INSERTION_PENDING".equals(trace.getString("phase"))) {
-            trace.putString("phase", "DELIVERED");
+        if (!trace.hasUUID("jobId") || !trace.getUUID("jobId").equals(jobId)
+                || !"INSERTION_PENDING".equals(trace.getString("phase"))) return;
+        BlockPos machine = BlockPos.of(trace.getLong("millstone"));
+        if (!(level.getBlockEntity(machine) instanceof MillstoneBlockEntity mill)) return;
+        ItemStack stack = mill.inputInv.getStackInSlot(0);
+        // This observation is taken immediately after the real inventory
+        // insertion succeeded. Later callback validation uses its exact input.
+        if (!stack.is(Items.WHEAT) || stack.getCount() != 1
+                || count(level, machine, FLOUR_ID) != trace.getInt("baselineFlour")) {
+            MillReservations.taint(level, machine, jobId, citizen.getUUID());
+            return;
         }
+        trace.putInt("authorizedInputCount", 1);
+        trace.putLong("authorizedTick", level.getGameTime());
+        trace.putString("phase", "DELIVERED");
+    }
+
+    /** Matches only a successfully committed one-wheat Hearthbound insertion. */
+    public static boolean matchesAuthorizedProcessing(Villager citizen, BlockPos machine,
+            long now, int wheatBefore, int flourBefore) {
+        CompoundTag trace = citizen.getPersistentData().getCompound(KEY);
+        return matchesDelivery(citizen, machine, now)
+            && trace.getInt("authorizedInputCount") == 1
+            && wheatBefore == 1
+            && flourBefore == trace.getInt("baselineFlour")
+            && trace.contains("authorizedTick")
+            && now >= trace.getLong("authorizedTick");
     }
 
     /**
