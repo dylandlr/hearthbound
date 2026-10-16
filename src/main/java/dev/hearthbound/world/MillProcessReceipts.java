@@ -80,6 +80,10 @@ public final class MillProcessReceipts extends SavedData {
         }
         var citizen=candidates.get(0);
         UUID job=MillExperimentTrace.jobId(citizen);
+        if (!MillReservations.matches(level, pos, job, citizen.getUUID())) {
+            LOG.info("HEARTHBOUND_PROCESS_REJECT missing-or-conflicting-mill-reservation job={}", job);
+            return;
+        }
         MillProcessReceipts ledger=get(level);
         if (ledger.receipts.containsKey(job)) {
             LOG.info("HEARTHBOUND_PROCESS_REPLAY job={}", job);
