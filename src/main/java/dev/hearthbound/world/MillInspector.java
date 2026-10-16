@@ -1,6 +1,7 @@
 package dev.hearthbound.world;
 
 import net.minecraft.core.BlockPos;
+import com.simibubi.create.AllBlocks;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -26,7 +27,7 @@ public final class MillInspector {
     public static String inspect(ServerLevel level, BlockPos pos) {
         if (!level.hasChunkAt(pos)) return "MILL UNLOADED pos=" + pos;
         ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(level.getBlockState(pos).getBlock());
-        if (!MILLSTONE.equals(blockId))
+        if (!MILLSTONE.equals(blockId) || !level.getBlockState(pos).is(AllBlocks.MILLSTONE.get()))
             return "MILL NOT_CREATE_MILLSTONE pos=" + pos + " found=" + blockId;
         BlockEntity entity = level.getBlockEntity(pos);
         if (entity == null) return "MILL NO_BLOCK_ENTITY pos=" + pos;
