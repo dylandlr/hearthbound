@@ -81,6 +81,30 @@ public final class SableController {
                             source.sendSuccess(() -> Component.literal("Sable assigned wheat haul."), true);
                             return 1;
                         }))))
+            .then(Commands.literal("fault-insert-before").executes(ctx -> {
+                Villager sable = nearestSable(ctx.getSource());
+                if (sable == null) return 0;
+                try {
+                    SableHauling.injectInsertionFault(sable, false);
+                    ctx.getSource().sendSuccess(() -> Component.literal("Injection armed: before insertion"), false);
+                    return 1;
+                } catch (IllegalStateException ex) {
+                    ctx.getSource().sendFailure(Component.literal(ex.getMessage()));
+                    return 0;
+                }
+            }))
+            .then(Commands.literal("fault-insert-after").executes(ctx -> {
+                Villager sable = nearestSable(ctx.getSource());
+                if (sable == null) return 0;
+                try {
+                    SableHauling.injectInsertionFault(sable, true);
+                    ctx.getSource().sendSuccess(() -> Component.literal("Injection armed: after insertion"), false);
+                    return 1;
+                } catch (IllegalStateException ex) {
+                    ctx.getSource().sendFailure(Component.literal(ex.getMessage()));
+                    return 0;
+                }
+            }))
             .then(Commands.literal("haul-status").executes(ctx -> {
                 Villager sable = nearestSable(ctx.getSource());
                 if (sable == null) return 0;
