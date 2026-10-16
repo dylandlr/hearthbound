@@ -14,6 +14,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.event.RegisterCommandsEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -30,6 +31,11 @@ public final class SableController {
     private static final PriorityPolicy POLICY = new PriorityPolicy();
 
     private SableController() {}
+
+    @SubscribeEvent
+    public static void onServerStopped(ServerStoppedEvent event) {
+        SableHauling.serverStopped(event.getServer());
+    }
 
     @SubscribeEvent
     public static void registerCommands(RegisterCommandsEvent event) {
