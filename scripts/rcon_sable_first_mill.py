@@ -197,6 +197,15 @@ with Rcon() as r:
             raise AssertionError("New job does not own reused mill: "+new_lease)
         # Real Forge capability route must deny insertion from an outside actor
         # without a Sable authorization scope. This must not contaminate inputs.
+        # Positive control: same direct-belt API must still insert wheat into
+        # an UNRESERVED Create millstone (no fake denial due to broken fixture).
+        r.run("setblock 11 101 0 create:millstone replace")
+        open_belt=r.run("sable mill-probe-open-belt 11 101 0")
+        if "OPEN_BELT ACCEPTED" not in open_belt:
+            raise AssertionError("Open Create millstone incorrectly blocked belt insertion: "+open_belt)
+        open_input=r.run("sable mill-inspect 11 101 0")
+        if not re.search(r"wheat=1(\D|$)",open_input):
+            raise AssertionError("Open belt insertion did not deposit wheat: "+open_input)
         belt_denied=r.run("sable mill-probe-belt-insert 7 101 1")
         if "BELT_INSERT DENIED" not in belt_denied:
             raise AssertionError("Reserved mill accepted unauthorized Create direct belt transfer: "+belt_denied)
