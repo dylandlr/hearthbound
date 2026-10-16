@@ -95,6 +95,15 @@ public final class MillProcessReceipts extends SavedData {
         LOG.info("HEARTHBOUND_PROCESS_RECEIPT job={} citizen={}", job, citizen.getUUID());
     }
 
+    /** Read-only proof that a direct Create processing receipt was recorded. */
+    public static boolean hasReceipt(ServerLevel level, UUID job, UUID citizen, BlockPos machine) {
+        Receipt receipt = get(level).receipts.get(job);
+        return receipt != null && receipt.citizen().equals(citizen)
+            && receipt.pos() == machine.asLong()
+            && receipt.wheatBefore() - receipt.wheatAfter() == 1
+            && receipt.flourAfter() > receipt.flourBefore();
+    }
+
     public static String inspect(ServerLevel level, UUID job) {
         Receipt receipt=get(level).receipts.get(job);
         if (receipt==null) return "MILL_PROCESS NONE job="+job+" NO_RESEARCH_CREDIT";
