@@ -116,6 +116,11 @@ with Rcon() as r:
         raise AssertionError("Candidate milling evidence not persisted: "+persisted)
     if f"job={job_match.group(1)}" not in persisted:
         raise AssertionError("World journal evidence not associated with Sable job: "+persisted)
+    receipt=r.run(f"sable mill-process {job_match.group(1)}")
+    if "MILL_PROCESS VERIFIED_CALLBACK" not in receipt:
+        raise AssertionError("No direct Create processing callback receipt: "+receipt)
+    if "wheatBefore=1 wheatAfter=0" not in receipt or "NO_RESEARCH_CREDIT" not in receipt:
+        raise AssertionError("Invalid process receipt or premature knowledge credit: "+receipt)
     if os.environ.get("HEARTHBOUND_RESTART_PROBE") == "1":
         with open("mill-evidence-job.txt", "w", encoding="utf-8") as out:
             out.write(job_match.group(1) + "\n")
