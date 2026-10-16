@@ -78,13 +78,19 @@ public final class MillProcessReceipts extends SavedData {
             citizen -> MillExperimentTrace.matchesAuthorizedProcessing(
                 citizen, pos, level.getGameTime(), wheatBefore, flourBefore));
         if (candidates.size()!=1) {
-            LOG.info("HEARTHBOUND_PROCESS_REJECT candidate-count={}", candidates.size());
+            // A real Create process occurred on a reserved machine without
+            // exactly one matching authorized delivery. This is compromised
+            // evidence, even if the physical recipe itself succeeded.
+            MillReservations.taintUnexpectedProcess(level, pos);
+            LOG.info("HEARTHBOUND_PROCESS_REJECT candidate-count={}; reserved job tainted",
+                candidates.size());
             return;
         }
         var citizen=candidates.get(0);
         UUID job=MillExperimentTrace.jobId(citizen);
         if (!MillReservations.matches(level, pos, job, citizen.getUUID())) {
-            LOG.info("HEARTHBOUND_PROCESS_REJECT missing-or-conflicting-mill-reservation job={}", job);
+            MillReservations.taintUnexpectedProcess(level, pos);
+            LOG.info("HEARTHBOUND_PROCESS_REJECT missing-or-conflicting-mill-reservation job={}; reserved machine invalidated", job);
             return;
         }
         MillProcessReceipts ledger=get(level);
