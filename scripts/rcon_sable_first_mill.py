@@ -197,6 +197,9 @@ with Rcon() as r:
             raise AssertionError("New job does not own reused mill: "+new_lease)
         # Real Forge capability route must deny insertion from an outside actor
         # without a Sable authorization scope. This must not contaminate inputs.
+        belt_denied=r.run("sable mill-probe-belt-insert 7 101 1")
+        if "BELT_INSERT DENIED" not in belt_denied:
+            raise AssertionError("Reserved mill accepted unauthorized Create direct belt transfer: "+belt_denied)
         denied=r.run("sable mill-probe-external-insert 7 101 1")
         if "EXTERNAL_INSERT DENIED" not in denied:
             raise AssertionError("Reserved mill accepted unsanctioned Forge insert: "+denied)
