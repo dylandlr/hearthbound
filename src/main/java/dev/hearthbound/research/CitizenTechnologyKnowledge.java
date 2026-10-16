@@ -17,7 +17,8 @@ public final class CitizenTechnologyKnowledge {
 
     public enum Source {
         DIRECT_EXPERIMENT,
-        TAUGHT
+        TAUGHT,
+        READ_BOOK
     }
 
     public record Entry(
@@ -48,6 +49,27 @@ public final class CitizenTechnologyKnowledge {
                 null,
                 learnedTick);
         return upsert(citizen, candidate);
+    }
+
+    /**
+     * Records a verified reading session. Reading supplies theoretical knowledge;
+     * the confidence ceiling prevents books from replacing physical experimentation.
+     * The caller must check book possession, readable page and completed study time.
+     */
+    public static Entry study(
+            Villager citizen,
+            String recipeId,
+            String bookId,
+            double readingProficiency,
+            long learnedTick) {
+        validateRecipe(recipeId);
+        if (bookId == null || bookId.isBlank())
+            throw new IllegalArgumentException("bookId must not be blank");
+        if (!Double.isFinite(readingProficiency) || readingProficiency < 0 || readingProficiency > 1)
+            throw new IllegalArgumentException("readingProficiency must be in [0,1]");
+        double confidence = 0.10 + 0.30 * readingProficiency;
+        return upsert(citizen, new Entry(recipeId, confidence, Source.READ_BOOK,
+                "book:" + bookId, null, learnedTick));
     }
 
     public static Entry teach(
