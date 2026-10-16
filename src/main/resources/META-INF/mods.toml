@@ -18,3 +18,11 @@ mandatory=true
 versionRange="[1.20.1,1.20.2)"
 ordering="NONE"
 side="BOTH"
+
+# First Mill feature branch: Create is a mandatory runtime dependency.
+[[dependencies.hearthbound]]
+modId="create"
+mandatory=true
+versionRange="[6.0.8,6.1.0)"
+ordering="AFTER"
+side="BOTH"
