@@ -124,6 +124,13 @@ with Rcon() as r:
         raise AssertionError("No direct Create processing callback receipt: "+receipt)
     if "wheatBefore=1 wheatAfter=0" not in receipt or "NO_RESEARCH_CREDIT" not in receipt:
         raise AssertionError("Invalid process receipt or premature knowledge credit: "+receipt)
+    # A completed job may NOT be released while flour remains in the machine.
+    occupied_release=r.run(f"execute at {villager} run sable mill-release 7 101 1 {job_match.group(1)}")
+    if "Collect all millstone output" not in occupied_release:
+        raise AssertionError("Occupied millstone was released without clearing output: "+occupied_release)
+    still_reserved=r.run("sable mill-reservation 7 101 1")
+    if f"job={job_match.group(1)}" not in still_reserved:
+        raise AssertionError("Failed release destroyed original reservation: "+still_reserved)
     # Adversarial test: another Hearthbound citizen must not claim the same
     # millstone even after Sable finished delivering her item.
     r.run('setblock 10 101 1 minecraft:chest{Items:[{Slot:0b,id:"minecraft:wheat",Count:8b}]} replace')
