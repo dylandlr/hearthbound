@@ -177,7 +177,7 @@ with Rcon() as r:
         # make a new research lease fail. Do not treat that flour as Sable's.
         r.run('data modify block 7 101 1 OutputInventory.Items set value [{Slot:0,id:"create:wheat_flour",Count:1b}]')
         preexisting=r.run("sable mill-inspect 7 101 1")
-        if not re.search(r"flour=[1-9]\\d*", preexisting):
+        if not re.search(r"flour=[1-9]\d*", preexisting):
             raise AssertionError("Could not seed pre-existing flour negative control: "+preexisting)
         contaminated=r.run("execute positioned 12 101 1 run sable haul 10 101 1 7 101 1")
         if "millstone reserved" not in contaminated.lower():
