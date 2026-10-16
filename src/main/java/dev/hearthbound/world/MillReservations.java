@@ -16,8 +16,10 @@ import net.minecraft.world.level.saveddata.SavedData;
  * Persistent Hearthbound-owned mill reservations. Never auto-expires:
  * interruption or restart requires operator examination.
  *
- * WARNING: This prevents competing Hearthbound jobs, not Create conveyors,
- * vanilla hoppers, players or other mods. Do not award learning credit yet.
+ * WARNING: This prevents competing Hearthbound jobs, not every possible external
+ * mutation. Learning credit is therefore granted only after the stricter audited
+ * completion path validates reservation, direct Create receipt, completed haul,
+ * empty machine, and non-tainted provenance.
  */
 public final class MillReservations extends SavedData {
     private static final String KEY = "hearthbound_mill_reservations_v1";
@@ -136,9 +138,9 @@ public final class MillReservations extends SavedData {
     }
 
     /**
-     * Operator-reviewed release. This is not a proof of exclusive item origin:
-     * it only closes a reservation after the demonstrated Create operation.
-     * No automatic learning or item mutation occurs.
+     * Operator-reviewed completion boundary. After all physical/provenance checks pass,
+     * this grants the one-time research reward and experiential recipe knowledge before
+     * closing the reservation.
      */
     public static void releaseCompleted(ServerLevel level, BlockPos pos, UUID job,
                                         net.minecraft.world.entity.npc.Villager citizen) {
@@ -165,6 +167,7 @@ public final class MillReservations extends SavedData {
                 throw new IllegalStateException("Collect all millstone output before release");
         if (journal.released.containsKey(job))
             throw new IllegalStateException("Job already released");
+        dev.hearthbound.research.MillResearchRewards.awardVerified(level, citizen, job, pos);
         journal.leases.remove(pos.asLong());
         journal.released.put(job, pos.asLong());
         journal.setDirty();
