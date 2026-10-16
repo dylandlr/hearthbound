@@ -121,4 +121,5 @@ with Rcon() as r:
             out.write(job_match.group(1) + "\\n")
         r.run("save-all flush")
         print("Saved journal for restart verification", flush=True)
+        r.run("stop")
     print("PASS: Sable physically hauled wheat into powered Create millstone, flour observed, no false discovery credit",flush=True)
