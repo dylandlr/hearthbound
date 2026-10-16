@@ -255,6 +255,7 @@ public final class SableController {
         if (!(event.getEntity() instanceof Villager villager)) return;
         if (!(villager.level() instanceof ServerLevel level)) return;
         if (!villager.getPersistentData().getBoolean(MARKER)) return;
+        MillExperimentTrace.monitorAuthorizedInput(level, villager);
         if (villager.tickCount % 20 != 0) return;
         // Observation is read-only with respect to the millstone and never
         // awards research points or knowledge unlocks.
