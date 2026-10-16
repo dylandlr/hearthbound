@@ -212,8 +212,8 @@ with Rcon() as r:
         if not tainted:
             raise AssertionError("Post-admission flour mutation did not taint experiment: "+lease2+" "+status2)
         evidence2=r.run(f"sable mill-process {second_job.group(1)}")
-        if "MILL_PROCESS NONE" not in evidence2:
-            raise AssertionError("Tainted second experiment received processing credit: "+evidence2)
+        if "MILL_PROCESS INVALIDATED" not in evidence2 or "NO_RESEARCH_CREDIT" not in evidence2:
+            raise AssertionError("Tainted second experiment retained usable processing evidence: "+evidence2)
         # Cleaning the inventory must not remove the persistent taint marker.
         r.run("data modify block 7 101 1 OutputInventory.Items set value []")
         persisted_taint=r.run("sable mill-reservation 7 101 1")
