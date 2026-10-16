@@ -104,6 +104,9 @@ with Rcon() as r:
     timing=re.search(r"processingTick=(\d+) outputTick=(\d+)",trace)
     if not timing or int(timing.group(1))<=0 or int(timing.group(2))<=int(timing.group(1)):
         raise AssertionError("No ordered powered-cycle observations: "+trace)
+    authorized=re.search(r"authorizedTick=(\d+) authorizedInput=(\d+)",trace)
+    if not authorized or int(authorized.group(1))<=0 or int(authorized.group(2))!=1:
+        raise AssertionError("No exact authorized wheat insertion evidence: "+trace)
     if "verdict=CANDIDATE_WHEAT_TO_FLOUR" not in trace:
         raise AssertionError("Physical delivery trace did not link to observed output: "+trace)
     if "NO_RESEARCH_CREDIT" not in trace or "phase=CYCLE_OUTPUT_OBSERVED" not in trace:
