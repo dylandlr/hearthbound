@@ -201,6 +201,21 @@ public final class MillReservations extends SavedData {
         return empty;
     }
 
+    /**
+     * Direct Create processing anomaly: a reserved machine consumed material
+     * with an input/output state inconsistent with one authorized wheat.
+     * Retain the lease and mark its job irreversibly tainted.
+     */
+    public static void taintUnexpectedProcess(ServerLevel level, BlockPos pos) {
+        MillReservations data = get(level);
+        Reservation lease = data.leases.get(pos.asLong());
+        if (lease != null && data.tainted.add(lease.job())) data.setDirty();
+    }
+
+    public static boolean isTainted(ServerLevel level, UUID job) {
+        return get(level).tainted.contains(job);
+    }
+
     public static boolean matches(ServerLevel level, BlockPos pos, UUID job, UUID citizen) {
         Reservation lease = get(level).leases.get(pos.asLong());
         return lease != null && lease.job().equals(job) && lease.citizen().equals(citizen)
