@@ -1,0 +1,8 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.hearthbound.world.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": ["MillstoneProcessingMixin"],
+  "injectors": {"defaultRequire": 1}
+}
