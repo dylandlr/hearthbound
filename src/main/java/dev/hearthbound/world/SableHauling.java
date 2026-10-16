@@ -34,6 +34,7 @@ public final class SableHauling {
     private static final int COMPLETE = 2;
     private static final int PAUSED = 3;
     private static final int QUARANTINED = 4;
+    private static final int INSERTING = 5;
     private static final String JOB_ID = "jobId";
 
     // Runtime-only provenance: intentionally NOT restored after a server restart.
@@ -88,6 +89,7 @@ public final class SableHauling {
             case TO_DEST -> "Carrying wheat to destination";
             case COMPLETE -> "Haul complete";
             case QUARANTINED -> "QUARANTINED (operator review): " + tag.getString(ERROR);
+            case INSERTING -> "Inventory insertion in progress";
             default -> "Paused: " + tag.getString(ERROR);
         };
     }
@@ -97,6 +99,10 @@ public final class SableHauling {
         if (!tag.contains(PHASE)) return;
         int phase = tag.getInt(PHASE);
         if (phase == QUARANTINED || phase == COMPLETE) return;
+        if (phase == INSERTING) {
+            quarantine(tag, "Insertion interrupted or state restored; manual reconciliation required");
+            return;
+        }
         // Fail closed if cargo is restored from disk or lacks a current job identity.
         // No inference from destination item counts is sufficient for automatic retry.
         if (tag.contains(CARGO)
@@ -153,14 +159,24 @@ public final class SableHauling {
                 pause(tag, "Cargo missing");
                 return;
             }
-            ItemStack remaining = insert(entity, cargo);
+            // A persistent in-progress marker prevents the next tick from silently
+            // trying insertion again if this call fails partway through.
+            tag.putInt(PHASE, INSERTING);
+            ItemStack remaining;
+            try {
+                remaining = insert(entity, cargo);
+            } catch (RuntimeException ex) {
+                quarantine(tag, "Inventory insertion raised an exception; review contents");
+                entity.setChanged();
+                return;
+            }
             if (remaining.isEmpty()) {
                 tag.remove(CARGO);
                 tag.putInt(PHASE, COMPLETE);
                 HaulClaims.release(level, claimedSource, citizen.getUUID());
             } else {
                 tag.put(CARGO, remaining.save(new CompoundTag()));
-                pause(tag, "Destination full or incompatible");
+                quarantine(tag, "Incomplete insertion; reconcile remaining cargo and destination");
             }
             entity.setChanged();
         }
