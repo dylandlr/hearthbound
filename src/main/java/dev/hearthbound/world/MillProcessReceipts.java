@@ -89,7 +89,10 @@ public final class MillProcessReceipts extends SavedData {
         }
         MillProcessReceipts ledger=get(level);
         if (ledger.receipts.containsKey(job)) {
-            LOG.info("HEARTHBOUND_PROCESS_REPLAY job={}", job);
+            // A second real processing operation on a one-wheat experiment
+            // invalidates the job instead of being treated as harmless replay.
+            MillReservations.taint(level, pos, job, citizen.getUUID());
+            LOG.info("HEARTHBOUND_PROCESS_REJECT extra-process tainted job={}", job);
             return;
         }
         ledger.receipts.put(job,new Receipt(job,citizen.getUUID(),pos.asLong(),level.getGameTime(),
