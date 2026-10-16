@@ -126,6 +126,27 @@ public final class SableController {
                             return 0;
                         }
                     })))
+            .then(Commands.literal("mill-release")
+                .then(Commands.argument("position", BlockPosArgument.blockPos())
+                    .then(Commands.argument("jobId", StringArgumentType.word())
+                        .executes(ctx -> {
+                            Villager sable = nearestSable(ctx.getSource());
+                            if (sable == null) {
+                                ctx.getSource().sendFailure(Component.literal("No citizen within 16 blocks"));
+                                return 0;
+                            }
+                            try {
+                                BlockPos pos = BlockPosArgument.getLoadedBlockPos(ctx, "position");
+                                UUID job = UUID.fromString(StringArgumentType.getString(ctx, "jobId"));
+                                MillReservations.releaseCompleted(ctx.getSource().getLevel(), pos, job, sable);
+                                ctx.getSource().sendSuccess(() -> Component.literal(
+                                    "Mill reservation released with audit tombstone; no research credit"), true);
+                                return 1;
+                            } catch (IllegalArgumentException | IllegalStateException ex) {
+                                ctx.getSource().sendFailure(Component.literal(ex.getMessage()));
+                                return 0;
+                            }
+                        }))))
             .then(Commands.literal("mill-reservation")
                 .then(Commands.argument("position", BlockPosArgument.blockPos())
                     .executes(ctx -> {
