@@ -212,6 +212,10 @@ public final class MillReservations extends SavedData {
         if (lease != null && data.tainted.add(lease.job())) data.setDirty();
     }
 
+    public static boolean held(ServerLevel level, BlockPos pos) {
+        return get(level).leases.containsKey(pos.asLong());
+    }
+
     public static boolean isTainted(ServerLevel level, UUID job) {
         return get(level).tainted.contains(job);
     }
