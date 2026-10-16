@@ -215,7 +215,7 @@ with Rcon() as r:
             probe_state=r.run("sable mill-inspect 7 101 1")
             if not re.search(r"wheat=0(\D|$)",probe_state):
                 raise AssertionError("Dropped outsider wheat entered reserved mill: "+probe_state)
-        remaining_entity=r.run("execute if entity @e[type=minecraft:item,tag=hearthbound_external_probe,distance=..5] run say external-wheat-preserved")
+        remaining_entity=r.run("execute positioned 7 101 1 if entity @e[type=minecraft:item,tag=hearthbound_external_probe,distance=..5] run say external-wheat-preserved")
         if "external-wheat-preserved" not in remaining_entity:
             raise AssertionError("Physical outsider wheat was consumed or disappeared: "+remaining_entity)
         r.run("kill @e[type=minecraft:item,tag=hearthbound_external_probe]")
