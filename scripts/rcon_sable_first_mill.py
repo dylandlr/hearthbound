@@ -92,7 +92,14 @@ with Rcon() as r:
                 raise AssertionError("Unverified science credit")
             break
     if not produced: raise AssertionError("Sable delivered wheat but Create produced no flour")
-    trace=r.run(f"execute at {villager} run sable mill-trace")
+    # Machine output can become visible before the citizen’s 20-tick sample.
+    # Wait for the ordered trace rather than failing on that benign race.
+    trace=""
+    for _ in range(15):
+        trace=r.run(f"execute at {villager} run sable mill-trace")
+        if "phase=CYCLE_OUTPUT_OBSERVED" in trace:
+            break
+        time.sleep(1)
     # The server sampled the *running Create machine* before its output.
     timing=re.search(r"processingTick=(\d+) outputTick=(\d+)",trace)
     if not timing or int(timing.group(1))<=0 or int(timing.group(2))<=int(timing.group(1)):
