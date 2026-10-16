@@ -134,6 +134,18 @@ with Rcon() as r:
     reservation_after=r.run("sable mill-reservation 7 101 1")
     if f"job={job_match.group(1)}" not in reservation_after:
         raise AssertionError("Rejected assignment stole first reservation: "+reservation_after)
+    # A different mill reservation may be cancelled before wheat is picked
+    # up. The original machine's completed experimental hold must survive.
+    r.run("setblock 11 101 2 create:millstone replace")
+    r.contains("execute positioned 12 101 1 run sable haul 10 101 1 11 101 2",
+               "Sable assigned wheat haul")
+    r.contains("execute positioned 12 101 1 run sable haul-cancel", "Unpicked haul cancelled")
+    released=r.run("sable mill-reservation 11 101 2")
+    if "MILL_RESERVATION NONE" not in released:
+        raise AssertionError("Cancelled pre-pickup mill job still holds reservation: "+released)
+    still_owned=r.run("sable mill-reservation 7 101 1")
+    if f"job={job_match.group(1)}" not in still_owned:
+        raise AssertionError("Cancelling other job released the original mill: "+still_owned)
     if os.environ.get("HEARTHBOUND_RESTART_PROBE") == "1":
         with open("mill-evidence-job.txt", "w", encoding="utf-8") as out:
             out.write(job_match.group(1) + "\n")
