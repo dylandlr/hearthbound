@@ -153,6 +153,33 @@ with Rcon() as r:
     still_owned=r.run("sable mill-reservation 7 101 1")
     if f"job={job_match.group(1)}" not in still_owned:
         raise AssertionError("Cancelling other job released the original mill: "+still_owned)
+    if os.environ.get("HEARTHBOUND_RESTART_PROBE") != "1":
+        # This is an admin-driven test-fixture reset, NOT physical collection.
+        # In real play an item transport mechanism must remove the flour.
+        r.run("data modify block 7 101 1 OutputInventory.Items set value []")
+        cleared=r.run("sable mill-inspect 7 101 1")
+        if not re.search(r"flour=0(\\D|$)", cleared):
+            raise AssertionError("Output not cleared before audited release: "+cleared)
+        # A job UUID mismatch must never release another citizen's lease.
+        mismatch=r.run("execute positioned 7 101 1 run sable mill-release 7 101 1 00000000-0000-4000-8000-000000000001")
+        if "does not match" not in mismatch:
+            raise AssertionError("Wrong job ID was not rejected: "+mismatch)
+        released_ok=r.run(f"execute positioned 7 101 1 run sable mill-release 7 101 1 {job_match.group(1)}")
+        if "Mill reservation released with audit tombstone" not in released_ok:
+            raise AssertionError("Validated completed mill was not released: "+released_ok)
+        after_release=r.run("sable mill-reservation 7 101 1")
+        if "MILL_RESERVATION NONE" not in after_release:
+            raise AssertionError("Released mill still occupied: "+after_release)
+        replay=r.run(f"execute positioned 7 101 1 run sable mill-release 7 101 1 {job_match.group(1)}")
+        if "does not match" not in replay:
+            raise AssertionError("Duplicate release was not rejected: "+replay)
+        # Second citizen can now acquire the freed mill with a fresh job ID.
+        reassigned=r.run("execute positioned 12 101 1 run sable haul 10 101 1 7 101 1")
+        if "Sable assigned wheat haul" not in reassigned:
+            raise AssertionError("New citizen cannot reuse audited released mill: "+reassigned)
+        new_lease=r.run("sable mill-reservation 7 101 1")
+        if "MILL_RESERVATION HELD" not in new_lease or f"job={job_match.group(1)}" in new_lease:
+            raise AssertionError("New job does not own reused mill: "+new_lease)
     if os.environ.get("HEARTHBOUND_RESTART_PROBE") == "1":
         with open("mill-evidence-job.txt", "w", encoding="utf-8") as out:
             out.write(job_match.group(1) + "\n")
