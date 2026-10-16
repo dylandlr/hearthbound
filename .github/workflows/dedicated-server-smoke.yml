@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - test/dedicated-server-smoke
+      - feat/haul-restart-quarantine-v2-3
   pull_request:
 jobs:
   boot-server:
