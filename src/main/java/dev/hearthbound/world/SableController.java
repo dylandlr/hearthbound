@@ -1,6 +1,8 @@
 package dev.hearthbound.world;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.StringArgumentType;
+import java.util.UUID;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.core.BlockPos;
 import dev.hearthbound.ai.ActionGate;
@@ -105,6 +107,25 @@ public final class SableController {
                     return 0;
                 }
             }))
+            .then(Commands.literal("haul-reconcile-close")
+                .then(Commands.argument("jobId", StringArgumentType.word())
+                    .executes(ctx -> {
+                        Villager sable = nearestSable(ctx.getSource());
+                        if (sable == null) {
+                            ctx.getSource().sendFailure(Component.literal("No Sable within 16 blocks."));
+                            return 0;
+                        }
+                        try {
+                            UUID expected = UUID.fromString(StringArgumentType.getString(ctx, "jobId"));
+                            SableHauling.closeReconciled(ctx.getSource().getLevel(), sable, expected);
+                            ctx.getSource().sendSuccess(() -> Component.literal(
+                                "Reconciled cargo-free job closed; claim released. No delivery credit awarded."), true);
+                            return 1;
+                        } catch (IllegalArgumentException | IllegalStateException ex) {
+                            ctx.getSource().sendFailure(Component.literal(ex.getMessage()));
+                            return 0;
+                        }
+                    })))
             .then(Commands.literal("haul-audit").executes(ctx -> {
                 Villager sable = nearestSable(ctx.getSource());
                 if (sable == null) {
