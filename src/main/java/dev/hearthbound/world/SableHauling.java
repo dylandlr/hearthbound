@@ -92,6 +92,15 @@ public final class SableHauling {
         markLive(level.getServer(), job);
     }
 
+    /** Only a fully completed delivery can be used for audited mill release. */
+    public static boolean completedJob(Villager citizen, UUID expected, BlockPos destination) {
+        CompoundTag tag = citizen.getPersistentData().getCompound(KEY);
+        return tag.getInt(PHASE) == COMPLETE && tag.hasUUID(JOB_ID)
+            && tag.getUUID(JOB_ID).equals(expected)
+            && tag.contains(DESTINATION) && tag.getLong(DESTINATION) == destination.asLong()
+            && !tag.contains(CARGO);
+    }
+
     public static boolean active(Villager citizen) {
         CompoundTag tag = citizen.getPersistentData().getCompound(KEY);
         return tag.contains(PHASE) && tag.getInt(PHASE) != COMPLETE;
