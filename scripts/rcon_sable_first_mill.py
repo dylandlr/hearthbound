@@ -206,6 +206,19 @@ with Rcon() as r:
         open_input=r.run("sable mill-inspect 11 101 0")
         if not re.search(r"wheat=1(\D|$)",open_input):
             raise AssertionError("Open belt insertion did not deposit wheat: "+open_input)
+        # Physical item-entity ingress: this is the same real-world route
+        # used by the standalone powered mill experiment, not a direct API
+        # invocation. The reserved, powered mill must not swallow outsider wheat.
+        r.run('summon minecraft:item 7.5 102.15 1.5 {Item:{id:"minecraft:wheat",Count:1b},PickupDelay:32767s,Tags:["hearthbound_external_probe"]}')
+        for _ in range(6):
+            time.sleep(.5)
+            probe_state=r.run("sable mill-inspect 7 101 1")
+            if not re.search(r"wheat=0(\D|$)",probe_state):
+                raise AssertionError("Dropped outsider wheat entered reserved mill: "+probe_state)
+        remaining_entity=r.run("execute if entity @e[type=minecraft:item,tag=hearthbound_external_probe,distance=..5] run say external-wheat-preserved")
+        if "external-wheat-preserved" not in remaining_entity:
+            raise AssertionError("Physical outsider wheat was consumed or disappeared: "+remaining_entity)
+        r.run("kill @e[type=minecraft:item,tag=hearthbound_external_probe]")
         belt_denied=r.run("sable mill-probe-belt-insert 7 101 1")
         if "BELT_INSERT DENIED" not in belt_denied:
             raise AssertionError("Reserved mill accepted unauthorized Create direct belt transfer: "+belt_denied)
