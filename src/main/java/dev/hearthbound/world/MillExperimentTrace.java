@@ -1,6 +1,7 @@
 package dev.hearthbound.world;
 
 import java.util.UUID;
+import com.simibubi.create.content.kinetics.millstone.MillstoneBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
@@ -69,6 +70,39 @@ public final class MillExperimentTrace {
         }
     }
 
+    /**
+     * Server-tick Create-state observation for the existing delivered job.
+     * It is an observed cycle, not a direct invocation from Create.process().
+     */
+    public static void sampleCycle(ServerLevel level, Villager citizen) {
+        CompoundTag trace = citizen.getPersistentData().getCompound(KEY);
+        if (!trace.hasUUID("jobId")) return;
+        String phase = trace.getString("phase");
+        if (!("DELIVERED".equals(phase) || "PROCESSING_OBSERVED".equals(phase))) return;
+        BlockPos pos = BlockPos.of(trace.getLong("millstone"));
+        if (!level.hasChunkAt(pos)) return;
+        BlockEntity block = level.getBlockEntity(pos);
+        if (!(block instanceof MillstoneBlockEntity mill)) return;
+        // Create's own machine state, not an approximation of the recipe clock.
+        ItemStack input = mill.inputInv.getStackInSlot(0);
+        int flourNow = 0;
+        for (int slot = 0; slot < mill.outputInv.getSlots(); slot++) {
+            ItemStack stack = mill.outputInv.getStackInSlot(slot);
+            if (FLOUR_ID.equals(BuiltInRegistries.ITEM.getKey(stack.getItem())))
+                flourNow += stack.getCount();
+        }
+        if ("DELIVERED".equals(phase)) {
+            if (input.is(Items.WHEAT) && mill.timer > 0 && mill.getSpeed() != 0) {
+                trace.putString("phase", "PROCESSING_OBSERVED");
+                trace.putLong("processingObservedTick", level.getGameTime());
+            }
+        } else if (input.isEmpty() && flourNow > trace.getInt("baselineFlour")) {
+            trace.putString("phase", "CYCLE_OUTPUT_OBSERVED");
+            trace.putLong("outputObservedTick", level.getGameTime());
+            trace.putInt("observedFlour", flourNow);
+        }
+    }
+
     public static String observe(ServerLevel level, Villager citizen) {
         CompoundTag trace = citizen.getPersistentData().getCompound(KEY);
         if (!trace.hasUUID("jobId")) return "MILL_TRACE NONE NO_RESEARCH_CREDIT";
@@ -76,14 +110,15 @@ public final class MillExperimentTrace {
         int now = count(level, machine, FLOUR_ID);
         int baseline = trace.getInt("baselineFlour");
         String phase = trace.getString("phase");
-        String verdict = !"DELIVERED".equals(phase) ? "INCOMPLETE"
+        String verdict = "CYCLE_OUTPUT_OBSERVED".equals(phase)
+            ? "CANDIDATE_WHEAT_TO_FLOUR"
             : now < 0 ? "MACHINE_UNAVAILABLE"
-            : now > baseline ? "CANDIDATE_WHEAT_TO_FLOUR"
-            : "OUTPUT_NOT_OBSERVED";
+            : "OUTPUT_NOT_VERIFIED";
         return "MILL_TRACE job=" + trace.getUUID("jobId")
             + " machine=" + machine + " input=" + trace.getString("input")
             + " phase=" + phase + " baselineFlour=" + baseline
-            + " currentFlour=" + now + " verdict=" + verdict
+            + " currentFlour=" + now + " processingTick=" + trace.getLong("processingObservedTick")
+            + " outputTick=" + trace.getLong("outputObservedTick") + " verdict=" + verdict
             + " NO_RESEARCH_CREDIT";
     }
 }
