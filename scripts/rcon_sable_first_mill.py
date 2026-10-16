@@ -124,6 +124,16 @@ with Rcon() as r:
         raise AssertionError("No direct Create processing callback receipt: "+receipt)
     if "wheatBefore=1 wheatAfter=0" not in receipt or "NO_RESEARCH_CREDIT" not in receipt:
         raise AssertionError("Invalid process receipt or premature knowledge credit: "+receipt)
+    # Adversarial test: another Hearthbound citizen must not claim the same
+    # millstone even after Sable finished delivering her item.
+    r.run('setblock 10 101 1 minecraft:chest{Items:[{Slot:0b,id:"minecraft:wheat",Count:8b}]} replace')
+    r.contains("execute positioned 12 101 1 run sable spawn", "Sable spawned")
+    collision=r.run("execute positioned 12 101 1 run sable haul 10 101 1 7 101 1")
+    if "millstone reserved" not in collision.lower():
+        raise AssertionError("Second citizen assigned conflicting mill haul: "+collision)
+    reservation_after=r.run("sable mill-reservation 7 101 1")
+    if f"job={job_match.group(1)}" not in reservation_after:
+        raise AssertionError("Rejected assignment stole first reservation: "+reservation_after)
     if os.environ.get("HEARTHBOUND_RESTART_PROBE") == "1":
         with open("mill-evidence-job.txt", "w", encoding="utf-8") as out:
             out.write(job_match.group(1) + "\n")
