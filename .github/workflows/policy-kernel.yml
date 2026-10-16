@@ -24,4 +24,6 @@ jobs:
           mkdir -p build/policy-test
           javac -d build/policy-test src/main/java/dev/hearthbound/ai/*.java src/test/java/dev/hearthbound/ai/*.java
       - name: Run regression checks
-        run: java -cp build/policy-test dev.hearthbound.ai.PolicyKernelTest
+        run: |
+          java -cp build/policy-test dev.hearthbound.ai.PolicyKernelTest
+          java -cp build/policy-test dev.hearthbound.ai.StochasticPriorityPolicyTest
