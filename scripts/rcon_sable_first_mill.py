@@ -261,6 +261,10 @@ with Rcon() as r:
         blocked=r.run(f"sable mill-process {third_job}")
         if "MILL_PROCESS INVALIDATED" not in blocked or "NO_RESEARCH_CREDIT" not in blocked:
             raise AssertionError("Extra-input processing was accepted: "+blocked)
+        # The HEAD veto should preserve both wheat items for inspection.
+        inventory=r.run("data get block 11 101 3 InputInventory")
+        if "Count: 2" not in inventory and "Count:2" not in inventory:
+            raise AssertionError("Unauthorized Create processing consumed tampered input: "+inventory)
         print("PASS: extra wheat inserted after authorized delivery invalidated processing evidence",flush=True)
     if os.environ.get("HEARTHBOUND_RESTART_PROBE") == "1":
         with open("mill-evidence-job.txt", "w", encoding="utf-8") as out:
