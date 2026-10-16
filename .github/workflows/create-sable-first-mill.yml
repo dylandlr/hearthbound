@@ -46,7 +46,12 @@ jobs:
             tail -n 120 sable-first-mill.log
             exit 1
           fi
+          set +e
           python3 scripts/rcon_sable_first_mill.py
+          result=$?
+          echo "--- Create callback diagnostics ---"
+          grep 'HEARTHBOUND_PROCESS_' sable-first-mill.log || true
+          exit "$result"
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v4
