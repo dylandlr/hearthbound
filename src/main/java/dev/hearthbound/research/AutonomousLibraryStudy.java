@@ -64,6 +64,12 @@ public final class AutonomousLibraryStudy {
         }
     }
 
+    public static boolean active(Villager citizen) {
+        String state = citizen.getPersistentData().getCompound(KEY).getString("state");
+        return "TRAVELING".equals(state) || ("STUDYING".equals(state)
+                && LibraryStudyRuntime.state(citizen) == LibraryStudyRuntime.State.STUDYING);
+    }
+
     public static String inspect(Villager citizen) {
         CompoundTag tag = citizen.getPersistentData().getCompound(KEY);
         String state = tag.getString("state");
