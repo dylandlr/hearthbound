@@ -77,6 +77,21 @@ public final class MillReservations extends SavedData {
         return true;
     }
 
+    /**
+     * Release only before physical pickup. Completed mill experiments retain
+     * their reservation until a separate audited reconciliation path exists.
+     */
+    public static boolean releaseUnpicked(ServerLevel level, BlockPos pos, UUID job, UUID citizen) {
+        if (!isMill(level, pos)) return true;
+        MillReservations data = get(level);
+        Reservation existing = data.leases.get(pos.asLong());
+        if (existing == null || !existing.job().equals(job) ||
+                !existing.citizen().equals(citizen)) return false;
+        data.leases.remove(pos.asLong());
+        data.setDirty();
+        return true;
+    }
+
     public static boolean matches(ServerLevel level, BlockPos pos, UUID job, UUID citizen) {
         Reservation lease = get(level).leases.get(pos.asLong());
         return lease != null && lease.job().equals(job) && lease.citizen().equals(citizen);
