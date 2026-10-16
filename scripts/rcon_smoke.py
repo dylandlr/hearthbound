@@ -72,6 +72,17 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
             raise AssertionError(f"Setup failed: {command}: {output}")
         next_id += 1
 
+    # Audit is read-only and must expose the actual job identity, endpoints,
+    # cargo count and claim ownership from the running world.
+    sock.sendall(packet(90, 2,
+        'execute at @e[type=minecraft:villager,name=Sable,limit=1] run sable haul-audit'))
+    audit_id, _, audit_output = response(sock)
+    print("sable haul-audit:", audit_output)
+    if audit_id != 90 or any(field not in audit_output for field in (
+        "AUDIT job=", "source=", "destination=", "claim=owned",
+        "[observations only; no reconciliation performed]")):
+        raise AssertionError("Haul audit missing or invalid: " + audit_output)
+
     # This is a true Minecraft server-side behavior check: inventories must move.
     # It may expose pathfinding or vanilla villager AI interference; failed CI is useful evidence.
     transferred = False
