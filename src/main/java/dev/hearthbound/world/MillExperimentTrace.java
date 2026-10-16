@@ -161,7 +161,9 @@ public final class MillExperimentTrace {
         return "MILL_TRACE job=" + trace.getUUID("jobId")
             + " machine=" + machine + " input=" + trace.getString("input")
             + " phase=" + phase + " baselineFlour=" + baseline
-            + " currentFlour=" + now + " processingTick=" + trace.getLong("processingObservedTick")
+            + " currentFlour=" + now + " authorizedTick=" + trace.getLong("authorizedTick")
+            + " authorizedInput=" + trace.getInt("authorizedInputCount")
+            + " processingTick=" + trace.getLong("processingObservedTick")
             + " outputTick=" + trace.getLong("outputObservedTick") + " verdict=" + verdict
             + " NO_RESEARCH_CREDIT";
     }
