@@ -24,6 +24,8 @@ public final class AutonomousLibraryStudy {
         if (citizen.distanceToSqr(library.getX() + .5, library.getY() + .5, library.getZ() + .5)
                 > MAX_DISTANCE_SQUARED) throw new IllegalArgumentException("Library is too distant");
         if (SableHauling.active(citizen)) throw new IllegalStateException("Citizen has a hauling assignment");
+        if ("TRAVELING".equals(citizen.getPersistentData().getCompound(KEY).getString("state")))
+            throw new IllegalStateException("Citizen already traveling to a library");
         if (LibraryStudyRuntime.state(citizen) == LibraryStudyRuntime.State.STUDYING)
             throw new IllegalStateException("Citizen is already studying");
         CompoundTag tag = new CompoundTag();
