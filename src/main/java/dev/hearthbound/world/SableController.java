@@ -126,6 +126,14 @@ public final class SableController {
                             return 0;
                         }
                     })))
+            .then(Commands.literal("mill-inspect")
+                .then(Commands.argument("position", BlockPosArgument.blockPos())
+                    .executes(ctx -> {
+                        BlockPos pos = BlockPosArgument.getLoadedBlockPos(ctx, "position");
+                        String observation = MillInspector.inspect(ctx.getSource().getLevel(), pos);
+                        ctx.getSource().sendSuccess(() -> Component.literal(observation), false);
+                        return 1;
+                    })))
             .then(Commands.literal("haul-audit").executes(ctx -> {
                 Villager sable = nearestSable(ctx.getSource());
                 if (sable == null) {
