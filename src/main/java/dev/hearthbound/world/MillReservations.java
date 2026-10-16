@@ -23,6 +23,8 @@ public final class MillReservations extends SavedData {
     private static final String KEY = "hearthbound_mill_reservations_v1";
     private static final ResourceLocation MILL = new ResourceLocation("create", "millstone");
     private final Map<Long, Reservation> leases = new HashMap<>();
+    // Released-job tombstones remain saved to support replay rejection and audit.
+    private final Map<UUID, Long> released = new HashMap<>();
 
     public record Reservation(UUID job, UUID citizen, long position) {}
 
@@ -42,6 +44,13 @@ public final class MillReservations extends SavedData {
             if (data.leases.putIfAbsent(lease.position(), lease) != null)
                 throw new IllegalStateException("Duplicate mill reservation position");
         }
+        ListTag history = root.getList("released", Tag.TAG_COMPOUND);
+        for (int i = 0; i < history.size(); i++) {
+            CompoundTag entry = history.getCompound(i);
+            if (!entry.hasUUID("job")) throw new IllegalStateException("Corrupt release history");
+            if (data.released.putIfAbsent(entry.getUUID("job"), entry.getLong("position")) != null)
+                throw new IllegalStateException("Duplicate release tombstone");
+        }
         return data;
     }
 
@@ -57,6 +66,14 @@ public final class MillReservations extends SavedData {
                 list.add(tag);
             });
         root.put("reservations", list);
+        ListTag history = new ListTag();
+        released.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
+            CompoundTag tag = new CompoundTag();
+            tag.putUUID("job", entry.getKey());
+            tag.putLong("position", entry.getValue());
+            history.add(tag);
+        });
+        root.put("released", history);
         return root;
     }
 
@@ -69,6 +86,7 @@ public final class MillReservations extends SavedData {
     public static boolean acquireIfMill(ServerLevel level, BlockPos pos, UUID job, UUID citizen) {
         if (!isMill(level, pos)) return true;
         MillReservations data = get(level);
+        if (data.released.containsKey(job)) return false;
         Reservation prior = data.leases.get(pos.asLong());
         if (prior != null)
             return prior.job().equals(job) && prior.citizen().equals(citizen);
@@ -90,6 +108,39 @@ public final class MillReservations extends SavedData {
         data.leases.remove(pos.asLong());
         data.setDirty();
         return true;
+    }
+
+    /**
+     * Operator-reviewed release. This is not a proof of exclusive item origin:
+     * it only closes a reservation after the demonstrated Create operation.
+     * No automatic learning or item mutation occurs.
+     */
+    public static void releaseCompleted(ServerLevel level, BlockPos pos, UUID job,
+                                        net.minecraft.world.entity.npc.Villager citizen) {
+        MillReservations journal = get(level);
+        Reservation held = journal.leases.get(pos.asLong());
+        if (held == null || !held.job().equals(job) || !held.citizen().equals(citizen.getUUID()))
+            throw new IllegalStateException("Mill reservation does not match job and citizen");
+        if (!isMill(level, pos))
+            throw new IllegalStateException("Loaded millstone required for release");
+        if (!SableHauling.completedJob(citizen, job, pos))
+            throw new IllegalStateException("Job is not a cargo-free completed delivery");
+        if (!MillProcessReceipts.hasReceipt(level, job, citizen.getUUID(), pos))
+            throw new IllegalStateException("Direct Create processing receipt missing");
+        if (!(level.getBlockEntity(pos) instanceof
+                com.simibubi.create.content.kinetics.millstone.MillstoneBlockEntity machine))
+            throw new IllegalStateException("Create millstone inventory unavailable");
+        for (int i = 0; i < machine.inputInv.getSlots(); i++)
+            if (!machine.inputInv.getStackInSlot(i).isEmpty())
+                throw new IllegalStateException("Millstone input must be empty");
+        for (int i = 0; i < machine.outputInv.getSlots(); i++)
+            if (!machine.outputInv.getStackInSlot(i).isEmpty())
+                throw new IllegalStateException("Collect all millstone output before release");
+        if (journal.released.containsKey(job))
+            throw new IllegalStateException("Job already released");
+        journal.leases.remove(pos.asLong());
+        journal.released.put(job, pos.asLong());
+        journal.setDirty();
     }
 
     public static boolean matches(ServerLevel level, BlockPos pos, UUID job, UUID citizen) {
