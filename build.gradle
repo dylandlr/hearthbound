@@ -12,8 +12,8 @@ minecraft {
     mappings channel: 'official', version: minecraft_version
     copyIdeResources = true
     runs {
-        client { workingDirectory project.file('run'); property 'forge.logging.console.level', 'debug'; mods { hearthbound { source sourceSets.main } } }
-        server { workingDirectory project.file('run'); property 'forge.logging.console.level', 'debug'; mods { hearthbound { source sourceSets.main } } }
+        client { workingDirectory project.file('run'); property 'forge.logging.console.level', 'debug'; property 'mixin.env.remapRefMap', 'true'; property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"; mods { hearthbound { source sourceSets.main } } }
+        server { workingDirectory project.file('run'); property 'forge.logging.console.level', 'debug'; property 'mixin.env.remapRefMap', 'true'; property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"; mods { hearthbound { source sourceSets.main } } }
     }
 }
 repositories {
