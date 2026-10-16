@@ -6,6 +6,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.phys.AABB;
 import dev.hearthbound.research.LibraryStudyRuntime;
+import dev.hearthbound.research.AutonomousLibraryStudy;
 import dev.hearthbound.research.CitizenTechnologyKnowledge;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -34,6 +35,26 @@ public final class HearthboundMod {
             dispatcher.register(Commands.literal("hearthbound")
                     .then(Commands.literal("library")
                             .requires(source -> source.hasPermission(2))
+                            .then(Commands.literal("assign")
+                                    .then(Commands.argument("shelf", BlockPosArgument.blockPos())
+                                            .executes(ctx -> {
+                                                var source = ctx.getSource();
+                                                BlockPos shelf = BlockPosArgument.getLoadedBlockPos(ctx, "shelf");
+                                                Villager citizen = nearestVillager(source);
+                                                if (citizen == null) {
+                                                    source.sendFailure(Component.literal("No villager within 8 blocks"));
+                                                    return 0;
+                                                }
+                                                try {
+                                                    AutonomousLibraryStudy.assign(source.getLevel(), citizen, shelf);
+                                                    source.sendSuccess(() -> Component.literal(
+                                                            "Library navigation assigned to " + citizen.getUUID()), false);
+                                                    return 1;
+                                                } catch (IllegalArgumentException | IllegalStateException ex) {
+                                                    source.sendFailure(Component.literal("Library assignment rejected: " + ex.getMessage()));
+                                                    return 0;
+                                                }
+                                            })))
                             .then(Commands.literal("study")
                                     .then(Commands.argument("shelf", BlockPosArgument.blockPos())
                                             .executes(ctx -> {
@@ -63,7 +84,7 @@ public final class HearthboundMod {
                                             return 0;
                                         }
                                         ctx.getSource().sendSuccess(
-                                                () -> Component.literal(LibraryStudyRuntime.inspect(citizen)
+                                                () -> Component.literal(AutonomousLibraryStudy.inspect(citizen) + " " + LibraryStudyRuntime.inspect(citizen)
                                                         + " " + CitizenTechnologyKnowledge.inspect(citizen)), false);
                                         return 1;
                                     }))))
