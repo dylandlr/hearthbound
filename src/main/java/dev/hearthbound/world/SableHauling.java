@@ -250,6 +250,44 @@ public final class SableHauling {
         return "UNSUPPORTED_INVENTORY";
     }
 
+    /**
+     * Operator finalization ONLY after cargo has been separately reconciled.
+     * No item movement, replacement, or research reward occurs here.
+     * The expected UUID prevents silently closing a different assignment.
+     */
+    public static void closeReconciled(ServerLevel level, Villager citizen, UUID expectedJob) {
+        CompoundTag tag = citizen.getPersistentData().getCompound(KEY);
+        if (tag.getInt(PHASE) != QUARANTINED || !tag.hasUUID(JOB_ID)
+                || !tag.getUUID(JOB_ID).equals(expectedJob)) {
+            throw new IllegalStateException("Job is not the expected quarantined job");
+        }
+        if (tag.contains(CARGO) && !ItemStack.of(tag.getCompound(CARGO)).isEmpty()) {
+            throw new IllegalStateException("Cargo still held: reconcile physical items before closing");
+        }
+        BlockPos source = BlockPos.of(tag.getLong(SOURCE));
+        BlockPos destination = BlockPos.of(tag.getLong(DESTINATION));
+        if (!level.hasChunkAt(source) || !level.hasChunkAt(destination)) {
+            throw new IllegalStateException("Both endpoint chunks must be loaded");
+        }
+        if (!citizen.getUUID().equals(HaulClaims.owner(level, source))) {
+            throw new IllegalStateException("Source claim does not belong to this citizen");
+        }
+        // The audit is a durable villager record, not a claim of physical
+        // delivery or an automated assignment of learning credit.
+        CompoundTag record = new CompoundTag();
+        record.putUUID("jobId", expectedJob);
+        record.putLong("tick", level.getGameTime());
+        record.putString("outcome", "operator_closed_no_cargo");
+        record.putString("priorReason", tag.getString(ERROR));
+        record.putString("sourceWheatObserved", observedWheat(level, source));
+        record.putString("destinationWheatObserved", observedWheat(level, destination));
+        citizen.getPersistentData().put("hearthbound.lastReconciliation", record);
+        tag.putInt(PHASE, COMPLETE);
+        tag.remove(ERROR);
+        tag.remove(FAULT);
+        HaulClaims.release(level, source, citizen.getUUID());
+    }
+
     private static void pause(CompoundTag tag, String message) {
         tag.putInt(PHASE, PAUSED);
         tag.putString(ERROR, message);
