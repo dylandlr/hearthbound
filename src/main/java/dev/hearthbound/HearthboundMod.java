@@ -8,6 +8,7 @@ import net.minecraft.world.phys.AABB;
 import dev.hearthbound.research.LibraryStudyRuntime;
 import dev.hearthbound.research.AutonomousLibraryStudy;
 import dev.hearthbound.research.LibraryPolicyBridge;
+import dev.hearthbound.research.LibraryAutonomyTick;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import dev.hearthbound.research.CitizenTechnologyKnowledge;
 import net.minecraft.commands.CommandSourceStack;
@@ -37,6 +38,31 @@ public final class HearthboundMod {
             dispatcher.register(Commands.literal("hearthbound")
                     .then(Commands.literal("library")
                             .requires(source -> source.hasPermission(2))
+                            .then(Commands.literal("auto")
+                                    .then(Commands.literal("on")
+                                            .executes(ctx -> {
+                                                Villager citizen = nearestVillager(ctx.getSource());
+                                                if (citizen == null) {
+                                                    ctx.getSource().sendFailure(Component.literal("No villager within 8 blocks"));
+                                                    return 0;
+                                                }
+                                                LibraryAutonomyTick.setEnabled(citizen, true);
+                                                ctx.getSource().sendSuccess(() -> Component.literal(
+                                                        "Automatic library study enabled for " + citizen.getUUID()), false);
+                                                return 1;
+                                            }))
+                                    .then(Commands.literal("off")
+                                            .executes(ctx -> {
+                                                Villager citizen = nearestVillager(ctx.getSource());
+                                                if (citizen == null) {
+                                                    ctx.getSource().sendFailure(Component.literal("No villager within 8 blocks"));
+                                                    return 0;
+                                                }
+                                                LibraryAutonomyTick.setEnabled(citizen, false);
+                                                ctx.getSource().sendSuccess(() -> Component.literal(
+                                                        "Automatic library study disabled for " + citizen.getUUID()), false);
+                                                return 1;
+                                            })))
                             .then(Commands.literal("priority")
                                     .then(Commands.argument("level", IntegerArgumentType.integer(0, 4))
                                             .executes(ctx -> {
@@ -125,7 +151,8 @@ public final class HearthboundMod {
                                             return 0;
                                         }
                                         ctx.getSource().sendSuccess(
-                                                () -> Component.literal("STUDY_PRIORITY " + LibraryPolicyBridge.studyPriority(citizen)
+                                                () -> Component.literal("AUTO_LIBRARY " + LibraryAutonomyTick.enabled(citizen)
+                                                        + " STUDY_PRIORITY " + LibraryPolicyBridge.studyPriority(citizen)
                                                         + " " + AutonomousLibraryStudy.inspect(citizen) + " " + LibraryStudyRuntime.inspect(citizen)
                                                         + " " + CitizenTechnologyKnowledge.inspect(citizen)), false);
                                         return 1;
