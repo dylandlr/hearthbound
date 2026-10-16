@@ -235,7 +235,7 @@ public final class SableHauling {
             }
             if (remaining.isEmpty()) {
                 if (tag.hasUUID(JOB_ID)) {
-                    MillExperimentTrace.deliveryComplete(citizen, tag.getUUID(JOB_ID));
+                    MillExperimentTrace.deliveryComplete(level, citizen, tag.getUUID(JOB_ID));
                 }
                 tag.remove(CARGO);
                 tag.putInt(PHASE, COMPLETE);
