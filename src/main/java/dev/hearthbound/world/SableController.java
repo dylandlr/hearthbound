@@ -126,6 +126,16 @@ public final class SableController {
                             return 0;
                         }
                     })))
+            .then(Commands.literal("mill-trace").executes(ctx -> {
+                Villager sable = nearestSable(ctx.getSource());
+                if (sable == null) {
+                    ctx.getSource().sendFailure(Component.literal("No Sable within 16 blocks."));
+                    return 0;
+                }
+                String trace = MillExperimentTrace.observe(ctx.getSource().getLevel(), sable);
+                ctx.getSource().sendSuccess(() -> Component.literal(trace), false);
+                return 1;
+            }))
             .then(Commands.literal("mill-inspect")
                 .then(Commands.argument("position", BlockPosArgument.blockPos())
                     .executes(ctx -> {
