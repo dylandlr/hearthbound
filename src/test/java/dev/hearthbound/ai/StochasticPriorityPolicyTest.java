@@ -18,6 +18,7 @@ public final class StochasticPriorityPolicyTest {
         Action rest=new Action("rest",Kind.REST,0,true);
         Action haul=new Action("haul",Kind.HAUL,0,true);
         Action operate=new Action("operate",Kind.OPERATE,0,true);
+        Action study=new Action("study",Kind.STUDY,0,true);
         var profile = new StochasticPriorityPolicy.Profile(Map.of(
                 Kind.HAUL,1,Kind.OPERATE,4),.7,.6,.5);
         var left=new StochasticPriorityPolicy(profile,12L,.7);
@@ -42,6 +43,10 @@ public final class StochasticPriorityPolicyTest {
                 "safety ignores work off");
         check(new StochasticPriorityPolicy(profile,2,0)
                 .choose(ordinary).actionId().equals("haul"),"deterministic priority");
+        var reader=new StochasticPriorityPolicy(
+                new StochasticPriorityPolicy.Profile(Map.of(Kind.STUDY,1,Kind.HAUL,4),1,0,0),1,0);
+        check(reader.choose(o(0,0,0,study,haul)).actionId().equals("study"),
+                "study participates in common action interface");
         System.out.println("StochasticPriorityPolicyTest: 8 checks and seeded replay passed");
     }
 }
