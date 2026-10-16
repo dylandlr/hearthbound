@@ -81,6 +81,37 @@ public final class MillExperimentTrace {
         trace.putString("phase", "DELIVERED");
     }
 
+    /**
+     * Server-tick physical check while an authorized item awaits Create.
+     * This supplements (does not replace) the process-entry veto.
+     */
+    public static void monitorAuthorizedInput(ServerLevel level, Villager citizen) {
+        CompoundTag trace = citizen.getPersistentData().getCompound(KEY);
+        if (!trace.hasUUID("jobId") || trace.getInt("authorizedInputCount") != 1) return;
+        UUID job = trace.getUUID("jobId");
+        if (MillProcessReceipts.recorded(level, job)) return;
+        BlockPos pos = BlockPos.of(trace.getLong("millstone"));
+        if (!MillReservations.matches(level, pos, job, citizen.getUUID())) return;
+        if (!level.hasChunkAt(pos)) return;
+        if (!(level.getBlockEntity(pos) instanceof MillstoneBlockEntity mill)) {
+            MillReservations.taint(level, pos, job, citizen.getUUID());
+            return;
+        }
+        int wheat = 0;
+        boolean foreign = false;
+        for (int i = 0; i < mill.inputInv.getSlots(); i++) {
+            ItemStack stack = mill.inputInv.getStackInSlot(i);
+            if (stack.isEmpty()) continue;
+            if (stack.is(Items.WHEAT)) wheat += stack.getCount();
+            else foreign = true;
+        }
+        for (int i = 0; i < mill.outputInv.getSlots(); i++)
+            if (!mill.outputInv.getStackInSlot(i).isEmpty()) foreign = true;
+        if (wheat != 1 || foreign) {
+            MillReservations.taint(level, pos, job, citizen.getUUID());
+        }
+    }
+
     /** Matches only a successfully committed one-wheat Hearthbound insertion. */
     public static boolean matchesAuthorizedProcessing(Villager citizen, BlockPos machine,
             long now, int wheatBefore, int flourBefore) {
