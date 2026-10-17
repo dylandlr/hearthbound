@@ -1,6 +1,7 @@
 package dev.hearthbound.research;
 
 import java.util.Objects;
+import dev.hearthbound.world.SableHauling;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -39,6 +40,8 @@ public final class LibraryStudyRuntime {
         if (citizen.level() != level) throw new IllegalArgumentException("Citizen is in another level");
         if (literacy < MIN_LITERACY || literacy > 100)
             throw new IllegalArgumentException("Literacy not sufficient");
+        if (SableHauling.active(citizen))
+            throw new IllegalStateException("Citizen is already hauling");
         if (state(citizen) == State.STUDYING)
             throw new IllegalStateException("Citizen already studying");
         if (!withinReach(citizen, library) || !hasBook(level, library))
