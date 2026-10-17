@@ -4,6 +4,8 @@ import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.npc.Villager;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.AABB;
 import dev.hearthbound.research.LibraryStudyRuntime;
 import dev.hearthbound.research.AutonomousLibraryStudy;
@@ -38,6 +40,20 @@ public final class HearthboundMod {
             dispatcher.register(Commands.literal("hearthbound")
                     .then(Commands.literal("library")
                             .requires(source -> source.hasPermission(2))
+                            .then(Commands.literal("primer")
+                                    .executes(ctx -> {
+                                        var player = ctx.getSource().getPlayerOrException();
+                                        ItemStack book = new ItemStack(Items.WRITTEN_BOOK);
+                                        var tag = book.getOrCreateTag();
+                                        tag.putString("hearthbound.lesson", LibraryStudyRuntime.TOPIC);
+                                        tag.putString("title", "Hearthbound Milling Primer");
+                                        tag.putString("author", "Hearthbound");
+                                        tag.put("pages", new net.minecraft.nbt.ListTag());
+                                        if (!player.getInventory().add(book)) player.drop(book, false);
+                                        ctx.getSource().sendSuccess(() -> Component.literal(
+                                                "Issued development milling primer"), false);
+                                        return 1;
+                                    }))
                             .then(Commands.literal("auto")
                                     .then(Commands.literal("on")
                                             .executes(ctx -> {
