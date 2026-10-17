@@ -1,5 +1,6 @@
 package dev.hearthbound.research;
 
+import dev.hearthbound.world.CitizenWorkOwnership;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraftforge.event.entity.living.LivingEvent;
@@ -18,6 +19,7 @@ public final class LibraryStudyEvents {
             AutonomousLibraryStudy.tick(level, citizen);
             LibraryStudyRuntime.tick(level, citizen);
             LibraryPolicyBridge.reconcile(citizen);
+            CitizenWorkOwnership.reconcile(citizen);
             LibraryAutonomyTick.tick(level, citizen);
         }
     }
