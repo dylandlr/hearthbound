@@ -85,6 +85,47 @@ public final class SableController {
                             source.sendSuccess(() -> Component.literal("Sable assigned wheat haul."), true);
                             return 1;
                         }))))
+            .then(Commands.literal("haul-priority")
+                .then(Commands.argument("level", com.mojang.brigadier.arguments.IntegerArgumentType.integer(0,4))
+                    .executes(ctx -> {
+                        Villager sable = nearestSable(ctx.getSource());
+                        if (sable == null) return 0;
+                        SableWorkChoice.haulPriority(sable,
+                                com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx,"level"));
+                        ctx.getSource().sendSuccess(() -> Component.literal(
+                                "Haul priority now " + SableWorkChoice.haulPriority(sable)), false);
+                        return 1;
+                    })))
+            .then(Commands.literal("work-choice-inspect").executes(ctx -> {
+                Villager sable = nearestSable(ctx.getSource());
+                if (sable == null) return 0;
+                ctx.getSource().sendSuccess(() -> Component.literal(
+                        SableWorkChoice.inspect(sable)), false);
+                return 1;
+            }))
+            .then(Commands.literal("choose-work")
+                .then(Commands.argument("source", BlockPosArgument.blockPos())
+                    .then(Commands.argument("destination", BlockPosArgument.blockPos())
+                        .then(Commands.argument("library", BlockPosArgument.blockPos())
+                            .executes(ctx -> {
+                                Villager sable = nearestSable(ctx.getSource());
+                                if (sable == null) {
+                                    ctx.getSource().sendFailure(Component.literal("No Sable nearby"));
+                                    return 0;
+                                }
+                                try {
+                                    String outcome = SableWorkChoice.consider(ctx.getSource().getLevel(),
+                                            sable,
+                                            BlockPosArgument.getLoadedBlockPos(ctx,"source"),
+                                            BlockPosArgument.getLoadedBlockPos(ctx,"destination"),
+                                            BlockPosArgument.getLoadedBlockPos(ctx,"library"));
+                                    ctx.getSource().sendSuccess(() -> Component.literal(outcome), false);
+                                    return outcome.endsWith("_ASSIGNED") ? 1 : 0;
+                                } catch (IllegalArgumentException | IllegalStateException ex) {
+                                    ctx.getSource().sendFailure(Component.literal(ex.getMessage()));
+                                    return 0;
+                                }
+                            })))))
             .then(Commands.literal("fault-insert-before").executes(ctx -> {
                 Villager sable = nearestSable(ctx.getSource());
                 if (sable == null) return 0;
