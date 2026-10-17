@@ -34,12 +34,26 @@ public final class LibraryAutonomyTick {
                 != Math.floorMod(citizen.getUUID().hashCode(), (int) DECISION_INTERVAL)) return;
         CompoundTag tag = citizen.getPersistentData().getCompound(KEY);
         long now = level.getGameTime();
-        if (now < tag.getLong("retryAfter")) return;
-        if (SableHauling.active(citizen)
-                || LibraryStudyRuntime.state(citizen) == LibraryStudyRuntime.State.STUDYING
-                || AutonomousLibraryStudy.active(citizen)) return;
-        if (LibraryPolicyBridge.studyPriority(citizen) == 0
-                || CitizenTechnologyKnowledge.knows(citizen, LibraryStudyRuntime.RECIPE)) return;
+        CitizenDecisionCadence.WorkState workState;
+        if (SableHauling.active(citizen)) {
+            workState = CitizenDecisionCadence.WorkState.HAULING;
+        } else if (AutonomousLibraryStudy.active(citizen)) {
+            workState = LibraryStudyRuntime.state(citizen) == LibraryStudyRuntime.State.STUDYING
+                    ? CitizenDecisionCadence.WorkState.STUDYING
+                    : CitizenDecisionCadence.WorkState.TRAVELING;
+        } else {
+            workState = switch (LibraryStudyRuntime.state(citizen)) {
+                case STUDYING -> CitizenDecisionCadence.WorkState.STUDYING;
+                case COMPLETED -> CitizenDecisionCadence.WorkState.COMPLETED;
+                case INTERRUPTED -> CitizenDecisionCadence.WorkState.INTERRUPTED;
+                default -> CitizenDecisionCadence.WorkState.IDLE;
+            };
+        }
+        var snapshot = new CitizenDecisionCadence.Snapshot(
+                enabled(citizen), LibraryPolicyBridge.studyPriority(citizen),
+                CitizenTechnologyKnowledge.knows(citizen, LibraryStudyRuntime.RECIPE),
+                SableHauling.active(citizen), workState, now, tag.getLong("retryAfter"));
+        if (!CitizenDecisionCadence.shouldConsider(snapshot)) return;
 
         BlockPos origin = citizen.blockPosition();
         BlockPos candidate = null;
