@@ -31,6 +31,15 @@ public final class CitizenWorkDispatcherTest {
                 o -> new Decision(42,"follow","not implemented"),(a,l)->true).accepted(),
                 "unsupported kind rejected");
         check(dispatch.traces().size()==5,"trace count");
-        System.out.println("CitizenWorkDispatcherTest: 8 checks passed");
+        var restored = new CitizenWorkDispatcher(new CitizenTaskArbiter());
+        restored.restore(id, assigned.lease());
+        restored.restore(id, assigned.lease());
+        check(!restored.dispatch(id,obs,choose,(a,l)->true).accepted(),
+                "restored assignment blocks duplicate work");
+        check(restored.complete(id,assigned.lease().assignmentId()),
+                "restored assignment can complete");
+        check(restored.dispatch(id,obs,choose,(a,l)->true).accepted(),
+                "new assignment accepted after reconciliation");
+        System.out.println("CitizenWorkDispatcherTest: 11 checks passed");
     }
 }
