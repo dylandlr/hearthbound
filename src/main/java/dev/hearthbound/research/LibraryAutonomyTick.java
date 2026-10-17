@@ -4,10 +4,7 @@ import dev.hearthbound.world.SableHauling;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.Container;
 import net.minecraft.world.entity.npc.Villager;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.item.Items;
 
 /**
  * Opt-in library routine with a bounded scan and cooldown.
@@ -51,16 +48,7 @@ public final class LibraryAutonomyTick {
                 origin.offset(-SCAN_RADIUS,-2,-SCAN_RADIUS),
                 origin.offset(SCAN_RADIUS,2,SCAN_RADIUS))) {
             if (!level.hasChunkAt(pos)) continue;
-            BlockEntity tile = level.getBlockEntity(pos);
-            if (!(tile instanceof Container inventory)) continue;
-            boolean available = false;
-            for (int i=0;i<inventory.getContainerSize();i++) {
-                if (inventory.getItem(i).is(Items.WRITTEN_BOOK)) {
-                    available = true;
-                    break;
-                }
-            }
-            if (!available) continue;
+            if (!LibraryStudyRuntime.hasBook(level, pos)) continue;
             double distance = pos.distSqr(origin);
             if (distance < nearest) {
                 candidate = pos.immutable();
