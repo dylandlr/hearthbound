@@ -76,6 +76,7 @@ public final class SableHauling {
     private SableHauling() {}
 
     public static void assign(ServerLevel level, Villager citizen, BlockPos source, BlockPos destination) {
+        CitizenWorkOwnership.assertFree(citizen);
         if (source.equals(destination)) throw new IllegalArgumentException("same endpoint");
         if (AutonomousLibraryStudy.active(citizen)
                 || LibraryStudyRuntime.state(citizen) == LibraryStudyRuntime.State.STUDYING)
@@ -95,6 +96,7 @@ public final class SableHauling {
         tag.putUUID(JOB_ID, job);
         citizen.getPersistentData().put(KEY, tag);
         markLive(level.getServer(), job);
+        CitizenWorkOwnership.assigned(citizen, CitizenWorkOwnership.Kind.HAUL);
     }
 
     /** Only a fully completed delivery can be used for audited mill release. */
