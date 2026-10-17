@@ -21,15 +21,21 @@ public final class CitizenWorkOwnership {
         boolean hauling = SableHauling.active(citizen);
         boolean studying = AutonomousLibraryStudy.active(citizen)
                 || LibraryStudyRuntime.state(citizen) == LibraryStudyRuntime.State.STUDYING;
-        if (hauling && studying)
-            throw new IllegalStateException("Conflicting live haul and study: manual review required");
+        if (hauling && studying) {
+            tag.putString("conflict", "Both physical executors active");
+            citizen.getPersistentData().put(KEY, tag);
+            return;
+        }
         if (!hauling && !studying) {
             citizen.getPersistentData().remove(KEY);
             return;
         }
         Kind live = hauling ? Kind.HAUL : Kind.STUDY;
-        if (tag.contains("kind") && !live.name().equals(tag.getString("kind")))
-            throw new IllegalStateException("Persisted work owner disagrees with live executor");
+        if (tag.contains("kind") && !live.name().equals(tag.getString("kind"))) {
+            tag.putString("conflict", "Persisted owner disagrees with physical executor");
+            citizen.getPersistentData().put(KEY, tag);
+            return;
+        }
         // Recover a legacy assignment or a restarted server without generating
         // a new job identity for existing physical cargo.
         if (!tag.contains("kind")) {
@@ -43,7 +49,7 @@ public final class CitizenWorkOwnership {
     public static void assertFree(Villager citizen) {
         reconcile(citizen);
         if (citizen.getPersistentData().contains(KEY))
-            throw new IllegalStateException("Citizen already owns a physical work task");
+            throw new IllegalStateException("Citizen already owns or has a conflicting physical work task");
     }
 
     public static void assigned(Villager citizen, Kind kind) {
@@ -56,6 +62,7 @@ public final class CitizenWorkOwnership {
 
     public static String status(Villager citizen) {
         CompoundTag owner = citizen.getPersistentData().getCompound(KEY);
-        return owner.contains("kind") ? owner.getString("kind") : "FREE";
+        return owner.contains("conflict") ? "CONFLICT: " + owner.getString("conflict")
+                : owner.contains("kind") ? owner.getString("kind") : "FREE";
     }
 }
