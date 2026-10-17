@@ -100,14 +100,16 @@ public final class LibraryStudyRuntime {
         return citizen.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) <= 9.0;
     }
 
-    private static boolean hasBook(ServerLevel level, BlockPos pos) {
+    public static boolean hasBook(ServerLevel level, BlockPos pos) {
         if (!level.hasChunkAt(pos)) return false;
         BlockEntity entity = level.getBlockEntity(pos);
         if (!(entity instanceof Container inventory)) return false;
         for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
             ItemStack stack = inventory.getItem(slot);
             if (!stack.isEmpty()
-                    && BOOK.equals(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString()))
+                    && BOOK.equals(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString())
+                    && stack.hasTag()
+                    && "hearthbound:basic_milling".equals(stack.getTag().getString("hearthbound.lesson")))
                 return true;
         }
         return false;
