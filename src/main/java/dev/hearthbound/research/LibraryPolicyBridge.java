@@ -42,8 +42,15 @@ public final class LibraryPolicyBridge {
     public static void reconcile(Villager citizen) {
         CompoundTag state = citizen.getPersistentData().getCompound(LEASE_KEY);
         if (!state.hasUUID("assignment")) return;
-        if (AutonomousLibraryStudy.active(citizen)) return;
         UUID assignment = state.getUUID("assignment");
+        if (AutonomousLibraryStudy.active(citizen)) {
+            // Reconstruct in-memory ownership after a server restart.
+            // A stale or conflicting lease must never silently steal ownership.
+            DISPATCH.restore(citizen.getUUID(), new CitizenTaskArbiter.Lease(
+                    assignment, CitizenTaskArbiter.Kind.STUDY,
+                    Math.max(0, state.getLong("acquiredTick"))));
+            return;
+        }
         DISPATCH.complete(citizen.getUUID(), assignment);
         citizen.getPersistentData().remove(LEASE_KEY);
     }
@@ -84,6 +91,7 @@ public final class LibraryPolicyBridge {
         if (!result.accepted()) return false;
         CompoundTag leaseTag = new CompoundTag();
         leaseTag.putUUID("assignment", result.lease().assignmentId());
+        leaseTag.putLong("acquiredTick", result.lease().acquiredTick());
         citizen.getPersistentData().put(LEASE_KEY, leaseTag);
         return true;
     }
