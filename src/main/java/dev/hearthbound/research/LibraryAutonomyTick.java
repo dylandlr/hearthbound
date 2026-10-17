@@ -1,6 +1,7 @@
 package dev.hearthbound.research;
 
 import dev.hearthbound.world.SableHauling;
+import dev.hearthbound.world.SableAutoWork;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
@@ -30,6 +31,7 @@ public final class LibraryAutonomyTick {
     }
 
     public static void tick(ServerLevel level, Villager citizen) {
+        if (SableAutoWork.enabled(citizen)) return; // Single active autonomous scheduler.
         if (!enabled(citizen) || level.getGameTime() % DECISION_INTERVAL
                 != Math.floorMod(citizen.getUUID().hashCode(), (int) DECISION_INTERVAL)) return;
         CompoundTag tag = citizen.getPersistentData().getCompound(KEY);
