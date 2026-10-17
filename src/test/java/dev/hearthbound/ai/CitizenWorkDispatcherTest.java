@@ -40,6 +40,18 @@ public final class CitizenWorkDispatcherTest {
                 "restored assignment can complete");
         check(restored.dispatch(id,obs,choose,(a,l)->true).accepted(),
                 "new assignment accepted after reconciliation");
-        System.out.println("CitizenWorkDispatcherTest: 11 checks passed");
+        var history = new CitizenWorkDispatcher(new CitizenTaskArbiter());
+        for (int i = 0; i < 300; i++) {
+            final int version = i;
+            var next = new Observation(version, id.toString(),0,0,0,List.of(action));
+            history.dispatch(id,next,o -> new Decision(version-1,"study:library","stale"),
+                    (a,l) -> true);
+        }
+        check(history.traces().size() == 256, "bounded decision history");
+        check(history.traces().get(0).observationVersion() == 44,
+                "oldest decisions evicted");
+        check(history.traces().get(255).observationVersion() == 299,
+                "most recent decision retained");
+        System.out.println("CitizenWorkDispatcherTest: 14 checks passed");
     }
 }
