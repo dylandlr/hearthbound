@@ -54,6 +54,7 @@ public final class LibraryStudyRuntime {
         data.putInt("literacy", literacy);
         data.putLong("startTick", level.getGameTime());
         data.putInt("progress", 0);
+        data.putLong("lastProgressTick", Long.MIN_VALUE);
         data.putString("state", State.STUDYING.name());
         citizen.getPersistentData().put(KEY, data);
     }
@@ -63,12 +64,17 @@ public final class LibraryStudyRuntime {
     public static void tick(ServerLevel level, Villager citizen) {
         CompoundTag data = citizen.getPersistentData().getCompound(KEY);
         if (!State.STUDYING.name().equals(data.getString("state"))) return;
+        // Idempotent against multiple tick event subscriptions in one game tick.
+        long gameTick = level.getGameTime();
+        if (data.contains("lastProgressTick")
+                && data.getLong("lastProgressTick") == gameTick) return;
         BlockPos pos = BlockPos.of(data.getLong("library"));
         if (!level.dimension().location().toString().equals(data.getString("dimension"))
                 || !withinReach(citizen, pos) || !hasBook(level, pos)) {
             data.putString("state", State.INTERRUPTED.name());
             return;
         }
+        data.putLong("lastProgressTick", gameTick);
         int progress = data.getInt("progress") + 1;
         data.putInt("progress", progress);
         if (progress < REQUIRED_TICKS) return;
