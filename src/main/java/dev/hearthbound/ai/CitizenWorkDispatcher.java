@@ -64,6 +64,11 @@ public final class CitizenWorkDispatcher {
         return new Result(true, lease, trace);
     }
 
+    /** Rebuild lease identity from persistent task NBT on entity load. */
+    public void restore(UUID citizen, CitizenTaskArbiter.Lease lease) {
+        arbiter.restore(citizen, lease);
+    }
+
     public boolean complete(UUID citizen, UUID assignmentId) {
         return arbiter.release(citizen, assignmentId);
     }
