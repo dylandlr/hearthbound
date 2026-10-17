@@ -1,0 +1,27 @@
+name: Citizen decision cadence tests
+on:
+  push:
+    paths:
+      - 'src/main/java/dev/hearthbound/research/CitizenDecisionCadence.java'
+      - 'src/test/java/dev/hearthbound/research/CitizenDecisionCadenceTest.java'
+      - '.github/workflows/citizen-decision-cadence.yml'
+  pull_request:
+    paths:
+      - 'src/main/java/dev/hearthbound/research/CitizenDecisionCadence.java'
+      - 'src/test/java/dev/hearthbound/research/CitizenDecisionCadenceTest.java'
+      - '.github/workflows/citizen-decision-cadence.yml'
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Compile pure Java decision contracts
+        run: |
+          mkdir -p build/decision-test
+          javac -d build/decision-test src/main/java/dev/hearthbound/research/CitizenDecisionCadence.java src/test/java/dev/hearthbound/research/CitizenDecisionCadenceTest.java
+      - name: Run checks
+        run: java -cp build/decision-test dev.hearthbound.research.CitizenDecisionCadenceTest
