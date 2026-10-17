@@ -1,6 +1,8 @@
 package dev.hearthbound.world;
 
 import net.minecraft.core.BlockPos;
+import dev.hearthbound.research.AutonomousLibraryStudy;
+import dev.hearthbound.research.LibraryStudyRuntime;
 import java.util.Set;
 import java.util.UUID;
 import java.util.HashSet;
@@ -75,6 +77,9 @@ public final class SableHauling {
 
     public static void assign(ServerLevel level, Villager citizen, BlockPos source, BlockPos destination) {
         if (source.equals(destination)) throw new IllegalArgumentException("same endpoint");
+        if (AutonomousLibraryStudy.active(citizen)
+                || LibraryStudyRuntime.state(citizen) == LibraryStudyRuntime.State.STUDYING)
+            throw new IllegalStateException("Citizen has an active library assignment");
         if (active(citizen)) throw new IllegalStateException("already carrying out a haul");
         UUID job = UUID.randomUUID();
         if (!HaulClaims.claim(level, source, citizen.getUUID()))
