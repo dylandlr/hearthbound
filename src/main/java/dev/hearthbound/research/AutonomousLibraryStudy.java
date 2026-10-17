@@ -1,6 +1,7 @@
 package dev.hearthbound.research;
 
 import dev.hearthbound.world.SableHauling;
+import dev.hearthbound.world.CitizenWorkOwnership;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
@@ -20,6 +21,7 @@ public final class AutonomousLibraryStudy {
 
     public static void assign(ServerLevel level, Villager citizen, BlockPos library) {
         if (citizen.level() != level) throw new IllegalArgumentException("Citizen not in this dimension");
+        CitizenWorkOwnership.assertFree(citizen);
         if (!level.hasChunkAt(library)) throw new IllegalStateException("Library chunk not loaded");
         if (citizen.distanceToSqr(library.getX() + .5, library.getY() + .5, library.getZ() + .5)
                 > MAX_DISTANCE_SQUARED) throw new IllegalArgumentException("Library is too distant");
@@ -34,6 +36,7 @@ public final class AutonomousLibraryStudy {
         tag.putLong("assignedTick", level.getGameTime());
         tag.putString("state", "TRAVELING");
         citizen.getPersistentData().put(KEY, tag);
+        CitizenWorkOwnership.assigned(citizen, CitizenWorkOwnership.Kind.STUDY);
     }
 
     public static void tick(ServerLevel level, Villager citizen) {
