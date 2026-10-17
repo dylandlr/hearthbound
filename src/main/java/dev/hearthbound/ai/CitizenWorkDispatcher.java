@@ -21,6 +21,7 @@ public final class CitizenWorkDispatcher {
                         String outcome, String reason) {}
     public record Result(boolean accepted, CitizenTaskArbiter.Lease lease, Trace trace) {}
 
+    private static final int MAX_TRACES = 256;
     private final CitizenTaskArbiter arbiter;
     private final List<Trace> traces = new ArrayList<>();
     public CitizenWorkDispatcher(CitizenTaskArbiter arbiter) {
@@ -60,7 +61,7 @@ public final class CitizenWorkDispatcher {
         if (!accepted) return rejected(current, action.id(), "DECLINED", "Executor rejected task");
         Trace trace = new Trace(current.citizenId(), current.version(), action.id(),
                 "ASSIGNED", decision.rationale());
-        traces.add(trace);
+        record(trace);
         return new Result(true, lease, trace);
     }
 
@@ -74,6 +75,11 @@ public final class CitizenWorkDispatcher {
     }
 
     public List<Trace> traces() { return List.copyOf(traces); }
+
+    private void record(Trace trace) {
+        if (traces.size() == MAX_TRACES) traces.remove(0);
+        traces.add(trace);
+    }
 
     private Result rejected(Observation o, String action, String outcome, String reason) {
         Trace trace = new Trace(o.citizenId(), o.version(), action, outcome, reason);
