@@ -6,6 +6,8 @@ import java.util.UUID;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.core.BlockPos;
 import dev.hearthbound.ai.ActionGate;
+import dev.hearthbound.research.AutonomousLibraryStudy;
+import dev.hearthbound.research.LibraryStudyRuntime;
 import dev.hearthbound.ai.ColonyPolicy;
 import dev.hearthbound.ai.PriorityPolicy;
 import net.minecraft.commands.CommandSourceStack;
@@ -331,6 +333,12 @@ public final class SableController {
 
         if (SableHauling.active(villager)) {
             SableHauling.tick(level, villager);
+            return;
+        }
+
+        // Existing library executor owns navigation until it finishes or fails.
+        if (AutonomousLibraryStudy.active(villager)
+                || LibraryStudyRuntime.state(villager) == LibraryStudyRuntime.State.STUDYING) {
             return;
         }
 
