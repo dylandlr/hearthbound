@@ -1,11 +1,12 @@
 package dev.hearthbound.research;
 
-import dev.hearthbound.ai.ActionGate;
+import dev.hearthbound.ai.CitizenWorkDispatcher;
 import dev.hearthbound.ai.ColonyPolicy;
 import dev.hearthbound.ai.StochasticPriorityPolicy;
 import dev.hearthbound.world.SableHauling;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
@@ -20,6 +21,9 @@ import net.minecraft.world.entity.npc.Villager;
  */
 public final class LibraryPolicyBridge {
     private static final String KEY = "hearthbound.studyPreferenceV1";
+    private static final String LEASE_KEY = "hearthbound.studyLeaseV1";
+    private static final CitizenWorkDispatcher DISPATCH =
+            new CitizenWorkDispatcher(new CitizenTaskArbiter());
     private LibraryPolicyBridge() {}
 
     /** 0 disables study; 1-4 express highest to lowest work priority. */
@@ -32,6 +36,16 @@ public final class LibraryPolicyBridge {
     public static int studyPriority(Villager citizen) {
         CompoundTag config = citizen.getPersistentData().getCompound(KEY);
         return config.contains("priority") ? config.getInt("priority") : 2;
+    }
+
+    /** Clear ownership after the executor has conclusively finished or failed. */
+    public static void reconcile(Villager citizen) {
+        CompoundTag state = citizen.getPersistentData().getCompound(LEASE_KEY);
+        if (!state.hasUUID("assignment")) return;
+        if (AutonomousLibraryStudy.active(citizen)) return;
+        UUID assignment = state.getUUID("assignment");
+        DISPATCH.complete(citizen.getUUID(), assignment);
+        citizen.getPersistentData().remove(LEASE_KEY);
     }
 
     public static boolean consider(ServerLevel level, Villager citizen, BlockPos shelf) {
@@ -57,9 +71,20 @@ public final class LibraryPolicyBridge {
         // stochastic sampling at decision boundaries, not on each tick.
         var policy = new StochasticPriorityPolicy(profile, citizen.getUUID().getLeastSignificantBits(), 0);
         ColonyPolicy.Decision selected = policy.choose(observation);
-        if (!ActionGate.allowed(observation, selected)) return false;
-        // World validation must still happen in the executor. No items granted here.
-        AutonomousLibraryStudy.assign(level, citizen, shelf);
+        // The shared dispatcher owns the assignment. Never mutate the world
+        // before ActionGate and exclusive task lease acceptance.
+        var result = DISPATCH.dispatch(citizen.getUUID(), observation,
+                ignored -> selected, (action, lease) -> {
+                    if (!LibraryStudyRuntime.hasBook(level, shelf)) return false;
+                    if (AutonomousLibraryStudy.active(citizen)
+                            || SableHauling.active(citizen)) return false;
+                    AutonomousLibraryStudy.assign(level, citizen, shelf);
+                    return true;
+                });
+        if (!result.accepted()) return false;
+        CompoundTag leaseTag = new CompoundTag();
+        leaseTag.putUUID("assignment", result.lease().assignmentId());
+        citizen.getPersistentData().put(LEASE_KEY, leaseTag);
         return true;
     }
 }
