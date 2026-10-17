@@ -96,6 +96,54 @@ public final class SableController {
                                 "Haul priority now " + SableWorkChoice.haulPriority(sable)), false);
                         return 1;
                     })))
+            .then(Commands.literal("auto-work-config")
+                .then(Commands.argument("source", BlockPosArgument.blockPos())
+                    .then(Commands.argument("destination", BlockPosArgument.blockPos())
+                        .then(Commands.argument("library", BlockPosArgument.blockPos())
+                            .executes(ctx -> {
+                                Villager sable = nearestSable(ctx.getSource());
+                                if (sable == null) return 0;
+                                try {
+                                    SableAutoWork.configure(ctx.getSource().getLevel(), sable,
+                                            BlockPosArgument.getLoadedBlockPos(ctx,"source"),
+                                            BlockPosArgument.getLoadedBlockPos(ctx,"destination"),
+                                            BlockPosArgument.getLoadedBlockPos(ctx,"library"));
+                                    ctx.getSource().sendSuccess(() -> Component.literal(
+                                            "Configured Sable auto work, initially OFF"), false);
+                                    return 1;
+                                } catch (IllegalStateException | IllegalArgumentException ex) {
+                                    ctx.getSource().sendFailure(Component.literal(ex.getMessage()));
+                                    return 0;
+                                }
+                            })))))
+            .then(Commands.literal("auto-work-on").executes(ctx -> {
+                Villager sable = nearestSable(ctx.getSource());
+                if (sable == null) return 0;
+                try {
+                    SableAutoWork.enable(sable,true);
+                    dev.hearthbound.research.LibraryAutonomyTick.setEnabled(sable,false);
+                    ctx.getSource().sendSuccess(() -> Component.literal(
+                            "Auto work enabled; independent library loop disabled"), false);
+                    return 1;
+                } catch (IllegalStateException ex) {
+                    ctx.getSource().sendFailure(Component.literal(ex.getMessage()));
+                    return 0;
+                }
+            }))
+            .then(Commands.literal("auto-work-off").executes(ctx -> {
+                Villager sable = nearestSable(ctx.getSource());
+                if (sable == null) return 0;
+                SableAutoWork.enable(sable,false);
+                ctx.getSource().sendSuccess(() -> Component.literal("Auto work disabled"),false);
+                return 1;
+            }))
+            .then(Commands.literal("auto-work-status").executes(ctx -> {
+                Villager sable = nearestSable(ctx.getSource());
+                if (sable == null) return 0;
+                ctx.getSource().sendSuccess(() -> Component.literal(
+                        SableAutoWork.inspect(sable) + " " + SableWorkChoice.inspect(sable)),false);
+                return 1;
+            }))
             .then(Commands.literal("work-choice-inspect").executes(ctx -> {
                 Villager sable = nearestSable(ctx.getSource());
                 if (sable == null) return 0;
@@ -382,6 +430,11 @@ public final class SableController {
                 || LibraryStudyRuntime.state(villager) == LibraryStudyRuntime.State.STUDYING) {
             return;
         }
+
+        SableAutoWork.tick(level, villager);
+        if (SableHauling.active(villager) || AutonomousLibraryStudy.active(villager)
+                || LibraryStudyRuntime.state(villager) == LibraryStudyRuntime.State.STUDYING)
+            return;
 
         Player target = level.getNearestPlayer(villager, 12.0D);
         if (target == null || target.isSpectator()) {
