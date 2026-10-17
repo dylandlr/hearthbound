@@ -137,6 +137,14 @@ public final class SableController {
                 ctx.getSource().sendSuccess(() -> Component.literal("Auto work disabled"),false);
                 return 1;
             }))
+            .then(Commands.literal("work-owner").executes(ctx -> {
+                Villager sable = nearestSable(ctx.getSource());
+                if (sable == null) return 0;
+                CitizenWorkOwnership.reconcile(sable);
+                ctx.getSource().sendSuccess(() -> Component.literal(
+                        "Physical work owner: " + CitizenWorkOwnership.status(sable)), false);
+                return 1;
+            }))
             .then(Commands.literal("auto-work-status").executes(ctx -> {
                 Villager sable = nearestSable(ctx.getSource());
                 if (sable == null) return 0;
