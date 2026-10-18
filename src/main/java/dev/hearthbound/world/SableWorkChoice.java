@@ -56,7 +56,7 @@ public final class SableWorkChoice {
         boolean canStudy = WorkOfferLifecycle.offerStudy(
                 library != null && level.hasChunkAt(library) && LibraryStudyRuntime.hasBook(level, library),
                 CitizenTechnologyKnowledge.knows(citizen, LibraryStudyRuntime.RECIPE), study)
-                && citizen.distanceToSqr(library.getX() + .5, library.getY() + .5,
+                && library != null && citizen.distanceToSqr(library.getX() + .5, library.getY() + .5,
                         library.getZ() + .5) <= 64 * 64;
         var observation = WorkChoicePlanner.observation(citizen.getUUID(), level.getGameTime(),
                 0, 0, 0, List.of(
