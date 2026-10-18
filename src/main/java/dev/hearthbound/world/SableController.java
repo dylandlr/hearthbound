@@ -64,6 +64,28 @@ public final class SableController {
                 source.sendSuccess(() -> Component.literal("Sable spawned. She will follow nearby players."), true);
                 return 1;
             }))
+            .then(Commands.literal("spawn-named")
+                .then(Commands.argument("citizen", StringArgumentType.word())
+                    .executes(ctx -> {
+                        CommandSourceStack source = ctx.getSource();
+                        String name = StringArgumentType.getString(ctx, "citizen");
+                        if (name.length() > 24 || name.isBlank()) {
+                            source.sendFailure(Component.literal("Citizen name must be 1..24 characters"));
+                            return 0;
+                        }
+                        Villager citizen = EntityType.VILLAGER.create(source.getLevel());
+                        if (citizen == null) return 0;
+                        citizen.moveTo(source.getPosition().x, source.getPosition().y,
+                                source.getPosition().z, 0.0F, 0.0F);
+                        citizen.getPersistentData().putBoolean(MARKER, true);
+                        citizen.setCustomName(Component.literal(name));
+                        citizen.setCustomNameVisible(true);
+                        citizen.setPersistenceRequired();
+                        if (!source.getLevel().addFreshEntity(citizen)) return 0;
+                        source.sendSuccess(() -> Component.literal(
+                                "Hearthbound citizen spawned: " + name), true);
+                        return 1;
+                    })))
             .then(Commands.literal("haul")
                 .then(Commands.argument("source", BlockPosArgument.blockPos())
                     .then(Commands.argument("destination", BlockPosArgument.blockPos())
@@ -444,6 +466,11 @@ public final class SableController {
     }
 
     private static Villager nearestSable(CommandSourceStack source) {
+        // Commands dispatched with /execute as <villager> target that exact
+        // citizen, never whichever neighbor happens to be closest.
+        if (source.getEntity() instanceof Villager self
+                && self.getPersistentData().getBoolean(MARKER)
+                && self.level() == source.getLevel()) return self;
         return source.getLevel().getEntitiesOfClass(Villager.class,
             new net.minecraft.world.phys.AABB(net.minecraft.core.BlockPos.containing(source.getPosition())).inflate(16),
             v -> v.getPersistentData().getBoolean(MARKER))
