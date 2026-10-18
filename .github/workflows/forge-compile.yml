@@ -2,11 +2,17 @@ name: Forge compilation
 on:
   push:
     branches:
+      - main
+      - 'feat/**'
+      - 'fix/**'
       - 'fix/haul-preflight-safety'
       - 'feat/sable-hauling-job'
       - 'feat/sable-villager-slice'
       - 'feat/haul-restart-quarantine-v2-3'
   pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
 jobs:
   compile-forge:
     runs-on: ubuntu-latest
@@ -21,4 +27,4 @@ jobs:
         with:
           gradle-version: '8.8'
       - name: Compile actual Forge Minecraft sources
-        run: gradle --no-daemon compileJava
+        run: gradle --no-daemon --stacktrace compileJava
