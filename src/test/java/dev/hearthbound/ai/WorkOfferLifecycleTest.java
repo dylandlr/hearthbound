@@ -13,6 +13,10 @@ public final class WorkOfferLifecycleTest {
         check(WorkOfferLifecycle.offerStudy(true,true,1),false,"known lesson not repeated");
         check(WorkOfferLifecycle.offerStudy(false,false,1),false,"missing primer");
         check(WorkOfferLifecycle.offerStudy(true,false,0),false,"disabled study");
-        System.out.println("WorkOfferLifecycleTest: 8 checks passed");
+        check(WorkOfferLifecycle.canAdvance(false,false),true,"no haul issued yet");
+        check(WorkOfferLifecycle.canAdvance(true,false),false,"unverified delivery blocks study");
+        check(WorkOfferLifecycle.canAdvance(true,true),true,"verified haul permits advancement");
+        check(WorkOfferLifecycle.canAdvance(false,true),true,"legacy completion not a blocker");
+        System.out.println("WorkOfferLifecycleTest: 12 checks passed");
     }
 }
