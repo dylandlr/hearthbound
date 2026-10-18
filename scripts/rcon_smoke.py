@@ -57,7 +57,7 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
         'setblock 3 100 1 minecraft:chest{Items:[{Slot:0b,id:"minecraft:wheat",Count:8b}]} replace',
         "setblock 7 100 1 minecraft:chest replace",
         "tp @e[type=minecraft:villager,name=Sable,limit=1] 2 100 1",
-        "execute at @e[type=minecraft:villager,name=Sable,limit=1] run sable haul 3 100 1 7 100 1",
+        "execute as @e[type=minecraft:villager,name=Sable,limit=1] at @s run sable haul 3 100 1 7 100 1",
     ]
     next_id = 10
     for command in setup:
@@ -211,6 +211,9 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
     command(1003, 'setblock 20 100 1 minecraft:chest{Items:[{Slot:0b,id:"minecraft:wheat",Count:1b}]} replace')
     command(1004, 'setblock 25 100 1 minecraft:chest{Items:[{Slot:0b,id:"minecraft:wheat",Count:1b}]} replace')
     command(1005, "setblock 23 100 3 minecraft:chest replace")
+    # The board must expose two stock sources before the citizens claim them.
+    board_reader = "execute positioned 21 100 1 run sable board-inspect 23 100 3"
+    # Spawn Iris first so a real Hearthbound citizen can observe the board.
     for n, x in (("Iris", 21), ("Moss", 22)):
         spawned = command(1010 + x, f"execute positioned {x} 100 1 run sable spawn-named {n}")
         if f"citizen spawned: {n}".lower() not in spawned.lower():
@@ -219,6 +222,10 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
         configured = command(1040 + x, self_cmd + "sable auto-work-source-discover 23 100 3")
         if "configured discover-source auto work" not in configured.lower():
             raise AssertionError("Cannot configure " + n + ": " + configured)
+        if n == "Iris":
+            board = command(1060, self_cmd + "sable board-inspect 23 100 3")
+            if "COLONY_BOARD wheat offers=2 free=2 claimed=0" not in board:
+                raise AssertionError("Expected 2 available shared board jobs: " + board)
         command(1070 + x, self_cmd + "sable haul-priority 1")
         command(1100 + x, self_cmd + "hearthbound library priority 0")
         activated = command(1130 + x, self_cmd + "sable auto-work-on")
@@ -239,6 +246,11 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
         check = command(number, f'execute unless data block {x} 100 1 Items[{{id:"minecraft:wheat"}}]')
         if "test passed" not in check.lower():
             raise AssertionError(f"Source chest {x} still stocked after both deliveries: {check}")
+
+    board_after = command(1390,
+        "execute as @e[type=minecraft:villager,name=Iris,limit=1] at @s run sable board-inspect 23 100 3")
+    if "COLONY_BOARD wheat offers=0 free=0 claimed=0" not in board_after:
+        raise AssertionError("Board did not clear depleted wheat sources: " + board_after)
 
     import re
     jobs = []

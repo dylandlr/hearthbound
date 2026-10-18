@@ -172,6 +172,17 @@ public final class SableController {
                             return 0;
                         }
                     })))
+            .then(Commands.literal("board-inspect")
+                .then(Commands.argument("destination", BlockPosArgument.blockPos())
+                    .executes(ctx -> {
+                        BlockPos stockpile = BlockPosArgument.getLoadedBlockPos(ctx, "destination");
+                        Villager citizen = nearestSable(ctx.getSource());
+                        if (citizen == null) return 0;
+                        String board = ColonyJobBoard.inspect(ctx.getSource().getLevel(),
+                                citizen.blockPosition(), stockpile);
+                        ctx.getSource().sendSuccess(() -> Component.literal(board), false);
+                        return 1;
+                    })))
             .then(Commands.literal("auto-work-on").executes(ctx -> {
                 Villager sable = nearestSable(ctx.getSource());
                 if (sable == null) return 0;
