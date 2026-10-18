@@ -133,8 +133,8 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
     command(400, "setblock 9 100 1 minecraft:chest replace")
     command(401, "setblock 5 100 3 minecraft:chest" + book_snbt + " replace")
     local = "execute at @e[type=minecraft:villager,name=Sable,limit=1] run "
-    configured = command(402, local + "sable auto-work-discover 3 100 1 9 100 1")
-    if "configured discover-library auto work" not in configured.lower():
+    configured = command(402, local + "sable auto-work-source-discover 9 100 1")
+    if "configured discover-source auto work" not in configured.lower():
         raise AssertionError("Autonomous work configuration was rejected: " + configured)
     command(403, local + "sable haul-priority 1")
     command(404, local + "hearthbound library priority 4")
@@ -142,9 +142,9 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
     if "auto work enabled" not in enabled.lower():
         raise AssertionError("Autonomous work could not be enabled: " + enabled)
 
-    # The configuration deliberately contains no library coordinates.
+    # The configuration contains only the destination, neither the source nor library.
     status = command(406, local + "sable auto-work-status")
-    if "discoverLibrary=true" not in status:
+    if "discoverLibrary=true" not in status or "discoverSource=true" not in status:
         raise AssertionError("Library discovery mode is not active: " + status)
 
     # Check actual Minecraft inventory changes, not just the scheduler's
@@ -159,11 +159,17 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
             break
     if not delivered:
         raise AssertionError("Autonomous Sable never delivered wheat to the second chest")
+    # Discovery selects the nearest eligible stocked source: the chest at 7
+    # contains the wheat delivered by the earlier manual regression.
     remaining = command(610,
-        'execute if data block 3 100 1 Items[{id:"minecraft:wheat",Count:6b}]')
+        'execute unless data block 7 100 1 Items[{id:"minecraft:wheat"}]')
     if "test passed" not in remaining.lower():
-        raise AssertionError("Autonomous transfer did not conserve wheat: " + remaining)
-    print("Autonomous hauling inventory transfer verified (7->6 and 0->1)")
+        raise AssertionError("Discovered nearby source did not lose its wheat: " + remaining)
+    initial = command(611,
+        'execute if data block 3 100 1 Items[{id:"minecraft:wheat",Count:7b}]')
+    if "test passed" not in initial.lower():
+        raise AssertionError("Distant source unexpectedly changed: " + initial)
+    print("Autonomous discovery verified: closest source 7->0, stockpile 0->1; distant source remains 7")
 
     # The scheduler records completion only after matching its persisted job
     # UUID to a cargo-free COMPLETE state, and only then considers the library.
