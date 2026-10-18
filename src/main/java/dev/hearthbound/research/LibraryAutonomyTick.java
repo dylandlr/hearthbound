@@ -60,7 +60,7 @@ public final class LibraryAutonomyTick {
         BlockPos origin = citizen.blockPosition();
         BlockPos candidate = null;
         double nearest = Double.POSITIVE_INFINITY;
-        for (BlockPos.MutableBlockPos pos : BlockPos.betweenClosedMutable(
+        for (BlockPos pos : BlockPos.betweenClosed(
                 origin.offset(-SCAN_RADIUS,-2,-SCAN_RADIUS),
                 origin.offset(SCAN_RADIUS,2,SCAN_RADIUS))) {
             if (!level.hasChunkAt(pos)) continue;
