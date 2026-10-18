@@ -20,7 +20,7 @@ public final class SableAutoWork {
                                  BlockPos source, BlockPos destination, BlockPos library) {
         if (citizen.level() != level || source.equals(destination))
             throw new IllegalArgumentException("Invalid world or endpoints");
-        if (!level.hasChunkAt(source) || !level.hasChunkAt(destination)
+        if ((source != null && !level.hasChunkAt(source)) || !level.hasChunkAt(destination)
                 || !level.hasChunkAt(library))
             throw new IllegalArgumentException("All configured chunks must be loaded");
         CompoundTag tag = new CompoundTag();
@@ -47,9 +47,23 @@ public final class SableAutoWork {
         citizen.getPersistentData().put(KEY, tag);
     }
 
+    /** Discover nearby wheat sources; operator explicitly authorizes destination. */
+    public static void configureSourceDiscovery(ServerLevel level, Villager citizen,
+                                                BlockPos destination) {
+        if (citizen.level() != level || !level.hasChunkAt(destination))
+            throw new IllegalArgumentException("Destination must be in a loaded citizen dimension");
+        CompoundTag tag = new CompoundTag();
+        tag.putString("dimension", level.dimension().location().toString());
+        tag.putLong("destination", destination.asLong());
+        tag.putBoolean("discoverSource", true);
+        tag.putBoolean("discoverLibrary", true);
+        tag.putBoolean("enabled", false);
+        citizen.getPersistentData().put(KEY, tag);
+    }
+
     public static void enable(Villager citizen, boolean enabled) {
         CompoundTag tag = citizen.getPersistentData().getCompound(KEY);
-        if (enabled && (!tag.contains("source") || !tag.contains("destination")
+        if (enabled && ((!tag.contains("source") && !tag.getBoolean("discoverSource")) || !tag.contains("destination")
                 || (!tag.getBoolean("discoverLibrary") && !tag.contains("library"))))
             throw new IllegalStateException("Configure endpoints first");
         tag.putBoolean("enabled", enabled);
@@ -82,7 +96,9 @@ public final class SableAutoWork {
             return;
         if (!level.dimension().location().toString().equals(tag.getString("dimension")))
             return;
-        BlockPos source = BlockPos.of(tag.getLong("source"));
+        BlockPos source = tag.getBoolean("discoverSource")
+                ? WheatSourceDiscovery.nearest(level, citizen, BlockPos.of(tag.getLong("destination")))
+                : BlockPos.of(tag.getLong("source"));
         BlockPos destination = BlockPos.of(tag.getLong("destination"));
         BlockPos library = tag.getBoolean("discoverLibrary")
                 ? LibraryCandidateDiscovery.nearest(level, citizen)
@@ -108,6 +124,7 @@ public final class SableAutoWork {
         return "AUTO_WORK enabled=" + enabled(citizen)
                 + " configured=" + t.contains("source")
                 + " discoverLibrary=" + t.getBoolean("discoverLibrary")
+                + " discoverSource=" + t.getBoolean("discoverSource")
                 + " haulIssued=" + t.getBoolean("haulIssued")
                 + " haulCompleted=" + t.getBoolean("haulCompleted")
                 + " haulJob=" + (t.hasUUID("haulJob") ? t.getUUID("haulJob") : "none")
