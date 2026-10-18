@@ -6,6 +6,7 @@ import dev.hearthbound.ai.WorkChoicePlanner;
 import dev.hearthbound.research.AutonomousLibraryStudy;
 import dev.hearthbound.research.LibraryPolicyBridge;
 import dev.hearthbound.research.LibraryStudyRuntime;
+import dev.hearthbound.research.CitizenTechnologyKnowledge;
 import java.util.List;
 import java.util.Map;
 import net.minecraft.core.BlockPos;
@@ -33,6 +34,12 @@ public final class SableWorkChoice {
 
     public static String consider(ServerLevel level, Villager citizen, BlockPos source,
                                   BlockPos destination, BlockPos library) {
+        return consider(level, citizen, source, destination, library, true);
+    }
+
+    /** Set allowHaul=false after the configured autonomous haul has been issued. */
+    public static String consider(ServerLevel level, Villager citizen, BlockPos source,
+                                  BlockPos destination, BlockPos library, boolean allowHaul) {
         if (citizen.level() != level) throw new IllegalArgumentException("Wrong dimension");
         if (SableHauling.active(citizen) || AutonomousLibraryStudy.active(citizen)
                 || LibraryStudyRuntime.state(citizen) == LibraryStudyRuntime.State.STUDYING)
@@ -41,9 +48,11 @@ public final class SableWorkChoice {
         int study = LibraryPolicyBridge.studyPriority(citizen);
         // Loaded endpoints and a valid lesson are minimum evidence of offers.
         // The hauling executor rechecks claims, reservations and inventory.
-        boolean canHaul = haul > 0 && !source.equals(destination)
+        boolean canHaul = allowHaul && haul > 0 && !source.equals(destination)
                 && level.hasChunkAt(source) && level.hasChunkAt(destination);
-        boolean canStudy = study > 0 && level.hasChunkAt(library)
+        boolean canStudy = study > 0
+                && !CitizenTechnologyKnowledge.knows(citizen, LibraryStudyRuntime.RECIPE)
+                && level.hasChunkAt(library)
                 && LibraryStudyRuntime.hasBook(level, library)
                 && citizen.distanceToSqr(library.getX() + .5, library.getY() + .5,
                         library.getZ() + .5) <= 64 * 64;
@@ -73,6 +82,8 @@ public final class SableWorkChoice {
         trace.putLong("tick", level.getGameTime());
         trace.putString("choice", choice.actionId());
         trace.putString("outcome", outcome);
+        trace.putBoolean("haulAvailable", canHaul);
+        trace.putBoolean("studyAvailable", canStudy);
         trace.putInt("haulPriority", haul);
         trace.putInt("studyPriority", study);
         citizen.getPersistentData().put(TRACE, trace);
