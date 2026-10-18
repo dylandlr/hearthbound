@@ -116,6 +116,18 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
     if got_id != 301 or "test passed" not in output.lower():
         raise AssertionError("Wheat delivered but Sable not near destination: " + output)
     print("Sable proximity verified at destination chest")
+    # A verified physical delivery now creates persistent event provenance
+    # and a deterministic, per-citizen starting-instinct profile.
+    sock.sendall(packet(305, 2, 'execute as @e[type=minecraft:villager,name=Sable,limit=1] at @s run sable instinct-inspect'))
+    _, _, instincts = response(sock)
+    if "INSTINCT ageStage=ADULT" not in instincts or "food=" not in instincts or "cooperation=" not in instincts:
+        raise AssertionError("Citizen instinct profile missing: " + instincts)
+    sock.sendall(packet(306, 2, 'execute as @e[type=minecraft:villager,name=Sable,limit=1] at @s run sable social-inspect'))
+    _, _, history = response(sock)
+    if "SOCIAL_MEMORY events=1" not in history or "WHEAT_DELIVERY" not in history or "source=SELF" not in history:
+        raise AssertionError("Real haul event was not recorded once: " + history)
+    print("Minecraft historical event recorded with job provenance and unique citizen instincts")
+
 
     # End-to-end autonomous progression. A second real chest transfer must
     # happen before study is allowed, and the physical marked book must remain.
@@ -275,5 +287,21 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
     if len(set(jobs)) != 2:
         raise AssertionError("Two citizens shared a haul job UUID: " + repr(jobs))
     print("MULTI_CITIZEN VERIFIED: distinct job UUIDs, two empty sources, two wheat in shared destination, both FREE")
+    # Both agents must have distinct personal historical events, and the
+    # social-web observation must enumerate actual Minecraft positions.
+    for n, req in (("Iris", 1710), ("Moss", 1720)):
+        who = f"execute as @e[type=minecraft:villager,name={n},limit=1] at @s run "
+        memory = command(req, who + "sable social-inspect")
+        if "WHEAT_DELIVERY" not in memory or "source=SELF" not in memory or "job=" not in memory:
+            raise AssertionError(n + " missing verified, witnessed-world history: " + memory)
+        profile = command(req+1, who + "sable instinct-inspect")
+        if "food=" not in profile or "exploration=" not in profile:
+            raise AssertionError(n + " has no stable personal instinct profile: " + profile)
+    web = command(1730,
+        "execute as @e[type=minecraft:villager,name=Iris,limit=1] at @s run sable social-web")
+    if "SOCIAL_WEB citizens=" not in web or "citizen=Iris" not in web or "citizen=Moss" not in web:
+        raise AssertionError("Social-web world snapshot missing real citizens: " + web)
+    print("SOCIETY FOUNDATION VERIFIED: Minecraft event provenance, distinct instincts, real population positions")
+
 
 print("Hearthbound server commands, entity spawn and wheat hauling verified")

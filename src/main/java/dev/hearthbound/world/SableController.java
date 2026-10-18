@@ -204,6 +204,27 @@ public final class SableController {
                 ctx.getSource().sendSuccess(() -> Component.literal("Auto work disabled"),false);
                 return 1;
             }))
+            .then(Commands.literal("instinct-inspect").executes(ctx -> {
+                Villager citizen = nearestSable(ctx.getSource());
+                if (citizen == null) return 0;
+                ctx.getSource().sendSuccess(() -> Component.literal(
+                        CitizenInstincts.inspect(citizen)), false);
+                return 1;
+            }))
+            .then(Commands.literal("social-inspect").executes(ctx -> {
+                Villager citizen = nearestSable(ctx.getSource());
+                if (citizen == null) return 0;
+                ctx.getSource().sendSuccess(() -> Component.literal(
+                        CitizenSocietyEvents.inspect(citizen)), false);
+                return 1;
+            }))
+            .then(Commands.literal("social-web").executes(ctx -> {
+                Villager citizen = nearestSable(ctx.getSource());
+                if (citizen == null) return 0;
+                ctx.getSource().sendSuccess(() -> Component.literal(
+                        CitizenSocietyEvents.web(ctx.getSource().getLevel(), citizen)), false);
+                return 1;
+            }))
             .then(Commands.literal("work-owner").executes(ctx -> {
                 Villager sable = nearestSable(ctx.getSource());
                 if (sable == null) return 0;

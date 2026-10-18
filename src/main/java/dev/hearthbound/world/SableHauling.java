@@ -261,6 +261,9 @@ public final class SableHauling {
                 tag.remove(CARGO);
                 tag.putInt(PHASE, COMPLETE);
                 HaulClaims.release(level, claimedSource, citizen.getUUID());
+                // Derived from a committed, cargo-free real Minecraft delivery,
+                // never merely from an intention or a scheduler claim.
+                CitizenSocietyEvents.completedHaul(level, citizen, tag.getUUID(JOB_ID), target);
             } else {
                 tag.put(CARGO, remaining.save(new CompoundTag()));
                 quarantine(tag, "Incomplete insertion; reconcile remaining cargo and destination");
