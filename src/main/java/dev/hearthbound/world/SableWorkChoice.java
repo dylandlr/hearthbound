@@ -3,6 +3,7 @@ package dev.hearthbound.world;
 import dev.hearthbound.ai.ColonyPolicy;
 import dev.hearthbound.ai.StochasticPriorityPolicy;
 import dev.hearthbound.ai.WorkChoicePlanner;
+import dev.hearthbound.ai.WorkOfferLifecycle;
 import dev.hearthbound.research.AutonomousLibraryStudy;
 import dev.hearthbound.research.LibraryPolicyBridge;
 import dev.hearthbound.research.LibraryStudyRuntime;
@@ -48,12 +49,12 @@ public final class SableWorkChoice {
         int study = LibraryPolicyBridge.studyPriority(citizen);
         // Loaded endpoints and a valid lesson are minimum evidence of offers.
         // The hauling executor rechecks claims, reservations and inventory.
-        boolean canHaul = allowHaul && haul > 0 && !source.equals(destination)
+        boolean canHaul = WorkOfferLifecycle.offerHaul(true, !allowHaul, haul)
+                && !source.equals(destination)
                 && level.hasChunkAt(source) && level.hasChunkAt(destination);
-        boolean canStudy = study > 0
-                && !CitizenTechnologyKnowledge.knows(citizen, LibraryStudyRuntime.RECIPE)
-                && level.hasChunkAt(library)
-                && LibraryStudyRuntime.hasBook(level, library)
+        boolean canStudy = WorkOfferLifecycle.offerStudy(
+                level.hasChunkAt(library) && LibraryStudyRuntime.hasBook(level, library),
+                CitizenTechnologyKnowledge.knows(citizen, LibraryStudyRuntime.RECIPE), study)
                 && citizen.distanceToSqr(library.getX() + .5, library.getY() + .5,
                         library.getZ() + .5) <= 64 * 64;
         var observation = WorkChoicePlanner.observation(citizen.getUUID(), level.getGameTime(),
