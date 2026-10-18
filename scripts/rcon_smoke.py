@@ -133,14 +133,19 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
     command(400, "setblock 9 100 1 minecraft:chest replace")
     command(401, "setblock 5 100 3 minecraft:chest" + book_snbt + " replace")
     local = "execute at @e[type=minecraft:villager,name=Sable,limit=1] run "
-    configured = command(402, local + "sable auto-work-config 3 100 1 9 100 1 5 100 3")
-    if "configured sable auto work" not in configured.lower():
+    configured = command(402, local + "sable auto-work-discover 3 100 1 9 100 1")
+    if "configured discover-library auto work" not in configured.lower():
         raise AssertionError("Autonomous work configuration was rejected: " + configured)
     command(403, local + "sable haul-priority 1")
     command(404, local + "hearthbound library priority 4")
     enabled = command(405, local + "sable auto-work-on")
     if "auto work enabled" not in enabled.lower():
         raise AssertionError("Autonomous work could not be enabled: " + enabled)
+
+    # The configuration deliberately contains no library coordinates.
+    status = command(406, local + "sable auto-work-status")
+    if "discoverLibrary=true" not in status:
+        raise AssertionError("Library discovery mode is not active: " + status)
 
     # Check actual Minecraft inventory changes, not just the scheduler's
     # decision text. A prior manually delivered item is in the OTHER chest.

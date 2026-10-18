@@ -116,6 +116,24 @@ public final class SableController {
                                     return 0;
                                 }
                             })))))
+            .then(Commands.literal("auto-work-discover")
+                .then(Commands.argument("source", BlockPosArgument.blockPos())
+                    .then(Commands.argument("destination", BlockPosArgument.blockPos())
+                        .executes(ctx -> {
+                            Villager sable = nearestSable(ctx.getSource());
+                            if (sable == null) return 0;
+                            try {
+                                SableAutoWork.configureDiscover(ctx.getSource().getLevel(), sable,
+                                        BlockPosArgument.getLoadedBlockPos(ctx,"source"),
+                                        BlockPosArgument.getLoadedBlockPos(ctx,"destination"));
+                                ctx.getSource().sendSuccess(() -> Component.literal(
+                                        "Configured discover-library auto work, initially OFF"), false);
+                                return 1;
+                            } catch (IllegalStateException | IllegalArgumentException ex) {
+                                ctx.getSource().sendFailure(Component.literal(ex.getMessage()));
+                                return 0;
+                            }
+                        }))))
             .then(Commands.literal("auto-work-on").executes(ctx -> {
                 Villager sable = nearestSable(ctx.getSource());
                 if (sable == null) return 0;

@@ -54,7 +54,7 @@ public final class SableWorkChoice {
                 && level.hasChunkAt(source) && level.hasChunkAt(destination)
                 && SableHauling.hasAvailableWheat(level, source);
         boolean canStudy = WorkOfferLifecycle.offerStudy(
-                level.hasChunkAt(library) && LibraryStudyRuntime.hasBook(level, library),
+                library != null && level.hasChunkAt(library) && LibraryStudyRuntime.hasBook(level, library),
                 CitizenTechnologyKnowledge.knows(citizen, LibraryStudyRuntime.RECIPE), study)
                 && citizen.distanceToSqr(library.getX() + .5, library.getY() + .5,
                         library.getZ() + .5) <= 64 * 64;
