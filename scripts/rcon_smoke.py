@@ -117,4 +117,77 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
         raise AssertionError("Wheat delivered but Sable not near destination: " + output)
     print("Sable proximity verified at destination chest")
 
+    # End-to-end autonomous progression. A second real chest transfer must
+    # happen before study is allowed, and the physical marked book must remain.
+    def command(request_id, text):
+        sock.sendall(packet(request_id, 2, text))
+        got, _, output = response(sock)
+        if got != request_id:
+            raise AssertionError(f"RCON response mismatch for {text}: {got}")
+        print(f"{text}: {output}")
+        return output
+
+    book_snbt = ('{Items:[{Slot:0b,id:"minecraft:written_book",Count:1b,'
+                 'tag:{"hearthbound.lesson":"hearthbound:basic_milling",'
+                 'title:"Hearthbound Milling Primer",author:"Hearthbound",pages:[]}}]}')
+    command(400, "setblock 9 100 1 minecraft:chest replace")
+    command(401, "setblock 5 100 3 minecraft:chest" + book_snbt + " replace")
+    local = "execute at @e[type=minecraft:villager,name=Sable,limit=1] run "
+    configured = command(402, local + "sable auto-work-config 3 100 1 9 100 1 5 100 3")
+    if "configured sable auto work" not in configured.lower():
+        raise AssertionError("Autonomous work configuration was rejected: " + configured)
+    command(403, local + "sable haul-priority 1")
+    command(404, local + "hearthbound library priority 4")
+    enabled = command(405, local + "sable auto-work-on")
+    if "auto work enabled" not in enabled.lower():
+        raise AssertionError("Autonomous work could not be enabled: " + enabled)
+
+    # Check actual Minecraft inventory changes, not just the scheduler's
+    # decision text. A prior manually delivered item is in the OTHER chest.
+    delivered = False
+    for i in range(100):
+        time.sleep(2)
+        found = command(500 + i,
+            'execute if data block 9 100 1 Items[{id:"minecraft:wheat",Count:1b}]')
+        if "test passed" in found.lower():
+            delivered = True
+            break
+    if not delivered:
+        raise AssertionError("Autonomous Sable never delivered wheat to the second chest")
+    remaining = command(610,
+        'execute if data block 3 100 1 Items[{id:"minecraft:wheat",Count:6b}]')
+    if "test passed" not in remaining.lower():
+        raise AssertionError("Autonomous transfer did not conserve wheat: " + remaining)
+    print("Autonomous hauling inventory transfer verified (7->6 and 0->1)")
+
+    # The scheduler records completion only after matching its persisted job
+    # UUID to a cargo-free COMPLETE state, and only then considers the library.
+    verified = False
+    for i in range(45):
+        time.sleep(2)
+        snapshot = command(700 + i, local + "sable auto-work-status")
+        if "haulIssued=true" in snapshot and "haulCompleted=true" in snapshot:
+            verified = True
+            break
+    if not verified:
+        raise AssertionError("Haul delivery was not recognized by the scheduler")
+
+    # Reading must actually complete inside the running server; the lesson
+    # record must be READ_BOOK, not experimental machinery mastery.
+    learned = False
+    for i in range(100):
+        time.sleep(2)
+        snapshot = command(800 + i, local + "hearthbound library inspect")
+        if ("create:milling/wheat" in snapshot
+                and "source=READ_BOOK" in snapshot
+                and "LIBRARY_STUDY COMPLETED" in snapshot):
+            learned = True
+            break
+    if not learned:
+        raise AssertionError("Sable did not physically finish the milling primer")
+    owner = command(910, local + "sable work-owner")
+    if "FREE" not in owner:
+        raise AssertionError("Citizen owner not released after study: " + owner)
+    print("Autonomous HAUL -> verified completion -> STUDY -> knowledge -> FREE passed")
+
 print("Hearthbound server commands, entity spawn and wheat hauling verified")
