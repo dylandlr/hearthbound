@@ -49,6 +49,14 @@ public final class SableAutoWork {
         if (Math.floorMod(now, INTERVAL) != Math.floorMod(citizen.getUUID().hashCode(), INTERVAL))
             return;
         CompoundTag tag = citizen.getPersistentData().getCompound(KEY);
+        // A prior assignment is not a successful delivery. Only the exact
+        // completed, cargo-free job with matching endpoint earns that status.
+        if (tag.hasUUID("haulJob") && !tag.getBoolean("haulCompleted")) {
+            java.util.UUID expected = tag.getUUID("haulJob");
+            BlockPos expectedDestination = BlockPos.of(tag.getLong("destination"));
+            if (SableHauling.completedJob(citizen, expected, expectedDestination))
+                tag.putBoolean("haulCompleted", true);
+        }
         if (now < tag.getLong("retryAfter") || SableHauling.active(citizen)
                 || AutonomousLibraryStudy.active(citizen)
                 || LibraryStudyRuntime.state(citizen) == LibraryStudyRuntime.State.STUDYING)
@@ -63,7 +71,14 @@ public final class SableAutoWork {
                 || !level.hasChunkAt(library)) return;
         String outcome = SableWorkChoice.consider(level, citizen, source, destination, library,
                 !tag.getBoolean("haulIssued"));
-        if ("HAUL_ASSIGNED".equals(outcome)) tag.putBoolean("haulIssued", true);
+        if ("HAUL_ASSIGNED".equals(outcome)) {
+            java.util.UUID job = SableHauling.jobId(citizen);
+            if (job != null) {
+                tag.putUUID("haulJob", job);
+                tag.putBoolean("haulIssued", true);
+                tag.putBoolean("haulCompleted", false);
+            }
+        }
         if (!outcome.endsWith("_ASSIGNED")) tag.putLong("retryAfter", now + COOLDOWN);
     }
 
@@ -72,6 +87,8 @@ public final class SableAutoWork {
         return "AUTO_WORK enabled=" + enabled(citizen)
                 + " configured=" + t.contains("source")
                 + " haulIssued=" + t.getBoolean("haulIssued")
+                + " haulCompleted=" + t.getBoolean("haulCompleted")
+                + " haulJob=" + (t.hasUUID("haulJob") ? t.getUUID("haulJob") : "none")
                 + " retryAfter=" + t.getLong("retryAfter");
     }
 }
