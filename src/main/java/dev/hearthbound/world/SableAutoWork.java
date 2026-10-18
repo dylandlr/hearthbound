@@ -57,6 +57,7 @@ public final class SableAutoWork {
             if (SableHauling.completedJob(citizen, expected, expectedDestination))
                 tag.putBoolean("haulCompleted", true);
         }
+        if (tag.getBoolean("haulIssued") && !tag.getBoolean("haulCompleted")) return;
         if (now < tag.getLong("retryAfter") || SableHauling.active(citizen)
                 || AutonomousLibraryStudy.active(citizen)
                 || LibraryStudyRuntime.state(citizen) == LibraryStudyRuntime.State.STUDYING)
