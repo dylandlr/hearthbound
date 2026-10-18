@@ -61,7 +61,9 @@ public final class SableAutoWork {
         // Fail closed on unloaded chunks. Never force-load for an autonomous job.
         if (!level.hasChunkAt(source) || !level.hasChunkAt(destination)
                 || !level.hasChunkAt(library)) return;
-        String outcome = SableWorkChoice.consider(level, citizen, source, destination, library);
+        String outcome = SableWorkChoice.consider(level, citizen, source, destination, library,
+                !tag.getBoolean("haulIssued"));
+        if ("HAUL_ASSIGNED".equals(outcome)) tag.putBoolean("haulIssued", true);
         if (!outcome.endsWith("_ASSIGNED")) tag.putLong("retryAfter", now + COOLDOWN);
     }
 
@@ -69,6 +71,7 @@ public final class SableAutoWork {
         CompoundTag t = citizen.getPersistentData().getCompound(KEY);
         return "AUTO_WORK enabled=" + enabled(citizen)
                 + " configured=" + t.contains("source")
+                + " haulIssued=" + t.getBoolean("haulIssued")
                 + " retryAfter=" + t.getLong("retryAfter");
     }
 }
