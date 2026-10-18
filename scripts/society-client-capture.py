@@ -98,7 +98,11 @@ try:
              "--assetIndex", (CLIENT / "asset-index.txt").read_text(), "--width", "1280", "--height", "720"]
     args += profile["arguments"]["game"] + ["--quickPlayMultiplayer", "127.0.0.1:25565"]
     game = launch(args, CLIENT, "client.log")
-    wait_for(lambda: PLAYER in rcon.execute("list"), 200, "graphical client joins dedicated server")
+    def joined():
+        if game.poll() is not None:
+            raise AssertionError("Graphical client exited: " + (OUT / "client.log").read_text()[-6000:])
+        return PLAYER in rcon.execute("list")
+    wait_for(joined, 120, "graphical client joins dedicated server")
     command("gamemode creative " + PLAYER)
     time.sleep(5)
     windows = subprocess.check_output(["xdotool", "search", "--onlyvisible", "--pid", str(game.pid)], text=True).splitlines()
@@ -161,6 +165,9 @@ try:
     time.sleep(6)
     (OUT/'provenance.json').write_text(json.dumps(evidence,indent=2))
     print('HB_EIGHT_CITIZEN_CAPTURE_PASS: 8 distinct jobs; inventory conserved; per-citizen memories',flush=True)
+except Exception:
+    screenshot('failure.png')
+    raise
 finally:
     if recording:
         recording.communicate(b'q',timeout=20)
