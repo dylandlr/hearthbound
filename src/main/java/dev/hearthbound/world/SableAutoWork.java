@@ -104,7 +104,7 @@ public final class SableAutoWork {
                 ? LibraryCandidateDiscovery.nearest(level, citizen)
                 : BlockPos.of(tag.getLong("library"));
         // Fail closed on unloaded chunks. Never force-load for an autonomous job.
-        if (!level.hasChunkAt(source) || !level.hasChunkAt(destination)
+        if ((source != null && !level.hasChunkAt(source)) || !level.hasChunkAt(destination)
                 || (library != null && !level.hasChunkAt(library))) return;
         String outcome = SableWorkChoice.consider(level, citizen, source, destination, library,
                 !tag.getBoolean("haulIssued"));
