@@ -122,7 +122,7 @@ public final class SableAutoWork {
     public static String inspect(Villager citizen) {
         CompoundTag t = citizen.getPersistentData().getCompound(KEY);
         return "AUTO_WORK enabled=" + enabled(citizen)
-                + " configured=" + t.contains("source")
+                + " configured=" + (t.contains("source") || t.getBoolean("discoverSource"))
                 + " discoverLibrary=" + t.getBoolean("discoverLibrary")
                 + " discoverSource=" + t.getBoolean("discoverSource")
                 + " haulIssued=" + t.getBoolean("haulIssued")
