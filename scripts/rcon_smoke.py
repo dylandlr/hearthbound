@@ -201,4 +201,67 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
         raise AssertionError("Citizen owner not released after study: " + owner)
     print("Autonomous HAUL -> verified completion -> STUDY -> knowledge -> FREE passed")
 
+
+    # Multi-citizen regression: two agents prefer the same stocked chest.
+    # Both must transport exactly one wheat to a shared stockpile, using
+    # distinct physical jobs; source claims prevent duplicate pickup.
+    command(1000, "forceload add 18 0 32 4")
+    command(1001, "fill 18 99 0 32 99 4 minecraft:stone")
+    command(1002, "fill 18 100 0 32 103 4 minecraft:air")
+    command(1003, 'setblock 20 100 1 minecraft:chest{Items:[{Slot:0b,id:"minecraft:wheat",Count:1b}]} replace')
+    command(1004, 'setblock 25 100 1 minecraft:chest{Items:[{Slot:0b,id:"minecraft:wheat",Count:1b}]} replace')
+    command(1005, "setblock 23 100 3 minecraft:chest replace")
+    for n, x in (("Iris", 21), ("Moss", 22)):
+        spawned = command(1010 + x, f"execute positioned {x} 100 1 run sable spawn-named {n}")
+        if f"citizen spawned: {n}".lower() not in spawned.lower():
+            raise AssertionError("Unable to spawn " + n + ": " + spawned)
+        self_cmd = f"execute as @e[type=minecraft:villager,name={n},limit=1] at @s run "
+        configured = command(1040 + x, self_cmd + "sable auto-work-source-discover 23 100 3")
+        if "configured discover-source auto work" not in configured.lower():
+            raise AssertionError("Cannot configure " + n + ": " + configured)
+        command(1070 + x, self_cmd + "sable haul-priority 1")
+        command(1100 + x, self_cmd + "hearthbound library priority 0")
+        activated = command(1130 + x, self_cmd + "sable auto-work-on")
+        if "auto work enabled" not in activated.lower():
+            raise AssertionError("Cannot enable " + n + ": " + activated)
+
+    arrived = False
+    for i in range(120):
+        time.sleep(2)
+        state = command(1200 + i,
+            'execute if data block 23 100 3 Items[{id:"minecraft:wheat",Count:2b}]')
+        if "test passed" in state.lower():
+            arrived = True
+            break
+    if not arrived:
+        raise AssertionError("Two citizens failed to deliver 2 wheat to shared stockpile")
+    for number, x in ((1400, 20), (1401, 25)):
+        check = command(number, f'execute unless data block {x} 100 1 Items[{{id:"minecraft:wheat"}}]')
+        if "test passed" not in check.lower():
+            raise AssertionError(f"Source chest {x} still stocked after both deliveries: {check}")
+
+    import re
+    jobs = []
+    for n, req in (("Iris", 1500), ("Moss", 1501)):
+        who = f"execute as @e[type=minecraft:villager,name={n},limit=1] at @s run "
+        complete = False
+        for i in range(15):
+            status = command(req + i * 2, who + "sable auto-work-status")
+            if "haulCompleted=true" in status:
+                found = re.search(r"haulJob=([0-9a-f-]{36})", status)
+                if not found:
+                    raise AssertionError("Missing physical job identity for " + n)
+                jobs.append(found.group(1))
+                complete = True
+                break
+            time.sleep(2)
+        if not complete:
+            raise AssertionError(n + " did not verify its hauling completion")
+        owner = command(req + 100, who + "sable work-owner")
+        if "FREE" not in owner:
+            raise AssertionError(n + " still owns work after delivery: " + owner)
+    if len(set(jobs)) != 2:
+        raise AssertionError("Two citizens shared a haul job UUID: " + repr(jobs))
+    print("MULTI_CITIZEN VERIFIED: distinct job UUIDs, two empty sources, two wheat in shared destination, both FREE")
+
 print("Hearthbound server commands, entity spawn and wheat hauling verified")
