@@ -29,3 +29,4 @@ jobs:
           java -cp build/policy-test dev.hearthbound.ai.StochasticPriorityPolicyTest
           java -cp build/policy-test dev.hearthbound.ai.CitizenWorkDispatcherTest
           java -cp build/policy-test dev.hearthbound.ai.WorkChoicePlannerTest
+          java -cp build/policy-test dev.hearthbound.ai.WorkOfferLifecycleTest
