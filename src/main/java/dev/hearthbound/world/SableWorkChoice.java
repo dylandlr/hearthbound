@@ -51,7 +51,8 @@ public final class SableWorkChoice {
         // The hauling executor rechecks claims, reservations and inventory.
         boolean canHaul = WorkOfferLifecycle.offerHaul(true, !allowHaul, haul)
                 && !source.equals(destination)
-                && level.hasChunkAt(source) && level.hasChunkAt(destination);
+                && level.hasChunkAt(source) && level.hasChunkAt(destination)
+                && SableHauling.hasAvailableWheat(level, source);
         boolean canStudy = WorkOfferLifecycle.offerStudy(
                 level.hasChunkAt(library) && LibraryStudyRuntime.hasBook(level, library),
                 CitizenTechnologyKnowledge.knows(citizen, LibraryStudyRuntime.RECIPE), study)
