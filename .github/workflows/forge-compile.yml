@@ -1,30 +1,58 @@
 name: Forge compilation
+
 on:
   push:
     branches:
       - main
       - 'feat/**'
       - 'fix/**'
-      - 'fix/haul-preflight-safety'
-      - 'feat/sable-hauling-job'
-      - 'feat/sable-villager-slice'
-      - 'feat/haul-restart-quarantine-v2-3'
   pull_request:
+    branches:
+      - main
+      - 'feat/**'
   workflow_dispatch:
+
 permissions:
   contents: read
+
+concurrency:
+  group: forge-compile-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   compile-forge:
+    name: Forge 1.20.1 / Create compile (Java 17)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Install Java 17
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-      - uses: gradle/actions/setup-gradle@v4
+      # This repository has no Gradle wrapper; use a pinned distribution.
+      - name: Install Gradle 8.8
+        uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.8'
-      - name: Compile actual Forge Minecraft sources
-        run: gradle --no-daemon --stacktrace compileJava
+      - name: Show build environment
+        run: |
+          java -version
+          gradle --version
+          test -f build.gradle
+          test -f gradle.properties
+      - name: Compile actual Forge and Create Java sources
+        shell: bash
+        run: |
+          set -o pipefail
+          gradle --no-daemon --console=plain --stacktrace compileJava 2>&1 | tee forge-compile.log
+      - name: Retain compiler diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: forge-compile-log
+          path: forge-compile.log
+          if-no-files-found: warn
+          retention-days: 14
