@@ -99,6 +99,12 @@ public final class SableHauling {
         CitizenWorkOwnership.assigned(citizen, CitizenWorkOwnership.Kind.HAUL);
     }
 
+    /** Job identity for lifecycle correlation; never evidence of successful delivery. */
+    public static UUID jobId(Villager citizen) {
+        CompoundTag tag = citizen.getPersistentData().getCompound(KEY);
+        return tag.hasUUID(JOB_ID) ? tag.getUUID(JOB_ID) : null;
+    }
+
     /** Only a fully completed delivery can be used for audited mill release. */
     public static boolean completedJob(Villager citizen, UUID expected, BlockPos destination) {
         CompoundTag tag = citizen.getPersistentData().getCompound(KEY);
