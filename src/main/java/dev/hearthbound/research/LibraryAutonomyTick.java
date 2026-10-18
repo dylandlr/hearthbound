@@ -14,7 +14,6 @@ import net.minecraft.world.entity.npc.Villager;
  */
 public final class LibraryAutonomyTick {
     private static final String KEY = "hearthbound.libraryAutoV1";
-    private static final int SCAN_RADIUS = 8;
     private static final long DECISION_INTERVAL = 200;
     private static final long FAILURE_COOLDOWN = 600;
 
@@ -57,20 +56,7 @@ public final class LibraryAutonomyTick {
                 SableHauling.active(citizen), workState, now, tag.getLong("retryAfter"));
         if (!CitizenDecisionCadence.shouldConsider(snapshot)) return;
 
-        BlockPos origin = citizen.blockPosition();
-        BlockPos candidate = null;
-        double nearest = Double.POSITIVE_INFINITY;
-        for (BlockPos pos : BlockPos.betweenClosed(
-                origin.offset(-SCAN_RADIUS,-2,-SCAN_RADIUS),
-                origin.offset(SCAN_RADIUS,2,SCAN_RADIUS))) {
-            if (!level.hasChunkAt(pos)) continue;
-            if (!LibraryStudyRuntime.hasBook(level, pos)) continue;
-            double distance = pos.distSqr(origin);
-            if (distance < nearest) {
-                candidate = pos.immutable();
-                nearest = distance;
-            }
-        }
+        BlockPos candidate = LibraryCandidateDiscovery.nearest(level, citizen);
         if (candidate == null) {
             tag.putLong("retryAfter", now + FAILURE_COOLDOWN);
             return;
