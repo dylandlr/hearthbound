@@ -293,6 +293,18 @@ public final class SableHauling {
             + " [observations only; no reconciliation performed]";
     }
 
+    /**
+     * Read-only candidate check, not a claim or transfer guarantee.
+     * The hauling executor still revalidates at actual pickup.
+     */
+    public static boolean hasAvailableWheat(ServerLevel level, BlockPos pos) {
+        try {
+            return Integer.parseInt(observedWheat(level, pos)) > 0;
+        } catch (NumberFormatException ignored) {
+            return false;
+        }
+    }
+
     private static String observedWheat(ServerLevel level, BlockPos pos) {
         if (!level.hasChunkAt(pos)) return "CHUNK_UNLOADED";
         BlockEntity block = level.getBlockEntity(pos);
