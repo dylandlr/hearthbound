@@ -50,7 +50,7 @@ public final class SableWorkChoice {
         // Loaded endpoints and a valid lesson are minimum evidence of offers.
         // The hauling executor rechecks claims, reservations and inventory.
         boolean canHaul = WorkOfferLifecycle.offerHaul(true, !allowHaul, haul)
-                && !source.equals(destination)
+                && source != null && !source.equals(destination)
                 && level.hasChunkAt(source) && level.hasChunkAt(destination)
                 && SableHauling.hasAvailableWheat(level, source);
         boolean canStudy = WorkOfferLifecycle.offerStudy(
