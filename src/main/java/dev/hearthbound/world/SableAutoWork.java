@@ -3,6 +3,7 @@ package dev.hearthbound.world;
 import dev.hearthbound.ai.WorkOfferLifecycle;
 import dev.hearthbound.research.AutonomousLibraryStudy;
 import dev.hearthbound.research.LibraryStudyRuntime;
+import dev.hearthbound.research.LibraryCandidateDiscovery;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
@@ -31,10 +32,25 @@ public final class SableAutoWork {
         citizen.getPersistentData().put(KEY, tag);
     }
 
+    /** Haul locations remain operator-authorized; library is discovered nearby. */
+    public static void configureDiscover(ServerLevel level, Villager citizen,
+                                         BlockPos source, BlockPos destination) {
+        if (citizen.level() != level || source.equals(destination)
+                || !level.hasChunkAt(source) || !level.hasChunkAt(destination))
+            throw new IllegalArgumentException("Invalid or unloaded hauling endpoints");
+        CompoundTag tag = new CompoundTag();
+        tag.putString("dimension", level.dimension().location().toString());
+        tag.putLong("source", source.asLong());
+        tag.putLong("destination", destination.asLong());
+        tag.putBoolean("discoverLibrary", true);
+        tag.putBoolean("enabled", false);
+        citizen.getPersistentData().put(KEY, tag);
+    }
+
     public static void enable(Villager citizen, boolean enabled) {
         CompoundTag tag = citizen.getPersistentData().getCompound(KEY);
         if (enabled && (!tag.contains("source") || !tag.contains("destination")
-                || !tag.contains("library")))
+                || (!tag.getBoolean("discoverLibrary") && !tag.contains("library"))))
             throw new IllegalStateException("Configure endpoints first");
         tag.putBoolean("enabled", enabled);
         citizen.getPersistentData().put(KEY, tag);
@@ -68,10 +84,12 @@ public final class SableAutoWork {
             return;
         BlockPos source = BlockPos.of(tag.getLong("source"));
         BlockPos destination = BlockPos.of(tag.getLong("destination"));
-        BlockPos library = BlockPos.of(tag.getLong("library"));
+        BlockPos library = tag.getBoolean("discoverLibrary")
+                ? LibraryCandidateDiscovery.nearest(level, citizen)
+                : BlockPos.of(tag.getLong("library"));
         // Fail closed on unloaded chunks. Never force-load for an autonomous job.
         if (!level.hasChunkAt(source) || !level.hasChunkAt(destination)
-                || !level.hasChunkAt(library)) return;
+                || (library != null && !level.hasChunkAt(library))) return;
         String outcome = SableWorkChoice.consider(level, citizen, source, destination, library,
                 !tag.getBoolean("haulIssued"));
         if ("HAUL_ASSIGNED".equals(outcome)) {
@@ -89,6 +107,7 @@ public final class SableAutoWork {
         CompoundTag t = citizen.getPersistentData().getCompound(KEY);
         return "AUTO_WORK enabled=" + enabled(citizen)
                 + " configured=" + t.contains("source")
+                + " discoverLibrary=" + t.getBoolean("discoverLibrary")
                 + " haulIssued=" + t.getBoolean("haulIssued")
                 + " haulCompleted=" + t.getBoolean("haulCompleted")
                 + " haulJob=" + (t.hasUUID("haulJob") ? t.getUUID("haulJob") : "none")
