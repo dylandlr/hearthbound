@@ -4,7 +4,7 @@
 World-backed behavioral test, not evidence that Sable autonomously discovered a
 recipe. Verified Create callbacks now grant research credit, and a nearby citizen can be taught only after the teacher actually knows the recipe.
 """
-import os, re, socket, struct, time
+import os, re, socket, struct, time, json, pathlib
 
 def packet(req, typ, value):
     body=struct.pack("<ii",req,typ)+value.encode()+b"\0\0"
@@ -70,6 +70,8 @@ with Rcon() as r:
     # The agent has no hand-issued haul or proposal: both are selected at tick time.
     r.contains(f"execute as {villager} at @s run sable auto-research-on",
                "AUTO_RESEARCH ENABLED")
+    started=time.monotonic()
+    metrics={"schema_version":1,"scenario":"autonomous-scientist","starting_wheat":8,"millstone_powered":True}
     assigned=False
     for _ in range(60):
         time.sleep(1)
@@ -82,6 +84,7 @@ with Rcon() as r:
             break
     if not assigned:
         raise AssertionError("Citizen never independently proposed and assigned experiment")
+    metrics["seconds_to_proposal"]=round(time.monotonic()-started,3)
 
     # Only Sable is allowed to transport the wheat; no /summon item.
     complete=False
@@ -95,6 +98,7 @@ with Rcon() as r:
             audit=r.run(f"execute at {villager} run sable haul-audit")
             raise AssertionError("Haul stopped: "+audit)
     if not complete: raise AssertionError("Sable did not deliver wheat to Create millstone")
+    metrics["seconds_to_haul"]=round(time.monotonic()-started,3)
     r.contains('execute if data block 3 101 1 Items[{id:"minecraft:wheat",Count:7b}]',"Test passed")
     produced=False
     for _ in range(100):
@@ -107,6 +111,8 @@ with Rcon() as r:
                 raise AssertionError("Unverified science credit")
             break
     if not produced: raise AssertionError("Sable delivered wheat but Create produced no flour")
+    metrics["seconds_to_first_flour"]=round(time.monotonic()-started,3)
+    metrics["wheat_consumed"]=1
     # Machine output can become visible before the citizen’s 20-tick sample.
     # Wait for the ordered trace rather than failing on that benign race.
     trace=""
@@ -155,4 +161,9 @@ with Rcon() as r:
                "HYPOTHESIS CONFIRMED")
     r.contains(f"execute as {villager} at @s run sable auto-research-off",
                "AUTO_RESEARCH DISABLED")
+    metrics["seconds_to_confirmation"]=round(time.monotonic()-started,3)
+    metrics["confirmed"]=True
+    out=pathlib.Path(os.environ.get("HEARTHBOUND_SCENARIO_METRICS","simulation-results/metrics.json"))
+    out.parent.mkdir(parents=True,exist_ok=True)
+    out.write_text(json.dumps(metrics,indent=2)+"\\n")
     print("AUTONOMOUS FIRST MILL PASS: proposal, haul, Create receipt, research credit, knowledge")
