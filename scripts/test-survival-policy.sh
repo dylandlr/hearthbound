@@ -6,6 +6,6 @@ mkdir -p build/survival-test
 java -m jdk.compiler/com.sun.tools.javac.Main --release 17 -d build/survival-test \
   src/main/java/dev/hearthbound/research/CitizenTaskArbiter.java \
   src/main/java/dev/hearthbound/ai/*.java src/test/java/dev/hearthbound/ai/*.java
-for suite in SurvivalPolicyTest PolicyKernelTest HaulLedgerTest WorkOfferLifecycleTest; do
+for suite in SurvivalPolicyTest PolicyKernelTest HaulLedgerTest StochasticPriorityPolicyTest CitizenWorkDispatcherTest WorkChoicePlannerTest WorkOfferLifecycleTest; do
   java -cp build/survival-test "dev.hearthbound.ai.$suite"
 done
