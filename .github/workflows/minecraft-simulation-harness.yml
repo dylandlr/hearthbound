@@ -1,0 +1,86 @@
+name: Minecraft simulation harness
+on:
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: "Authoritative server scenario"
+        type: choice
+        options:
+          - autonomous-scientist
+          - basic-smoke
+        required: true
+        default: autonomous-scientist
+      seed:
+        description: "Minecraft world seed (integer)"
+        type: string
+        required: true
+        default: "42"
+  push:
+    branches:
+      - feat/minecraft-simulation-harness-v1-9
+jobs:
+  simulate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      HEARTHBOUND_RCON_PASSWORD: ci-local-disposable-password
+      SCENARIO: ${{ inputs.scenario || 'autonomous-scientist' }}
+      SEED: ${{ inputs.seed || '42' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.8'
+      - name: Verify fixture and seed
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/rcon_autonomous_scientist.py scripts/rcon_smoke.py scripts/summarize_minecraft_simulation.py
+          [[ "$SEED" =~ ^-?[0-9]+$ ]] || { echo "Seed must be a signed integer"; exit 2; }
+          case "$SCENARIO" in autonomous-scientist|basic-smoke) ;; *) exit 2;; esac
+      - name: Run real Forge simulation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p run simulation-results
+          printf 'eula=true\n' > run/eula.txt
+          printf 'online-mode=false\nlevel-name=ci-simulation\nlevel-seed=%s\nmax-players=2\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' "$SEED" "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties
+          gradle --no-daemon runServer > simulation-results/server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 360); do
+            if grep -Eq 'Done \([0-9.]+s\)! For help, type "help"' simulation-results/server.log; then ready=1; break; fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then break; fi
+            sleep 2
+          done
+          rc=1
+          if [ "$ready" -eq 1 ]; then
+            set +e
+            if [ "$SCENARIO" = autonomous-scientist ]; then
+              python3 scripts/rcon_autonomous_scientist.py 2>&1 | tee simulation-results/scenario.log
+              rc=${PIPESTATUS[0]}
+            else
+              python3 scripts/rcon_smoke.py 2>&1 | tee simulation-results/scenario.log
+              rc=${PIPESTATUS[0]}
+            fi
+            set -e
+          else
+            echo "Dedicated server did not reach ready state" | tee simulation-results/scenario.log
+          fi
+          python3 scripts/summarize_minecraft_simulation.py --log simulation-results/server.log --scenario "$SCENARIO" --seed "$SEED" --exit-code "$rc" --output simulation-results/summary.json
+          exit "$rc"
+      - name: Upload simulation results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: minecraft-simulation-results
+          path: |
+            simulation-results/
+            run/logs/latest.log
+          if-no-files-found: warn
+          retention-days: 14
