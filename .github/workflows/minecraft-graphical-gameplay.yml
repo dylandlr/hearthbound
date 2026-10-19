@@ -49,13 +49,12 @@ jobs:
             sleep 2
           done
           if [ "$ready" -ne 1 ]; then echo "Forge server did not start"; tail -n 100 gameplay-capture/server.log; exit 1; fi
-          # ForgeGradle supplies Minecraft's native libraries and the mod classpath.
-          # --server and --port request a direct multiplayer connection at launch.
-          gradle --no-daemon runClient --args='--username HearthboundCamera --server 127.0.0.1 --port 25565' > gameplay-capture/client.log 2>&1 &
+          # Official Minecraft 1.20+ Quick Play performs direct multiplayer join.
+          gradle --no-daemon runClient --args='--username HearthboundCamera --quickPlayMultiplayer 127.0.0.1:25565' > gameplay-capture/client.log 2>&1 &
           client_pid=$!
           trap 'kill "$client_pid" "$server_pid" "$xvfb_pid" "$wm_pid" 2>/dev/null || true' EXIT
           # Capture diagnostics even when Minecraft never joins.
-          # ForgeGradle's --args does not guarantee Minecraft menu auto-connect.
+          # Quick Play should connect directly; UI actions below are best-effort fallback.
           # Wait for the actual game window; fixed sleeps can miss heavy software GL startup.
           window=""
           for i in $(seq 1 100); do
