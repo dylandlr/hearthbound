@@ -110,6 +110,11 @@ jobs:
           test "$scenario_rc" -eq 0
           test -s gameplay-capture/minecraft-gameplay.mp4
           ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1 gameplay-capture/minecraft-gameplay.mp4
+          # A nonempty file alone does not prove decodable video. Decode and
+          # extract a review frame; errors fail the job rather than claiming a demo.
+          ffmpeg -hide_banner -v error -xerror -i gameplay-capture/minecraft-gameplay.mp4 -f null - 2> gameplay-capture/decode-validation.log
+          ffmpeg -hide_banner -v error -y -ss 1 -i gameplay-capture/minecraft-gameplay.mp4 -frames:v 1 gameplay-capture/gameplay-review-frame.png
+          test -s gameplay-capture/gameplay-review-frame.png
       - name: Upload genuine client footage and logs
         if: always()
         uses: actions/upload-artifact@v4
