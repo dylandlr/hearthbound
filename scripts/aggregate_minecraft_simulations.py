@@ -33,6 +33,15 @@ aggregate={
         if any(isinstance(r.get("measurements"),dict)
                and isinstance(r["measurements"].get(key),(int,float)) for r in reports)
     },
+    "mean_milestone_ticks": {
+        key: round(statistics.mean(r["measurements"][key] for r in reports
+            if isinstance(r.get("measurements"),dict)
+            and isinstance(r["measurements"].get(key),(int,float))),2)
+        for key in ("ticks_to_proposal","ticks_to_haul","ticks_to_first_flour",
+                    "ticks_to_confirmation")
+        if any(isinstance(r.get("measurements"),dict)
+               and isinstance(r["measurements"].get(key),(int,float)) for r in reports)
+    },
     "mean_wheat_consumed": (
         statistics.mean(r["measurements"]["wheat_consumed"] for r in reports
             if isinstance(r.get("measurements"),dict)
