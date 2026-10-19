@@ -56,6 +56,7 @@ jobs:
           fi
           echo "Hearthbound mod initialization confirmed"
           python3 scripts/rcon_smoke.py
+          HEARTHBOUND_RCON_PASSWORD="$HEARTHBOUND_RCON_PASSWORD" python3 scripts/survival-server-test.py
           grep -E 'Hearthbound bootstrap loaded|Done \(' server-smoke.log || true
       - name: Upload startup logs
         if: always()

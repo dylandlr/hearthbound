@@ -83,7 +83,7 @@ public final class CitizenWorkDispatcher {
 
     private Result rejected(Observation o, String action, String outcome, String reason) {
         Trace trace = new Trace(o.citizenId(), o.version(), action, outcome, reason);
-        traces.add(trace);
+        record(trace);
         return new Result(false, null, trace);
     }
 }

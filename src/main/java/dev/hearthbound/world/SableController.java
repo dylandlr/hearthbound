@@ -204,6 +204,41 @@ public final class SableController {
                 ctx.getSource().sendSuccess(() -> Component.literal("Auto work disabled"),false);
                 return 1;
             }))
+            .then(Commands.literal("survival-on").executes(ctx -> {
+                Villager citizen = nearestSable(ctx.getSource());
+                if (citizen == null) return 0;
+                CitizenSurvival.enable(citizen,true);
+                ctx.getSource().sendSuccess(() -> Component.literal(CitizenSurvival.inspect(citizen) + " " + SableAutoWork.inspect(citizen)),false);
+                return 1;
+            }))
+            .then(Commands.literal("survival-off").executes(ctx -> {
+                Villager citizen = nearestSable(ctx.getSource());
+                if (citizen == null) return 0;
+                CitizenSurvival.enable(citizen,false);
+                ctx.getSource().sendSuccess(() -> Component.literal(CitizenSurvival.inspect(citizen) + " " + SableAutoWork.inspect(citizen)),false);
+                return 1;
+            }))
+            .then(Commands.literal("survival-inspect").executes(ctx -> {
+                Villager citizen = nearestSable(ctx.getSource());
+                if (citizen == null) return 0;
+                
+                ctx.getSource().sendSuccess(() -> Component.literal(CitizenSurvival.inspect(citizen) + " " + SableAutoWork.inspect(citizen)),false);
+                return 1;
+            }))
+            .then(Commands.literal("auto-work-repeat-on").executes(ctx -> {
+                Villager citizen = nearestSable(ctx.getSource());
+                if (citizen == null) return 0;
+                SableAutoWork.repeat(citizen,true);
+                ctx.getSource().sendSuccess(() -> Component.literal(CitizenSurvival.inspect(citizen) + " " + SableAutoWork.inspect(citizen)),false);
+                return 1;
+            }))
+            .then(Commands.literal("auto-work-repeat-off").executes(ctx -> {
+                Villager citizen = nearestSable(ctx.getSource());
+                if (citizen == null) return 0;
+                SableAutoWork.repeat(citizen,false);
+                ctx.getSource().sendSuccess(() -> Component.literal(CitizenSurvival.inspect(citizen) + " " + SableAutoWork.inspect(citizen)),false);
+                return 1;
+            }))
             .then(Commands.literal("instinct-inspect").executes(ctx -> {
                 Villager citizen = nearestSable(ctx.getSource());
                 if (citizen == null) return 0;
@@ -510,12 +545,14 @@ public final class SableController {
                 v -> v.distanceToSqr(source.getPosition().x, source.getPosition().y, source.getPosition().z))).orElse(null);
     }
 
-    @SubscribeEvent
+    @SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.HIGHEST)
     public static void onLivingTick(LivingEvent.LivingTickEvent event) {
         if (!(event.getEntity() instanceof Villager villager)) return;
         if (!(villager.level() instanceof ServerLevel level)) return;
         if (!villager.getPersistentData().getBoolean(MARKER)) return;
         MillExperimentTrace.monitorAuthorizedInput(level, villager);
+        CitizenSurvival.tick(level, villager);
+        if (CitizenSurvival.paused(villager)) return;
         SableAutoWork.tick(level, villager);
         if (villager.tickCount % 20 != 0) return;
         // Observation is read-only with respect to the millstone and never

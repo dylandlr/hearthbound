@@ -70,6 +70,12 @@ public final class SableAutoWork {
         citizen.getPersistentData().put(KEY, tag);
     }
 
+    public static void repeat(Villager citizen, boolean enabled) {
+        CompoundTag tag = citizen.getPersistentData().getCompound(KEY);
+        tag.putBoolean("repeat", enabled);
+        citizen.getPersistentData().put(KEY, tag);
+    }
+
     public static boolean enabled(Villager citizen) {
         return citizen.getPersistentData().getCompound(KEY).getBoolean("enabled");
     }
@@ -107,7 +113,7 @@ public final class SableAutoWork {
         if ((source != null && !level.hasChunkAt(source)) || !level.hasChunkAt(destination)
                 || (library != null && !level.hasChunkAt(library))) return;
         String outcome = SableWorkChoice.consider(level, citizen, source, destination, library,
-                !tag.getBoolean("haulIssued"));
+                (!tag.getBoolean("haulIssued") || (tag.getBoolean("repeat") && tag.getBoolean("haulCompleted"))));
         if ("HAUL_ASSIGNED".equals(outcome)) {
             java.util.UUID job = SableHauling.jobId(citizen);
             if (job != null) {
@@ -125,6 +131,7 @@ public final class SableAutoWork {
                 + " configured=" + (t.contains("source") || t.getBoolean("discoverSource"))
                 + " discoverLibrary=" + t.getBoolean("discoverLibrary")
                 + " discoverSource=" + t.getBoolean("discoverSource")
+                + " repeat=" + t.getBoolean("repeat")
                 + " haulIssued=" + t.getBoolean("haulIssued")
                 + " haulCompleted=" + t.getBoolean("haulCompleted")
                 + " haulJob=" + (t.hasUUID("haulJob") ? t.getUUID("haulJob") : "none")
