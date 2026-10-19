@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hearthbound | Research Observatory</title>
+<style>
+:root{color-scheme:dark;--bg:#0e151b;--panel:#18232b;--border:#31444d;--text:#e8eee9;--muted:#a3b6bb;--accent:#b0dc92;--accent2:#80bee0;--warn:#f5bc86}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,sans-serif}
+main{max-width:1250px;margin:auto;padding:32px 22px}h1{font-size:clamp(25px,4vw,40px);margin:0}h2{font-size:19px;margin:0 0 12px}p{color:var(--muted)}
+header{display:flex;justify-content:space-between;gap:24px;align-items:center;flex-wrap:wrap;margin-bottom:25px}
+.kicker{color:var(--accent);font-size:12px;letter-spacing:.13em;text-transform:uppercase;font-weight:750}
+.controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+button,label.file{background:#273b42;border:1px solid #607980;border-radius:9px;padding:10px 13px;color:var(--text);font:inherit;cursor:pointer}
+button:focus-visible,label.file:focus-within{outline:3px solid var(--accent)}input[type=file]{width:1px;height:1px;position:absolute;opacity:0}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px;min-width:0}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.wide{grid-column:1/-1}
+.statrow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.stat strong{font-size:25px;display:block;font-variant-numeric:tabular-nums}.stat span{font-size:12px;color:var(--muted)}
+.chart{width:100%;height:auto;min-height:220px;display:block}svg text{font-family:system-ui,sans-serif;fill:var(--text);font-size:12px}
+legend{color:var(--muted)}.notice{color:var(--warn);border-left:3px solid var(--warn);padding-left:12px}
+#errors{white-space:pre-wrap;color:#ffb4a7}table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:8px;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums}
+th{font-size:12px;color:var(--muted)}@media(max-width:740px){.grid{grid-template-columns:1fr}.wide{grid-column:auto}.statrow{grid-template-columns:repeat(2,1fr)}}
+</style></head>
+<body><main><header><div><div class="kicker">Hearthbound · Research Observatory</div><h1>Policy & experiment figures</h1><p>Real Minecraft benchmark summaries, with missing results shown explicitly.</p></div><div class="controls"><label class="file">Load benchmark JSON<input aria-label="Load benchmark JSON" id="file" type="file" accept=".json,application/json"></label><button id="clear" type="button">Clear data</button></div></header>
+<p id="status" class="notice" role="status">No experiment loaded. This dashboard does not fabricate example performance.</p><p id="errors" role="alert"></p>
+<div class="statrow"><div class="card stat"><strong id="trials">—</strong><span>Recorded trials</span></div><div class="card stat"><strong id="success">—</strong><span>Pass rate</span></div><div class="card stat"><strong id="ticks">—</strong><span>Mean ticks to confirmation</span></div><div class="card stat"><strong id="wheat">—</strong><span>Mean wheat consumed</span></div></div>
+<div class="grid">
+<section class="card"><h2>Research milestones by Minecraft ticks</h2><p>Means from completed observations; missing values excluded, not treated as zero.</p><svg class="chart" id="milestones" viewBox="0 0 570 290" role="img" aria-label="Tick latency bar chart"><text x="20" y="45">Load data to view tick milestones.</text></svg></section>
+<section class="card"><h2>Trial outcomes across world seeds</h2><p>Each recorded seed is one real dedicated-server trial.</p><svg class="chart" id="outcomes" viewBox="0 0 570 290" role="img" aria-label="Trial outcome chart"><text x="20" y="45">Load data to view trial outcomes.</text></svg></section>
+<section class="card wide"><h2>Per-run evidence table</h2><div style="overflow-x:auto"><table><thead><tr><th>Seed</th><th>Scenario</th><th>Passed</th><th>Proposal ticks</th><th>Haul ticks</th><th>Confirmation ticks</th><th>Wheat</th></tr></thead><tbody id="rows"><tr><td colspan="7">No records loaded</td></tr></tbody></table></div></section>
+</div><p class="notice">Scope: this view displays the simulation summary schema (single-run or multi-seed). It does not infer model reasoning from outcomes. Policy score distributions, candidate masks, counterfactual replay and regret curves require the future Decision Observatory trace schema.</p></main>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const num=x=>typeof x==="number"&&Number.isFinite(x);
+const fmt=x=>num(x)?(Number.isInteger(x)?String(x):x.toFixed(2)):"—";
+function svgText(x,y,label,size=12){return '<text x="'+x+'" y="'+y+'" font-size="'+size+'">'+esc(label)+'</text>';}
+function bars(svgId,items){
+const max=Math.max(1,...items.map(i=>i.value).filter(num));let s='';
+if(!items.some(i=>num(i.value))){$(svgId).innerHTML=svgText(18,44,'No measured values in this dataset');return;}
+items.forEach((it,i)=>{const y=34+i*49, w=num(it.value)?Math.max(1,310*it.value/max):0;
+s+=svgText(12,y+15,it.label)+ '<rect x="195" y="'+y+'" width="320" height="24" rx="4" fill="#263a42"/>';
+if(num(it.value))s+='<rect x="195" y="'+y+'" width="'+w+'" height="24" rx="4" fill="#80bee0"/>';
+s+=svgText(200+w+8,y+17,fmt(it.value));});
+$(svgId).innerHTML=s;
+}
+function render(obj){
+const trials=Array.isArray(obj.individual)?obj.individual:[obj];
+if(!trials.length||trials.some(t=>!Number.isInteger(t.seed)||typeof t.passed!=="boolean"))
+throw Error("Expected a summary.json or aggregate.json with integer seed and boolean passed.");
+const passed=trials.filter(t=>t.passed).length;
+$("trials").textContent=String(trials.length);
+$("success").textContent=(100*passed/trials.length).toFixed(1)+"%";
+const mean=k=>{let xs=trials.map(t=>t.measurements?.[k]).filter(num);return xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:null;};
+$("ticks").textContent=fmt(mean("ticks_to_confirmation"));
+$("wheat").textContent=fmt(mean("wheat_consumed"));
+bars("milestones",[
+{label:"Proposal",value:mean("ticks_to_proposal")},
+{label:"Haul",value:mean("ticks_to_haul")},
+{label:"First flour",value:mean("ticks_to_first_flour")},
+{label:"Confirmation",value:mean("ticks_to_confirmation")}]);
+const outcomes=trials.slice(0,12).map(t=>({label:"Seed "+t.seed,value:t.passed?1:0.25,passed:t.passed}));
+$("outcomes").innerHTML=outcomes.length?outcomes.map((r,i)=>'<rect x="'+(21+i*44)+'" y="'+(r.passed?75:172)+'" width="28" height="'+(r.passed?122:25)+'" rx="3" fill="'+(r.passed?'#b0dc92':'#f5bc86')+'"/>'+svgText(18+i*44,219,String(trials[i].seed).slice(0,6),10)).join('')+svgText(20,258,"Green = passed · Amber = failed · First 12 trials shown"):"";
+$("rows").innerHTML=trials.map(t=>'<tr><td>'+esc(t.seed)+'</td><td>'+esc(t.scenario||"—")+'</td><td>'+ (t.passed?'Passed':'Failed')+'</td><td>'+fmt(t.measurements?.ticks_to_proposal)+'</td><td>'+fmt(t.measurements?.ticks_to_haul)+'</td><td>'+fmt(t.measurements?.ticks_to_confirmation)+'</td><td>'+fmt(t.measurements?.wheat_consumed)+'</td></tr>').join('');
+$("status").textContent="Loaded "+trials.length+" recorded Minecraft trial(s). Metrics are derived only from supplied files.";
+$("errors").textContent="";
+}
+$("file").addEventListener("change",async e=>{try{const f=e.target.files[0];if(f)render(JSON.parse(await f.text()));}catch(e){$("errors").textContent=e.message;}});
+$("clear").addEventListener("click",()=>location.reload());
+</script></body></html>
