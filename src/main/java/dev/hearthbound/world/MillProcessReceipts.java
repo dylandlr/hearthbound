@@ -138,6 +138,15 @@ public final class MillProcessReceipts extends SavedData {
             wheatBefore,wheatAfter,flourBefore,flourAfter));
         ledger.setDirty();
         LOG.info("HEARTHBOUND_PROCESS_RECEIPT job={} citizen={}", job, citizen.getUUID());
+        try {
+            dev.hearthbound.research.MillResearchRewards.Award award =
+                dev.hearthbound.research.MillResearchRewards.awardVerified(level, citizen, job, pos);
+            LOG.info("HEARTHBOUND_RESEARCH_AWARD job={} evidence={} research={}",
+                job, award.evidenceId(), award.reward().research());
+        } catch (IllegalStateException ex) {
+            // Preserve the physical receipt for audit/recovery, but never fabricate credit.
+            LOG.error("HEARTHBOUND_RESEARCH_AWARD_REJECTED job={} reason={}", job, ex.getMessage());
+        }
     }
 
     /** Read-only raw receipt presence, including subsequently invalidated jobs. */
@@ -179,9 +188,11 @@ public final class MillProcessReceipts extends SavedData {
         if (MillReservations.isTainted(level, job))
             return "MILL_PROCESS INVALIDATED job="+job+" reason=TAINTED NO_RESEARCH_CREDIT";
         if (receipt==null) return "MILL_PROCESS NONE job="+job+" NO_RESEARCH_CREDIT";
+        String credit = dev.hearthbound.research.MillResearchRewards.rewarded(level, job)
+            ? "RESEARCH_CREDIT_GRANTED" : "NO_RESEARCH_CREDIT";
         return "MILL_PROCESS VERIFIED_CALLBACK job="+job+" citizen="+receipt.citizen()
             +" wheatBefore="+receipt.wheatBefore()+" wheatAfter="+receipt.wheatAfter()
             +" flourBefore="+receipt.flourBefore()+" flourAfter="+receipt.flourAfter()
-            +" tick="+receipt.tick()+" NO_RESEARCH_CREDIT";
+            +" tick="+receipt.tick()+" "+credit;
     }
 }

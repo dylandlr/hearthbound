@@ -225,6 +225,48 @@ public final class SableController {
                         CitizenSocietyEvents.web(ctx.getSource().getLevel(), citizen)), false);
                 return 1;
             }))
+            .then(Commands.literal("tech-inspect").executes(ctx -> {
+                Villager citizen = nearestSable(ctx.getSource());
+                if (citizen == null) return 0;
+                ctx.getSource().sendSuccess(() -> Component.literal(
+                        dev.hearthbound.research.CitizenTechnologyKnowledge.inspect(citizen)), false);
+                return 1;
+            }))
+            .then(Commands.literal("teach-nearest")
+                .then(Commands.argument("recipe", StringArgumentType.string())
+                    .executes(ctx -> {
+                        Villager teacher = nearestSable(ctx.getSource());
+                        if (teacher == null) return 0;
+                        String recipe = StringArgumentType.getString(ctx, "recipe");
+                        Villager student = ctx.getSource().getLevel().getEntitiesOfClass(
+                                Villager.class,
+                                new net.minecraft.world.phys.AABB(teacher.blockPosition()).inflate(4.0),
+                                v -> v != teacher && v.getPersistentData().getBoolean(MARKER))
+                            .stream()
+                            .min(java.util.Comparator.comparingDouble(teacher::distanceToSqr))
+                            .orElse(null);
+                        if (student == null) {
+                            ctx.getSource().sendFailure(Component.literal(
+                                    "No Hearthbound student within 4 blocks"));
+                            return 0;
+                        }
+                        try {
+                            var taught = dev.hearthbound.research.CitizenTechnologyKnowledge.teach(
+                                    teacher, student, recipe, ctx.getSource().getLevel().getGameTime());
+                            ctx.getSource().sendSuccess(() -> Component.literal(
+                                    "TEACHING_SUCCESS teacher=" + teacher.getName().getString()
+                                    + " student=" + student.getName().getString()
+                                    + " recipe=" + taught.recipeId()
+                                    + " confidence=" + taught.confidence()
+                                    + " source=" + taught.source()
+                                    + " evidence=" + taught.evidenceId()), false);
+                            return 1;
+                        } catch (IllegalStateException | IllegalArgumentException ex) {
+                            ctx.getSource().sendFailure(Component.literal(
+                                    "Teaching rejected: " + ex.getMessage()));
+                            return 0;
+                        }
+                    })))
             .then(Commands.literal("work-owner").executes(ctx -> {
                 Villager sable = nearestSable(ctx.getSource());
                 if (sable == null) return 0;
@@ -417,6 +459,20 @@ public final class SableController {
                             UUID job = UUID.fromString(StringArgumentType.getString(ctx, "jobId"));
                             String receipt = MillProcessReceipts.inspect(ctx.getSource().getLevel(), job);
                             ctx.getSource().sendSuccess(() -> Component.literal(receipt), false);
+                            return 1;
+                        } catch (IllegalArgumentException ex) {
+                            ctx.getSource().sendFailure(Component.literal("Invalid job UUID"));
+                            return 0;
+                        }
+                    })))
+            .then(Commands.literal("mill-reward")
+                .then(Commands.argument("jobId", StringArgumentType.word())
+                    .executes(ctx -> {
+                        try {
+                            UUID job = UUID.fromString(StringArgumentType.getString(ctx, "jobId"));
+                            String reward = dev.hearthbound.research.MillResearchRewards.inspect(
+                                    ctx.getSource().getLevel(), job);
+                            ctx.getSource().sendSuccess(() -> Component.literal(reward), false);
                             return 1;
                         } catch (IllegalArgumentException ex) {
                             ctx.getSource().sendFailure(Component.literal("Invalid job UUID"));
