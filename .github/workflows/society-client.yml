@@ -40,6 +40,7 @@ jobs:
           cp run/mods/*.jar client-run/mods/
       - name: Run real graphical client against dedicated server
         env:
+          HB_CAPTURE_SURVIVAL: '1'
           LIBGL_ALWAYS_SOFTWARE: '1'
           ALSOFT_DRIVERS: 'null'
         run: xvfb-run -a -s '-screen 0 1280x720x24' python3 -u scripts/society-client-capture.py

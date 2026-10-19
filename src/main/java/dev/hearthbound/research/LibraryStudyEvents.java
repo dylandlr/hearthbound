@@ -16,6 +16,7 @@ public final class LibraryStudyEvents {
     public static void onLivingTick(LivingEvent.LivingTickEvent event) {
         if (event.getEntity() instanceof Villager citizen
                 && citizen.level() instanceof ServerLevel level) {
+            if (dev.hearthbound.world.CitizenSurvival.paused(citizen)) return;
             AutonomousLibraryStudy.tick(level, citizen);
             LibraryStudyRuntime.tick(level, citizen);
             LibraryPolicyBridge.reconcile(citizen);

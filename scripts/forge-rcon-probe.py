@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Minimal local RCON client for disposable Forge CI server; Python stdlib only."""
+import os
 import socket
 import struct
 import sys
@@ -29,7 +30,7 @@ def recv_packet(sock):
 def execute(command):
     with socket.create_connection(("127.0.0.1", 25575), timeout=5) as conn:
         conn.settimeout(10)
-        conn.sendall(packet(11, 3, "hearthbound-ci-only-password"))
+        conn.sendall(packet(11, 3, os.environ.get("HEARTHBOUND_RCON_PASSWORD", "hearthbound-ci-only-password")))
         for _ in range(3):
             rid, _, _ = recv_packet(conn)
             if rid == -1:

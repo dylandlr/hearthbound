@@ -129,7 +129,7 @@ try:
     command(f'tp {PLAYER} 8 116 24 180 46')
     time.sleep(3)
     subprocess.run(['xdotool','key','F1'],check=True)
-    video = OUT / 'Hearthbound_Eight_Citizens_Baseline.mp4'
+    video = OUT / ('Hearthbound_Survival_Baseline.mp4' if os.environ.get('HB_CAPTURE_SURVIVAL') == '1' else 'Hearthbound_Eight_Citizens_Baseline.mp4')
     recording = subprocess.Popen(['ffmpeg','-y','-f','x11grab','-video_size','1280x720',
         '-framerate','30','-i',os.environ['DISPLAY'],'-c:v','libx264','-preset','veryfast',
         '-crf','22','-pix_fmt','yuv420p',str(video)],stdout=subprocess.DEVNULL,
@@ -162,6 +162,13 @@ try:
     evidence['social_web'] = command(who('Iris')+'sable social-web')
     assert 'citizens=8' in evidence['social_web'], evidence['social_web']
     screenshot('eight-citizens.png')
+    if os.environ.get('HB_CAPTURE_SURVIVAL') == '1':
+        command(f'tp {PLAYER} 80 120 106 180 48')
+        with (OUT / 'survival-acceptance.log').open('w') as log:
+            subprocess.run(['python3','-u','scripts/survival-server-test.py'],cwd=ROOT,
+                           stdout=log,stderr=subprocess.STDOUT,check=True,timeout=360)
+        evidence['survival_acceptance'] = 'passed; scripted-v1; one controlled citizen'
+        screenshot('survival-complete.png')
     time.sleep(6)
     (OUT/'provenance.json').write_text(json.dumps(evidence,indent=2))
     print('HB_EIGHT_CITIZEN_CAPTURE_PASS: 8 distinct jobs; inventory conserved; per-citizen memories',flush=True)
