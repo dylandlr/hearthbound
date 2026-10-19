@@ -70,7 +70,13 @@ with Rcon() as r:
     # The agent has no hand-issued haul or proposal: both are selected at tick time.
     r.contains(f"execute as {villager} at @s run sable auto-research-on",
                "AUTO_RESEARCH ENABLED")
+    def game_tick():
+        value=r.run("time query gametime")
+        m=re.search(r"(\\d+)\\s*$",value)
+        if not m: raise AssertionError("No Minecraft game tick: "+value)
+        return int(m.group(1))
     started=time.monotonic()
+    start_tick=game_tick()
     metrics={"schema_version":1,"scenario":"autonomous-scientist","starting_wheat":8,"millstone_powered":True}
     assigned=False
     for _ in range(60):
@@ -85,6 +91,7 @@ with Rcon() as r:
     if not assigned:
         raise AssertionError("Citizen never independently proposed and assigned experiment")
     metrics["seconds_to_proposal"]=round(time.monotonic()-started,3)
+    metrics["ticks_to_proposal"]=game_tick()-start_tick
 
     # Only Sable is allowed to transport the wheat; no /summon item.
     complete=False
@@ -99,6 +106,7 @@ with Rcon() as r:
             raise AssertionError("Haul stopped: "+audit)
     if not complete: raise AssertionError("Sable did not deliver wheat to Create millstone")
     metrics["seconds_to_haul"]=round(time.monotonic()-started,3)
+    metrics["ticks_to_haul"]=game_tick()-start_tick
     r.contains('execute if data block 3 101 1 Items[{id:"minecraft:wheat",Count:7b}]',"Test passed")
     produced=False
     for _ in range(100):
@@ -112,6 +120,7 @@ with Rcon() as r:
             break
     if not produced: raise AssertionError("Sable delivered wheat but Create produced no flour")
     metrics["seconds_to_first_flour"]=round(time.monotonic()-started,3)
+    metrics["ticks_to_first_flour"]=game_tick()-start_tick
     metrics["wheat_consumed"]=1
     # Machine output can become visible before the citizen’s 20-tick sample.
     # Wait for the ordered trace rather than failing on that benign race.
@@ -162,6 +171,7 @@ with Rcon() as r:
     r.contains(f"execute as {villager} at @s run sable auto-research-off",
                "AUTO_RESEARCH DISABLED")
     metrics["seconds_to_confirmation"]=round(time.monotonic()-started,3)
+    metrics["ticks_to_confirmation"]=game_tick()-start_tick
     metrics["confirmed"]=True
     out=pathlib.Path(os.environ.get("HEARTHBOUND_SCENARIO_METRICS","simulation-results/metrics.json"))
     out.parent.mkdir(parents=True,exist_ok=True)
