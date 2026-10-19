@@ -62,7 +62,7 @@ jobs:
           else
             echo "Server startup failed" > simulation-results/scenario.log
           fi
-          python3 scripts/summarize_minecraft_simulation.py --log simulation-results/server.log --scenario "$SCENARIO" --seed "$SEED" --exit-code "$rc" --output simulation-results/summary.json
+          python3 scripts/summarize_minecraft_simulation.py --log simulation-results/server.log --scenario "$SCENARIO" --seed "$SEED" --exit-code "$rc" --metrics simulation-results/metrics.json --output simulation-results/summary.json
           exit "$rc"
       - name: Upload individual run
         if: always()

@@ -24,6 +24,22 @@ aggregate={
     "success_fraction":sum(1 for r in reports if r["passed"])/len(reports),
     "seeds":[r["seed"] for r in reports],
     "mean_event_counts":{key:statistics.mean(r.get("events",{}).get(key,0) for r in reports) for key in keys},
+    "mean_milestone_seconds": {
+        key: round(statistics.mean(r["measurements"][key] for r in reports
+            if isinstance(r.get("measurements"),dict)
+            and isinstance(r["measurements"].get(key),(int,float))),3)
+        for key in ("seconds_to_proposal","seconds_to_haul","seconds_to_first_flour",
+                    "seconds_to_confirmation")
+        if any(isinstance(r.get("measurements"),dict)
+               and isinstance(r["measurements"].get(key),(int,float)) for r in reports)
+    },
+    "mean_wheat_consumed": (
+        statistics.mean(r["measurements"]["wheat_consumed"] for r in reports
+            if isinstance(r.get("measurements"),dict)
+            and isinstance(r["measurements"].get("wheat_consumed"),(int,float)))
+        if any(isinstance(r.get("measurements"),dict)
+               and isinstance(r["measurements"].get("wheat_consumed"),(int,float))
+               for r in reports) else None),
     "individual":reports,
     "limitations":"Event counts are log-derived; world seeds do not guarantee deterministic timing."
 }
