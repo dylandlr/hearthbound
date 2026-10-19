@@ -54,6 +54,30 @@ public final class TechnologyHypotheses {
         hypotheses.put(id,updated);
         return updated;
     }
+    /** Stable records for world-save persistence and deterministic replay. */
+    public synchronized java.util.List<Hypothesis> snapshot() {
+        return java.util.List.copyOf(hypotheses.values());
+    }
+
+    /** Restore only validated records. Corrupt or conflicting saves fail closed. */
+    public synchronized void restore(java.util.List<Hypothesis> saved) {
+        Objects.requireNonNull(saved, "saved");
+        Map<String,Hypothesis> validated = new LinkedHashMap<>();
+        for (Hypothesis h : saved) {
+            Objects.requireNonNull(h, "hypothesis");
+            for (String field : new String[]{h.agentId(), h.recipeId(), h.inputItem(),
+                    h.machineType(), h.expectedOutput()}) nonblank(field);
+            Objects.requireNonNull(h.status(), "status");
+            if (h.status() == Status.PROPOSED && h.evidenceId() != null)
+                throw new IllegalArgumentException("Proposal cannot contain evidence");
+            if (h.status() != Status.PROPOSED) nonblank(h.evidenceId());
+            if (validated.putIfAbsent(key(h.agentId(),h.recipeId()),h) != null)
+                throw new IllegalArgumentException("Duplicate persisted hypothesis");
+        }
+        hypotheses.clear();
+        hypotheses.putAll(validated);
+    }
+
     public synchronized Hypothesis require(String agent,String recipe) {
         Hypothesis h=hypotheses.get(key(agent,recipe));
         if(h==null) throw new IllegalArgumentException("Unknown hypothesis");
