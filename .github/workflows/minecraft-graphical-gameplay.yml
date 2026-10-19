@@ -114,6 +114,7 @@ jobs:
           ffmpeg -hide_banner -v error -xerror -i gameplay-capture/minecraft-gameplay.mp4 -f null - 2> gameplay-capture/decode-validation.log
           ffmpeg -hide_banner -v error -y -ss 1 -i gameplay-capture/minecraft-gameplay.mp4 -frames:v 1 gameplay-capture/gameplay-review-frame.png
           test -s gameplay-capture/gameplay-review-frame.png
+          python3 scripts/validate_gameplay_capture.py gameplay-capture/minecraft-gameplay.mp4
       - name: Upload genuine client footage and logs
         if: always()
         uses: actions/upload-artifact@v4
