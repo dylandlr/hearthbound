@@ -6,7 +6,6 @@ import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.npc.Villager;
-import net.minecraft.world.level.block.Blocks;
 
 /** Bounded observation adapter. No global recipe scan and no chunk loads. */
 public final class LocalMillExperimentSensor {
@@ -21,8 +20,9 @@ public final class LocalMillExperimentSensor {
                 || citizen.blockPosition().distSqr(machine) > 64)
             return defer();
         boolean wheat = SableHauling.hasAvailableWheat(level, source);
-        boolean mill = level.getBlockState(machine).getBlock()
-                .getDescriptionId().equals("block.create.millstone");
+        boolean mill = net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                .getKey(level.getBlockState(machine).getBlock()).toString()
+                .equals("create:millstone");
         // Only a recognized, loaded Create millstone is a possible experiment target.
         if (!wheat || !mill) return defer();
         String id = citizen.getUUID().toString();
