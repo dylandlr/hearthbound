@@ -162,6 +162,23 @@ with Rcon() as r:
     cleared=r.run('execute as @e[type=minecraft:villager,name=Moss,limit=1] at @s run sable learning-request-inspect')
     if "LEARNING_REQUEST NONE" not in cleared:
         raise AssertionError("Learning request survived successful teaching: "+cleared)
+    # A third student independently requests and receives the observed technology.
+    r.contains(f"execute as {villager} at @s run sable spawn-named Nia",
+               "Hearthbound citizen spawned: Nia")
+    nia='@e[type=minecraft:villager,name=Nia,limit=1]'
+    r.contains(f"execute as {nia} at @s run sable auto-learn-on",
+               "Autonomous learning enabled")
+    nia_learned=False
+    for _ in range(25):
+        time.sleep(1)
+        nia_knowledge=r.run(f"execute as {nia} at @s run sable tech-inspect")
+        if "create:milling/wheat" in nia_knowledge and "source=TAUGHT" in nia_knowledge:
+            nia_learned=True
+            break
+    if not nia_learned:
+        raise AssertionError("Nia did not autonomously request and learn milling")
+    r.contains(f"execute as {nia} at @s run sable learning-request-inspect",
+               "LEARNING_REQUEST NONE")
     r.contains(f"execute as {villager} at @s run sable auto-teach-off",
                "Autonomous social teaching disabled")
     # A completed job may NOT be released while flour remains in the machine.
