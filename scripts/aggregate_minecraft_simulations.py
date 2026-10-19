@@ -4,6 +4,7 @@ import argparse, json, pathlib, statistics
 p=argparse.ArgumentParser()
 p.add_argument("root")
 p.add_argument("--output",required=True)
+p.add_argument("--expected-trials",type=int,required=True)
 a=p.parse_args()
 root=pathlib.Path(a.root)
 reports=[]
@@ -12,8 +13,8 @@ for path in sorted(root.glob("**/summary.json")):
     if not isinstance(record.get("passed"),bool) or not isinstance(record.get("seed"),int):
         raise ValueError(f"Invalid experiment summary: {path}")
     reports.append(record)
-if not reports:
-    raise SystemExit("No simulation summaries found; refusing empty benchmark")
+if len(reports)!=a.expected_trials:
+    raise SystemExit(f"Expected {a.expected_trials} trial reports, found {len(reports)}; refusing partial benchmark")
 keys=sorted(set().union(*(r.get("events",{}).keys() for r in reports)))
 aggregate={
     "schema_version":1,
