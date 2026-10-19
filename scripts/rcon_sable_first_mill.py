@@ -2,7 +2,7 @@
 """Integration: Sable physically hauls wheat from a chest into powered Create millstone.
 
 World-backed behavioral test, not evidence that Sable autonomously discovered a
-recipe. No automatic research credit or teaching occurs.
+recipe. Verified Create callbacks now grant research credit, and a nearby citizen can be taught only after the teacher actually knows the recipe.
 """
 import os, re, socket, struct, time
 
@@ -125,8 +125,23 @@ with Rcon() as r:
     receipt=r.run(f"sable mill-process {job_match.group(1)}")
     if "MILL_PROCESS VERIFIED_CALLBACK" not in receipt:
         raise AssertionError("No direct Create processing callback receipt: "+receipt)
-    if "wheatBefore=1 wheatAfter=0" not in receipt or "NO_RESEARCH_CREDIT" not in receipt:
-        raise AssertionError("Invalid process receipt or premature knowledge credit: "+receipt)
+    if "wheatBefore=1 wheatAfter=0" not in receipt or "RESEARCH_CREDIT_GRANTED" not in receipt:
+        raise AssertionError("Verified Create receipt did not grant research credit: "+receipt)
+    reward=r.run(f"sable mill-reward {job_match.group(1)}")
+    if "RESEARCH_REWARD VERIFIED" not in reward or "research=" not in reward:
+        raise AssertionError("Verified Create process has no persisted research reward: "+reward)
+    teacher_knowledge=r.run(f"execute as {villager} at @s run sable tech-inspect")
+    if "create:milling/wheat" not in teacher_knowledge or "source=DIRECT_EXPERIMENT" not in teacher_knowledge:
+        raise AssertionError("Sable did not learn wheat milling from physical evidence: "+teacher_knowledge)
+
+    # Knowledge must spread through an explicit local social action rather than a global unlock.
+    r.contains(f"execute as {villager} at @s run sable spawn-named Iven","Hearthbound citizen spawned: Iven")
+    teaching=r.run(f'execute as {villager} at @s run sable teach-nearest "create:milling/wheat"')
+    if "TEACHING_SUCCESS" not in teaching or "teacher=Sable" not in teaching or "student=Iven" not in teaching:
+        raise AssertionError("Verified recipe could not be taught locally: "+teaching)
+    student_knowledge=r.run('execute as @e[type=minecraft:villager,name=Iven,limit=1] at @s run sable tech-inspect')
+    if "create:milling/wheat" not in student_knowledge or "source=TAUGHT" not in student_knowledge:
+        raise AssertionError("Iven did not retain socially transmitted milling knowledge: "+student_knowledge)
     # A completed job may NOT be released while flour remains in the machine.
     occupied_release=r.run(f"execute at {villager} run sable mill-release 7 101 1 {job_match.group(1)}")
     if "Collect all millstone output" not in occupied_release:
@@ -317,4 +332,4 @@ with Rcon() as r:
         r.run("save-all flush")
         print("Saved journal for restart verification", flush=True)
         r.run("stop")
-    print("PASS: Sable physically hauled wheat into powered Create millstone, flour observed, no false discovery credit",flush=True)
+    print("PASS: verified Create milling granted causal research knowledge and Sable taught Iven locally",flush=True)
