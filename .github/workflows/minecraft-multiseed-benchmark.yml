@@ -81,6 +81,8 @@ jobs:
         with:
           pattern: minecraft-seed-*
           path: collected
+      - name: Verify benchmark metric contracts
+        run: python3 scripts/test_minecraft_benchmark_contract.py
       - name: Summarize multi-seed results
         run: |
           python3 scripts/aggregate_minecraft_simulations.py collected --expected-trials 3 --output benchmark/aggregate.json
