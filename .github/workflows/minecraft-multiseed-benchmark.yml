@@ -8,13 +8,6 @@ on:
           - autonomous-scientist
           - basic-smoke
         default: autonomous-scientist
-      seeds:
-        description: "Preset seed set"
-        type: choice
-        options:
-          - small
-          - medium
-        default: small
   push:
     branches:
       - feat/minecraft-multiseed-benchmarks-v2-0
@@ -90,7 +83,7 @@ jobs:
           path: collected
       - name: Summarize multi-seed results
         run: |
-          python3 scripts/aggregate_minecraft_simulations.py collected --output benchmark/aggregate.json
+          python3 scripts/aggregate_minecraft_simulations.py collected --expected-trials 3 --output benchmark/aggregate.json
           cat benchmark/aggregate.json >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
