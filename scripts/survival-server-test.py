@@ -57,7 +57,8 @@ memory=cmd(who+'sable social-inspect')
 assert memory.count('source=SELF')>=3,memory
 # Pause a cargo-bearing job at night; keep the exact job and item, resume at dawn.
 cmd(who+'sable auto-work-off'); cmd('tp '+entity+' 76 100 76')
-cmd('setblock 75 100 76 chest{Items:[{Slot:0b,id:"minecraft:wheat",Count:1b}]}')
+cmd('item replace block 75 100 76 container.0 with minecraft:wheat 1')
+assert 'test passed' in cmd('execute if data block 75 100 76 Items[{id:"minecraft:wheat",Count:1b}]').lower()
 cmd('setblock 94 100 76 chest')
 cmd(who+'sable haul 75 100 76 94 100 76')
 wait(lambda:'cargo=1x' in rcon.execute(who+'sable haul-audit'),'cargo picked up')
