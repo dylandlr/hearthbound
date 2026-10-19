@@ -225,6 +225,29 @@ public final class SableController {
                         CitizenSocietyEvents.web(ctx.getSource().getLevel(), citizen)), false);
                 return 1;
             }))
+            .then(Commands.literal("learning-request")
+                .then(Commands.argument("recipe", StringArgumentType.string())
+                    .executes(ctx -> {
+                        Villager citizen = nearestSable(ctx.getSource());
+                        if (citizen == null) return 0;
+                        try {
+                            String recipe = StringArgumentType.getString(ctx, "recipe");
+                            dev.hearthbound.research.CitizenLearningRequest.request(citizen, recipe);
+                            ctx.getSource().sendSuccess(() -> Component.literal(
+                                    dev.hearthbound.research.CitizenLearningRequest.inspect(citizen)), false);
+                            return 1;
+                        } catch (IllegalArgumentException | IllegalStateException ex) {
+                            ctx.getSource().sendFailure(Component.literal(ex.getMessage()));
+                            return 0;
+                        }
+                    })))
+            .then(Commands.literal("learning-request-inspect").executes(ctx -> {
+                Villager citizen = nearestSable(ctx.getSource());
+                if (citizen == null) return 0;
+                ctx.getSource().sendSuccess(() -> Component.literal(
+                        dev.hearthbound.research.CitizenLearningRequest.inspect(citizen)), false);
+                return 1;
+            }))
             .then(Commands.literal("auto-teach-on").executes(ctx -> {
                 Villager citizen = nearestSable(ctx.getSource());
                 if (citizen == null) return 0;

@@ -41,7 +41,9 @@ public final class CitizenSocialTeaching {
                 v -> v != teacher && v.getPersistentData().getBoolean("hearthbound.sable")
                      && teacher.hasLineOfSight(v))
                 .stream().filter(v -> !CitizenTechnologyKnowledge.knows(v, RECIPE))
-                .min(Comparator.comparingDouble(teacher::distanceToSqr))
+                .min(Comparator.<Villager>comparingInt(v ->
+                        CitizenLearningRequest.requests(v, RECIPE) ? 0 : 1)
+                        .thenComparingDouble(teacher::distanceToSqr))
                 .orElse(null);
         if (student == null) return;
 
@@ -51,14 +53,18 @@ public final class CitizenSocialTeaching {
         CompoundTag memory = tag.getCompound("hearthbound.socialV1");
         double familiarity = Math.min(1.0, Math.max(0.0,
                 memory.getInt("reputation_" + student.getUUID()) / 100.0));
-        // Urgency/fatigue currently neutral defaults until the physiological
-        // and job-observation schemas provide authoritative inputs.
+        // The request is observable only because the student is in range and visible.
+        boolean requested = CitizenLearningRequest.requests(student, RECIPE);
+        // Do not invent villager fatigue. It remains a neutral placeholder until
+        // a physical needs model provides a measured signal.
+        double urgency = requested ? 0.8 : 0.5;
         var observation = new SocialTeachingPolicy.Observation(
                 SocialTeachingPolicy.SCHEMA_VERSION, cooperation, confidence,
-                familiarity, 0.5, 0.0, true, true, false);
+                familiarity, urgency, 0.0, true, true, requested);
         if (POLICY.select(observation).action() != SocialTeachingPolicy.Action.TEACH)
             return;
         CitizenTechnologyKnowledge.teach(teacher, student, RECIPE, now);
+        CitizenLearningRequest.fulfilled(student, RECIPE);
         org.apache.logging.log4j.LogManager.getLogger("HearthboundSocial")
                 .info("HEARTHBOUND_AUTONOMOUS_TEACH teacher={} student={} recipe={}",
                         teacher.getUUID(), student.getUUID(), RECIPE);
