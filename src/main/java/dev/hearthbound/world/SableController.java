@@ -276,6 +276,20 @@ public final class SableController {
                 ctx.getSource().sendSuccess(() -> Component.literal("Autonomous social teaching disabled"), false);
                 return 1;
             }))
+            .then(Commands.literal("auto-research-on").executes(ctx -> {
+                Villager citizen=nearestSable(ctx.getSource());
+                if(citizen==null) return 0;
+                dev.hearthbound.research.AutonomousMillResearch.enable(citizen,true);
+                ctx.getSource().sendSuccess(() -> Component.literal("AUTO_RESEARCH ENABLED"),false);
+                return 1;
+            }))
+            .then(Commands.literal("auto-research-off").executes(ctx -> {
+                Villager citizen=nearestSable(ctx.getSource());
+                if(citizen==null) return 0;
+                dev.hearthbound.research.AutonomousMillResearch.enable(citizen,false);
+                ctx.getSource().sendSuccess(() -> Component.literal("AUTO_RESEARCH DISABLED"),false);
+                return 1;
+            }))
             .then(Commands.literal("experiment-discover").executes(ctx -> {
                 Villager citizen = nearestSable(ctx.getSource());
                 if (citizen == null) return 0;
@@ -711,6 +725,8 @@ public final class SableController {
         if (villager.tickCount % 20 == 0)
             dev.hearthbound.research.CitizenLearningInitiative.tick(level, villager);
         SableAutoWork.tick(level, villager);
+        if (villager.tickCount % 20 == 0)
+            dev.hearthbound.research.AutonomousMillResearch.tick(level, villager);
         if (villager.tickCount % 20 != 0) return;
         // Observation is read-only with respect to the millstone and never
         // awards research points or knowledge unlocks.
