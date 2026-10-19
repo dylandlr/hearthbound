@@ -24,7 +24,7 @@ jobs:
       - name: Install video and virtual display dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y xvfb ffmpeg libgl1-mesa-dri libgl1 libxrandr2 libxi6 libxcursor1 libxinerama1 libasound2t64 || sudo apt-get install -y xvfb ffmpeg libgl1-mesa-dri libgl1 libxrandr2 libxi6 libxcursor1 libxinerama1
+          sudo apt-get install -y xvfb xdotool scrot ffmpeg libgl1-mesa-dri libgl1 libxrandr2 libxi6 libxcursor1 libxinerama1 libasound2t64 || sudo apt-get install -y xvfb xdotool scrot ffmpeg libgl1-mesa-dri libgl1 libxrandr2 libxi6 libxcursor1 libxinerama1
       - name: Verify scenario syntax
         run: python3 -m py_compile scripts/rcon_autonomous_scientist.py
       - name: Start Forge server and rendered Minecraft client
@@ -51,7 +51,26 @@ jobs:
           gradle --no-daemon runClient --args='--username HearthboundCamera --server 127.0.0.1 --port 25565' > gameplay-capture/client.log 2>&1 &
           client_pid=$!
           trap 'kill "$client_pid" "$server_pid" "$xvfb_pid" 2>/dev/null || true' EXIT
-          # Do not claim gameplay footage if the graphical client never connects.
+          # Capture diagnostics even when Minecraft never joins.
+          # ForgeGradle's --args does not guarantee Minecraft menu auto-connect.
+          sleep 25
+          scrot -d 1 gameplay-capture/client-before-connect.png || true
+          # Explicitly navigate the vanilla Minecraft multiplayer interface.
+          # Retry screenshots let us inspect failures without inventing gameplay.
+          window=$(xdotool search --onlyvisible --name 'Minecraft' | head -n 1 || true)
+          if [ -n "$window" ]; then
+            xdotool windowactivate --sync "$window" || true
+            xdotool mousemove --window "$window" 640 365 click 1 || true
+            sleep 4
+            scrot gameplay-capture/client-multiplayer-menu.png || true
+            xdotool mousemove --window "$window" 545 655 click 1 || true
+            sleep 2
+            xdotool key --clearmodifiers ctrl+a || true
+            xdotool type --clearmodifiers --delay 75 '127.0.0.1:25565' || true
+            xdotool key Return || true
+            sleep 3
+            scrot gameplay-capture/client-connect-attempt.png || true
+          fi
           connected=0
           for i in $(seq 1 150); do
             if grep -Eq 'HearthboundCamera.*(joined the game|logged in)' gameplay-capture/server.log; then connected=1; break; fi
@@ -59,6 +78,7 @@ jobs:
             sleep 2
           done
           if [ "$connected" -ne 1 ]; then
+            scrot gameplay-capture/client-not-connected.png || true
             echo "Client did not join; refusing to label virtual-display capture gameplay"
             tail -n 100 gameplay-capture/client.log || true
             exit 1
