@@ -276,6 +276,26 @@ public final class SableController {
                 ctx.getSource().sendSuccess(() -> Component.literal("Autonomous social teaching disabled"), false);
                 return 1;
             }))
+            .then(Commands.literal("experiment-discover").executes(ctx -> {
+                Villager citizen = nearestSable(ctx.getSource());
+                if (citizen == null) return 0;
+                var decision = dev.hearthbound.research.LocalExperimentDiscovery.consider(
+                        ctx.getSource().getLevel(), citizen);
+                if (decision.action() != dev.hearthbound.research.ExperimentSelectionPolicy.Action.PROPOSE) {
+                    ctx.getSource().sendSuccess(() -> Component.literal(
+                            "EXPERIMENT DISCOVERY DEFER no locally eligible site"), false);
+                    return 1;
+                }
+                var candidate = decision.candidate();
+                var h = dev.hearthbound.research.TechnologyHypothesisSavedData
+                        .get(ctx.getSource().getLevel()).propose(
+                            citizen.getUUID().toString(), candidate.recipeId(),
+                            candidate.inputItem(), candidate.machine(),
+                            candidate.predictedOutput());
+                ctx.getSource().sendSuccess(() -> Component.literal(
+                        "EXPERIMENT DISCOVERY PROPOSED recipe=" + h.recipeId()), false);
+                return 1;
+            }))
             .then(Commands.literal("experiment-local")
                 .then(Commands.argument("source", BlockPosArgument.blockPos())
                     .then(Commands.argument("mill", BlockPosArgument.blockPos())
