@@ -171,17 +171,19 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
             break
     if not delivered:
         raise AssertionError("Autonomous Sable never delivered wheat to the second chest")
-    # Discovery selects the nearest eligible stocked source: the chest at 7
-    # contains the wheat delivered by the earlier manual regression.
+    # Source discovery is ordered by distance from the citizen, not the
+    # destination. Sable remains closer to chest 3 (7 wheat) than chest 7
+    # (1 wheat), so the second transfer consumes one unit from chest 3.
+    # Assert both inventories to preserve mass conservation.
     remaining = command(610,
-        'execute unless data block 7 100 1 Items[{id:"minecraft:wheat"}]')
+        'execute if data block 3 100 1 Items[{id:"minecraft:wheat",Count:6b}]')
     if "test passed" not in remaining.lower():
-        raise AssertionError("Discovered nearby source did not lose its wheat: " + remaining)
-    initial = command(611,
-        'execute if data block 3 100 1 Items[{id:"minecraft:wheat",Count:7b}]')
-    if "test passed" not in initial.lower():
-        raise AssertionError("Distant source unexpectedly changed: " + initial)
-    print("Autonomous discovery verified: closest source 7->0, stockpile 0->1; distant source remains 7")
+        raise AssertionError("Citizen-nearest source did not lose exactly one wheat: " + remaining)
+    untouched = command(611,
+        'execute if data block 7 100 1 Items[{id:"minecraft:wheat",Count:1b}]')
+    if "test passed" not in untouched.lower():
+        raise AssertionError("Nonselected stocked chest unexpectedly changed: " + untouched)
+    print("Autonomous discovery verified: citizen-nearest source 3: 7->6, stockpile 0->1; other source remains 1")
 
     # The scheduler records completion only after matching its persisted job
     # UUID to a cargo-free COMPLETE state, and only then considers the library.
