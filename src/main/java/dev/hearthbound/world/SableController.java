@@ -276,6 +276,32 @@ public final class SableController {
                 ctx.getSource().sendSuccess(() -> Component.literal("Autonomous social teaching disabled"), false);
                 return 1;
             }))
+            .then(Commands.literal("experiment-local")
+                .then(Commands.argument("source", BlockPosArgument.blockPos())
+                    .then(Commands.argument("mill", BlockPosArgument.blockPos())
+                        .executes(ctx -> {
+                            Villager citizen = nearestSable(ctx.getSource());
+                            if (citizen == null) return 0;
+                            var decision = dev.hearthbound.research.LocalMillExperimentSensor.consider(
+                                    ctx.getSource().getLevel(), citizen,
+                                    BlockPosArgument.getLoadedBlockPos(ctx, "source"),
+                                    BlockPosArgument.getLoadedBlockPos(ctx, "mill"));
+                            if (decision.action() != dev.hearthbound.research.ExperimentSelectionPolicy.Action.PROPOSE) {
+                                ctx.getSource().sendSuccess(() -> Component.literal(
+                                        "EXPERIMENT DEFER no locally eligible candidate"), false);
+                                return 1;
+                            }
+                            var candidate = decision.candidate();
+                            var h = dev.hearthbound.research.TechnologyHypothesisSavedData
+                                    .get(ctx.getSource().getLevel()).propose(
+                                        citizen.getUUID().toString(), candidate.recipeId(),
+                                        candidate.inputItem(), candidate.machine(),
+                                        candidate.predictedOutput());
+                            ctx.getSource().sendSuccess(() -> Component.literal(
+                                    "EXPERIMENT PROPOSED recipe=" + h.recipeId()
+                                    + " expected=" + h.expectedOutput()), false);
+                            return 1;
+                        }))))
             .then(Commands.literal("hypothesis-mill-propose")
                 .then(Commands.argument("expectedOutput", StringArgumentType.string())
                     .executes(ctx -> {
