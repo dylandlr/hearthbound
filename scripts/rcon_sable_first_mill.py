@@ -145,6 +145,9 @@ with Rcon() as r:
     # Opt-in policy-driven social transmission; no teach-nearest command.
     r.contains(f"execute as {villager} at @s run sable spawn-named Moss",
                "Hearthbound citizen spawned: Moss")
+    request=r.run('execute as @e[type=minecraft:villager,name=Moss,limit=1] at @s run sable learning-request "create:milling/wheat"')
+    if "LEARNING_REQUEST recipe=create:milling/wheat" not in request:
+        raise AssertionError("Moss did not persist a local request: "+request)
     r.contains(f"execute as {villager} at @s run sable auto-teach-on",
                "Autonomous social teaching enabled")
     learned=False
@@ -156,6 +159,9 @@ with Rcon() as r:
             break
     if not learned:
         raise AssertionError("Policy-controlled nearby teaching did not transfer milling knowledge")
+    cleared=r.run('execute as @e[type=minecraft:villager,name=Moss,limit=1] at @s run sable learning-request-inspect')
+    if "LEARNING_REQUEST NONE" not in cleared:
+        raise AssertionError("Learning request survived successful teaching: "+cleared)
     r.contains(f"execute as {villager} at @s run sable auto-teach-off",
                "Autonomous social teaching disabled")
     # A completed job may NOT be released while flour remains in the machine.
