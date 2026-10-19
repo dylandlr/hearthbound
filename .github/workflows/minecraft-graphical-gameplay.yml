@@ -24,7 +24,7 @@ jobs:
       - name: Install video and virtual display dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y xvfb xdotool scrot ffmpeg libgl1-mesa-dri libgl1 libxrandr2 libxi6 libxcursor1 libxinerama1 libasound2t64 || sudo apt-get install -y xvfb xdotool scrot ffmpeg libgl1-mesa-dri libgl1 libxrandr2 libxi6 libxcursor1 libxinerama1
+          sudo apt-get install -y xvfb openbox xdotool scrot ffmpeg libgl1-mesa-dri libgl1 libxrandr2 libxi6 libxcursor1 libxinerama1 libasound2t64 || sudo apt-get install -y xvfb openbox xdotool scrot ffmpeg libgl1-mesa-dri libgl1 libxrandr2 libxi6 libxcursor1 libxinerama1
       - name: Verify scenario syntax
         run: python3 -m py_compile scripts/rcon_autonomous_scientist.py
       - name: Start Forge server and rendered Minecraft client
@@ -36,9 +36,12 @@ jobs:
           printf 'online-mode=false\nlevel-name=gameplay-capture-world\nmax-players=3\nserver-port=25565\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties
           Xvfb :99 -screen 0 1280x720x24 -nolisten tcp > gameplay-capture/xvfb.log 2>&1 &
           xvfb_pid=$!
+          openbox --sm-disable > gameplay-capture/window-manager.log 2>&1 &
+          wm_pid=$!
+          sleep 3
           gradle --no-daemon runServer > gameplay-capture/server.log 2>&1 &
           server_pid=$!
-          trap 'kill "$server_pid" "$xvfb_pid" 2>/dev/null || true' EXIT
+          trap 'kill "$server_pid" "$xvfb_pid" "$wm_pid" 2>/dev/null || true' EXIT
           ready=0
           for i in $(seq 1 360); do
             if grep -Eq 'Done \([0-9.]+s\)! For help, type "help"' gameplay-capture/server.log; then ready=1; break; fi
@@ -50,16 +53,24 @@ jobs:
           # --server and --port request a direct multiplayer connection at launch.
           gradle --no-daemon runClient --args='--username HearthboundCamera --server 127.0.0.1 --port 25565' > gameplay-capture/client.log 2>&1 &
           client_pid=$!
-          trap 'kill "$client_pid" "$server_pid" "$xvfb_pid" 2>/dev/null || true' EXIT
+          trap 'kill "$client_pid" "$server_pid" "$xvfb_pid" "$wm_pid" 2>/dev/null || true' EXIT
           # Capture diagnostics even when Minecraft never joins.
           # ForgeGradle's --args does not guarantee Minecraft menu auto-connect.
-          sleep 25
+          # Wait for the actual game window; fixed sleeps can miss heavy software GL startup.
+          window=""
+          for i in $(seq 1 100); do
+            window=$(xdotool search --onlyvisible --name 'Minecraft' | head -n 1 || true)
+            if [ -n "$window" ]; then break; fi
+            sleep 2
+          done
+          sleep 15
           scrot -d 1 gameplay-capture/client-before-connect.png || true
           # Explicitly navigate the vanilla Minecraft multiplayer interface.
           # Retry screenshots let us inspect failures without inventing gameplay.
-          window=$(xdotool search --onlyvisible --name 'Minecraft' | head -n 1 || true)
           if [ -n "$window" ]; then
-            xdotool windowactivate --sync "$window" || true
+            xdotool windowfocus --sync "$window" || true
+            xdotool windowsize "$window" 1280 720 || true
+            xdotool windowmove "$window" 0 0 || true
             xdotool mousemove --window "$window" 640 365 click 1 || true
             sleep 4
             scrot gameplay-capture/client-multiplayer-menu.png || true
