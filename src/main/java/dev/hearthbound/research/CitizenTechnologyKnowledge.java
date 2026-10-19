@@ -101,6 +101,14 @@ public final class CitizenTechnologyKnowledge {
         return entry;
     }
 
+    /** Immutable snapshot of knowledge personally held by this citizen. */
+    public static java.util.List<Entry> entries(Villager citizen) {
+        ListTag stored = list(citizen);
+        java.util.List<Entry> result = new java.util.ArrayList<>();
+        for (int i = 0; i < stored.size(); i++) result.add(decode(stored.getCompound(i)));
+        return java.util.List.copyOf(result);
+    }
+
     public static String inspect(Villager citizen) {
         ListTag list = list(citizen);
         if (list.isEmpty()) return "TECH_KNOWLEDGE NONE";

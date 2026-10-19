@@ -14,7 +14,6 @@ import net.minecraft.world.phys.AABB;
 public final class CitizenSocialTeaching {
     private static final String ENABLED = "hearthbound.autoTeachingV1";
     private static final String LAST_ATTEMPT = "hearthbound.lastTeachingAttemptV1";
-    private static final String RECIPE = "create:milling/wheat";
     private static final SocialTeachingPolicy POLICY = new SocialTeachingPolicy();
 
     private CitizenSocialTeaching() {}
@@ -33,28 +32,39 @@ public final class CitizenSocialTeaching {
         CompoundTag tag = teacher.getPersistentData();
         if (now - tag.getLong(LAST_ATTEMPT) < 100) return;
         tag.putLong(LAST_ATTEMPT, now);
-        if (!CitizenTechnologyKnowledge.knows(teacher, RECIPE)) return;
-
-        // Inference is restricted to nearby Hearthbound citizens, not global knowledge.
-        Villager student = level.getEntitiesOfClass(Villager.class,
+        // Only personally held, explicitly advertised recipes are eligible.
+        java.util.List<String> offered = TechnologyOffers.advertisedBy(teacher);
+        if (offered.isEmpty()) return;
+        java.util.List<Villager> visible = level.getEntitiesOfClass(Villager.class,
                 new AABB(teacher.blockPosition()).inflate(4.0),
                 v -> v != teacher && v.getPersistentData().getBoolean("hearthbound.sable")
-                     && teacher.hasLineOfSight(v))
-                .stream().filter(v -> !CitizenTechnologyKnowledge.knows(v, RECIPE))
-                .min(Comparator.<Villager>comparingInt(v ->
-                        CitizenLearningRequest.requests(v, RECIPE) ? 0 : 1)
-                        .thenComparingDouble(teacher::distanceToSqr))
+                        && teacher.hasLineOfSight(v));
+        record Candidate(Villager student, String recipe, boolean requested) {}
+        java.util.List<Candidate> candidates = new java.util.ArrayList<>();
+        for (Villager student : visible) {
+            for (String recipe : offered) {
+                if (!CitizenTechnologyKnowledge.knows(student, recipe))
+                    candidates.add(new Candidate(student, recipe,
+                            CitizenLearningRequest.requests(student, recipe)));
+            }
+        }
+        Candidate selected = candidates.stream()
+                .min(Comparator.comparingInt((Candidate v) -> v.requested() ? 0 : 1)
+                        .thenComparingDouble(v -> teacher.distanceToSqr(v.student()))
+                        .thenComparing(Candidate::recipe))
                 .orElse(null);
-        if (student == null) return;
+        if (selected == null) return;
+        Villager student = selected.student();
+        String recipe = selected.recipe();
 
         double cooperation = CitizenInstincts.get(teacher).getInt("cooperation") / 100.0;
-        double confidence = CitizenTechnologyKnowledge.require(teacher, RECIPE).confidence();
+        double confidence = CitizenTechnologyKnowledge.require(teacher, recipe).confidence();
         // Reputation is a citizen-local observation, not a global social score.
         CompoundTag memory = tag.getCompound("hearthbound.socialV1");
         double familiarity = Math.min(1.0, Math.max(0.0,
                 memory.getInt("reputation_" + student.getUUID()) / 100.0));
         // The request is observable only because the student is in range and visible.
-        boolean requested = CitizenLearningRequest.requests(student, RECIPE);
+        boolean requested = selected.requested();
         // Do not invent villager fatigue. It remains a neutral placeholder until
         // a physical needs model provides a measured signal.
         double urgency = requested ? 0.8 : 0.5;
@@ -63,10 +73,10 @@ public final class CitizenSocialTeaching {
                 familiarity, urgency, 0.0, true, true, requested);
         if (POLICY.select(observation).action() != SocialTeachingPolicy.Action.TEACH)
             return;
-        CitizenTechnologyKnowledge.teach(teacher, student, RECIPE, now);
-        CitizenLearningRequest.fulfilled(student, RECIPE);
+        CitizenTechnologyKnowledge.teach(teacher, student, recipe, now);
+        CitizenLearningRequest.fulfilled(student, recipe);
         org.apache.logging.log4j.LogManager.getLogger("HearthboundSocial")
                 .info("HEARTHBOUND_AUTONOMOUS_TEACH teacher={} student={} recipe={}",
-                        teacher.getUUID(), student.getUUID(), RECIPE);
+                        teacher.getUUID(), student.getUUID(), recipe);
     }
 }

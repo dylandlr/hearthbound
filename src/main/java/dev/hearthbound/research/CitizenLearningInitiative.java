@@ -13,7 +13,6 @@ import net.minecraft.world.phys.AABB;
 public final class CitizenLearningInitiative {
     private static final String ENABLED = "hearthbound.autoLearnV1";
     private static final String LAST = "hearthbound.lastLearningConsiderationV1";
-    private static final String RECIPE = "create:milling/wheat";
     private static final LearningRequestPolicy POLICY = new LearningRequestPolicy();
     private CitizenLearningInitiative() {}
 
@@ -29,26 +28,27 @@ public final class CitizenLearningInitiative {
         long now = level.getGameTime();
         if (now - memory.getLong(LAST) < 100) return;
         memory.putLong(LAST, now);
-        if (CitizenTechnologyKnowledge.knows(student, RECIPE)) {
-            CitizenLearningRequest.fulfilled(student, RECIPE);
-            return;
-        }
-        // Teacher advertising is a public social signal visible within four blocks.
-        // This is an explicit approximation until message perception is modeled.
-        boolean teacherVisible = level.getEntitiesOfClass(Villager.class,
-            new AABB(student.blockPosition()).inflate(4.0),
-            v -> v != student && v.getPersistentData().getBoolean("hearthbound.sable")
-                && CitizenSocialTeaching.enabled(v)
-                && CitizenTechnologyKnowledge.knows(v, RECIPE)
-                && student.hasLineOfSight(v)).size() > 0;
+        // Read only explicit offers made by physically visible, opt-in citizens.
+        java.util.List<Villager> visibleTeachers = level.getEntitiesOfClass(Villager.class,
+                new AABB(student.blockPosition()).inflate(4.0),
+                v -> v != student && v.getPersistentData().getBoolean("hearthbound.sable")
+                        && student.hasLineOfSight(v));
+        java.util.Set<String> offered = new java.util.TreeSet<>();
+        for (Villager teacher : visibleTeachers)
+            offered.addAll(TechnologyOffers.advertisedBy(teacher));
+        String recipe = offered.stream()
+                .filter(id -> !CitizenTechnologyKnowledge.knows(student, id))
+                .findFirst().orElse(null);
+        if (recipe == null) return;
+        boolean teacherVisible = true;
         double curiosity = CitizenInstincts.get(student).getInt("exploration") / 100.0;
         var observation = new LearningRequestPolicy.Observation(
             LearningRequestPolicy.VERSION, curiosity, 0, 0.6,
-            false, teacherVisible, CitizenLearningRequest.requests(student, RECIPE));
+            false, teacherVisible, CitizenLearningRequest.requests(student, recipe));
         if (POLICY.select(observation) != LearningRequestPolicy.Action.REQUEST) return;
-        CitizenLearningRequest.request(student, RECIPE);
+        CitizenLearningRequest.request(student, recipe);
         org.apache.logging.log4j.LogManager.getLogger("HearthboundSocial")
             .info("HEARTHBOUND_AUTONOMOUS_REQUEST student={} recipe={}",
-                student.getUUID(), RECIPE);
+                student.getUUID(), recipe);
     }
 }
