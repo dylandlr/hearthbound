@@ -225,6 +225,20 @@ public final class SableController {
                         CitizenSocietyEvents.web(ctx.getSource().getLevel(), citizen)), false);
                 return 1;
             }))
+            .then(Commands.literal("auto-learn-on").executes(ctx -> {
+                Villager citizen = nearestSable(ctx.getSource());
+                if (citizen == null) return 0;
+                dev.hearthbound.research.CitizenLearningInitiative.setEnabled(citizen, true);
+                ctx.getSource().sendSuccess(() -> Component.literal("Autonomous learning enabled"), false);
+                return 1;
+            }))
+            .then(Commands.literal("auto-learn-off").executes(ctx -> {
+                Villager citizen = nearestSable(ctx.getSource());
+                if (citizen == null) return 0;
+                dev.hearthbound.research.CitizenLearningInitiative.setEnabled(citizen, false);
+                ctx.getSource().sendSuccess(() -> Component.literal("Autonomous learning disabled"), false);
+                return 1;
+            }))
             .then(Commands.literal("learning-request")
                 .then(Commands.argument("recipe", StringArgumentType.string())
                     .executes(ctx -> {
@@ -611,6 +625,8 @@ public final class SableController {
         MillExperimentTrace.monitorAuthorizedInput(level, villager);
         if (villager.tickCount % 20 == 0)
             dev.hearthbound.research.CitizenSocialTeaching.tick(level, villager);
+        if (villager.tickCount % 20 == 0)
+            dev.hearthbound.research.CitizenLearningInitiative.tick(level, villager);
         SableAutoWork.tick(level, villager);
         if (villager.tickCount % 20 != 0) return;
         // Observation is read-only with respect to the millstone and never
