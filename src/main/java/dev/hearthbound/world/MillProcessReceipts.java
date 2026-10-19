@@ -147,6 +147,15 @@ public final class MillProcessReceipts extends SavedData {
             // Preserve the physical receipt for audit/recovery, but never fabricate credit.
             LOG.error("HEARTHBOUND_RESEARCH_AWARD_REJECTED job={} reason={}", job, ex.getMessage());
         }
+        try {
+            var result = dev.hearthbound.research.TechnologyHypothesisSavedData.get(level)
+                    .observeMillReceipt(level, job, citizen.getUUID(), pos);
+            if (result != null)
+                LOG.info("HEARTHBOUND_HYPOTHESIS_EVIDENCE job={} citizen={} status={} evidence={}",
+                        job, citizen.getUUID(), result.status(), result.evidenceId());
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            LOG.error("HEARTHBOUND_HYPOTHESIS_REJECTED job={} reason={}", job, ex.getMessage());
+        }
     }
 
     /** Read-only raw receipt presence, including subsequently invalidated jobs. */
