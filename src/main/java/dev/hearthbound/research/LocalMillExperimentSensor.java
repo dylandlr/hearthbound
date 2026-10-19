@@ -9,11 +9,16 @@ import net.minecraft.world.entity.npc.Villager;
 
 /** Bounded observation adapter. No global recipe scan and no chunk loads. */
 public final class LocalMillExperimentSensor {
-    private static final ExperimentSelectionPolicy POLICY = new ExperimentSelectionPolicy();
     private LocalMillExperimentSensor() {}
 
     public static ExperimentSelectionPolicy.Choice consider(
             ServerLevel level, Villager citizen, BlockPos source, BlockPos machine) {
+        return consider(level, citizen, source, machine, ResearchPolicyBaselines.Mode.PERSONALITY);
+    }
+
+    public static ExperimentSelectionPolicy.Choice consider(
+            ServerLevel level, Villager citizen, BlockPos source, BlockPos machine,
+            ResearchPolicyBaselines.Mode mode) {
         if (citizen.level() != level || !level.hasChunkAt(source) || !level.hasChunkAt(machine))
             return defer();
         if (citizen.blockPosition().distSqr(source) > 64
@@ -37,8 +42,8 @@ public final class LocalMillExperimentSensor {
         var candidate = new ExperimentSelectionPolicy.Candidate(
                 "create:milling/wheat","minecraft:wheat","create:millstone",
                 "create:wheat_flour",0.8,0.2,true,true,previouslyFalsified);
-        return POLICY.select(new ExperimentSelectionPolicy.Observation(
-                ExperimentSelectionPolicy.VERSION,curiosity,0.5,0.0,List.of(candidate)));
+        return ResearchPolicyBaselines.choose(mode, new ExperimentSelectionPolicy.Observation(
+                ExperimentSelectionPolicy.VERSION,curiosity,0.5,0.0,List.of(candidate))).choice();
     }
     private static ExperimentSelectionPolicy.Choice defer() {
         return new ExperimentSelectionPolicy.Choice(ExperimentSelectionPolicy.Action.DEFER,null,0);
