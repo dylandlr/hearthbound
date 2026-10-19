@@ -35,6 +35,39 @@ public final class TechnologyHypothesisSavedData extends SavedData {
         return h;
     }
 
+    public synchronized boolean has(String agent, String recipe) {
+        try {
+            hypotheses.require(agent, recipe);
+            return true;
+        } catch (IllegalArgumentException absent) {
+            return false;
+        }
+    }
+
+    /**
+     * Trusted Create adapter: only a verified one-wheat mill receipt may be
+     * translated into the isolated physical-evidence journal.
+     */
+    public synchronized TechnologyHypotheses.Hypothesis observeMillReceipt(
+            ServerLevel level, java.util.UUID job, java.util.UUID citizen,
+            net.minecraft.core.BlockPos mill) {
+        String recipe = "create:milling/wheat";
+        String agent = citizen.toString();
+        if (!has(agent, recipe)) return null;
+        dev.hearthbound.world.MillProcessReceipts.Receipt receipt =
+                dev.hearthbound.world.MillProcessReceipts.requireVerifiedReceipt(
+                        level, job, citizen, mill);
+        String evidence = "create-mill:" + job;
+        WorldEvidenceJournal journal = new WorldEvidenceJournal();
+        journal.append(new WorldEvidenceJournal.ProcessingEvidence(
+                evidence, receipt.tick(), level.dimension().location().toString(),
+                "create:millstone", mill.toShortString(), "minecraft:wheat",
+                receipt.wheatBefore() - receipt.wheatAfter(),
+                "create:wheat_flour", receipt.flourAfter() - receipt.flourBefore(),
+                recipe, true));
+        return observe(agent, recipe, evidence, journal);
+    }
+
     public synchronized TechnologyHypotheses.Hypothesis require(String agent, String recipe) {
         return hypotheses.require(agent,recipe);
     }
