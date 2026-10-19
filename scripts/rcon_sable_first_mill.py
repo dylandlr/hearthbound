@@ -67,6 +67,11 @@ with Rcon() as r:
     r.contains("sable spawn","Sable spawned")
     villager="@e[type=minecraft:villager,name=Sable,limit=1]"
     r.run(f"tp {villager} 2 101 1")
+    r.contains(f'execute as {villager} at @s run sable hypothesis-mill-propose "create:wheat_flour"',
+               "HYPOTHESIS PROPOSED")
+    r.contains(f"execute as {villager} at @s run sable hypothesis-mill-inspect",
+               "HYPOTHESIS PROPOSED")
+
     r.contains(f"execute at {villager} run sable haul 3 101 1 7 101 1","Sable assigned wheat haul")
     # Only Sable is allowed to transport the wheat; no /summon item.
     complete=False
@@ -123,6 +128,8 @@ with Rcon() as r:
     if "MILL_RESERVATION HELD" not in reservation or f"job={job_match.group(1)}" not in reservation:
         raise AssertionError("Sable millstone reservation absent or mismatched: "+reservation)
     receipt=r.run(f"sable mill-process {job_match.group(1)}")
+    r.contains(f"execute as {villager} at @s run sable hypothesis-mill-inspect",
+               "HYPOTHESIS CONFIRMED")
     if "MILL_PROCESS VERIFIED_CALLBACK" not in receipt:
         raise AssertionError("No direct Create processing callback receipt: "+receipt)
     if "wheatBefore=1 wheatAfter=0" not in receipt or "RESEARCH_CREDIT_GRANTED" not in receipt:
