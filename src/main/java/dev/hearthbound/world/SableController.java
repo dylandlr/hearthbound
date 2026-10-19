@@ -276,6 +276,43 @@ public final class SableController {
                 ctx.getSource().sendSuccess(() -> Component.literal("Autonomous social teaching disabled"), false);
                 return 1;
             }))
+            .then(Commands.literal("hypothesis-mill-propose")
+                .then(Commands.argument("expectedOutput", StringArgumentType.string())
+                    .executes(ctx -> {
+                        Villager citizen = nearestSable(ctx.getSource());
+                        if (citizen == null) return 0;
+                        try {
+                            var hypothesis = dev.hearthbound.research.TechnologyHypothesisSavedData
+                                    .get(ctx.getSource().getLevel()).propose(
+                                        citizen.getUUID().toString(), "create:milling/wheat",
+                                        "minecraft:wheat", "create:millstone",
+                                        StringArgumentType.getString(ctx, "expectedOutput"));
+                            ctx.getSource().sendSuccess(() -> Component.literal(
+                                    "HYPOTHESIS " + hypothesis.status()
+                                    + " recipe=" + hypothesis.recipeId()), false);
+                            return 1;
+                        } catch (IllegalArgumentException | IllegalStateException ex) {
+                            ctx.getSource().sendFailure(Component.literal(ex.getMessage()));
+                            return 0;
+                        }
+                    })))
+            .then(Commands.literal("hypothesis-mill-inspect").executes(ctx -> {
+                Villager citizen = nearestSable(ctx.getSource());
+                if (citizen == null) return 0;
+                try {
+                    var hypothesis = dev.hearthbound.research.TechnologyHypothesisSavedData
+                            .get(ctx.getSource().getLevel()).require(
+                                citizen.getUUID().toString(), "create:milling/wheat");
+                    ctx.getSource().sendSuccess(() -> Component.literal(
+                            "HYPOTHESIS " + hypothesis.status()
+                            + " recipe=" + hypothesis.recipeId()
+                            + " evidence=" + hypothesis.evidenceId()), false);
+                    return 1;
+                } catch (IllegalArgumentException ex) {
+                    ctx.getSource().sendFailure(Component.literal(ex.getMessage()));
+                    return 0;
+                }
+            }))
             .then(Commands.literal("tech-inspect").executes(ctx -> {
                 Villager citizen = nearestSable(ctx.getSource());
                 if (citizen == null) return 0;
