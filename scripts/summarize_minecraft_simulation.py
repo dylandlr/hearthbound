@@ -2,7 +2,7 @@
 """Aggregate authoritative Minecraft experiment output without inventing success."""
 import argparse, json, pathlib, re, datetime
 
-def summarize(log, scenario, seed, exit_code):
+def summarize(log, scenario, seed, exit_code, metrics_path=None):
     text=pathlib.Path(log).read_text(errors="replace") if pathlib.Path(log).exists() else ""
     events={}
     patterns={
@@ -15,7 +15,13 @@ def summarize(log, scenario, seed, exit_code):
         "rejected_receipts":r"HEARTHBOUND_PROCESS_REJECT",
     }
     for name,pattern in patterns.items(): events[name]=len(re.findall(pattern,text))
+    measurements=None
+    if metrics_path and pathlib.Path(metrics_path).exists():
+        measurements=json.loads(pathlib.Path(metrics_path).read_text())
+        if measurements.get("scenario") != scenario:
+            raise ValueError("Scenario metric identifier mismatch")
     return {
+        "measurements":measurements,
         "schema_version":1,"scenario":scenario,"seed":seed,
         "timestamp_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "exit_code":exit_code,"passed":exit_code==0,
@@ -30,7 +36,8 @@ if __name__=="__main__":
     p.add_argument("--seed",type=int,required=True)
     p.add_argument("--exit-code",type=int,required=True)
     p.add_argument("--output",required=True)
+    p.add_argument("--metrics")
     a=p.parse_args()
     path=pathlib.Path(a.output);path.parent.mkdir(parents=True,exist_ok=True)
-    path.write_text(json.dumps(summarize(a.log,a.scenario,a.seed,a.exit_code),indent=2)+"\n")
+    path.write_text(json.dumps(summarize(a.log,a.scenario,a.seed,a.exit_code,a.metrics),indent=2)+"\n")
     print(path.read_text())
