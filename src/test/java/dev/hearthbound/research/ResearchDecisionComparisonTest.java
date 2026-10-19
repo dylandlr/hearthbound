@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test;
 class ResearchDecisionComparisonTest {
     @Test void identicalObservationCanExposePersonalityDifference() {
         var candidate=new ExperimentSelectionPolicy.Candidate("wheat","wheat","millstone",
-            "flour",0.1,0.8,true,true,false);
+            "flour",0.4,0.2,true,true,false);
         var observation=new ExperimentSelectionPolicy.Observation(1,0.05,1,0.1,List.of(candidate));
         var pair=ResearchDecisionComparison.evaluate(observation);
         assertEquals(1,pair.schemaVersion());
