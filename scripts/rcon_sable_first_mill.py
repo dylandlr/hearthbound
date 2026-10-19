@@ -142,6 +142,22 @@ with Rcon() as r:
     student_knowledge=r.run('execute as @e[type=minecraft:villager,name=Iven,limit=1] at @s run sable tech-inspect')
     if "create:milling/wheat" not in student_knowledge or "source=TAUGHT" not in student_knowledge:
         raise AssertionError("Iven did not retain socially transmitted milling knowledge: "+student_knowledge)
+    # Opt-in policy-driven social transmission; no teach-nearest command.
+    r.contains(f"execute as {villager} at @s run sable spawn-named Moss",
+               "Hearthbound citizen spawned: Moss")
+    r.contains(f"execute as {villager} at @s run sable auto-teach-on",
+               "Autonomous social teaching enabled")
+    learned=False
+    for _ in range(12):
+        time.sleep(1)
+        moss=r.run('execute as @e[type=minecraft:villager,name=Moss,limit=1] at @s run sable tech-inspect')
+        if "create:milling/wheat" in moss and "source=TAUGHT" in moss:
+            learned=True
+            break
+    if not learned:
+        raise AssertionError("Policy-controlled nearby teaching did not transfer milling knowledge")
+    r.contains(f"execute as {villager} at @s run sable auto-teach-off",
+               "Autonomous social teaching disabled")
     # A completed job may NOT be released while flour remains in the machine.
     occupied_release=r.run(f"execute at {villager} run sable mill-release 7 101 1 {job_match.group(1)}")
     if "Collect all millstone output" not in occupied_release:
