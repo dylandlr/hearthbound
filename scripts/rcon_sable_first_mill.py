@@ -67,8 +67,11 @@ with Rcon() as r:
     r.contains("sable spawn","Sable spawned")
     villager="@e[type=minecraft:villager,name=Sable,limit=1]"
     r.run(f"tp {villager} 2 101 1")
-    r.contains(f'execute as {villager} at @s run sable hypothesis-mill-propose "create:wheat_flour"',
-               "HYPOTHESIS PROPOSED")
+    # Unavailable resource/machine must not generate research hypotheses.
+    r.contains(f"execute as {villager} at @s run sable experiment-local 3 101 1 2 101 1",
+               "EXPERIMENT DEFER")
+    r.contains(f"execute as {villager} at @s run sable experiment-local 3 101 1 7 101 1",
+               "EXPERIMENT PROPOSED")
     r.contains(f"execute as {villager} at @s run sable hypothesis-mill-inspect",
                "HYPOTHESIS PROPOSED")
 
