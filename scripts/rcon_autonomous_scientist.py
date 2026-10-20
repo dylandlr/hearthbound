@@ -55,6 +55,28 @@ with Rcon() as r:
         "setblock 7 100 1 create:creative_motor[facing=up] replace",
         "setblock 7 101 1 create:millstone replace",
     ): r.run(cmd)
+    # Visual-only workshop dressing. Keep the documented wheat source, mill,
+    # citizen route, and actual Create machine physics unchanged.
+    # The fixture still clears the world first, so build scenery afterwards.
+    for cmd in (
+        "fill 0 100 5 12 100 10 minecraft:spruce_planks",
+        "fill 0 100 0 12 100 4 minecraft:spruce_planks",
+        "fill 0 101 10 12 104 10 minecraft:stone_bricks",
+        "fill 0 101 0 12 104 0 minecraft:stone_bricks",
+        "fill 0 101 0 0 104 10 minecraft:stone_bricks",
+        "fill 12 101 0 12 104 10 minecraft:stone_bricks",
+        "fill 1 102 0 4 103 0 minecraft:glass_pane",
+        "fill 8 102 0 11 103 0 minecraft:glass_pane",
+        "fill 1 102 10 4 103 10 minecraft:glass_pane",
+        "fill 8 102 10 11 103 10 minecraft:glass_pane",
+        "fill 0 105 0 12 105 10 minecraft:spruce_slab",
+        "fill 4 105 3 8 105 8 minecraft:air",
+        "setblock 5 101 9 minecraft:crafting_table",
+        "setblock 9 101 9 minecraft:barrel",
+        "setblock 1 101 9 minecraft:lantern",
+        "setblock 11 101 9 minecraft:lantern",
+        "setblock 10 101 6 minecraft:oak_fence",
+    ): r.run(cmd)
     speed=0.
     for _ in range(40):
         obs=r.run("data get block 7 101 1 Speed")
