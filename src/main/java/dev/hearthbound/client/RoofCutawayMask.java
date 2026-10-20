@@ -19,9 +19,13 @@ public final class RoofCutawayMask {
     public static List<BlockPos> sample(Level level, BlockPos focus, int viewFloorY,
                                          int horizontalRadius, int verticalLimit) {
         int radius = Math.max(0, Math.min(8, horizontalRadius));
-        int ceiling = Math.min(level.getMaxBuildHeight() - 1,
-                Math.min(viewFloorY + 1, focus.getY() + Math.max(0, Math.min(24, verticalLimit))));
-        int start = Math.max(level.getMinBuildHeight(), focus.getY() + 2);
+        // The active floor is the room being inspected, not a ceiling
+        // cutoff. A roof two or three blocks above that floor must remain
+        // eligible when the player presses End to follow its occupant.
+        int limit = Math.max(0, Math.min(24, verticalLimit));
+        int ceiling = Math.min(level.getMaxBuildHeight() - 1, focus.getY() + limit);
+        int start = Math.max(level.getMinBuildHeight(),
+                Math.max(focus.getY() + 2, viewFloorY + 1));
         if (start > ceiling) return List.of();
         List<BlockPos> candidates = new ArrayList<>();
         for (int x = focus.getX() - radius; x <= focus.getX() + radius; x++) {
