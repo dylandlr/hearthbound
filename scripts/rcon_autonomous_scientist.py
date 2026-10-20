@@ -228,3 +228,38 @@ with Rcon() as r:
     },indent=2)+"\\n")
     print("THREE CITIZEN BASELINE PASS: distinct entities, inspectable instinct priors")
 
+    # Rowan's haul is chosen by his OWN tick policy, not /sable haul.
+    # Separate source/destination prevent interference with Sable's mill job.
+    r.run('setblock 3 101 7 minecraft:chest{Items:[{Slot:0b,id:"minecraft:wheat",Count:4b}]} replace')
+    r.run("setblock 9 101 7 minecraft:chest replace")
+    rowan="@e[type=minecraft:villager,name=Rowan,limit=1]"
+    r.contains(f"execute as {rowan} at @s run sable auto-work-discover 3 101 7 9 101 7",
+               "Configured discover-library auto work")
+    r.contains(f"execute as {rowan} at @s run sable auto-work-on","Auto work enabled")
+    rowan_trace=""
+    rowan_assigned=False
+    rowan_completed=False
+    for _ in range(140):
+        time.sleep(1)
+        rowan_trace=r.run(f"execute as {rowan} at @s run sable auto-work-status")
+        status=r.run(f"execute as {rowan} at @s run sable haul-status")
+        if "haulIssued=true" in rowan_trace:
+            rowan_assigned=True
+        if rowan_assigned and "Haul complete" in status:
+            rowan_completed=True
+            break
+    if not rowan_assigned or not rowan_completed:
+        raise AssertionError("Rowan did not autonomously select and complete a haul: "+rowan_trace)
+    destination_evidence=r.run("data get block 9 101 7 Items")
+    if "minecraft:wheat" not in destination_evidence:
+        raise AssertionError("Rowan completion lacked destination wheat evidence: "+destination_evidence)
+    r.contains(f"execute as {rowan} at @s run sable auto-work-off","Auto work disabled")
+    residents["Rowan"]["independent_haul"]={
+        "auto_assigned":True,"completed":True,"destination_evidence":destination_evidence[:350]}
+    population_out.write_text(json.dumps({
+        "schema_version":2,"scope":"individual identities plus Rowan tick-selected physical haul",
+        "residents":residents
+    },indent=2)+"\\n")
+    print("ROWAN AUTONOMOUS HAUL PASS: independently selected and physically completed")
+
+
