@@ -63,8 +63,8 @@ public final class CitizenTacticalMarkers {
         int floor = ColonyView.observedFloorY();
         int agentY = selected.blockPosition().getY();
         gfx.drawString(mc.font, "View Y: " + floor + "  Citizen Y: " + agentY, x, 86, 0xC6DBDC, false);
-        int cover = solidCoverAbove(selected, Math.min(16, Math.max(0, floor - agentY)));
-        gfx.drawString(mc.font, "Overhead cover: " + cover + " blocks", x, 99,
+        int cover = ColonyView.cutawayPreview() ? solidCoverAbove(selected, Math.min(16, Math.max(0, floor - agentY))) : 0;
+        gfx.drawString(mc.font, "Cutaway [C]: " + (ColonyView.cutawayPreview() ? "preview (" + cover + " solid)" : "off"), x, 99,
                 cover > 0 ? 0xFFF1BD77 : 0xFF9EDDB8, false);
     }
 
