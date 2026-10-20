@@ -288,7 +288,7 @@ with Rcon() as r:
     r.run("scoreboard objectives add hb_claim_test dummy")
     r.run(f"execute store success score #second hb_claim_test run execute as {villager} at @s run sable haul {source_pos} {dest_pos}")
     denied=r.run("scoreboard players get #second hb_claim_test")
-    if not re.search(r"\\b0\\s*\\[hb_claim_test\\]", denied):
+    if not re.search(r"\b0\s*\[hb_claim_test\]", denied):
         raise AssertionError("Second citizen was not denied the claimed source: "+denied)
     owner_after=r.run(f"hearthboundclaims owner {source_pos}")
     if owner_before != owner_after:
@@ -317,7 +317,7 @@ with Rcon() as r:
         "source_after":remaining,"destination_after":delivered
     }
     pathlib.Path("gameplay-capture/contention-evidence.json").write_text(
-        json.dumps(contention,indent=2)+"\\n")
+        json.dumps(contention,indent=2)+"\n")
     print("SHARED RESOURCE CONTENTION PASS: second claimant denied, ownership preserved, claim released")
 
 
