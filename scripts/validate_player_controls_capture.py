@@ -11,7 +11,7 @@ video = root / "minecraft-player-controls.mp4"
 log = root / "player-control-inputs.log"
 required = (
     "player-default-perspective.png", "player-cutaway-on.png",
-    "player-cutaway-off.png", "player-first-person.png",
+    "player-cutaway-off.png", "player-cutaway-restored.png", "player-first-person.png",
     "player-return-tactical.png", "player-after-click.png",
 )
 if not video.is_file() or video.stat().st_size < 10000:
