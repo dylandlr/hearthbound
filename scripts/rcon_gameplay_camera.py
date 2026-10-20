@@ -31,7 +31,7 @@ with socket.create_connection(("127.0.0.1",25575),timeout=20) as sock:
         "time set noon",
         "weather clear",
         "gamemode spectator HBCamera",
-        "tp HBCamera 11 105 9 facing 6 101 1",
+        "tp HBCamera 10 103 4 facing 6 101 1",
         "effect give HBCamera minecraft:night_vision 600 0 true",
     ]
     for i,command in enumerate(commands,10):
