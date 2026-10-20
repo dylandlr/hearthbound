@@ -26,7 +26,9 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y xvfb openbox xdotool scrot ffmpeg libgl1-mesa-dri libgl1 libxrandr2 libxi6 libxcursor1 libxinerama1 libasound2t64 || sudo apt-get install -y xvfb openbox xdotool scrot ffmpeg libgl1-mesa-dri libgl1 libxrandr2 libxi6 libxcursor1 libxinerama1
       - name: Verify scenario syntax
-        run: python3 -m py_compile scripts/rcon_autonomous_scientist.py scripts/rcon_gameplay_camera.py
+        run: |
+          python3 -m py_compile scripts/rcon_autonomous_scientist.py scripts/rcon_gameplay_camera.py
+          python3 scripts/check_workshop_fixture.py
       - name: Start Forge server and rendered Minecraft client
         shell: bash
         run: |
