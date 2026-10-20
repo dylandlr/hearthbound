@@ -314,6 +314,8 @@ with Rcon() as r:
         "mode":"operator-triggered isolation test; not autonomous task selection",
         "first_owner": "Iris","second_contender":"Sable",
         "loser_denied":True,"claim_released":True,
+        "claim_owner_before":owner_before,"claim_owner_after_rejection":owner_after,
+        "rejected_command_score":denied,"claim_after_completion":freed,
         "source_after":remaining,"destination_after":delivered
     }
     pathlib.Path("gameplay-capture/contention-evidence.json").write_text(
