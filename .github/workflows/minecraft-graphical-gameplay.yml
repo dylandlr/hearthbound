@@ -86,14 +86,16 @@ jobs:
           fi
           python3 scripts/rcon_gameplay_camera.py > gameplay-capture/camera.log 2>&1
           # Show the view after the camera has been positioned in the real world.
-          sleep 4
+          sleep 12
           scrot gameplay-capture/camera-framing.png || true
           ffmpeg -hide_banner -loglevel warning -y -f x11grab -framerate 15 -video_size 1280x720 -i :99.0 -c:v libx264 -preset ultrafast -crf 28 -pix_fmt yuv420p gameplay-capture/minecraft-gameplay.mp4 > gameplay-capture/ffmpeg.log 2>&1 &
           ffmpeg_pid=$!
+          sleep 6
           set +e
           python3 scripts/rcon_autonomous_scientist.py > gameplay-capture/scenario.log 2>&1
           scenario_rc=$?
           set -e
+          sleep 7
           kill -INT "$ffmpeg_pid" 2>/dev/null || true
           wait "$ffmpeg_pid" || true
           cat gameplay-capture/scenario.log
