@@ -326,7 +326,10 @@ with Rcon() as r:
     # source. Their destinations differ so successful work remains attributable.
     # This tests exclusive assignment, not alternative-job selection.
     shared_source="3 101 7"
-    r.run('setblock 3 101 7 minecraft:chest{Items:[{Slot:0b,id:"minecraft:wheat",Count:2b}]} replace')
+    # Use a standalone barrel to avoid double-chest inventory merging with
+    # the previously used Rowan fixture. Assert the mutation itself succeeded.
+    r.contains('setblock 3 101 7 minecraft:barrel{Items:[{Slot:0b,id:"minecraft:wheat",Count:2b}]} replace',
+               "Changed the block")
     wheat_before=r.run(f"data get block {shared_source} Items")
     if "minecraft:wheat" not in wheat_before or "Count: 2b" not in wheat_before:
         raise AssertionError("No executable wheat offer in shared source: "+wheat_before)
