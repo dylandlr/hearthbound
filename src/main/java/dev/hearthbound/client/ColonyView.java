@@ -7,6 +7,8 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.world.entity.npc.Villager;
+import java.util.Comparator;
+import java.util.List;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.client.event.RenderGuiEvent;
@@ -41,6 +43,9 @@ public final class ColonyView {
     private static final KeyMapping PAN_WEST = new KeyMapping("key.hearthbound.pan_west", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_LEFT, "key.categories.hearthbound");
     private static final KeyMapping PAN_EAST = new KeyMapping("key.hearthbound.pan_east", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_RIGHT, "key.categories.hearthbound");
     private static final KeyMapping RESET_CAMERA = new KeyMapping("key.hearthbound.reset_camera", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_HOME, "key.categories.hearthbound");
+    private static final KeyMapping NEXT_CITIZEN = new KeyMapping("key.hearthbound.next_citizen", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_PERIOD, "key.categories.hearthbound");
+    private static final KeyMapping PREVIOUS_CITIZEN = new KeyMapping("key.hearthbound.previous_citizen", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_COMMA, "key.categories.hearthbound");
+    private static final KeyMapping JUMP_TO_CITIZEN_FLOOR = new KeyMapping("key.hearthbound.citizen_floor", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_END, "key.categories.hearthbound");
     private static final KeyMapping CUTAWAY = new KeyMapping("key.hearthbound.cutaway", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_C, "key.categories.hearthbound");
     private static boolean cutawayPreview = true;
     private static final KeyMapping FLOOR_UP = new KeyMapping("key.hearthbound.floor_up", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_PAGE_UP, "key.categories.hearthbound");
@@ -81,6 +86,9 @@ public final class ColonyView {
             event.register(PAN_EAST);
             event.register(RESET_CAMERA);
             event.register(CUTAWAY);
+            event.register(NEXT_CITIZEN);
+            event.register(PREVIOUS_CITIZEN);
+            event.register(JUMP_TO_CITIZEN_FLOOR);
             event.register(FLOOR_UP);
             event.register(FLOOR_DOWN);
         }
@@ -112,6 +120,13 @@ public final class ColonyView {
         while (ZOOM_OUT.consumeClick()) if (tactical) cameraHeight = Math.min(48, cameraHeight + 3);
         while (FOLLOW.consumeClick()) follow = !follow;
         while (CUTAWAY.consumeClick()) cutawayPreview = !cutawayPreview;
+        while (NEXT_CITIZEN.consumeClick()) if (tactical) cycleCitizen(mc, 1);
+        while (PREVIOUS_CITIZEN.consumeClick()) if (tactical) cycleCitizen(mc, -1);
+        while (JUMP_TO_CITIZEN_FLOOR.consumeClick()) if (tactical && selected != null) {
+            floorY = selected.blockPosition().getY();
+            floorPinned = true;
+            follow = true;
+        }
         while (RESET_CAMERA.consumeClick()) { panX = 0; panZ = 0; follow = false; floorPinned = false; }
         while (FLOOR_UP.consumeClick()) {
             floorY = Math.min(mc.level.getMaxBuildHeight() - 1,
@@ -144,6 +159,18 @@ public final class ColonyView {
         }
         if (selected != null && (!selected.isAlive() || selected.level() != mc.level))
             selected = null;
+    }
+
+    /** A bounded, stable local roster for citizens already loaded near the player. */
+    private static void cycleCitizen(Minecraft mc, int direction) {
+        List<Villager> nearby = mc.level.getEntitiesOfClass(Villager.class,
+                mc.player.getBoundingBox().inflate(24)).stream()
+                .filter(Villager::isAlive)
+                .sorted(Comparator.comparing(v -> v.getUUID().toString()))
+                .toList();
+        if (nearby.isEmpty()) { selected = null; return; }
+        int index = selected == null ? -1 : nearby.indexOf(selected);
+        selected = nearby.get(Math.floorMod(index + direction, nearby.size()));
     }
 
     /** Free cursor picking: this never authorizes server commands. */
