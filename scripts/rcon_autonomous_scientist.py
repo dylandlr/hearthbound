@@ -254,12 +254,18 @@ with Rcon() as r:
             break
     if not rowan_assigned or not rowan_completed:
         raise AssertionError("Rowan did not autonomously select and complete a haul: "+rowan_trace)
+    source_evidence=r.run("data get block 3 101 7 Items")
+    # Source began with four wheat. A legitimate one-unit delivery must
+    # leave exactly three, regardless of which inventory slot contains it.
+    if not re.search(r'id: "minecraft:wheat", Count: 3b|Count: 3b, id: "minecraft:wheat"',source_evidence):
+        raise AssertionError("Rowan did not debit exactly one source wheat: "+source_evidence)
     destination_evidence=r.run("data get block 9 101 7 Items")
     if "minecraft:wheat" not in destination_evidence:
         raise AssertionError("Rowan completion lacked destination wheat evidence: "+destination_evidence)
     r.contains(f"execute as {rowan} at @s run sable auto-work-off","Auto work disabled")
     residents["Rowan"]["independent_haul"]={
-        "auto_assigned":True,"completed":True,"destination_evidence":destination_evidence[:350]}
+        "auto_assigned":True,"completed":True,"source_evidence":source_evidence[:350],
+        "destination_evidence":destination_evidence[:350]}
     population_out.write_text(json.dumps({
         "schema_version":2,"scope":"individual identities plus Rowan tick-selected physical haul",
         "residents":residents
