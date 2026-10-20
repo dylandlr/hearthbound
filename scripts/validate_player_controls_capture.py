@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Validate that an actual Minecraft player-controls recording was produced."""
 import json
+import hashlib
 import pathlib
 import subprocess
 import sys
@@ -19,6 +20,14 @@ for name in required:
     file = root / name
     if not file.is_file() or file.stat().st_size < 1000:
         raise SystemExit("Missing screenshot evidence: " + name)
+# A successful keypress transcript is not proof that the view changed.
+# Require distinct captured pixels at the first-person transition.
+def image_digest(name):
+    return hashlib.sha256((root / name).read_bytes()).hexdigest()
+if image_digest("player-first-person.png") == image_digest("player-return-tactical.png"):
+    raise SystemExit("First-person and tactical screenshots are identical")
+if image_digest("player-default-perspective.png") == image_digest("player-first-person.png"):
+    raise SystemExit("Default tactical and first-person screenshots are identical")
 if not log.is_file():
     raise SystemExit("Missing input transcript")
 transcript = log.read_text()
