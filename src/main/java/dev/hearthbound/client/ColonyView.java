@@ -50,6 +50,10 @@ public final class ColonyView {
 
     private ColonyView() {}
 
+    public static boolean isTactical() { return tactical; }
+
+    public static Villager selectedCitizen() { return selected; }
+
     @Mod.EventBusSubscriber(modid = "hearthbound", bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
     public static final class Keys {
         @SubscribeEvent
