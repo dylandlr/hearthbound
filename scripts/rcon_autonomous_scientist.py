@@ -202,3 +202,29 @@ with Rcon() as r:
     out.parent.mkdir(parents=True,exist_ok=True)
     out.write_text(json.dumps(metrics,indent=2)+"\\n")
     print("AUTONOMOUS FIRST MILL PASS: proposal, haul, Create receipt, research credit, knowledge")
+    # Independent citizen identities and individual priors are tested separately
+    # from Sable's proven autonomous milling policy. They are not yet job-trained.
+    residents = {}
+    for name, x, z in (("Sable", 2, 1), ("Rowan", 4, 7), ("Iris", 8, 7)):
+        if name != "Sable":
+            r.contains(f"execute positioned {x} 101 {z} run sable spawn-named {name}",
+                       "Hearthbound citizen spawned: " + name)
+        selector=f"@e[type=minecraft:villager,name={name},limit=1]"
+        entity_data=r.run(f"data get entity {selector} UUID")
+        if "UUID" not in entity_data:
+            raise AssertionError("No distinct citizen UUID for "+name+": "+entity_data)
+        profile=r.run(f"execute as {selector} at @s run sable instinct-inspect")
+        if "INSTINCT" not in profile or "starting priors only" not in profile:
+            raise AssertionError("Missing persistent individual instinct profile for "+name+": "+profile)
+        residents[name]={"entity_uuid_evidence":entity_data[:180],"instinct_profile":profile}
+    if len(set(v["entity_uuid_evidence"] for v in residents.values())) != 3:
+        raise AssertionError("Citizens do not have three unique UUIDs")
+    population_out=pathlib.Path("gameplay-capture/citizen-baseline.json")
+    population_out.parent.mkdir(parents=True,exist_ok=True)
+    population_out.write_text(json.dumps({
+        "schema_version":1,
+        "scope":"individual identity and instinct baseline; not independent jobs",
+        "residents":residents
+    },indent=2)+"\\n")
+    print("THREE CITIZEN BASELINE PASS: distinct entities, inspectable instinct priors")
+
