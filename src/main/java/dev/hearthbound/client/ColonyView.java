@@ -41,6 +41,10 @@ public final class ColonyView {
     private static final KeyMapping PAN_WEST = new KeyMapping("key.hearthbound.pan_west", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_LEFT, "key.categories.hearthbound");
     private static final KeyMapping PAN_EAST = new KeyMapping("key.hearthbound.pan_east", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_RIGHT, "key.categories.hearthbound");
     private static final KeyMapping RESET_CAMERA = new KeyMapping("key.hearthbound.reset_camera", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_HOME, "key.categories.hearthbound");
+    private static final KeyMapping FLOOR_UP = new KeyMapping("key.hearthbound.floor_up", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_PAGE_UP, "key.categories.hearthbound");
+    private static final KeyMapping FLOOR_DOWN = new KeyMapping("key.hearthbound.floor_down", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_PAGE_DOWN, "key.categories.hearthbound");
+    private static boolean floorPinned = false;
+    private static int floorY = 64;
     private static double panX = 0;
     private static double panZ = 0;
     private static boolean tactical = true;
@@ -53,6 +57,11 @@ public final class ColonyView {
     public static boolean isTactical() { return tactical; }
 
     public static Villager selectedCitizen() { return selected; }
+    public static int observedFloorY() {
+        Minecraft mc = Minecraft.getInstance();
+        return floorPinned ? floorY : mc.player == null ? 64 : mc.player.blockPosition().getY();
+    }
+    public static boolean floorPinned() { return floorPinned; }
 
     @Mod.EventBusSubscriber(modid = "hearthbound", bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
     public static final class Keys {
@@ -68,6 +77,8 @@ public final class ColonyView {
             event.register(PAN_WEST);
             event.register(PAN_EAST);
             event.register(RESET_CAMERA);
+            event.register(FLOOR_UP);
+            event.register(FLOOR_DOWN);
         }
     }
 
@@ -82,6 +93,7 @@ public final class ColonyView {
             cameraHeight = 18;
             panX = 0;
             panZ = 0;
+            floorPinned = false;
             return;
         }
         while (VIEW.consumeClick()) {
@@ -94,7 +106,19 @@ public final class ColonyView {
         while (ZOOM_IN.consumeClick()) if (tactical) cameraHeight = Math.max(8, cameraHeight - 3);
         while (ZOOM_OUT.consumeClick()) if (tactical) cameraHeight = Math.min(48, cameraHeight + 3);
         while (FOLLOW.consumeClick()) follow = !follow;
-        while (RESET_CAMERA.consumeClick()) { panX = 0; panZ = 0; follow = false; }
+        while (RESET_CAMERA.consumeClick()) { panX = 0; panZ = 0; follow = false; floorPinned = false; }
+        while (FLOOR_UP.consumeClick()) {
+            floorY = Math.min(mc.level.getMaxBuildHeight() - 1,
+                    (floorPinned ? floorY : mc.player.blockPosition().getY()) + 1);
+            floorPinned = true;
+            follow = false;
+        }
+        while (FLOOR_DOWN.consumeClick()) {
+            floorY = Math.max(mc.level.getMinBuildHeight(),
+                    (floorPinned ? floorY : mc.player.blockPosition().getY()) - 1);
+            floorPinned = true;
+            follow = false;
+        }
         if (tactical && mc.screen == null) {
             double speed = .28 * (cameraHeight / 18.0);
             if (PAN_NORTH.isDown()) { panZ -= speed; follow = false; }
@@ -159,7 +183,7 @@ public final class ColonyView {
         // Presentation-only overhead framing. No client or server player movement.
         boolean tracking = follow && selected != null;
         double x = tracking ? selected.getX() : mc.player.getX() + panX;
-        double y = tracking ? selected.getEyeY() : mc.player.getEyeY();
+        double y = tracking ? selected.getEyeY() : (floorPinned ? floorY + .5 : mc.player.getEyeY());
         double z = tracking ? selected.getZ() : mc.player.getZ() + panZ;
         ((TacticalCameraAccessor) camera).hearthbound$setPosition(x, y + cameraHeight, z + cameraHeight * .38);
         event.setYaw(0);
@@ -175,7 +199,7 @@ public final class ColonyView {
         graphics.drawString(mc.font, tactical ? "HEARTHBOUND | Colony view [V: First person]"
                 : "HEARTHBOUND | First person [V: Colony view]", 10, 10, 0xF1E8C9, true);
         graphics.drawString(mc.font, "[I] Inspect [F] Follow [Arrows] Pan [Home] Reset [[] []] Zoom: "
-                + (int)cameraHeight + "  tracking=" + follow, 10, 22, 0xC5CECE, true);
+                + (int)cameraHeight + "  Y=" + observedFloorY() + (floorPinned ? " pinned" : " auto"), 10, 22, 0xC5CECE, true);
         if (selected != null) {
             graphics.drawString(mc.font, "Citizen: " + selected.getName().getString(),
                     10, 38, 0xF1E8C9, true);
