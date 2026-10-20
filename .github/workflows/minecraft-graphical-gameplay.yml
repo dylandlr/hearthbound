@@ -39,7 +39,7 @@ jobs:
           openbox --sm-disable > gameplay-capture/window-manager.log 2>&1 &
           wm_pid=$!
           sleep 3
-          gradle --no-daemon runServer > gameplay-capture/server.log 2>&1 &
+          gradle --no-daemon runServer --args='nogui' > gameplay-capture/server.log 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" "$xvfb_pid" "$wm_pid" 2>/dev/null || true' EXIT
           ready=0
@@ -50,7 +50,7 @@ jobs:
           done
           if [ "$ready" -ne 1 ]; then echo "Forge server did not start"; tail -n 100 gameplay-capture/server.log; exit 1; fi
           # Official Minecraft 1.20+ Quick Play performs direct multiplayer join.
-          gradle --no-daemon runClient --args='--username HearthboundCamera --quickPlayMultiplayer 127.0.0.1:25565' > gameplay-capture/client.log 2>&1 &
+          gradle --no-daemon runClient --args='--username HBCamera --quickPlayMultiplayer 127.0.0.1:25565' > gameplay-capture/client.log 2>&1 &
           client_pid=$!
           trap 'kill "$client_pid" "$server_pid" "$xvfb_pid" "$wm_pid" 2>/dev/null || true' EXIT
           # Capture diagnostics even when Minecraft never joins.
@@ -74,7 +74,7 @@ jobs:
           fi
           connected=0
           for i in $(seq 1 150); do
-            if grep -Eq 'HearthboundCamera.*(joined the game|logged in)' gameplay-capture/server.log; then connected=1; break; fi
+            if grep -Eq 'HBCamera.*(joined the game|logged in)' gameplay-capture/server.log; then connected=1; break; fi
             if ! kill -0 "$client_pid" 2>/dev/null; then break; fi
             sleep 2
           done
