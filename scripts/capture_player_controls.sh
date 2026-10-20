@@ -49,3 +49,8 @@ cleanup
 trap - EXIT
 ffmpeg -hide_banner -v error -xerror -i gameplay-capture/minecraft-player-controls.mp4 -f null -
 ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1 gameplay-capture/minecraft-player-controls.mp4
+# Filmstrip from the genuine client recording for rapid visual review.
+ffmpeg -hide_banner -v error -y -i gameplay-capture/minecraft-player-controls.mp4 \
+  -vf 'fps=1/5,scale=320:180,tile=4x3' -frames:v 1 \
+  gameplay-capture/player-controls-contact-sheet.png
+test -s gameplay-capture/player-controls-contact-sheet.png
