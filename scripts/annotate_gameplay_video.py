@@ -10,8 +10,8 @@ from pathlib import Path
 import subprocess
 
 LABELS = {
-    "research_enabled": "Sable: autonomous research enabled",
-    "hypothesis_proposed": "Hypothesis proposed: wheat milling",
+    "research_enabled": "Autonomous research enabled",
+    "hypothesis_proposed": "Hypothesis proposed - wheat milling",
     "haul_complete": "Hauling completed",
     "flour_observed": "Flour observed (not yet verified)",
     "research_credit": "Create processing callback VERIFIED",
