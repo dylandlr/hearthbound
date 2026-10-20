@@ -99,6 +99,10 @@ jobs:
           # Show the view after the camera has been positioned in the real world.
           sleep 12
           scrot gameplay-capture/camera-framing.png || true
+          # Dedicated evidence: exercise the player's real camera and input
+          # modes before the autonomous work scenario begins.
+          # The video is uploaded even if later scientist assertions fail.
+          bash scripts/capture_player_controls.sh
           capture_start_ns=$(python3 -c 'import time; print(time.monotonic_ns())')
           ffmpeg -hide_banner -loglevel warning -y -f x11grab -framerate 15 -video_size 1280x720 -i :99.0 -c:v libx264 -preset ultrafast -crf 28 -pix_fmt yuv420p gameplay-capture/minecraft-gameplay.mp4 > gameplay-capture/ffmpeg.log 2>&1 &
           ffmpeg_pid=$!
