@@ -376,7 +376,15 @@ with Rcon() as r:
     # release from ownership transfer by checking cargo and final citizen state.
     claim_released="No source claim" in current_claim
     if current_claim != original_claim and not claim_released:
-        raise AssertionError("Autonomous competitor displaced source owner: "+current_claim)
+        # A fresh owner can legitimately claim the source after the original
+        # haul completed and released it. Validate the earlier winning job
+        # before classifying this as a claim theft.
+        original_actor=iris if selected=="Iris" else rowan
+        original_haul=r.run(f"execute as {original_actor} at @s run sable haul-status")
+        if "Haul complete" not in original_haul:
+            raise AssertionError("Autonomous competitor displaced active source owner: "
+                                 +current_claim+" initial="+original_claim
+                                 +" original_job="+original_haul)
     if claim_released:
         winning_actor=iris if selected=="Iris" else rowan
         winning_status=r.run(f"execute as {winning_actor} at @s run sable haul-status")
