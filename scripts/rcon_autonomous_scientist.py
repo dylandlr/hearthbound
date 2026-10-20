@@ -397,6 +397,53 @@ with Rcon() as r:
     },indent=2)+"\n")
     print("AUTONOMOUS CONTENTION PASS: exactly one tick-policy assignment; exclusive claim retained")
 
+    # Separate alternate-work scenario: the job board should skip a claimed
+    # source and allow an independent agent to discover an unclaimed one.
+    # Claim is placed using real citizen hauling, never synthetic NBT state.
+    primary="4 101 10"
+    alternative="4 101 12"
+    winner_dest="9 101 10"
+    fallback_dest="9 101 12"
+    for pos in (primary,alternative):
+        r.contains(f'setblock {pos} minecraft:barrel{{Items:[{{Slot:0b,id:"minecraft:wheat",Count:2b}}]}} replace',
+                   "Changed the block")
+    for pos in (winner_dest,fallback_dest):
+        r.run(f"setblock {pos} minecraft:barrel replace")
+    r.contains(f"execute as {iris} at @s run sable haul {primary} {winner_dest}",
+               "assigned wheat haul")
+    first_claim=r.run(f"hearthboundclaims owner {primary}")
+    if "belongs to" not in first_claim:
+        raise AssertionError("Fixture failed to claim primary source: "+first_claim)
+    r.contains(f"execute as {rowan} at @s run sable auto-work-source-discover {fallback_dest}",
+               "Configured discover-source auto work")
+    r.contains(f"execute as {rowan} at @s run sable auto-work-on","Auto work enabled")
+    alternate_seen=False
+    for _ in range(65):
+        time.sleep(1)
+        rowan_trace=r.run(f"execute as {rowan} at @s run sable auto-work-status")
+        alternate_claim=r.run(f"hearthboundclaims owner {alternative}")
+        if "haulIssued=true" in rowan_trace and "belongs to" in alternate_claim:
+            alternate_seen=True
+            break
+    if not alternate_seen:
+        raise AssertionError("Rowan did not discover alternate unclaimed wheat source: "+rowan_trace)
+    first_remaining=r.run(f"hearthboundclaims owner {primary}")
+    if first_remaining not in (first_claim,f"No source claim at {primary}"):
+        raise AssertionError("Alternate work overwrote existing claim: "+first_remaining)
+    r.run(f"execute as {rowan} at @s run sable auto-work-off")
+    pathlib.Path("gameplay-capture/alternative-work.json").write_text(json.dumps({
+        "schema_version":1,
+        "scope":"source discovery with another citizen's source already claimed",
+        "primary":primary,"alternative":alternative,
+        "primary_initial_owner":first_claim,
+        "primary_owner_after":first_remaining,
+        "alternative_owner":alternate_claim,
+        "rowan_policy":rowan_trace,
+        "alternative_selected":alternate_seen
+    },indent=2)+"\\n")
+    print("ALTERNATIVE WORK PASS: autonomous citizen selected different unclaimed source")
+
+
 
 
 
