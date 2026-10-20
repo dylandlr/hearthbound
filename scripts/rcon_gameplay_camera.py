@@ -30,9 +30,9 @@ with socket.create_connection(("127.0.0.1",25575),timeout=20) as sock:
     commands=[
         "time set noon",
         "weather clear",
-        "gamemode spectator HearthboundCamera",
-        "tp HearthboundCamera 11 105 9 facing 6 101 1",
-        "effect give HearthboundCamera minecraft:night_vision 600 0 true",
+        "gamemode spectator HB_Camera",
+        "tp HB_Camera 11 105 9 facing 6 101 1",
+        "effect give HB_Camera minecraft:night_vision 600 0 true",
     ]
     for i,command in enumerate(commands,10):
         sock.sendall(pkt(i,2,command))
