@@ -285,8 +285,10 @@ with Rcon() as r:
     owner_before=r.run(f"hearthboundclaims owner {source_pos}")
     if "belongs to" not in owner_before:
         raise AssertionError("No persisted source claim after Iris assignment: "+owner_before)
-    denied=r.run(f"execute as {villager} at @s run sable haul {source_pos} {dest_pos}")
-    if "source already claimed" not in denied.lower():
+    r.run("scoreboard objectives add hb_claim_test dummy")
+    r.run(f"execute store success score #second hb_claim_test run execute as {villager} at @s run sable haul {source_pos} {dest_pos}")
+    denied=r.run("scoreboard players get #second hb_claim_test")
+    if not re.search(r"\\b0\\s*\\[hb_claim_test\\]", denied):
         raise AssertionError("Second citizen was not denied the claimed source: "+denied)
     owner_after=r.run(f"hearthboundclaims owner {source_pos}")
     if owner_before != owner_after:
