@@ -105,6 +105,7 @@ jobs:
           kill -INT "$ffmpeg_pid" 2>/dev/null || true
           wait "$ffmpeg_pid" || true
           cat gameplay-capture/scenario.log
+          python3 scripts/extract_gameplay_decisions.py --scenario-log gameplay-capture/scenario.log --output gameplay-capture/decision-events.json
           test "$scenario_rc" -eq 0
           test -s gameplay-capture/minecraft-gameplay.mp4
           ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1 gameplay-capture/minecraft-gameplay.mp4
