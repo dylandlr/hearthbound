@@ -49,6 +49,10 @@ jobs:
             sleep 2
           done
           if [ "$ready" -ne 1 ]; then echo "Forge server did not start"; tail -n 100 gameplay-capture/server.log; exit 1; fi
+          # Disable initial Minecraft tutorial UI before first graphical launch.
+          # This changes only the CI player's presentation settings.
+          printf 'tutorialStep:none\n' > run/options.txt
+          printf 'showSubtitles:false\n' >> run/options.txt
           # Official Minecraft 1.20+ Quick Play performs direct multiplayer join.
           gradle --no-daemon runClient --args='--username HBCamera --quickPlayMultiplayer 127.0.0.1:25565' > gameplay-capture/client.log 2>&1 &
           client_pid=$!
