@@ -30,7 +30,13 @@ public final class RoofCutawayMask {
                     BlockPos pos = new BlockPos(x, y, z);
                     if (!level.hasChunkAt(pos)) continue;
                     BlockState state = level.getBlockState(pos);
-                    if (state.canOcclude() && state.isSolidRender(level, pos))
+                    // Only surfaces above accessible air are roof candidates.
+                    // Ordinary solid cave mass must not be indiscriminately
+                    // cut away; we will expand this to connected room volumes.
+                    BlockPos below = pos.below();
+                    if (state.canOcclude() && state.isSolidRender(level, pos)
+                            && level.hasChunkAt(below)
+                            && level.getBlockState(below).isAir())
                         candidates.add(pos);
                 }
             }
