@@ -8,7 +8,7 @@ events=[
  {"event":"flour_observed","approx_video_seconds":0.75},
  {"event":"research_credit","approx_video_seconds":1.3},
 ]
-f=create_filter(events,2.0)
+f=create_filter(events,6.0)
 assert "Flour observed (not yet verified)" in f
 assert "Create processing callback VERIFIED" in f
 assert "between(t\\\\,0.250\\\\,1.650)" in f
@@ -20,7 +20,7 @@ with tempfile.TemporaryDirectory() as tmp:
     timeline=p/"events.json"
     timeline.write_text(json.dumps({"events":events}))
     subprocess.run(["ffmpeg","-hide_banner","-loglevel","error","-y",
-        "-f","lavfi","-i","color=c=gray:s=320x180:r=15:d=2",
+        "-f","lavfi","-i","color=c=gray:s=320x180:r=15:d=6",
         "-c:v","libx264","-pix_fmt","yuv420p",str(video)],check=True)
     subprocess.run([sys.executable,"scripts/annotate_gameplay_video.py",
         "--video",str(video),"--events",str(timeline),"--output",str(dest)],check=True)
