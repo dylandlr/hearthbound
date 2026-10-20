@@ -372,8 +372,16 @@ with Rcon() as r:
     if choice_tick(observations[other]) <= baseline[other]:
         raise AssertionError("Competing citizen never made a fresh decision: "+str(observations))
     current_claim=r.run(f"hearthboundclaims owner {shared_source}")
-    if current_claim != original_claim:
-        raise AssertionError("Autonomous competitor displaced source owner")
+    # A completed delivery legitimately releases its source claim. Distinguish
+    # release from ownership transfer by checking cargo and final citizen state.
+    claim_released="No source claim" in current_claim
+    if current_claim != original_claim and not claim_released:
+        raise AssertionError("Autonomous competitor displaced source owner: "+current_claim)
+    if claim_released:
+        winning_actor=iris if selected=="Iris" else rowan
+        winning_status=r.run(f"execute as {winning_actor} at @s run sable haul-status")
+        if "Haul complete" not in winning_status:
+            raise AssertionError("Shared claim vanished without verified completion: "+winning_status)
     dual_issued=sum("haulIssued=true" in value for value in observations.values())
     if dual_issued!=1:
         raise AssertionError("Exclusive claim violated: "+str(observations))
@@ -383,6 +391,7 @@ with Rcon() as r:
         "schema_version":1,"test":"dual_autonomous_source_selection",
         "source":shared_source,"wheat_precondition":wheat_before,"first_observed_assignee":selected,
         "owner_before":original_claim,"owner_after":current_claim,
+        "claim_released_after_completion":claim_released,
         "policy_observations":observations,"initial_decision_ticks":baseline,
         "scope":"one exclusive active source claim; alternative job choice not tested"
     },indent=2)+"\n")
