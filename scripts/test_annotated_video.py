@@ -11,6 +11,8 @@ events=[
 f=create_filter(events,2.0)
 assert "Flour observed (not yet verified)" in f
 assert "Create processing callback VERIFIED" in f
+assert "between(t\\\\,0.250\\\\,1.650)" in f
+assert "between(t\\\\,1.650\\\\,2.000)" in f
 with tempfile.TemporaryDirectory() as tmp:
     p=pathlib.Path(tmp)
     video=p/"source.mp4"
