@@ -286,7 +286,7 @@ with Rcon() as r:
     if "belongs to" not in owner_before:
         raise AssertionError("No persisted source claim after Iris assignment: "+owner_before)
     r.run("scoreboard objectives add hb_claim_test dummy")
-    r.run(f"execute store success score #second hb_claim_test run execute as {villager} at @s run sable haul {source_pos} {dest_pos}")
+    r.run(f"execute store result score #second hb_claim_test run execute as {villager} at @s run sable haul {source_pos} {dest_pos}")
     denied=r.run("scoreboard players get #second hb_claim_test")
     if not re.search(r"\b0\s*\[hb_claim_test\]", denied):
         raise AssertionError("Second citizen was not denied the claimed source: "+denied)
