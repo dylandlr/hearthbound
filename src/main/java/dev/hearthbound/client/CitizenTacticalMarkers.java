@@ -68,7 +68,7 @@ public final class CitizenTacticalMarkers {
                 cover > 0 ? 0xFFF1BD77 : 0xFF9EDDB8, false);
         if (ColonyView.cutawayPreview()) {
             int candidates = RoofCutawayMask.sample(mc.level, selected.blockPosition(),
-                    floor, 2, 16).size();
+                    floor, 5, 16).size();
             gfx.drawString(mc.font, "Roof mask: " + candidates + " candidate blocks", x, 112,
                     0xFFC4D7E8, false);
         }
