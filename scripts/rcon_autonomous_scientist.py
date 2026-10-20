@@ -325,11 +325,15 @@ with Rcon() as r:
     # Two autonomous tick policies now observe the same explicitly authorized
     # source. Their destinations differ so successful work remains attributable.
     # This tests exclusive assignment, not alternative-job selection.
-    r.run('setblock 4 101 8 minecraft:chest{Items:[{Slot:0b,id:"minecraft:wheat",Count:2b}]} replace')
+    shared_source="3 101 7"
+    r.run('setblock 3 101 7 minecraft:chest{Items:[{Slot:0b,id:"minecraft:wheat",Count:2b}]} replace')
+    wheat_before=r.run(f"data get block {shared_source} Items")
+    if "minecraft:wheat" not in wheat_before or "Count: 2b" not in wheat_before:
+        raise AssertionError("No executable wheat offer in shared source: "+wheat_before)
     r.run("setblock 9 101 8 minecraft:chest replace")
     r.run("setblock 9 101 7 minecraft:chest replace")
     for actor,destination in ((iris,"9 101 8"),(rowan,"9 101 7")):
-        r.contains(f"execute as {actor} at @s run sable auto-work-discover {source_pos} {destination}",
+        r.contains(f"execute as {actor} at @s run sable auto-work-discover {shared_source} {destination}",
                    "Configured discover-library auto work")
         r.contains(f"execute as {actor} at @s run sable auto-work-on","Auto work enabled")
     observations={}
@@ -343,7 +347,7 @@ with Rcon() as r:
         if selected: break
     if not selected:
         raise AssertionError("Neither autonomous citizen selected the common source: "+str(observations))
-    original_claim=r.run(f"hearthboundclaims owner {source_pos}")
+    original_claim=r.run(f"hearthboundclaims owner {shared_source}")
     if "belongs to" not in original_claim:
         raise AssertionError("No winner retained the shared source lock: "+original_claim)
     other="Iris" if selected=="Rowan" else "Rowan"
@@ -363,7 +367,7 @@ with Rcon() as r:
         r.run(f"execute as {actor} at @s run sable auto-work-off")
     pathlib.Path("gameplay-capture/autonomous-contention.json").write_text(json.dumps({
         "schema_version":1,"test":"dual_autonomous_source_selection",
-        "source":source_pos,"first_observed_assignee":selected,
+        "source":shared_source,"wheat_precondition":wheat_before,"first_observed_assignee":selected,
         "owner_before":original_claim,"owner_after":current_claim,
         "policy_observations":observations,
         "scope":"one exclusive active source claim; alternative job choice not tested"
