@@ -360,7 +360,7 @@ with Rcon() as r:
         time.sleep(1)
         observations[other]=r.run(f"execute as {iris if other=='Iris' else rowan} at @s run sable auto-work-status")
         if "tick=0" not in observations[other]: break
-    current_claim=r.run(f"hearthboundclaims owner {source_pos}")
+    current_claim=r.run(f"hearthboundclaims owner {shared_source}")
     if current_claim != original_claim:
         raise AssertionError("Autonomous competitor displaced source owner")
     dual_issued=sum("haulIssued=true" in value for value in observations.values())
