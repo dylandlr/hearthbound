@@ -18,6 +18,10 @@ def validate(data):
             m=re.search(r"\b"+trait+r"=(\d+)\b",profile)
             if not m or not 25<=int(m.group(1))<=75: raise AssertionError(f"{name}: invalid {trait}")
     if len(set(identities))!=3: raise AssertionError("UUID collision")
+    if data.get("schema_version",0)>=2:
+        haul=residents["Rowan"].get("independent_haul",{})
+        if not haul.get("auto_assigned") or not haul.get("completed") or "minecraft:wheat" not in haul.get("destination_evidence",""):
+            raise AssertionError("No verified Rowan tick-selected physical haul")
     return True
 if __name__=="__main__":
     p=argparse.ArgumentParser()
