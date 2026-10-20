@@ -27,7 +27,7 @@ jobs:
           sudo apt-get install -y xvfb openbox xdotool scrot ffmpeg libgl1-mesa-dri libgl1 libxrandr2 libxi6 libxcursor1 libxinerama1 libasound2t64 || sudo apt-get install -y xvfb openbox xdotool scrot ffmpeg libgl1-mesa-dri libgl1 libxrandr2 libxi6 libxcursor1 libxinerama1
       - name: Verify scenario syntax
         run: |
-          python3 -m py_compile scripts/rcon_autonomous_scientist.py scripts/rcon_gameplay_camera.py
+          python3 -m py_compile scripts/rcon_autonomous_scientist.py scripts/rcon_gameplay_camera.py scripts/setup_player_camera_fixture.py scripts/cleanup_player_camera_fixture.py scripts/validate_player_controls_capture.py
           python3 scripts/check_workshop_fixture.py
           python3 scripts/test_minecraft_nbt_debit.py
           python3 scripts/test_claim_contention.py
@@ -106,8 +106,14 @@ jobs:
           # record the failure separately instead of preventing AI footage.
           set +e
           python3 scripts/setup_player_camera_fixture.py > gameplay-capture/player-fixture.log 2>&1
-          bash scripts/capture_player_controls.sh > gameplay-capture/player-controls.log 2>&1
-          player_capture_rc=$?
+          fixture_rc=$?
+          if [ "$fixture_rc" -eq 0 ]; then
+            bash scripts/capture_player_controls.sh > gameplay-capture/player-controls.log 2>&1
+            player_capture_rc=$?
+          else
+            cat gameplay-capture/player-fixture.log
+            player_capture_rc=$fixture_rc
+          fi
           set -e
           printf '%s\\n' "$player_capture_rc" > gameplay-capture/player-controls-exit-code.txt
           cat gameplay-capture/player-controls.log
