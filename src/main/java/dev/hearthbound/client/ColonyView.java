@@ -12,6 +12,10 @@ import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.client.event.RenderGuiEvent;
 import net.minecraftforge.client.event.ViewportEvent;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.client.event.InputEvent;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import org.joml.Vector3f;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.lwjgl.glfw.GLFW;
@@ -100,6 +104,35 @@ public final class ColonyView {
         }
         if (selected != null && (!selected.isAlive() || selected.level() != mc.level))
             selected = null;
+    }
+
+    /** Center-screen camera ray selection, never authorizes commands on the server. */
+    @SubscribeEvent
+    public static void selectWithMouse(InputEvent.MouseButton.Pre event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (!tactical || mc.screen != null || mc.level == null || mc.player == null
+                || event.getButton() != GLFW.GLFW_MOUSE_BUTTON_LEFT
+                || event.getAction() != GLFW.GLFW_PRESS) return;
+        // In the initial mouse-locked prototype the cursor is the screen reticle.
+        // A later RTS mouse-unlock pass will cast through the actual cursor pixel.
+        Camera camera = mc.gameRenderer.getMainCamera();
+        Vec3 start = camera.getPosition();
+        Vector3f facing = camera.getLookVector();
+        Vec3 end = start.add(facing.x() * 80, facing.y() * 80, facing.z() * 80);
+        Villager nearest = null;
+        double best = Double.MAX_VALUE;
+        for (Villager citizen : mc.level.getEntitiesOfClass(Villager.class,
+                new AABB(start, end).inflate(2))) {
+            var hit = citizen.getBoundingBox().inflate(.5).clip(start, end);
+            if (hit.isPresent()) {
+                double distance = start.distanceToSqr(hit.get());
+                if (distance < best) { best = distance; nearest = citizen; }
+            }
+        }
+        if (nearest != null) {
+            selected = nearest;
+            event.setCanceled(true);
+        }
     }
 
     @SubscribeEvent
