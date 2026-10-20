@@ -2,6 +2,7 @@ package dev.hearthbound.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Camera;
+import dev.hearthbound.world.mixin.TacticalCameraAccessor;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -90,7 +91,7 @@ public final class ColonyView {
         double x = tracking ? selected.getX() : mc.player.getX();
         double y = tracking ? selected.getEyeY() : mc.player.getEyeY();
         double z = tracking ? selected.getZ() : mc.player.getZ();
-        camera.setPosition(x, y + cameraHeight, z + cameraHeight * .38);
+        ((TacticalCameraAccessor) camera).hearthbound$setPosition(x, y + cameraHeight, z + cameraHeight * .38);
         event.setYaw(0);
         event.setPitch(80);
         event.setRoll(0);
