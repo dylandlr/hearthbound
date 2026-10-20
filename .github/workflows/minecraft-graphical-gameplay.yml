@@ -29,6 +29,7 @@ jobs:
         run: |
           python3 -m py_compile scripts/rcon_autonomous_scientist.py scripts/rcon_gameplay_camera.py
           python3 scripts/check_workshop_fixture.py
+          python3 scripts/test_gameplay_timeline.py
       - name: Start Forge server and rendered Minecraft client
         shell: bash
         run: |
