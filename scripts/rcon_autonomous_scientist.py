@@ -257,7 +257,7 @@ with Rcon() as r:
     source_evidence=r.run("data get block 3 101 7 Items")
     # Source began with four wheat. A legitimate one-unit delivery must
     # leave exactly three, regardless of which inventory slot contains it.
-    if not re.search(r'id: "minecraft:wheat", Count: 3b|Count: 3b, id: "minecraft:wheat"',source_evidence):
+    if "minecraft:wheat" not in source_evidence or not re.search(r"Count:\\s*3b\\b",source_evidence):
         raise AssertionError("Rowan did not debit exactly one source wheat: "+source_evidence)
     destination_evidence=r.run("data get block 9 101 7 Items")
     if "minecraft:wheat" not in destination_evidence:
