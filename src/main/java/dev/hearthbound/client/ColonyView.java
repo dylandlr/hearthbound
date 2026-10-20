@@ -32,6 +32,13 @@ public final class ColonyView {
             InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_RIGHT_BRACKET, "key.categories.hearthbound");
     private static final KeyMapping FOLLOW = new KeyMapping("key.hearthbound.follow",
             InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F, "key.categories.hearthbound");
+    private static final KeyMapping PAN_NORTH = new KeyMapping("key.hearthbound.pan_north", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_UP, "key.categories.hearthbound");
+    private static final KeyMapping PAN_SOUTH = new KeyMapping("key.hearthbound.pan_south", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_DOWN, "key.categories.hearthbound");
+    private static final KeyMapping PAN_WEST = new KeyMapping("key.hearthbound.pan_west", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_LEFT, "key.categories.hearthbound");
+    private static final KeyMapping PAN_EAST = new KeyMapping("key.hearthbound.pan_east", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_RIGHT, "key.categories.hearthbound");
+    private static final KeyMapping RESET_CAMERA = new KeyMapping("key.hearthbound.reset_camera", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_HOME, "key.categories.hearthbound");
+    private static double panX = 0;
+    private static double panZ = 0;
     private static boolean tactical = true;
     private static boolean follow = false;
     private static double cameraHeight = 18;
@@ -48,6 +55,11 @@ public final class ColonyView {
             event.register(ZOOM_IN);
             event.register(ZOOM_OUT);
             event.register(FOLLOW);
+            event.register(PAN_NORTH);
+            event.register(PAN_SOUTH);
+            event.register(PAN_WEST);
+            event.register(PAN_EAST);
+            event.register(RESET_CAMERA);
         }
     }
 
@@ -60,12 +72,22 @@ public final class ColonyView {
             tactical = true;
             follow = false;
             cameraHeight = 18;
+            panX = 0;
+            panZ = 0;
             return;
         }
         while (VIEW.consumeClick()) tactical = !tactical;
         while (ZOOM_IN.consumeClick()) if (tactical) cameraHeight = Math.max(8, cameraHeight - 3);
         while (ZOOM_OUT.consumeClick()) if (tactical) cameraHeight = Math.min(48, cameraHeight + 3);
         while (FOLLOW.consumeClick()) follow = !follow;
+        while (RESET_CAMERA.consumeClick()) { panX = 0; panZ = 0; follow = false; }
+        if (tactical && mc.screen == null) {
+            double speed = .28 * (cameraHeight / 18.0);
+            if (PAN_NORTH.isDown()) { panZ -= speed; follow = false; }
+            if (PAN_SOUTH.isDown()) { panZ += speed; follow = false; }
+            if (PAN_WEST.isDown()) { panX -= speed; follow = false; }
+            if (PAN_EAST.isDown()) { panX += speed; follow = false; }
+        }
         while (INSPECT.consumeClick()) {
             Villager nearest = null;
             double best = 24 * 24;
@@ -88,9 +110,9 @@ public final class ColonyView {
         Camera camera = event.getCamera();
         // Presentation-only overhead framing. No client or server player movement.
         boolean tracking = follow && selected != null;
-        double x = tracking ? selected.getX() : mc.player.getX();
+        double x = tracking ? selected.getX() : mc.player.getX() + panX;
         double y = tracking ? selected.getEyeY() : mc.player.getEyeY();
-        double z = tracking ? selected.getZ() : mc.player.getZ();
+        double z = tracking ? selected.getZ() : mc.player.getZ() + panZ;
         ((TacticalCameraAccessor) camera).hearthbound$setPosition(x, y + cameraHeight, z + cameraHeight * .38);
         event.setYaw(0);
         event.setPitch(80);
@@ -104,7 +126,7 @@ public final class ColonyView {
         GuiGraphics graphics = event.getGuiGraphics();
         graphics.drawString(mc.font, tactical ? "HEARTHBOUND | Colony view [V: First person]"
                 : "HEARTHBOUND | First person [V: Colony view]", 10, 10, 0xF1E8C9, true);
-        graphics.drawString(mc.font, "[I] Inspect  [F] Follow  [[] []] Zoom: "
+        graphics.drawString(mc.font, "[I] Inspect [F] Follow [Arrows] Pan [Home] Reset [[] []] Zoom: "
                 + (int)cameraHeight + "  tracking=" + follow, 10, 22, 0xC5CECE, true);
         if (selected != null) {
             graphics.drawString(mc.font, "Citizen: " + selected.getName().getString(),
