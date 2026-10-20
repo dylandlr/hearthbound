@@ -339,6 +339,15 @@ with Rcon() as r:
         r.contains(f"execute as {actor} at @s run sable auto-work-discover {shared_source} {destination}",
                    "Configured discover-library auto work")
         r.contains(f"execute as {actor} at @s run sable auto-work-on","Auto work enabled")
+    # Record each citizen's prior decision tick. A stale trace from the
+    # earlier Rowan haul cannot count as participation in this experiment.
+    def choice_tick(status):
+        match=re.search(r"WORK_CHOICE tick=(\\d+)",status)
+        return int(match.group(1)) if match else -1
+    baseline={
+        name:choice_tick(r.run(f"execute as {actor} at @s run sable auto-work-status"))
+        for name,actor in (("Iris",iris),("Rowan",rowan))
+    }
     observations={}
     selected=None
     for _ in range(45):
@@ -359,7 +368,9 @@ with Rcon() as r:
     for _ in range(16):
         time.sleep(1)
         observations[other]=r.run(f"execute as {iris if other=='Iris' else rowan} at @s run sable auto-work-status")
-        if "tick=0" not in observations[other]: break
+        if choice_tick(observations[other]) > baseline[other]: break
+    if choice_tick(observations[other]) <= baseline[other]:
+        raise AssertionError("Competing citizen never made a fresh decision: "+str(observations))
     current_claim=r.run(f"hearthboundclaims owner {shared_source}")
     if current_claim != original_claim:
         raise AssertionError("Autonomous competitor displaced source owner")
@@ -372,7 +383,7 @@ with Rcon() as r:
         "schema_version":1,"test":"dual_autonomous_source_selection",
         "source":shared_source,"wheat_precondition":wheat_before,"first_observed_assignee":selected,
         "owner_before":original_claim,"owner_after":current_claim,
-        "policy_observations":observations,
+        "policy_observations":observations,"initial_decision_ticks":baseline,
         "scope":"one exclusive active source claim; alternative job choice not tested"
     },indent=2)+"\n")
     print("AUTONOMOUS CONTENTION PASS: exactly one tick-policy assignment; exclusive claim retained")
