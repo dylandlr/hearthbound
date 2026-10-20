@@ -367,7 +367,7 @@ with Rcon() as r:
         "owner_before":original_claim,"owner_after":current_claim,
         "policy_observations":observations,
         "scope":"one exclusive active source claim; alternative job choice not tested"
-    },indent=2)+"\\n")
+    },indent=2)+"\n")
     print("AUTONOMOUS CONTENTION PASS: exactly one tick-policy assignment; exclusive claim retained")
 
 
