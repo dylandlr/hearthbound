@@ -16,14 +16,19 @@ PATTERNS=[
 def extract(text):
     events=[]
     seen=set()
+    pending_ns=None
     for line_no,line in enumerate(text.splitlines(),1):
+        stamp=re.search(r"HB_EVENT_TIME monotonic_ns=(\\d+)",line)
+        if stamp:
+            pending_ns=int(stamp.group(1))
+            continue
         for name,pattern in PATTERNS:
             if name not in seen and re.search(pattern,line,re.I):
                 seen.add(name)
                 events.append({"event":name,"transcript_line":line_no,
-                               "evidence":line[:350]})
+                               "evidence":line[:350],"monotonic_ns":pending_ns})
     return {"schema_version":1,"source":"RCON scenario transcript",
-            "time_alignment":"transcript order only; not synchronized to video time",
+            "time_alignment":"RCON monotonic observation timestamps, awaiting shared video start clock",
             "events":events}
 if __name__=="__main__":
     p=argparse.ArgumentParser()
