@@ -3,6 +3,9 @@ package dev.hearthbound.client;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.world.entity.npc.Villager;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.Camera;
+import org.joml.Vector3f;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderGuiEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -25,6 +28,29 @@ public final class CitizenTacticalMarkers {
         GuiGraphics gfx = event.getGuiGraphics();
         Villager selected = ColonyView.selectedCitizen();
         if (selected == null) return;
+        // Render only the selected, already-known citizen through occlusion.
+        // This HUD projection works through roofs without editing the world,
+        // but does not discover or reveal other hidden entities.
+        Camera camera = mc.gameRenderer.getMainCamera();
+        Vec3 displacement = selected.position().add(0, selected.getBbHeight() + .7, 0)
+                .subtract(camera.getPosition());
+        Vector3f look = camera.getLookVector();
+        Vector3f left = camera.getLeftVector();
+        Vector3f up = camera.getUpVector();
+        double depth = displacement.x * look.x() + displacement.y * look.y() + displacement.z * look.z();
+        if (depth > 0.2) {
+            double fov = Math.tan(Math.toRadians(mc.options.fov().get()) * .5);
+            double sx = displacement.x * left.x() + displacement.y * left.y() + displacement.z * left.z();
+            double sy = displacement.x * up.x() + displacement.y * up.y() + displacement.z * up.z();
+            int sw = mc.getWindow().getGuiScaledWidth();
+            int sh = mc.getWindow().getGuiScaledHeight();
+            int px = (int)Math.round(sw * .5 - sx / (depth * fov) * sh * .5);
+            int py = (int)Math.round(sh * .5 - sy / (depth * fov) * sh * .5);
+            if (px > 12 && px < sw - 12 && py > 12 && py < sh - 12) {
+                gfx.fill(px - 4, py - 4, px + 5, py + 5, 0xFFE6C778);
+                gfx.drawString(mc.font, selected.getName().getString(), px + 9, py - 4, 0xFFF6E7B7, true);
+            }
+        }
         int width = mc.getWindow().getGuiScaledWidth();
         int x = Math.max(10, width - 195);
         gfx.fill(x - 5, 28, width - 5, 93, 0xB70B1720);
