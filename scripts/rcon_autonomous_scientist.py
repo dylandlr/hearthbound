@@ -440,7 +440,7 @@ with Rcon() as r:
         "alternative_owner":alternate_claim,
         "rowan_policy":rowan_trace,
         "alternative_selected":alternate_seen
-    },indent=2)+"\\n")
+    },indent=2)+"\n")
     print("ALTERNATIVE WORK PASS: autonomous citizen selected different unclaimed source")
 
 
