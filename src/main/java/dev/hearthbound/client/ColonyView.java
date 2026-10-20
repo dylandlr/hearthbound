@@ -80,7 +80,13 @@ public final class ColonyView {
             panZ = 0;
             return;
         }
-        while (VIEW.consumeClick()) tactical = !tactical;
+        while (VIEW.consumeClick()) {
+            tactical = !tactical;
+            if (tactical) mc.mouseHandler.releaseMouse();
+            else mc.mouseHandler.grabMouse();
+        }
+        if (tactical && mc.screen == null && mc.mouseHandler.isMouseGrabbed())
+            mc.mouseHandler.releaseMouse();
         while (ZOOM_IN.consumeClick()) if (tactical) cameraHeight = Math.max(8, cameraHeight - 3);
         while (ZOOM_OUT.consumeClick()) if (tactical) cameraHeight = Math.min(48, cameraHeight + 3);
         while (FOLLOW.consumeClick()) follow = !follow;
@@ -106,19 +112,26 @@ public final class ColonyView {
             selected = null;
     }
 
-    /** Center-screen camera ray selection, never authorizes commands on the server. */
+    /** Free cursor picking: this never authorizes server commands. */
     @SubscribeEvent
     public static void selectWithMouse(InputEvent.MouseButton.Pre event) {
         Minecraft mc = Minecraft.getInstance();
         if (!tactical || mc.screen != null || mc.level == null || mc.player == null
                 || event.getButton() != GLFW.GLFW_MOUSE_BUTTON_LEFT
                 || event.getAction() != GLFW.GLFW_PRESS) return;
-        // In the initial mouse-locked prototype the cursor is the screen reticle.
-        // A later RTS mouse-unlock pass will cast through the actual cursor pixel.
         Camera camera = mc.gameRenderer.getMainCamera();
         Vec3 start = camera.getPosition();
-        Vector3f facing = camera.getLookVector();
-        Vec3 end = start.add(facing.x() * 80, facing.y() * 80, facing.z() * 80);
+        double x = (mc.mouseHandler.xpos() / mc.getWindow().getScreenWidth()) * 2.0 - 1.0;
+        double y = 1.0 - (mc.mouseHandler.ypos() / mc.getWindow().getScreenHeight()) * 2.0;
+        double aspect = (double) mc.getWindow().getScreenWidth() / mc.getWindow().getScreenHeight();
+        double fovScale = Math.tan(Math.toRadians(mc.options.fov().get()) * 0.5);
+        Vector3f look = camera.getLookVector();
+        Vector3f left = camera.getLeftVector();
+        Vector3f up = camera.getUpVector();
+        Vec3 direction = new Vec3(look.x(), look.y(), look.z())
+                .add(new Vec3(left.x(), left.y(), left.z()).scale(-x * aspect * fovScale))
+                .add(new Vec3(up.x(), up.y(), up.z()).scale(y * fovScale)).normalize();
+        Vec3 end = start.add(direction.scale(80));
         Villager nearest = null;
         double best = Double.MAX_VALUE;
         for (Villager citizen : mc.level.getEntitiesOfClass(Villager.class,
@@ -129,10 +142,8 @@ public final class ColonyView {
                 if (distance < best) { best = distance; nearest = citizen; }
             }
         }
-        if (nearest != null) {
-            selected = nearest;
-            event.setCanceled(true);
-        }
+        selected = nearest;
+        event.setCanceled(true);
     }
 
     @SubscribeEvent
