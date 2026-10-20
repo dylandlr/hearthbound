@@ -26,11 +26,12 @@ def extract(text, capture_start_ns=None):
             if name not in seen and re.search(pattern,line,re.I):
                 seen.add(name)
                 event={"event":name,"transcript_line":line_no,
-                       "evidence":line[:350],"monotonic_ns":pending_ns}
+                       "evidence":line[:350],"monotonic_ns":pending_ns,
+                       "actor_id":"Sable","actor_id_basis":"single-agent scenario contract"}
                 if pending_ns is not None and capture_start_ns is not None:
                     event["approx_video_seconds"]=round((pending_ns-capture_start_ns)/1e9,3)
                 events.append(event)
-    return {"schema_version":1,"source":"RCON scenario transcript",
+    return {"schema_version":2,"source":"RCON scenario transcript",
             "time_alignment":"Approximate elapsed time from FFmpeg launch request; includes capture startup delay",
             "events":events}
 if __name__=="__main__":
