@@ -27,6 +27,14 @@ def create_filter(events, duration):
         if event.get("event") in LABELS and isinstance(t, (int, float)) and 0 <= t < duration:
             valid.append((float(t), event["event"]))
     valid.sort()
+    # Minimum readable intervals, even when RCON milestones share one tick.
+    # Preserve order, but shift the display of later events forward.
+    readable=[]
+    for observed, name in valid:
+        start=max(observed, readable[-1][0]+1.4) if readable else observed
+        if start < duration:
+            readable.append((start, name))
+    valid=readable
     filters = []
     for i, (start, name) in enumerate(valid):
         end = valid[i + 1][0] if i + 1 < len(valid) else duration
