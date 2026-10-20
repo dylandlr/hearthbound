@@ -13,6 +13,7 @@
   },
   "client": [
     "TacticalCameraAccessor",
-    "TacticalRoofMeshMixin"
+    "TacticalRoofMeshMixin",
+    "TacticalChunkRebuildAccessor"
   ]
 }
