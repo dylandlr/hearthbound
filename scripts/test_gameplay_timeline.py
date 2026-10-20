@@ -11,6 +11,7 @@ class TimelineTest(unittest.TestCase):
             "HB_EVENT_TIME monotonic_ns=15000000000 command=sable hypothesis-mill-inspect\n"
             "sable hypothesis-mill-inspect => HYPOTHESIS PROPOSED\n")
         events=extract(transcript, 10000000000)["events"]
+        self.assertTrue(all(x["actor_id"] == "Sable" for x in events))
         self.assertEqual([x["event"] for x in events],
             ["research_enabled","hypothesis_proposed"])
         self.assertEqual([x["approx_video_seconds"] for x in events],[3,5])
