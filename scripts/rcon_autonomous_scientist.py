@@ -272,4 +272,51 @@ with Rcon() as r:
     },indent=2)+"\n")
     print("ROWAN AUTONOMOUS HAUL PASS: independently selected and physically completed")
 
+    # Separate contention acceptance: two citizens attempt the SAME source.
+    # Assignment is deliberately admin-driven here to isolate the source-lock
+    # invariant; this is NOT evidence of autonomous shared-job selection.
+    source_pos="4 101 8"
+    dest_pos="9 101 8"
+    r.run('setblock 4 101 8 minecraft:chest{Items:[{Slot:0b,id:"minecraft:wheat",Count:2b}]} replace')
+    r.run("setblock 9 101 8 minecraft:chest replace")
+    iris="@e[type=minecraft:villager,name=Iris,limit=1]"
+    r.contains(f"execute as {iris} at @s run sable haul {source_pos} {dest_pos}",
+               "assigned wheat haul")
+    owner_before=r.run(f"hearthboundclaims owner {source_pos}")
+    if "belongs to" not in owner_before:
+        raise AssertionError("No persisted source claim after Iris assignment: "+owner_before)
+    denied=r.run(f"execute as {villager} at @s run sable haul {source_pos} {dest_pos}")
+    if "source already claimed" not in denied.lower():
+        raise AssertionError("Second citizen was not denied the claimed source: "+denied)
+    owner_after=r.run(f"hearthboundclaims owner {source_pos}")
+    if owner_before != owner_after:
+        raise AssertionError("Contending citizen changed claim owner")
+    finished=False
+    for _ in range(100):
+        time.sleep(1)
+        status=r.run(f"execute as {iris} at @s run sable haul-status")
+        if "Haul complete" in status:
+            finished=True
+            break
+    if not finished:
+        raise AssertionError("Claim winner did not finish: "+status)
+    freed=r.run(f"hearthboundclaims owner {source_pos}")
+    if "No source claim" not in freed:
+        raise AssertionError("Completed work leaked source claim: "+freed)
+    remaining=r.run(f"data get block {source_pos} Items")
+    delivered=r.run(f"data get block {dest_pos} Items")
+    if "Count: 1b" not in remaining or "minecraft:wheat" not in delivered:
+        raise AssertionError("Claim test did not conserve inventory: "+remaining+" "+delivered)
+    contention={
+        "schema_version":1,"test":"shared_source_claim",
+        "mode":"operator-triggered isolation test; not autonomous task selection",
+        "first_owner": "Iris","second_contender":"Sable",
+        "loser_denied":True,"claim_released":True,
+        "source_after":remaining,"destination_after":delivered
+    }
+    pathlib.Path("gameplay-capture/contention-evidence.json").write_text(
+        json.dumps(contention,indent=2)+"\\n")
+    print("SHARED RESOURCE CONTENTION PASS: second claimant denied, ownership preserved, claim released")
+
+
 
