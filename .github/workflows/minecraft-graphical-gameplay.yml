@@ -31,6 +31,7 @@ jobs:
           python3 scripts/check_workshop_fixture.py
           python3 scripts/test_minecraft_nbt_debit.py
           python3 scripts/test_claim_contention.py
+          python3 scripts/test_contention_evidence.py
           python3 scripts/test_gameplay_timeline.py
           python3 scripts/test_annotated_video.py
       - name: Start Forge server and rendered Minecraft client
