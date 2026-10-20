@@ -105,6 +105,7 @@ jobs:
           # Preserve gameplay capture even if an input or X11 step fails;
           # record the failure separately instead of preventing AI footage.
           set +e
+          python3 scripts/setup_player_camera_fixture.py > gameplay-capture/player-fixture.log 2>&1
           bash scripts/capture_player_controls.sh > gameplay-capture/player-controls.log 2>&1
           player_capture_rc=$?
           set -e
@@ -116,6 +117,9 @@ jobs:
           if [ "$player_capture_rc" -ne 0 ]; then
             echo "::warning::Player-controls video or evidence validation failed; see uploaded logs"
           fi
+          # Disposable UI demonstration citizens must not contaminate
+          # subsequent autonomous scientist identity/claim experiments.
+          python3 scripts/cleanup_player_camera_fixture.py > gameplay-capture/player-fixture-cleanup.log 2>&1
           capture_start_ns=$(python3 -c 'import time; print(time.monotonic_ns())')
           ffmpeg -hide_banner -loglevel warning -y -f x11grab -framerate 15 -video_size 1280x720 -i :99.0 -c:v libx264 -preset ultrafast -crf 28 -pix_fmt yuv420p gameplay-capture/minecraft-gameplay.mp4 > gameplay-capture/ffmpeg.log 2>&1 &
           ffmpeg_pid=$!
