@@ -72,7 +72,7 @@ with Rcon() as r:
                "AUTO_RESEARCH ENABLED")
     def game_tick():
         value=r.run("time query gametime")
-        m=re.search(r"(\\d+)\\s*$",value)
+        m=re.search(r"(\d+)\s*$",value)
         if not m: raise AssertionError("No Minecraft game tick: "+value)
         return int(m.group(1))
     started=time.monotonic()
