@@ -38,6 +38,7 @@ class Rcon:
         self.s.sendall(packet(self.seq,2,cmd))
         req,out=self.recv()
         if req!=self.seq: raise AssertionError(f"Wrong RCON ID: {req}")
+        print(f"HB_EVENT_TIME monotonic_ns={time.monotonic_ns()} command={cmd}",flush=True)
         print(f"{cmd} => {out}",flush=True)
         return out
     def contains(self,cmd,want):
