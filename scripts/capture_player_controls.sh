@@ -5,9 +5,12 @@ set -euo pipefail
 mkdir -p gameplay-capture
 window="$(xdotool search --onlyvisible --name 'Minecraft' | head -n 1)"
 test -n "$window"
-xdotool windowactivate --sync "$window"
+# Openbox in headless Xvfb may not advertise _NET_ACTIVE_WINDOW.
+# Activating the window is best-effort; focus and input can still work.
+xdotool windowactivate "$window" 2> gameplay-capture/player-window-activate.log || true
 xdotool windowfocus --sync "$window"
 xdotool mousemove --window "$window" 630 360
+printf 'window_id=%s focused=%s\\n' "$window" "$(xdotool getwindowfocus)" > gameplay-capture/player-window-focus.txt
 # Record raw Xvfb display. Keep the interaction transcript with the video.
 ffmpeg -hide_banner -loglevel warning -y -f x11grab -framerate 15 -video_size 1280x720 -i :99.0 -c:v libx264 -preset ultrafast -crf 28 -pix_fmt yuv420p gameplay-capture/minecraft-player-controls.mp4 > gameplay-capture/player-capture-ffmpeg.log 2>&1 &
 record_pid=$!
