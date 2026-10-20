@@ -70,16 +70,7 @@ jobs:
             xdotool windowfocus --sync "$window" || true
             xdotool windowsize "$window" 1280 720 || true
             xdotool windowmove "$window" 0 0 || true
-            xdotool mousemove --window "$window" 640 365 click 1 || true
-            sleep 4
-            scrot gameplay-capture/client-multiplayer-menu.png || true
-            xdotool mousemove --window "$window" 545 655 click 1 || true
-            sleep 2
-            xdotool key --clearmodifiers ctrl+a || true
-            xdotool type --clearmodifiers --delay 75 '127.0.0.1:25565' || true
-            xdotool key Return || true
-            sleep 3
-            scrot gameplay-capture/client-connect-attempt.png || true
+            scrot gameplay-capture/client-quickplay-state.png || true
           fi
           connected=0
           for i in $(seq 1 150); do
