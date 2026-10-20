@@ -342,7 +342,7 @@ with Rcon() as r:
     # Record each citizen's prior decision tick. A stale trace from the
     # earlier Rowan haul cannot count as participation in this experiment.
     def choice_tick(status):
-        match=re.search(r"WORK_CHOICE tick=(\\d+)",status)
+        match=re.search(r"WORK_CHOICE tick=(\d+)",status)
         return int(match.group(1)) if match else -1
     baseline={
         name:choice_tick(r.run(f"execute as {actor} at @s run sable auto-work-status"))
