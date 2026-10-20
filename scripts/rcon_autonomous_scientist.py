@@ -400,6 +400,10 @@ with Rcon() as r:
     # Separate alternate-work scenario: the job board should skip a claimed
     # source and allow an independent agent to discover an unclaimed one.
     # Claim is placed using real citizen hauling, never synthetic NBT state.
+    # Retire wheat sources from the previous experiments so the board
+    # has one claimed source and one unclaimed alternative, not stale offers.
+    for old_source in ("3 101 1","3 101 7","4 101 8"):
+        r.run(f"setblock {old_source} minecraft:barrel replace")
     primary="4 101 10"
     alternative="4 101 12"
     winner_dest="9 101 10"
@@ -426,7 +430,7 @@ with Rcon() as r:
             alternate_seen=True
             break
     if not alternate_seen:
-        raise AssertionError("Rowan did not discover alternate unclaimed wheat source: "+rowan_trace)
+        raise AssertionError("Rowan did not claim alternate wheat source: policy="+rowan_trace+" alternative="+alternate_claim+" source="+r.run(f"data get block {alternative} Items")+" haul="+r.run(f"execute as {rowan} at @s run sable haul-status"))
     first_remaining=r.run(f"hearthboundclaims owner {primary}")
     if first_remaining not in (first_claim,f"No source claim at {primary}"):
         raise AssertionError("Alternate work overwrote existing claim: "+first_remaining)
