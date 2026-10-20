@@ -29,12 +29,15 @@ log_action "inspect I and cycle period"
 xdotool key i; sleep 2; xdotool key period; sleep 2
 log_action "jump selected floor End and PageDown"
 xdotool key End; sleep 2; xdotool key Next; sleep 2
-log_action "cutaway preview C then experimental F8"
-xdotool key c; sleep 1; xdotool key c
-xdotool key F8; sleep 4
-scrot gameplay-capture/player-cutaway-on.png
-xdotool key F8; sleep 3
+log_action "roof cutaway baseline (F8 off)"
+sleep 3
 scrot gameplay-capture/player-cutaway-off.png
+log_action "enable experimental mesh cutaway F8"
+xdotool key F8; sleep 5
+scrot gameplay-capture/player-cutaway-on.png
+log_action "restore roof mesh F8"
+xdotool key F8; sleep 5
+scrot gameplay-capture/player-cutaway-restored.png
 log_action "switch to first person V"
 xdotool key v; sleep 3
 scrot gameplay-capture/player-first-person.png
