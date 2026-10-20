@@ -115,11 +115,12 @@ jobs:
             player_capture_rc=$fixture_rc
           fi
           set -e
-          printf '%s\\n' "$player_capture_rc" > gameplay-capture/player-controls-exit-code.txt
-          cat gameplay-capture/player-controls.log
+          if [ -f gameplay-capture/player-controls.log ]; then cat gameplay-capture/player-controls.log; fi
           if [ "$player_capture_rc" -eq 0 ]; then
             python3 scripts/validate_player_controls_capture.py gameplay-capture > gameplay-capture/player-controls-validation.json 2> gameplay-capture/player-controls-validation-error.log || player_capture_rc=1
           fi
+          # Report the final validated result, not only the capture-command exit.
+          printf '%s\\n' "$player_capture_rc" > gameplay-capture/player-controls-exit-code.txt
           if [ "$player_capture_rc" -ne 0 ]; then
             echo "::warning::Player-controls video or evidence validation failed; see uploaded logs"
           fi
