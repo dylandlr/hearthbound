@@ -3,6 +3,7 @@ package dev.hearthbound.client;
 import java.util.HashSet;
 import java.util.Set;
 import net.minecraft.client.Minecraft;
+import dev.hearthbound.world.mixin.TacticalChunkRebuildAccessor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.npc.Villager;
 
@@ -40,7 +41,7 @@ public final class TacticalRoofFilter {
         dirty.addAll(next);
         for (long packed : dirty) {
             BlockPos pos = BlockPos.of(packed);
-            mc.levelRenderer.setBlockDirty(pos, false);
+            ((TacticalChunkRebuildAccessor) mc.levelRenderer).hearthbound$markBlockDirty(pos, false);
         }
     }
 
