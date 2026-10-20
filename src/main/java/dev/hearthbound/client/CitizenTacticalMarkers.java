@@ -55,7 +55,7 @@ public final class CitizenTacticalMarkers {
         }
         int width = mc.getWindow().getGuiScaledWidth();
         int x = Math.max(10, width - 195);
-        gfx.fill(x - 5, 28, width - 5, 120, 0xB70B1720);
+        gfx.fill(x - 5, 28, width - 5, 136, 0xB70B1720);
         gfx.drawString(mc.font, "SELECTED CITIZEN", x, 34, 0xEAD8AD, false);
         gfx.drawString(mc.font, selected.getName().getString(), x, 47, 0xFFFFFF, false);
         gfx.drawString(mc.font, "Position: " + selected.blockPosition().toShortString(), x, 60, 0xC6DBDC, false);
@@ -66,6 +66,12 @@ public final class CitizenTacticalMarkers {
         int cover = ColonyView.cutawayPreview() ? solidCoverAbove(selected, Math.min(16, Math.max(0, floor - agentY))) : 0;
         gfx.drawString(mc.font, "Cutaway [C]: " + (ColonyView.cutawayPreview() ? "preview (" + cover + " solid)" : "off"), x, 99,
                 cover > 0 ? 0xFFF1BD77 : 0xFF9EDDB8, false);
+        if (ColonyView.cutawayPreview()) {
+            int candidates = RoofCutawayMask.sample(mc.level, selected.blockPosition(),
+                    floor, 2, 16).size();
+            gfx.drawString(mc.font, "Roof mask: " + candidates + " candidate blocks", x, 112,
+                    0xFFC4D7E8, false);
+        }
     }
 
     /** Count solid visual cover only in loaded chunks; never request or mutate chunks. */
