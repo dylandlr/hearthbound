@@ -200,7 +200,7 @@ with Rcon() as r:
     metrics["confirmed"]=True
     out=pathlib.Path(os.environ.get("HEARTHBOUND_SCENARIO_METRICS","simulation-results/metrics.json"))
     out.parent.mkdir(parents=True,exist_ok=True)
-    out.write_text(json.dumps(metrics,indent=2)+"\\n")
+    out.write_text(json.dumps(metrics,indent=2)+"\n")
     print("AUTONOMOUS FIRST MILL PASS: proposal, haul, Create receipt, research credit, knowledge")
     # Independent citizen identities and individual priors are tested separately
     # from Sable's proven autonomous milling policy. They are not yet job-trained.
@@ -225,7 +225,7 @@ with Rcon() as r:
         "schema_version":1,
         "scope":"individual identity and instinct baseline; not independent jobs",
         "residents":residents
-    },indent=2)+"\\n")
+    },indent=2)+"\n")
     print("THREE CITIZEN BASELINE PASS: distinct entities, inspectable instinct priors")
 
     # Rowan's haul is chosen by his OWN tick policy, not /sable haul.
@@ -259,7 +259,7 @@ with Rcon() as r:
     population_out.write_text(json.dumps({
         "schema_version":2,"scope":"individual identities plus Rowan tick-selected physical haul",
         "residents":residents
-    },indent=2)+"\\n")
+    },indent=2)+"\n")
     print("ROWAN AUTONOMOUS HAUL PASS: independently selected and physically completed")
 
 
