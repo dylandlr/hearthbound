@@ -46,6 +46,9 @@ public final class ColonyView {
     private static final KeyMapping NEXT_CITIZEN = new KeyMapping("key.hearthbound.next_citizen", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_PERIOD, "key.categories.hearthbound");
     private static final KeyMapping PREVIOUS_CITIZEN = new KeyMapping("key.hearthbound.previous_citizen", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_COMMA, "key.categories.hearthbound");
     private static final KeyMapping JUMP_TO_CITIZEN_FLOOR = new KeyMapping("key.hearthbound.citizen_floor", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_END, "key.categories.hearthbound");
+    private static final KeyMapping ACTUAL_CUTAWAY = new KeyMapping("key.hearthbound.actual_cutaway", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F8, "key.categories.hearthbound");
+    private static boolean actualCutaway = false;
+    private static int cutawayTick = 0;
     private static final KeyMapping CUTAWAY = new KeyMapping("key.hearthbound.cutaway", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_C, "key.categories.hearthbound");
     private static boolean cutawayPreview = true;
     private static final KeyMapping FLOOR_UP = new KeyMapping("key.hearthbound.floor_up", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_PAGE_UP, "key.categories.hearthbound");
@@ -70,6 +73,7 @@ public final class ColonyView {
     }
     public static boolean floorPinned() { return floorPinned; }
     public static boolean cutawayPreview() { return cutawayPreview; }
+    public static boolean actualCutaway() { return actualCutaway; }
 
     @Mod.EventBusSubscriber(modid = "hearthbound", bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
     public static final class Keys {
@@ -86,6 +90,7 @@ public final class ColonyView {
             event.register(PAN_EAST);
             event.register(RESET_CAMERA);
             event.register(CUTAWAY);
+            event.register(ACTUAL_CUTAWAY);
             event.register(NEXT_CITIZEN);
             event.register(PREVIOUS_CITIZEN);
             event.register(JUMP_TO_CITIZEN_FLOOR);
@@ -107,6 +112,8 @@ public final class ColonyView {
             panZ = 0;
             floorPinned = false;
             cutawayPreview = true;
+            actualCutaway = false;
+            TacticalRoofFilter.clear();
             return;
         }
         while (VIEW.consumeClick()) {
@@ -120,6 +127,9 @@ public final class ColonyView {
         while (ZOOM_OUT.consumeClick()) if (tactical) cameraHeight = Math.min(48, cameraHeight + 3);
         while (FOLLOW.consumeClick()) follow = !follow;
         while (CUTAWAY.consumeClick()) cutawayPreview = !cutawayPreview;
+        while (ACTUAL_CUTAWAY.consumeClick()) actualCutaway = !actualCutaway;
+        if (++cutawayTick % 10 == 0) TacticalRoofFilter.update(
+                tactical && actualCutaway && cutawayPreview, selected, observedFloorY());
         while (NEXT_CITIZEN.consumeClick()) if (tactical) cycleCitizen(mc, 1);
         while (PREVIOUS_CITIZEN.consumeClick()) if (tactical) cycleCitizen(mc, -1);
         while (JUMP_TO_CITIZEN_FLOOR.consumeClick()) if (tactical && selected != null) {
