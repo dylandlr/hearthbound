@@ -322,5 +322,54 @@ with Rcon() as r:
         json.dumps(contention,indent=2)+"\n")
     print("SHARED RESOURCE CONTENTION PASS: second claimant denied, ownership preserved, claim released")
 
+    # Two autonomous tick policies now observe the same explicitly authorized
+    # source. Their destinations differ so successful work remains attributable.
+    # This tests exclusive assignment, not alternative-job selection.
+    r.run('setblock 4 101 8 minecraft:chest{Items:[{Slot:0b,id:"minecraft:wheat",Count:2b}]} replace')
+    r.run("setblock 9 101 8 minecraft:chest replace")
+    r.run("setblock 9 101 7 minecraft:chest replace")
+    for actor,destination in ((iris,"9 101 8"),(rowan,"9 101 7")):
+        r.contains(f"execute as {actor} at @s run sable auto-work-discover {source_pos} {destination}",
+                   "Configured discover-library auto work")
+        r.contains(f"execute as {actor} at @s run sable auto-work-on","Auto work enabled")
+    observations={}
+    selected=None
+    for _ in range(45):
+        time.sleep(1)
+        for name,actor in (("Iris",iris),("Rowan",rowan)):
+            observations[name]=r.run(f"execute as {actor} at @s run sable auto-work-status")
+            if "haulIssued=true" in observations[name]:
+                selected=name
+        if selected: break
+    if not selected:
+        raise AssertionError("Neither autonomous citizen selected the common source: "+str(observations))
+    original_claim=r.run(f"hearthboundclaims owner {source_pos}")
+    if "belongs to" not in original_claim:
+        raise AssertionError("No winner retained the shared source lock: "+original_claim)
+    other="Iris" if selected=="Rowan" else "Rowan"
+    # The other policy must have time to evaluate the same offer; it may
+    # report a DECLINED haul or no executable work while the source is locked.
+    for _ in range(16):
+        time.sleep(1)
+        observations[other]=r.run(f"execute as {iris if other=='Iris' else rowan} at @s run sable auto-work-status")
+        if "tick=0" not in observations[other]: break
+    current_claim=r.run(f"hearthboundclaims owner {source_pos}")
+    if current_claim != original_claim:
+        raise AssertionError("Autonomous competitor displaced source owner")
+    dual_issued=sum("haulIssued=true" in value for value in observations.values())
+    if dual_issued!=1:
+        raise AssertionError("Exclusive claim violated: "+str(observations))
+    for actor in (iris,rowan):
+        r.run(f"execute as {actor} at @s run sable auto-work-off")
+    pathlib.Path("gameplay-capture/autonomous-contention.json").write_text(json.dumps({
+        "schema_version":1,"test":"dual_autonomous_source_selection",
+        "source":source_pos,"first_observed_assignee":selected,
+        "owner_before":original_claim,"owner_after":current_claim,
+        "policy_observations":observations,
+        "scope":"one exclusive active source claim; alternative job choice not tested"
+    },indent=2)+"\\n")
+    print("AUTONOMOUS CONTENTION PASS: exactly one tick-policy assignment; exclusive claim retained")
+
+
 
 
