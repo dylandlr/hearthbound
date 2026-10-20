@@ -27,7 +27,7 @@ public final class TacticalRoofFilter {
                 && citizen.level() == mc.level && citizen.isAlive()) {
             Set<Long> calculated = new HashSet<>();
             for (BlockPos pos : RoofCutawayMask.sample(mc.level,
-                    citizen.blockPosition(), floor, 2, 16)) {
+                    citizen.blockPosition(), floor, 5, 16)) {
                 calculated.add(pos.asLong());
             }
             next = Set.copyOf(calculated);
