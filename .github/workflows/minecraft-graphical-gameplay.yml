@@ -110,8 +110,11 @@ jobs:
           set -e
           printf '%s\\n' "$player_capture_rc" > gameplay-capture/player-controls-exit-code.txt
           cat gameplay-capture/player-controls.log
+          if [ "$player_capture_rc" -eq 0 ]; then
+            python3 scripts/validate_player_controls_capture.py gameplay-capture > gameplay-capture/player-controls-validation.json 2> gameplay-capture/player-controls-validation-error.log || player_capture_rc=1
+          fi
           if [ "$player_capture_rc" -ne 0 ]; then
-            echo "::warning::Player-controls recording failed; see uploaded logs"
+            echo "::warning::Player-controls video or evidence validation failed; see uploaded logs"
           fi
           capture_start_ns=$(python3 -c 'import time; print(time.monotonic_ns())')
           ffmpeg -hide_banner -loglevel warning -y -f x11grab -framerate 15 -video_size 1280x720 -i :99.0 -c:v libx264 -preset ultrafast -crf 28 -pix_fmt yuv420p gameplay-capture/minecraft-gameplay.mp4 > gameplay-capture/ffmpeg.log 2>&1 &
