@@ -245,6 +245,10 @@ with Rcon() as r:
         status=r.run(f"execute as {rowan} at @s run sable haul-status")
         if "haulIssued=true" in rowan_trace:
             rowan_assigned=True
+        if not rowan_trace.strip() or not status.strip():
+            diagnostic=r.run("data get entity "+rowan+" Pos")
+            nearby=r.run("execute positioned 6 101 7 run execute if entity @e[type=minecraft:villager,name=Rowan,distance=..32] ")
+            raise AssertionError("Rowan disappeared or command was unaddressable: position="+diagnostic+" nearby="+nearby+" last="+rowan_trace)
         if rowan_assigned and "Haul complete" in status:
             rowan_completed=True
             break
