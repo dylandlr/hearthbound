@@ -95,6 +95,8 @@ public final class SableWorkChoice {
     public static String inspect(Villager citizen) {
         CompoundTag trace = citizen.getPersistentData().getCompound(TRACE);
         return "WORK_CHOICE tick=" + trace.getLong("tick")
+                + " haulAvailable=" + trace.getBoolean("haulAvailable")
+                + " studyAvailable=" + trace.getBoolean("studyAvailable")
                 + " choice=" + trace.getString("choice")
                 + " outcome=" + trace.getString("outcome")
                 + " haulPriority=" + haulPriority(citizen)
