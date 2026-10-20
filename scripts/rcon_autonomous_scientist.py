@@ -76,6 +76,8 @@ with Rcon() as r:
         "setblock 1 101 9 minecraft:lantern",
         "setblock 11 101 9 minecraft:lantern",
         "setblock 10 101 6 minecraft:oak_fence",
+        "setblock 7 100 1 create:creative_motor[facing=up] replace",
+        "setblock 7 101 1 create:millstone replace",
     ): r.run(cmd)
     speed=0.
     for _ in range(40):
