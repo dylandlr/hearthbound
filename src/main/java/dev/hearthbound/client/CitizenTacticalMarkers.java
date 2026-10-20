@@ -3,13 +3,10 @@ package dev.hearthbound.client;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.world.entity.npc.Villager;
-import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderGuiEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import org.joml.Vector3f;
-import org.joml.Vector4f;
 
 /**
  * Client UI markers for loaded villagers in the tactical view.
@@ -26,15 +23,6 @@ public final class CitizenTacticalMarkers {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null || mc.options.hideGui) return;
         GuiGraphics gfx = event.getGuiGraphics();
-        // Only draw client-loaded entities within the local player's observation radius.
-        // A future server-authorized visibility feed must replace this restriction.
-        for (Villager citizen : mc.level.getEntitiesOfClass(Villager.class,
-                mc.player.getBoundingBox().inflate(28))) {
-            if (!citizen.isAlive()) continue;
-            // Temporary compact roster rather than a world-space x-ray label.
-            // World-space markers will require a rendering projection and permissions.
-            // Deliberately avoid displaying coordinates for hidden enemies.
-        }
         Villager selected = ColonyView.selectedCitizen();
         if (selected == null) return;
         int width = mc.getWindow().getGuiScaledWidth();
