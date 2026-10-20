@@ -111,6 +111,7 @@ jobs:
           wait "$ffmpeg_pid" || true
           cat gameplay-capture/scenario.log
           if [ "$scenario_rc" -eq 0 ]; then python3 scripts/validate_citizen_baseline.py gameplay-capture/citizen-baseline.json; fi
+          if [ "$scenario_rc" -eq 0 ]; then python3 scripts/validate_contention_evidence.py gameplay-capture/contention-evidence.json; fi
           python3 scripts/extract_gameplay_decisions.py --scenario-log gameplay-capture/scenario.log --capture-start-ns "$capture_start_ns" --output gameplay-capture/decision-events.json
           test "$scenario_rc" -eq 0
           test -s gameplay-capture/minecraft-gameplay.mp4
