@@ -121,6 +121,10 @@ jobs:
           fi
           # Report the final validated result, not only the capture-command exit.
           printf '%s\\n' "$player_capture_rc" > gameplay-capture/player-controls-exit-code.txt
+          if [ -f gameplay-capture/player-cutaway-restored.png ]; then
+            python3 -m pip -q install pillow > gameplay-capture/visual-dependencies.log 2>&1 || true
+            python3 scripts/verify_roof_cutaway_visual.py gameplay-capture > gameplay-capture/roof-visual-check.log 2>&1 || echo "::warning::Roof cutaway not visually confirmed; see roof-visual-check.log"
+          fi
           if [ "$player_capture_rc" -ne 0 ]; then
             echo "::warning::Player-controls video or evidence validation failed; see uploaded logs"
           fi
