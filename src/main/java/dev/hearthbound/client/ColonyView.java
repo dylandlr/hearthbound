@@ -59,7 +59,7 @@ public final class ColonyView {
     private static double panZ = 0;
     private static boolean tactical = true;
     private static boolean follow = false;
-    private static double cameraHeight = 18;
+    private static double cameraHeight = 12;
     private static Villager selected;
 
     private ColonyView() {}
@@ -107,7 +107,7 @@ public final class ColonyView {
             selected = null;
             tactical = true;
             follow = false;
-            cameraHeight = 18;
+            cameraHeight = 12;
             panX = 0;
             panZ = 0;
             floorPinned = false;
@@ -119,7 +119,10 @@ public final class ColonyView {
         while (VIEW.consumeClick()) {
             tactical = !tactical;
             if (tactical) mc.mouseHandler.releaseMouse();
-            else mc.mouseHandler.grabMouse();
+            else {
+                TacticalRoofFilter.clear();
+                mc.mouseHandler.grabMouse();
+            }
         }
         if (tactical && mc.screen == null && mc.mouseHandler.isMouseGrabbed())
             mc.mouseHandler.releaseMouse();
@@ -237,7 +240,7 @@ public final class ColonyView {
     @SubscribeEvent
     public static void overlay(RenderGuiEvent.Post event) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.options.hideGui) return;
+        if (mc.player == null || mc.options.hideGui || !tactical) return;
         GuiGraphics graphics = event.getGuiGraphics();
         graphics.drawString(mc.font, tactical ? "HEARTHBOUND | Colony view [V: First person]"
                 : "HEARTHBOUND | First person [V: Colony view]", 10, 10, 0xF1E8C9, true);
