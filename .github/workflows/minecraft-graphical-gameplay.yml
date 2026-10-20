@@ -30,6 +30,7 @@ jobs:
           python3 -m py_compile scripts/rcon_autonomous_scientist.py scripts/rcon_gameplay_camera.py
           python3 scripts/check_workshop_fixture.py
           python3 scripts/test_minecraft_nbt_debit.py
+          python3 scripts/test_claim_contention.py
           python3 scripts/test_gameplay_timeline.py
           python3 scripts/test_annotated_video.py
       - name: Start Forge server and rendered Minecraft client
