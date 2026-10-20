@@ -211,7 +211,7 @@ with Rcon() as r:
                        "Hearthbound citizen spawned: " + name)
         selector=f"@e[type=minecraft:villager,name={name},limit=1]"
         entity_data=r.run(f"data get entity {selector} UUID")
-        if "UUID" not in entity_data:
+        if "[I;" not in entity_data:
             raise AssertionError("No distinct citizen UUID for "+name+": "+entity_data)
         profile=r.run(f"execute as {selector} at @s run sable instinct-inspect")
         if "INSTINCT" not in profile or "starting priors only" not in profile:
