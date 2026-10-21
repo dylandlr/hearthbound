@@ -2,6 +2,7 @@ package dev.hearthbound.client;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 import net.minecraft.client.Minecraft;
 import dev.hearthbound.world.mixin.TacticalChunkRebuildAccessor;
 import net.minecraft.core.BlockPos;
@@ -14,10 +15,14 @@ import net.minecraft.world.entity.npc.Villager;
 public final class TacticalRoofFilter {
     private static volatile Set<Long> hidden = Set.of();
     private static volatile boolean enabled;
+    private static final AtomicLong suppressedRenders = new AtomicLong();
+    public static long suppressedRenderCount() { return suppressedRenders.get(); }
     private TacticalRoofFilter() {}
 
     public static boolean suppress(BlockPos pos) {
-        return enabled && hidden.contains(pos.asLong());
+        boolean suppress = enabled && hidden.contains(pos.asLong());
+        if (suppress) suppressedRenders.incrementAndGet();
+        return suppress;
     }
 
     public static void update(boolean requested, Villager citizen, int floor) {
@@ -41,7 +46,7 @@ public final class TacticalRoofFilter {
         dirty.addAll(next);
         for (long packed : dirty) {
             BlockPos pos = BlockPos.of(packed);
-            ((TacticalChunkRebuildAccessor) mc.levelRenderer).hearthbound$markBlockDirty(pos, false);
+            ((TacticalChunkRebuildAccessor) mc.levelRenderer).hearthbound$markBlockDirty(pos, true);
         }
     }
 
