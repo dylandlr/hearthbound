@@ -143,7 +143,26 @@ with Rcon() as r:
             if "NO_RESEARCH_CREDIT" not in observation:
                 raise AssertionError("Unverified science credit")
             break
-    if not produced: raise AssertionError("Sable delivered wheat but Create produced no flour")
+    if not produced:
+        # This is evidence collection only: never inject items, grant research
+        # credit, or relabel an incomplete Create process as success.
+        diagnostics = {}
+        for label, command in (
+            ("haul_audit", f"execute as {villager} at @s run sable haul-audit"),
+            ("mill_trace", f"execute at {villager} run sable mill-trace"),
+            ("mill_reservation", "sable mill-reservation 7 101 1"),
+            ("block_nbt", "data get block 7 101 1"),
+            ("nearby_items", "execute positioned 7 101 1 run data get entity @e[type=minecraft:item,distance=..4,limit=1,sort=nearest]"),
+        ):
+            try:
+                diagnostics[label] = r.run(command)
+            except Exception as exc:
+                diagnostics[label] = f"DIAGNOSTIC_ERROR {exc}"
+        pathlib.Path("gameplay-capture").mkdir(exist_ok=True)
+        pathlib.Path("gameplay-capture/mill-failure-diagnostics.json").write_text(
+            json.dumps(diagnostics, indent=2) + "\\n")
+        raise AssertionError("Sable delivered wheat but Create produced no verified flour; "
+                             "see mill-failure-diagnostics.json")
     metrics["seconds_to_first_flour"]=round(time.monotonic()-started,3)
     metrics["ticks_to_first_flour"]=game_tick()-start_tick
     metrics["wheat_consumed"]=1
