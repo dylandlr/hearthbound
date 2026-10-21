@@ -42,6 +42,11 @@ public final class AutonomousMillResearch {
         // physical job cannot be admitted.
         try {
             SableHauling.assign(level,citizen,site.wheatSource(),site.millstone());
+            try { ResearchTrainingRuntime.afterAssigned(level, citizen); }
+            catch (RuntimeException diagnosticFailure) {
+                org.apache.logging.log4j.LogManager.getLogger("HearthboundLearning")
+                    .warn("Optional training decision binding failed for {}", agent, diagnosticFailure);
+            }
             CitizenWorkOwnership.assigned(citizen, CitizenWorkOwnership.Kind.HAUL);
             var c=decision.candidate();
             store.propose(agent,c.recipeId(),c.inputItem(),c.machine(),c.predictedOutput());
