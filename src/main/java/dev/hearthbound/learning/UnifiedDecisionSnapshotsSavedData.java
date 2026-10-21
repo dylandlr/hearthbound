@@ -30,9 +30,9 @@ public final class UnifiedDecisionSnapshotsSavedData extends SavedData {
             CompoundTag t = rows.getCompound(i);
             var snapshot = new UnifiedCitizenObservation.Snapshot(
                     t.getInt("version"), t.getUUID("citizen"), t.getLong("tick"),
-                    t.getInt("citizenSchema"), t.getDoubleArray("citizenFeatures"),
+                    t.getInt("citizenSchema"), ObservationNbtCodec.get(t, "citizenFeatures"),
                     t.getInt("researchSchema"),
-                    t.getBoolean("researchPresent") ? t.getDoubleArray("researchFeatures") : null);
+                    t.getBoolean("researchPresent") ? ObservationNbtCodec.get(t, "researchFeatures") : null);
             if (data.entries.putIfAbsent(t.getUUID("job"), snapshot) != null)
                 throw new IllegalStateException("duplicate job snapshot");
         }
@@ -67,10 +67,10 @@ public final class UnifiedDecisionSnapshotsSavedData extends SavedData {
             t.putUUID("citizen",s.citizen());
             t.putLong("tick",s.gameTick());
             t.putInt("citizenSchema",s.citizenSchema());
-            t.putDoubleArray("citizenFeatures",s.citizenFeatures());
+            ObservationNbtCodec.put(t, "citizenFeatures", s.citizenFeatures());
             t.putInt("researchSchema",s.researchSchema());
             t.putBoolean("researchPresent",s.hasResearchContext());
-            if (s.hasResearchContext()) t.putDoubleArray("researchFeatures",s.researchFeatures());
+            if (s.hasResearchContext()) ObservationNbtCodec.put(t, "researchFeatures", s.researchFeatures());
             rows.add(t);
         }
         root.put("observations",rows);
