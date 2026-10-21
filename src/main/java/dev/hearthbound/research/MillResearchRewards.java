@@ -130,7 +130,7 @@ public final class MillResearchRewards extends SavedData {
         journal.setDirty();
         // Observability cannot interfere with server-authoritative research rewards.
         // Only a verified and durably journaled award is eligible for training attribution.
-        try { ResearchTrainingRuntime.afterVerifiedAward(award); }
+        try { ResearchTrainingRuntime.afterVerifiedAward(level, citizen, machine, award); }
         catch (RuntimeException diagnosticFailure) {
             org.apache.logging.log4j.LogManager.getLogger("HearthboundLearning")
                     .warn("Optional training outcome attribution failed for job {}", job, diagnosticFailure);
