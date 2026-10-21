@@ -13,7 +13,11 @@ public final class ResearchDecisionRuntime {
     private ResearchDecisionRuntime() {}
 
     public static boolean capture(ServerLevel level, Villager citizen, BlockPos source, BlockPos machine) {
-        var observation = LocalMillExperimentSensor.observe(level, citizen, source, machine);
+        return captureObservation(level, citizen, LocalMillExperimentSensor.observe(level, citizen, source, machine));
+    }
+
+    public static boolean captureObservation(ServerLevel level, Villager citizen,
+                                             ExperimentSelectionPolicy.Observation observation) {
         if (observation == null) return false;
         JOURNAL.record(citizen.getUUID().toString(), level.getGameTime(),
                 ResearchDecisionComparison.evaluate(observation));
