@@ -453,6 +453,10 @@ with Rcon() as r:
         r.run(f"setblock {pos} minecraft:barrel replace")
     r.contains(f"execute as {iris} at @s run sable haul {primary} {winner_dest}",
                "assigned wheat haul")
+    # Keep Iris's genuinely-owned primary job in flight while Rowan chooses.
+    # Otherwise Iris can finish between RCON commands and Rowan legitimately
+    # select the nearer primary source after its claim is released.
+    r.run(f"tp {iris} 0 101 1")
     first_claim=r.run(f"hearthboundclaims owner {primary}")
     if "belongs to" not in first_claim:
         raise AssertionError("Fixture failed to claim primary source: "+first_claim)
@@ -467,6 +471,15 @@ with Rcon() as r:
         if "haulIssued=true" in rowan_trace and "belongs to" in alternate_claim:
             alternate_seen=True
             break
+        # A completed physical haul may release its claim before polling;
+        # verify source debit and destination receipt rather than inferring
+        # alternative choice from unrelated completed-job status.
+        if "Haul complete" in r.run(f"execute as {rowan} at @s run sable haul-status"):
+            source_nbt=r.run(f"data get block {alternative} Items")
+            dest_nbt=r.run(f"data get block {fallback_dest} Items")
+            if "Count: 1b" in source_nbt and "minecraft:wheat" in dest_nbt:
+                alternate_seen=True
+                break
     if not alternate_seen:
         raise AssertionError("Rowan did not claim alternate wheat source: policy="+rowan_trace+" alternative="+alternate_claim+" source="+r.run(f"data get block {alternative} Items")+" haul="+r.run(f"execute as {rowan} at @s run sable haul-status"))
     first_remaining=r.run(f"hearthboundclaims owner {primary}")
