@@ -57,7 +57,7 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
         'setblock 3 100 1 minecraft:chest{Items:[{Slot:0b,id:"minecraft:wheat",Count:8b}]} replace',
         "setblock 7 100 1 minecraft:chest replace",
         "tp @e[type=minecraft:villager,name=Sable,limit=1] 2 100 1",
-        "execute as @e[type=minecraft:villager,name=Sable,limit=1] at @s run sable haul 3 100 1 7 100 1",
+        "execute positioned 2 100 1 run sable haul 3 100 1 7 100 1",
     ]
     next_id = 10
     for command in setup:

@@ -62,7 +62,7 @@ public final class ResearchSuccessorObservationsSavedData extends SavedData {
             Status status = Status.valueOf(row.getString("status"));
             var s = new Successor(row.getUUID("job"), row.getUUID("citizen"),
                 row.getLong("tick"), status,
-                status == Status.OBSERVED ? row.getDoubleArray("features") : null);
+                status == Status.OBSERVED ? ObservationNbtCodec.get(row, "features") : null);
             if (result.values.putIfAbsent(s.job(),s) != null)
                 throw new IllegalStateException("duplicate successor job");
         }
@@ -91,7 +91,7 @@ public final class ResearchSuccessorObservationsSavedData extends SavedData {
             row.putInt("version",1);
             row.putUUID("job",s.job()); row.putUUID("citizen",s.citizen());
             row.putLong("tick",s.tick()); row.putString("status",s.status().name());
-            if (s.status() == Status.OBSERVED) row.putDoubleArray("features",s.features());
+            if (s.status() == Status.OBSERVED) ObservationNbtCodec.put(row, "features", s.features());
             rows.add(row);
         }
         root.put("successors",rows);
