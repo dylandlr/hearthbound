@@ -27,8 +27,11 @@ log_action "zoom [ and ]"
 xdotool key bracketleft; sleep 2; xdotool key bracketright; sleep 2
 log_action "inspect I and cycle period"
 xdotool key i; sleep 2; xdotool key period; sleep 2
-log_action "jump selected floor End and PageDown"
-xdotool key End; sleep 2; xdotool key Next; sleep 2
+log_action "test PageDown floor change then restore citizen follow with End"
+xdotool key Next; sleep 2
+# PageDown intentionally disables follow. Re-enable it and center the
+# camera on the selected citizen before comparing roof screenshots.
+xdotool key End; sleep 4
 log_action "roof cutaway baseline (F8 off)"
 sleep 3
 scrot gameplay-capture/player-cutaway-off.png
