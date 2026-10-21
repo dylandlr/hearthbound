@@ -33,6 +33,8 @@ public final class AutonomousMillResearch {
         if (store.has(agent,"create:milling/wheat")) return;
         var site=LocalExperimentDiscovery.nearest(level,citizen);
         if (site==null) return;
+        // Sample exactly at a real decision boundary. Diagnostics do not assign work.
+        ResearchDecisionRuntime.capture(level, citizen, site.wheatSource(), site.millstone());
         var decision=LocalMillExperimentSensor.consider(level,citizen,
                 site.wheatSource(),site.millstone());
         if (decision.action()!=ExperimentSelectionPolicy.Action.PROPOSE) return;
