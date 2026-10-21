@@ -19,31 +19,38 @@ public final class LocalMillExperimentSensor {
     public static ExperimentSelectionPolicy.Choice consider(
             ServerLevel level, Villager citizen, BlockPos source, BlockPos machine,
             ResearchPolicyBaselines.Mode mode) {
+        var observation = observe(level, citizen, source, machine);
+        return observation == null ? defer() : ResearchPolicyBaselines.choose(mode, observation).choice();
+    }
+
+    /** Returns only physically grounded and eligible local observations. */
+    public static ExperimentSelectionPolicy.Observation observe(
+            ServerLevel level, Villager citizen, BlockPos source, BlockPos machine) {
         if (citizen.level() != level || !level.hasChunkAt(source) || !level.hasChunkAt(machine))
-            return defer();
+            return null;
         if (citizen.blockPosition().distSqr(source) > 64
                 || citizen.blockPosition().distSqr(machine) > 64)
-            return defer();
+            return null;
         boolean wheat = SableHauling.hasAvailableWheat(level, source);
         boolean mill = net.minecraft.core.registries.BuiltInRegistries.BLOCK
                 .getKey(level.getBlockState(machine).getBlock()).toString()
                 .equals("create:millstone");
         // Only a recognized, loaded Create millstone is a possible experiment target.
-        if (!wheat || !mill) return defer();
+        if (!wheat || !mill) return null;
         String id = citizen.getUUID().toString();
         var data = TechnologyHypothesisSavedData.get(level);
         boolean previouslyFalsified = false;
         if (data.has(id,"create:milling/wheat")) {
             var h = data.require(id,"create:milling/wheat");
-            if (h.status() != TechnologyHypotheses.Status.PROPOSED) return defer();
-            return defer(); // Do not repeatedly propose an existing experiment.
+            if (h.status() != TechnologyHypotheses.Status.PROPOSED) return null;
+            return null; // Do not repeatedly propose an existing experiment.
         }
         double curiosity = CitizenInstincts.get(citizen).getInt("exploration")/100.0;
         var candidate = new ExperimentSelectionPolicy.Candidate(
                 "create:milling/wheat","minecraft:wheat","create:millstone",
                 "create:wheat_flour",0.8,0.2,true,true,previouslyFalsified);
-        return ResearchPolicyBaselines.choose(mode, new ExperimentSelectionPolicy.Observation(
-                ExperimentSelectionPolicy.VERSION,curiosity,0.5,0.0,List.of(candidate))).choice();
+        return new ExperimentSelectionPolicy.Observation(
+                ExperimentSelectionPolicy.VERSION,curiosity,0.5,0.0,List.of(candidate));
     }
     private static ExperimentSelectionPolicy.Choice defer() {
         return new ExperimentSelectionPolicy.Choice(ExperimentSelectionPolicy.Action.DEFER,null,0);
