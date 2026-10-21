@@ -12,10 +12,15 @@ import net.minecraft.world.entity.npc.Villager;
 public final class ResearchTrainingRuntime {
     private ResearchTrainingRuntime() {}
 
-    public static void afterAssigned(ServerLevel level, Villager citizen) {
+    public static void afterAssigned(ServerLevel level, Villager citizen,
+                                     ExperimentSelectionPolicy.Observation observation) {
         UUID job = SableHauling.jobId(citizen);
         var trace = ResearchDecisionRuntime.latestProposal(citizen.getUUID().toString(), level.getGameTime());
-        if (job == null || trace == null) return;
+        if (job == null || trace == null || observation == null) return;
+        var vector = dev.hearthbound.learning.ResearchObservationVector.from(observation);
+        dev.hearthbound.learning.ResearchObservationSnapshotsSavedData.get(level).add(
+                new dev.hearthbound.learning.ResearchObservationSnapshotsSavedData.Snapshot(
+                        job, citizen.getUUID(), level.getGameTime(), vector.values()));
         PendingLearningBindingsSavedData.get(level).add(
                 new VerifiedTrainingTransitions.Binding(job, citizen.getUUID(), trace));
     }
