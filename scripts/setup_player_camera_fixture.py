@@ -66,7 +66,7 @@ def main():
             "fill 1 105 1 11 105 11 minecraft:spruce_planks",
         ):
             cmd(wall)
-        cmd("fill 4 105 4 8 105 8 minecraft:air")
+        # Keep roof completely intact: F8 must visibly remove mesh, not exploit a pre-cut hole.
         cmd("setblock 5 101 5 minecraft:crafting_table")
         cmd("setblock 8 101 5 minecraft:barrel")
         cmd("setblock 3 101 5 create:millstone")
