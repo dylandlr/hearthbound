@@ -2,6 +2,8 @@ package dev.hearthbound.client;
 
 import java.util.HashSet;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.concurrent.atomic.AtomicLong;
 import net.minecraft.client.Minecraft;
 import dev.hearthbound.world.mixin.TacticalChunkRebuildAccessor;
@@ -13,6 +15,7 @@ import net.minecraft.world.entity.npc.Villager;
  * state from the mesh hook. Experimental: intentionally disabled by default.
  */
 public final class TacticalRoofFilter {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TacticalRoofFilter.class);
     private static volatile Set<Long> hidden = Set.of();
     private static volatile boolean enabled;
     private static final AtomicLong suppressedRenders = new AtomicLong();
@@ -41,6 +44,8 @@ public final class TacticalRoofFilter {
         Set<Long> previous = hidden;
         hidden = next;
         enabled = requested;
+        LOGGER.info("HEARTHBOUND_ROOF_STATE requested={} candidateBlocks={} previouslyHidden={} suppressedMeshCalls={}",
+                requested, next.size(), previous.size(), suppressedRenders.get());
         if (mc.levelRenderer == null || mc.level == null) return;
         Set<Long> dirty = new HashSet<>(previous);
         dirty.addAll(next);
