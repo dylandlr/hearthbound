@@ -26,6 +26,9 @@ public final class ObservationNbtCodec {
                 || !parent.contains(key, Tag.TAG_LIST))
             throw new IllegalArgumentException("missing observation array");
         ListTag values = parent.getList(key, Tag.TAG_DOUBLE);
+        if (parent.get(key) instanceof ListTag original
+                && !original.isEmpty() && original.getElementType() != Tag.TAG_DOUBLE)
+            throw new IllegalArgumentException("invalid observation array element type");
         double[] result = new double[values.size()];
         for (int i = 0; i < result.length; i++) {
             result[i] = values.getDouble(i);
