@@ -18,11 +18,14 @@ public final class TacticalRoofFilter {
     private static final Logger LOGGER = LoggerFactory.getLogger(TacticalRoofFilter.class);
     private static volatile Set<Long> hidden = Set.of();
     private static volatile boolean enabled;
+    private static final AtomicLong meshHookCalls = new AtomicLong();
     private static final AtomicLong suppressedRenders = new AtomicLong();
+    public static long meshHookCallCount() { return meshHookCalls.get(); }
     public static long suppressedRenderCount() { return suppressedRenders.get(); }
     private TacticalRoofFilter() {}
 
     public static boolean suppress(BlockPos pos) {
+        meshHookCalls.incrementAndGet();
         boolean suppress = enabled && hidden.contains(pos.asLong());
         if (suppress) suppressedRenders.incrementAndGet();
         return suppress;
@@ -44,8 +47,8 @@ public final class TacticalRoofFilter {
         Set<Long> previous = hidden;
         hidden = next;
         enabled = requested;
-        LOGGER.info("HEARTHBOUND_ROOF_STATE requested={} candidateBlocks={} previouslyHidden={} suppressedMeshCalls={}",
-                requested, next.size(), previous.size(), suppressedRenders.get());
+        LOGGER.info("HEARTHBOUND_ROOF_STATE requested={} candidateBlocks={} previouslyHidden={} meshHookCalls={} suppressedMeshCalls={}",
+                requested, next.size(), previous.size(), meshHookCalls.get(), suppressedRenders.get());
         if (mc.levelRenderer == null || mc.level == null) return;
         Set<Long> dirty = new HashSet<>(previous);
         dirty.addAll(next);
