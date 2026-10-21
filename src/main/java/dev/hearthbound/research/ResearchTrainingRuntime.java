@@ -25,7 +25,26 @@ public final class ResearchTrainingRuntime {
                 new VerifiedTrainingTransitions.Binding(job, citizen.getUUID(), trace));
     }
 
-    public static void afterVerifiedAward(ServerLevel level, MillResearchRewards.Award award) {
+    public static void afterVerifiedAward(ServerLevel level, Villager citizen,
+                                          net.minecraft.core.BlockPos machine,
+                                          MillResearchRewards.Award award) {
+        if (!citizen.getUUID().equals(award.citizen())
+                || machine.asLong() != award.machine())
+            throw new IllegalArgumentException("successor identity does not match verified award");
+        // The same sensor is used after the outcome. Ineligible/unknown context is
+        // explicitly UNAVAILABLE, never imputed as an all-zero successor state.
+        var site = LocalExperimentDiscovery.nearest(level, citizen);
+        ExperimentSelectionPolicy.Observation successor = site == null ? null
+            : LocalMillExperimentSensor.observe(level, citizen, site.wheatSource(), site.millstone());
+        var state = successor == null
+            ? new dev.hearthbound.learning.ResearchSuccessorObservationsSavedData.Successor(
+                award.job(), award.citizen(), level.getGameTime(),
+                dev.hearthbound.learning.ResearchSuccessorObservationsSavedData.Status.UNAVAILABLE, null)
+            : new dev.hearthbound.learning.ResearchSuccessorObservationsSavedData.Successor(
+                award.job(), award.citizen(), level.getGameTime(),
+                dev.hearthbound.learning.ResearchSuccessorObservationsSavedData.Status.OBSERVED,
+                dev.hearthbound.learning.ResearchObservationVector.from(successor).values());
+        dev.hearthbound.learning.ResearchSuccessorObservationsSavedData.get(level).record(state);
         var replay = VerifiedRewardReplaySavedData.get(level);
         if (replay.snapshot().containsKey(award.job())) {
             PendingLearningBindingsSavedData.get(level).complete(award.job());
