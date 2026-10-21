@@ -69,7 +69,25 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
             "source already claimed", "cannot")):
             raise AssertionError(f"Setup failed: {command}: {output}")
         if "run sable haul" in command and "sable assigned wheat haul" not in output.lower():
-            raise AssertionError(f"Setup failed: {command}: {output}")
+            # The villager may still be loading or walking after teleport. Retry
+            # the *real assignment*, never forge a successful response.
+            history = [output]
+            for attempt in range(1, 7):
+                time.sleep(1)
+                sock.sendall(packet(next_id + 1000 + attempt, 2,
+                    "execute if entity @e[type=minecraft:villager,name=Sable,limit=1]"))
+                _, _, present = response(sock)
+                sock.sendall(packet(next_id + 2000 + attempt, 2,
+                    "tp @e[type=minecraft:villager,name=Sable,limit=1] 2 100 1"))
+                _, _, moved = response(sock)
+                sock.sendall(packet(next_id + 3000 + attempt, 2, command))
+                retry_id, _, retry_output = response(sock)
+                history.append(f"attempt={attempt} entity={present!r} tp={moved!r} haul={retry_output!r}")
+                if retry_id == next_id + 3000 + attempt and "sable assigned wheat haul" in retry_output.lower():
+                    output = retry_output
+                    break
+            if "sable assigned wheat haul" not in output.lower():
+                raise AssertionError(f"Setup failed after bounded entity/teleport retries: {command}; " + "; ".join(history))
         next_id += 1
 
     # Audit is read-only and must expose the actual job identity, endpoints,
