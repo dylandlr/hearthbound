@@ -25,6 +25,13 @@ public final class ResearchDecisionRuntime {
         return JOURNAL.exportJson();
     }
 
+    public static ResearchDecisionTraceJournal.Trace latestProposal(String citizenId, long tick) {
+        var entries = JOURNAL.snapshot(citizenId);
+        if (entries.isEmpty()) return null;
+        var item = entries.get(entries.size() - 1);
+        return item.gameTick() == tick && "PROPOSE".equals(item.personality().action()) ? item : null;
+    }
+
     public static int count(String citizenId) {
         return JOURNAL.snapshot(citizenId).size();
     }
