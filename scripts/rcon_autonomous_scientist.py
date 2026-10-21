@@ -424,6 +424,17 @@ with Rcon() as r:
     },indent=2)+"\n")
     print("AUTONOMOUS CONTENTION PASS: exactly one tick-policy assignment; exclusive claim retained")
 
+    # Ensure the previous autonomous contention job really finished.
+    # Disabling policy selection must not be mistaken for cancelling work.
+    for actor, name in ((iris, "Iris"), (rowan, "Rowan")):
+        for attempt in range(150):
+            state = r.run(f"execute as {actor} at @s run sable haul-status")
+            if "Haul complete" in state or "No active haul" in state:
+                break
+            time.sleep(1)
+        else:
+            raise AssertionError(f"{name} still has in-flight haul: {state}")
+
     # Separate alternate-work scenario: the job board should skip a claimed
     # source and allow an independent agent to discover an unclaimed one.
     # Claim is placed using real citizen hauling, never synthetic NBT state.
