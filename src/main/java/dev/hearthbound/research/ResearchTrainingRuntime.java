@@ -18,9 +18,10 @@ public final class ResearchTrainingRuntime {
         TRANSITIONS.bind(new VerifiedTrainingTransitions.Binding(job, citizen.getUUID(), trace));
     }
 
-    public static void afterVerifiedAward(MillResearchRewards.Award award) {
+    public static void afterVerifiedAward(ServerLevel level, MillResearchRewards.Award award) {
         // Fail-closed on missing or mismatched decision bindings; no synthetic transitions.
-        TRANSITIONS.finalizeVerified(award);
+        var record = TRANSITIONS.finalizeVerified(award);
+        dev.hearthbound.learning.VerifiedRewardReplaySavedData.get(level).append(record);
     }
 
     public static int completedCount() { return TRANSITIONS.snapshot().size(); }
