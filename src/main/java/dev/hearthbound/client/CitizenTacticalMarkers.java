@@ -55,7 +55,7 @@ public final class CitizenTacticalMarkers {
         }
         int width = mc.getWindow().getGuiScaledWidth();
         int x = Math.max(10, width - 195);
-        gfx.fill(x - 5, 28, width - 5, 136, 0xB70B1720);
+        gfx.fill(x - 5, 28, width - 5, 151, 0xB70B1720);
         gfx.drawString(mc.font, "SELECTED CITIZEN", x, 34, 0xEAD8AD, false);
         gfx.drawString(mc.font, selected.getName().getString(), x, 47, 0xFFFFFF, false);
         gfx.drawString(mc.font, "Position: " + selected.blockPosition().toShortString(), x, 60, 0xC6DBDC, false);
@@ -72,6 +72,8 @@ public final class CitizenTacticalMarkers {
             gfx.drawString(mc.font, "Roof mask: " + candidates + " candidate blocks", x, 112,
                     0xFFC4D7E8, false);
         }
+        gfx.drawString(mc.font, "Mesh suppressed: " + TacticalRoofFilter.suppressedRenderCount(),
+                x, 125, 0xFFF4D99A, false);
     }
 
     /** Count solid visual cover only in loaded chunks; never request or mutate chunks. */
