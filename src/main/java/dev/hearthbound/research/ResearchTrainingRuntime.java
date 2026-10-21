@@ -21,6 +21,11 @@ public final class ResearchTrainingRuntime {
         dev.hearthbound.learning.ResearchObservationSnapshotsSavedData.get(level).add(
                 new dev.hearthbound.learning.ResearchObservationSnapshotsSavedData.Snapshot(
                         job, citizen.getUUID(), level.getGameTime(), vector.values()));
+        var unified = dev.hearthbound.learning.UnifiedObservationRuntime.sample(level, citizen, observation);
+        if (unified != null && unified.gameTick() == level.getGameTime()) {
+            dev.hearthbound.learning.UnifiedDecisionSnapshotsSavedData.get(level).record(
+                job, unified);
+        }
         PendingLearningBindingsSavedData.get(level).add(
                 new VerifiedTrainingTransitions.Binding(job, citizen.getUUID(), trace));
     }
