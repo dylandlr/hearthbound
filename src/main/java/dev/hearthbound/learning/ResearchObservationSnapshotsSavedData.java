@@ -51,7 +51,7 @@ public final class ResearchObservationSnapshotsSavedData extends SavedData {
             if (tag.getInt("schemaVersion") != ResearchObservationVector.VERSION)
                 throw new IllegalArgumentException("unknown observation schema");
             var snapshot = new Snapshot(tag.getUUID("job"),tag.getUUID("citizen"),
-                    tag.getLong("tick"),tag.getDoubleArray("features"));
+                    tag.getLong("tick"),ObservationNbtCodec.get(tag, "features"));
             if (data.snapshots.putIfAbsent(snapshot.job(),snapshot) != null)
                 throw new IllegalStateException("duplicate persisted observation job");
         }
@@ -84,7 +84,7 @@ public final class ResearchObservationSnapshotsSavedData extends SavedData {
             tag.putUUID("job",item.job());
             tag.putUUID("citizen",item.citizen());
             tag.putLong("tick",item.tick());
-            tag.putDoubleArray("features",item.features());
+            ObservationNbtCodec.put(tag, "features", item.features());
             list.add(tag);
         }
         root.put("snapshots",list);
