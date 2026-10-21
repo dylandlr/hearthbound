@@ -9,8 +9,8 @@ log = pathlib.Path(sys.argv[1])
 output = pathlib.Path(sys.argv[2])
 pattern = re.compile(
     r"HEARTHBOUND_ROOF_STATE requested=(true|false) "
-    r"candidateBlocks=(\\d+) previouslyHidden=(\\d+) "
-    r"meshHookCalls=(\\d+) suppressedMeshCalls=(\\d+)"
+    r"candidateBlocks=(\d+) previouslyHidden=(\d+) "
+    r"meshHookCalls=(\d+) suppressedMeshCalls=(\d+)"
 )
 events = [
     dict(requested=m[0] == "true", candidates=int(m[1]),
@@ -24,5 +24,5 @@ status = ("NO_ACTIVE_CUTAWAY" if not cutaway_events else
           "SUPPRESSION_OBSERVED")
 report = {"status": status, "events": events,
           "note": "Suppression observed alone does not prove visible geometry was removed."}
-output.write_text(json.dumps(report, indent=2) + "\\n")
+output.write_text(json.dumps(report, indent=2) + "\n")
 print(json.dumps(report))
