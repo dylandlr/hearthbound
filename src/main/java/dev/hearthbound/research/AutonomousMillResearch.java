@@ -34,14 +34,22 @@ public final class AutonomousMillResearch {
         var site=LocalExperimentDiscovery.nearest(level,citizen);
         if (site==null) return;
         // Sample exactly at a real decision boundary. Diagnostics do not assign work.
-        ResearchDecisionRuntime.capture(level, citizen, site.wheatSource(), site.millstone());
-        var decision=LocalMillExperimentSensor.consider(level,citizen,
+        var observation = LocalMillExperimentSensor.observe(level,citizen,
                 site.wheatSource(),site.millstone());
+        if (observation == null) return;
+        ResearchDecisionRuntime.captureObservation(level, citizen, observation);
+        var decision = ResearchPolicyBaselines.choose(
+                ResearchPolicyBaselines.Mode.PERSONALITY, observation).choice();
         if (decision.action()!=ExperimentSelectionPolicy.Action.PROPOSE) return;
         // Reserve and create the physical haul first. No hypothesis if the
         // physical job cannot be admitted.
         try {
             SableHauling.assign(level,citizen,site.wheatSource(),site.millstone());
+            try { ResearchTrainingRuntime.afterAssigned(level, citizen, observation); }
+            catch (RuntimeException diagnosticFailure) {
+                org.apache.logging.log4j.LogManager.getLogger("HearthboundLearning")
+                    .warn("Optional training decision binding failed for {}", agent, diagnosticFailure);
+            }
             CitizenWorkOwnership.assigned(citizen, CitizenWorkOwnership.Kind.HAUL);
             var c=decision.candidate();
             store.propose(agent,c.recipeId(),c.inputItem(),c.machine(),c.predictedOutput());
