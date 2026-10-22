@@ -34,3 +34,11 @@ dependencies {
 }
 tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
 jar { manifest { attributes(['Specification-Title': 'hearthbound', 'Implementation-Title': 'hearthbound', 'Implementation-Version': project.version]) } }
+
+tasks.register('testMillstoneReceipts', JavaExec) {
+    group = 'verification'
+    description = 'Runs the standalone fail-closed millstone receipt contract checks.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.hearthbound.research.MillstoneReceiptGateTest'
+}
