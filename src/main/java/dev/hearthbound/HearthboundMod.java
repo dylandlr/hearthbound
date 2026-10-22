@@ -1,6 +1,8 @@
 package dev.hearthbound;
 
 import com.mojang.brigadier.CommandDispatcher;
+import dev.hearthbound.integration.MillstoneDiagnostics;
+import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -26,6 +28,11 @@ public final class HearthboundMod {
         public static void onCommands(RegisterCommandsEvent event) {
             CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
             dispatcher.register(Commands.literal("hearthbound")
+                    .then(Commands.literal("millstone")
+                            .requires(source -> source.hasPermission(2))
+                            .then(Commands.literal("inspect")
+                                    .then(Commands.argument("pos", BlockPosArgument.blockPos())
+                                            .executes(MillstoneDiagnostics::inspect))))
                     .then(Commands.literal("status")
                             .executes(ctx -> {
                                 ctx.getSource().sendSuccess(
