@@ -423,19 +423,37 @@ with Rcon() as r:
         if choice_tick(value)>baseline[name] and "outcome=HAUL_ASSIGNED" in value
     ]
     if len(fresh_assignees)!=1:
-        # Capture physical job identities and the authoritative source lock.
-        # A fresh policy selection alone cannot prove a double claim.
+        # Two fresh assignments can be sequential. Inspect real jobs and
+        # authoritative source ownership rather than treating assignments
+        # at different ticks as simultaneous lock ownership.
         audits={
             name:r.run(f"execute as {actor} at @s run sable haul-audit")
             for name,actor in (("Iris",iris),("Rowan",rowan))
         }
         claim=r.run(f"hearthboundclaims owner {shared_source}")
-        pathlib.Path("gameplay-capture/contention-failure-diagnostics.json").write_text(
-            json.dumps({"source":shared_source,"claim":claim,"fresh_assignees":fresh_assignees,
-                        "audits":audits,"statuses":observations},indent=2)+"\\n")
-        raise AssertionError("Expected one freshly assigned source owner: "
-                             +str(fresh_assignees)+" source_claim="+claim+
-                             " audits="+str(audits)+" statuses="+str(observations))
+        evidence={"source":shared_source,"claim":claim,
+                  "fresh_assignees":fresh_assignees,"audits":audits,
+                  "statuses":observations}
+        pathlib.Path("gameplay-capture/contention-ownership-evidence.json").write_text(
+            json.dumps(evidence,indent=2)+"\\n")
+        source_marker="source=BlockPos{x=3, y=101, z=7}"
+        active=[name for name,audit in audits.items()
+                if source_marker in audit and "claim=owned" in audit
+                and "phase=2" not in audit]
+        finished=[name for name,audit in audits.items()
+                  if source_marker in audit and "phase=2" in audit
+                  and "status=Haul complete" in audit
+                  and "wheat=1" in audit]
+        if not (len(fresh_assignees)==2 and len(active)==1
+                and len(finished)==1 and active[0]!=finished[0]
+                and "belongs to" in claim
+                and "wheat=1" in audits[finished[0]]):
+            raise AssertionError("Shared source ownership not verified: "+str(evidence))
+        # A completed citizen's destination actually received the wheat.
+        completed_destination=("9 101 8" if finished[0]=="Iris" else "9 101 7")
+        receipt=r.run(f"data get block {completed_destination} Items")
+        if "minecraft:wheat" not in receipt:
+            raise AssertionError("Completed sequential haul lacks wheat receipt: "+receipt)
     for actor in (iris,rowan):
         r.run(f"execute as {actor} at @s run sable auto-work-off")
     pathlib.Path("gameplay-capture/autonomous-contention.json").write_text(json.dumps({
