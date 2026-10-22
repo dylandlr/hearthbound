@@ -499,8 +499,14 @@ with Rcon() as r:
     if not alternate_seen:
         raise AssertionError("Rowan did not claim alternate wheat source: policy="+rowan_trace+" alternative="+alternate_claim+" source="+r.run(f"data get block {alternative} Items")+" haul="+r.run(f"execute as {rowan} at @s run sable haul-status"))
     first_remaining=r.run(f"hearthboundclaims owner {primary}")
-    if first_remaining not in (first_claim,f"No source claim at {primary}"):
+    released = first_remaining.startswith("No source claim at ")
+    if first_remaining != first_claim and not released:
         raise AssertionError("Alternate work overwrote existing claim: "+first_remaining)
+    # Claim release is valid only after Iris physically completed her job.
+    if released:
+        iris_status=r.run(f"execute as {iris} at @s run sable haul-status")
+        if "Haul complete" not in iris_status:
+            raise AssertionError("Primary source claim vanished before completion: "+iris_status)
     r.run(f"execute as {rowan} at @s run sable auto-work-off")
     pathlib.Path("gameplay-capture/alternative-work.json").write_text(json.dumps({
         "schema_version":1,
