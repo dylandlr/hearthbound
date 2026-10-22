@@ -499,6 +499,16 @@ with Rcon() as r:
     for _ in range(65):
         time.sleep(1)
         rowan_trace=r.run(f"execute as {rowan} at @s run sable auto-work-status")
+        if not rowan_trace.strip():
+            diagnostics={
+                "rowan_entity":r.run(f"data get entity {rowan} Pos"),
+                "rowan_nearby":r.run("execute positioned 4 101 11 if entity @e[type=minecraft:villager,name=Rowan,distance=..32]"),
+                "rowan_haul":r.run(f"execute as {rowan} at @s run sable haul-status"),
+                "board":r.run("execute positioned 4 101 11 run sable work-board 9 101 12"),
+            }
+            pathlib.Path("gameplay-capture/rowan-blank-status.json").write_text(
+                json.dumps(diagnostics,indent=2)+"\\n")
+            raise AssertionError("Rowan auto-work status became unaddressable: "+str(diagnostics))
         alternate_claim=r.run(f"hearthboundclaims owner {alternative}")
         if "haulIssued=true" in rowan_trace and "belongs to" in alternate_claim:
             alternate_seen=True
