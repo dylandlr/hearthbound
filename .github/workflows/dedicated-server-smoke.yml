@@ -50,6 +50,10 @@ jobs:
             echo 'No successful Minecraft server-ready message; inspect logs' >&2
             exit 1
           fi
+          if ! grep -Fq 'Hearthbound bootstrap loaded.' server-smoke.log; then
+            echo 'Hearthbound bootstrap marker absent; server readiness alone is not sufficient' >&2
+            exit 1
+          fi
           if grep -Eiq 'Exception in server tick loop|Failed to start the minecraft server|Mod loading has failed' server-smoke.log; then
             echo 'Server reported a startup/runtime failure' >&2
             exit 1
