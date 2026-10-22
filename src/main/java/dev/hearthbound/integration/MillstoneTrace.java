@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
+import com.simibubi.create.content.kinetics.millstone.MillstoneBlockEntity;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -60,7 +61,18 @@ public final class MillstoneTrace {
         try {
             requireMillstone(level, s.position());
             BlockEntity be = level.getBlockEntity(s.position());
-            StringBuilder inventory = new StringBuilder();
+            if (!(be instanceof MillstoneBlockEntity millstone)) throw new IllegalArgumentException("Expected millstone entity");
+            StringBuilder inventory = new StringBuilder()
+                    .append("rpm=").append(millstone.getSpeed())
+                    .append(" timer=").append(millstone.timer)
+                    .append(" speed=").append(millstone.getProcessingSpeed())
+                    .append(" input=").append(millstone.inputInv.getStackInSlot(0))
+                    .append(" outputs=");
+            for (int i=0; i<millstone.outputInv.getSlots(); i++) {
+                ItemStack item=millstone.outputInv.getStackInSlot(i);
+                if (!item.isEmpty()) inventory.append(i).append(":").append(ForgeRegistries.ITEMS.getKey(item.getItem())).append("x").append(item.getCount()).append(" ");
+            }
+            inventory.append(" capability=");
             be.getCapability(ForgeCapabilities.ITEM_HANDLER).ifPresent(handler -> {
                 for (int i=0; i<handler.getSlots(); i++) {
                     ItemStack stack=handler.getStackInSlot(i);
