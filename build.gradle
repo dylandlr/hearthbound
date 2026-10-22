@@ -12,8 +12,8 @@ minecraft {
     mappings channel: 'official', version: minecraft_version
     copyIdeResources = true
     runs {
-        client { property("mixin.env.remapRefMap", "true"); property("mixin.env.refMapRemappingFile", "${projectDir}/build/createSrgToMcp/output.srg"); workingDirectory project.file('run'); property 'forge.logging.console.level', 'debug'; mods { hearthbound { source sourceSets.main } } }
-        server { property("mixin.env.remapRefMap", "true"); property("mixin.env.refMapRemappingFile", "${projectDir}/build/createSrgToMcp/output.srg"); workingDirectory project.file('run'); property 'forge.logging.console.level', 'debug'; mods { hearthbound { source sourceSets.main } } }
+        client { arg '-mixin.config=hearthbound.mixins.json'; property("mixin.env.remapRefMap", "true"); property("mixin.env.refMapRemappingFile", "${projectDir}/build/createSrgToMcp/output.srg"); workingDirectory project.file('run'); property 'forge.logging.console.level', 'debug'; mods { hearthbound { source sourceSets.main } } }
+        server { arg '-mixin.config=hearthbound.mixins.json'; property("mixin.env.remapRefMap", "true"); property("mixin.env.refMapRemappingFile", "${projectDir}/build/createSrgToMcp/output.srg"); workingDirectory project.file('run'); property 'forge.logging.console.level', 'debug'; mods { hearthbound { source sourceSets.main } } }
     }
 }
 repositories {
@@ -33,7 +33,7 @@ dependencies {
     implementation("io.github.llamalad7:mixinextras-forge:0.4.1")
 }
 tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
-jar { manifest { attributes(['Specification-Title': 'hearthbound', 'Implementation-Title': 'hearthbound', 'Implementation-Version': project.version]) } }
+jar { manifest { attributes(['Specification-Title': 'hearthbound', 'Implementation-Title': 'hearthbound', 'Implementation-Version': project.version, 'MixinConfigs': 'hearthbound.mixins.json']) } }
 
 tasks.register('testMillstoneReceipts', JavaExec) {
     group = 'verification'
