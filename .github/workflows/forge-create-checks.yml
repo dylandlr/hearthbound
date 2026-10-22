@@ -1,0 +1,31 @@
+name: Forge Create integration checks
+on:
+  push:
+    branches: [feat/create-forge-dependency-v1-2]
+  pull_request:
+    paths:
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle.properties'
+      - 'src/**'
+      - '.github/workflows/forge-create-checks.yml'
+  workflow_dispatch:
+jobs:
+  compile-and-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.8'
+      - name: Compile Forge mod and tests
+        run: gradle --no-daemon --stacktrace compileJava testClasses
+      - name: Execute millstone receipt contract checks
+        run: gradle --no-daemon --stacktrace testMillstoneReceipts
