@@ -432,7 +432,7 @@ with Rcon() as r:
         }
         claim=r.run(f"hearthboundclaims owner {shared_source}")
         claim_history=r.run(f"hearthboundclaims history {shared_source}")
-        events=re.findall(r"tick=(\\d+) action=(ACQUIRE|RELEASE|ADMIN_RELEASE) source=3, 101, 7 owner=([0-9a-f-]{36})",claim_history)
+        events=re.findall(r"tick=(\d+) action=(ACQUIRE|RELEASE|ADMIN_RELEASE) source=3, 101, 7 owner=([0-9a-f-]{36})",claim_history)
         active_claim=None
         for tick,action,owner in events:
             if action=="ACQUIRE":
