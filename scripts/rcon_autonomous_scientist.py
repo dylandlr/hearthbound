@@ -373,7 +373,8 @@ with Rcon() as r:
         time.sleep(1)
         for name,actor in (("Iris",iris),("Rowan",rowan)):
             observations[name]=r.run(f"execute as {actor} at @s run sable auto-work-status")
-            if "haulIssued=true" in observations[name]:
+            if (choice_tick(observations[name]) > baseline[name]
+                    and "outcome=HAUL_ASSIGNED" in observations[name]):
                 selected=name
         if selected: break
     if not selected:
@@ -409,9 +410,16 @@ with Rcon() as r:
         winning_status=r.run(f"execute as {winning_actor} at @s run sable haul-status")
         if "Haul complete" not in winning_status:
             raise AssertionError("Shared claim vanished without verified completion: "+winning_status)
-    dual_issued=sum("haulIssued=true" in value for value in observations.values())
-    if dual_issued!=1:
-        raise AssertionError("Exclusive claim violated: "+str(observations))
+    # Sticky haulIssued status can refer to an earlier successful job.
+    # Reject only two fresh assignments observed while a single exclusive
+    # source claim is held; do not mistake historical status for concurrency.
+    fresh_assignees=[
+        name for name, value in observations.items()
+        if choice_tick(value)>baseline[name] and "outcome=HAUL_ASSIGNED" in value
+    ]
+    if len(fresh_assignees)!=1:
+        raise AssertionError("Expected one freshly assigned source owner: "
+                             +str(fresh_assignees)+" statuses="+str(observations))
     for actor in (iris,rowan):
         r.run(f"execute as {actor} at @s run sable auto-work-off")
     pathlib.Path("gameplay-capture/autonomous-contention.json").write_text(json.dumps({
