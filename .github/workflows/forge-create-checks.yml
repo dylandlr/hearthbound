@@ -57,3 +57,12 @@ jobs:
         run: gradle --no-daemon --stacktrace compileJava testClasses
       - name: Execute millstone receipt contract checks
         run: gradle --no-daemon --stacktrace testMillstoneReceipts
+      - name: Build distributable Forge JAR
+        run: gradle --no-daemon --stacktrace build
+      - name: Upload Hearthbound development JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: hearthbound-forge-1.20.1-dev
+          path: build/libs/*.jar
+          if-no-files-found: error
+          retention-days: 14
