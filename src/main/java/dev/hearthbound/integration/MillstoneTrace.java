@@ -14,6 +14,7 @@ import net.minecraftforge.registries.ForgeRegistries;
 public final class MillstoneTrace {
     public record Sample(long logicalTick, String inventories) {}
     private static Session session;
+    private static String lastReport;
     private record Session(UUID id, String dimension, BlockPos position, int maxSamples, List<Sample> samples) {}
     private MillstoneTrace() {}
 
@@ -21,17 +22,35 @@ public final class MillstoneTrace {
         if (session != null) throw new IllegalStateException("Trace already active");
         if (maxSamples < 1 || maxSamples > 1200) throw new IllegalArgumentException("Trace limit must be 1..1200");
         requireMillstone(level, position);
+        lastReport = null;
         session = new Session(UUID.randomUUID(), level.dimension().location().toString(),
                 position.immutable(), maxSamples, new ArrayList<>());
         return session.id();
     }
-    public static synchronized String stop() {
-        if (session == null) return "No active trace";
-        StringBuilder out = new StringBuilder("Trace ").append(session.id()).append(" samples=").append(session.samples().size());
-        for (Sample sample : session.samples().subList(Math.max(0, session.samples().size()-20), session.samples().size())) out.append("\n").append(sample.logicalTick()).append(" ").append(sample.inventories());
-        if (session.samples().size() > 20) out.append("\n(only last 20 samples shown)");
-        session = null;
+    private static String report(Session s) {
+        StringBuilder out = new StringBuilder("Trace ").append(s.id()).append(" samples=").append(s.samples().size());
+        for (Sample sample : s.samples().subList(Math.max(0, s.samples().size()-20), s.samples().size()))
+            out.append("\\n").append(sample.logicalTick()).append(" ").append(sample.inventories());
+        if (s.samples().size() > 20) out.append("\\n(only last 20 samples shown)");
         return out.toString();
+    }
+    public static synchronized String status() {
+        if (session != null) return "Trace active id=" + session.id() + " samples=" + session.samples().size() + "/" + session.maxSamples();
+        return lastReport == null ? "No active or completed trace" : "Trace completed; use trace stop to inspect the last report";
+    }
+    public static synchronized String stop() {
+        if (session != null) {
+            String result = report(session);
+            session = null;
+            lastReport = null;
+            return result;
+        }
+        if (lastReport != null) {
+            String result = lastReport;
+            lastReport = null;
+            return result;
+        }
+        return "No active or completed trace";
     }
     public static synchronized void sample(ServerLevel level, long tick) {
         Session s = session;
@@ -53,6 +72,10 @@ public final class MillstoneTrace {
             s.samples().add(new Sample(tick, inventory.length() == 0 ? "(no exposed items)" : inventory.toString()));
         } catch (IllegalArgumentException ex) {
             s.samples().add(new Sample(tick, "MILLSTONE_REMOVED"));
+        }
+        if (s.samples().size() >= s.maxSamples()) {
+            lastReport = report(s);
+            session = null;
         }
     }
     private static void requireMillstone(ServerLevel level, BlockPos pos) {
