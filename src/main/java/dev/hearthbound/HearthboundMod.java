@@ -2,6 +2,8 @@ package dev.hearthbound;
 
 import com.mojang.brigadier.CommandDispatcher;
 import dev.hearthbound.integration.MillstoneDiagnostics;
+import dev.hearthbound.integration.MillstoneTrace;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import dev.hearthbound.integration.ForgeServerTickObserver;
 import net.minecraftforge.fml.ModList;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
@@ -32,6 +34,27 @@ public final class HearthboundMod {
             dispatcher.register(Commands.literal("hearthbound")
                     .then(Commands.literal("millstone")
                             .requires(source -> source.hasPermission(2))
+                            .then(Commands.literal("trace")
+                                    .then(Commands.literal("stop")
+                                            .executes(ctx -> {
+                                                ctx.getSource().sendSuccess(() -> Component.literal(MillstoneTrace.stop()), false);
+                                                return 1;
+                                            }))
+                                    .then(Commands.literal("start")
+                                            .then(Commands.argument("pos", BlockPosArgument.blockPos())
+                                                    .then(Commands.argument("ticks", IntegerArgumentType.integer(1, 1200))
+                                                            .executes(ctx -> {
+                                                                var pos = BlockPosArgument.getLoadedBlockPos(ctx, "pos");
+                                                                var ticks = IntegerArgumentType.getInteger(ctx, "ticks");
+                                                                try {
+                                                                    var id = MillstoneTrace.begin(ctx.getSource().getLevel(), pos, ticks);
+                                                                    ctx.getSource().sendSuccess(() -> Component.literal("Started diagnostic trace " + id), false);
+                                                                    return 1;
+                                                                } catch (IllegalArgumentException | IllegalStateException e) {
+                                                                    ctx.getSource().sendFailure(Component.literal(e.getMessage()));
+                                                                    return 0;
+                                                                }
+                                                            })))))
                             .then(Commands.literal("inspect")
                                     .then(Commands.argument("pos", BlockPosArgument.blockPos())
                                             .executes(MillstoneDiagnostics::inspect))))
