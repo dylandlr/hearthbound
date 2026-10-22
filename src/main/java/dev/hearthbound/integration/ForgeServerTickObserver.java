@@ -9,7 +9,8 @@ public final class ForgeServerTickObserver {
     @SubscribeEvent
     public static void onServerTick(TickEvent.ServerTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
-        HearthboundClockSavedData.get(event.getServer()).advance();
+        long tick = HearthboundClockSavedData.get(event.getServer()).advance();
+        for (var level : event.getServer().getAllLevels()) MillstoneTrace.sample(level, tick);
     }
     public static long logicalTick(net.minecraft.server.MinecraftServer server) {
         return HearthboundClockSavedData.get(server).tick();
