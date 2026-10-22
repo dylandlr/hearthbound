@@ -3,6 +3,17 @@
   "minVersion": "0.8",
   "package": "dev.hearthbound.world.mixin",
   "compatibilityLevel": "JAVA_17",
-  "mixins": ["MillstoneProcessingMixin", "MillstoneInventoryHandlerMixin", "MillstoneBeltIngressMixin"],
-  "injectors": {"defaultRequire": 1}
+  "mixins": [
+    "MillstoneProcessingMixin",
+    "MillstoneInventoryHandlerMixin",
+    "MillstoneBeltIngressMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "client": [
+    "TacticalCameraAccessor",
+    "TacticalRoofMeshMixin",
+    "TacticalChunkRebuildAccessor"
+  ]
 }

@@ -1,0 +1,177 @@
+name: Minecraft graphical gameplay capture
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - feat/ci-gameplay-capture-v2-6
+  push:
+    branches:
+      - feat/ci-gameplay-capture-v2-6
+jobs:
+  gameplay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      HEARTHBOUND_RCON_PASSWORD: ci-local-disposable-password
+      DISPLAY: ':99'
+      LIBGL_ALWAYS_SOFTWARE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.8'
+      - name: Install video and virtual display dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y xvfb openbox xdotool scrot ffmpeg libgl1-mesa-dri libgl1 libxrandr2 libxi6 libxcursor1 libxinerama1 libasound2t64 || sudo apt-get install -y xvfb openbox xdotool scrot ffmpeg libgl1-mesa-dri libgl1 libxrandr2 libxi6 libxcursor1 libxinerama1
+      - name: Verify scenario syntax
+        run: |
+          python3 -m py_compile scripts/rcon_autonomous_scientist.py scripts/rcon_gameplay_camera.py scripts/setup_player_camera_fixture.py scripts/cleanup_player_camera_fixture.py scripts/validate_player_controls_capture.py
+          python3 scripts/check_workshop_fixture.py
+          python3 scripts/test_minecraft_nbt_debit.py
+          python3 scripts/test_claim_contention.py
+          python3 scripts/test_contention_evidence.py
+          python3 scripts/test_gameplay_timeline.py
+          python3 scripts/test_annotated_video.py
+      - name: Start Forge server and rendered Minecraft client
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p run gameplay-capture
+          printf 'eula=true\n' > run/eula.txt
+          printf 'online-mode=false\nlevel-name=gameplay-capture-world\nmax-players=3\nserver-port=25565\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties
+          Xvfb :99 -screen 0 1280x720x24 -nolisten tcp > gameplay-capture/xvfb.log 2>&1 &
+          xvfb_pid=$!
+          openbox --sm-disable > gameplay-capture/window-manager.log 2>&1 &
+          wm_pid=$!
+          sleep 3
+          gradle --no-daemon runServer --args='nogui' > gameplay-capture/server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" "$xvfb_pid" "$wm_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 360); do
+            if grep -Eq 'Done \([0-9.]+s\)! For help, type "help"' gameplay-capture/server.log; then ready=1; break; fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then break; fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then echo "Forge server did not start"; tail -n 100 gameplay-capture/server.log; exit 1; fi
+          # Disable initial Minecraft tutorial UI before first graphical launch.
+          # This changes only the CI player's presentation settings.
+          printf 'tutorialStep:none\n' > run/options.txt
+          printf 'showSubtitles:false\n' >> run/options.txt
+          # Official Minecraft 1.20+ Quick Play performs direct multiplayer join.
+          gradle --no-daemon runClient --args='--username HBCamera --quickPlayMultiplayer 127.0.0.1:25565' > gameplay-capture/client.log 2>&1 &
+          client_pid=$!
+          trap 'kill "$client_pid" "$server_pid" "$xvfb_pid" "$wm_pid" 2>/dev/null || true' EXIT
+          # Capture diagnostics even when Minecraft never joins.
+          # Quick Play should connect directly; UI actions below are best-effort fallback.
+          # Wait for the actual game window; fixed sleeps can miss heavy software GL startup.
+          window=""
+          for i in $(seq 1 100); do
+            window=$(xdotool search --onlyvisible --name 'Minecraft' | head -n 1 || true)
+            if [ -n "$window" ]; then break; fi
+            sleep 2
+          done
+          sleep 15
+          scrot -d 1 gameplay-capture/client-before-connect.png || true
+          # Explicitly navigate the vanilla Minecraft multiplayer interface.
+          # Retry screenshots let us inspect failures without inventing gameplay.
+          if [ -n "$window" ]; then
+            xdotool windowfocus --sync "$window" || true
+            xdotool windowsize "$window" 1280 720 || true
+            xdotool windowmove "$window" 0 0 || true
+            scrot gameplay-capture/client-quickplay-state.png || true
+          fi
+          connected=0
+          for i in $(seq 1 150); do
+            if grep -Eq 'HBCamera.*(joined the game|logged in)' gameplay-capture/server.log; then connected=1; break; fi
+            if ! kill -0 "$client_pid" 2>/dev/null; then break; fi
+            sleep 2
+          done
+          if [ "$connected" -ne 1 ]; then
+            scrot gameplay-capture/client-not-connected.png || true
+            echo "Client did not join; refusing to label virtual-display capture gameplay"
+            tail -n 100 gameplay-capture/client.log || true
+            exit 1
+          fi
+          python3 scripts/rcon_gameplay_camera.py > gameplay-capture/camera.log 2>&1
+          # Show the view after the camera has been positioned in the real world.
+          sleep 12
+          scrot gameplay-capture/camera-framing.png || true
+          # Dedicated evidence: exercise the player's real camera and input
+          # modes before the autonomous work scenario begins.
+          # The video is uploaded even if later scientist assertions fail.
+          # Preserve gameplay capture even if an input or X11 step fails;
+          # record the failure separately instead of preventing AI footage.
+          set +e
+          python3 scripts/setup_player_camera_fixture.py > gameplay-capture/player-fixture.log 2>&1
+          fixture_rc=$?
+          if [ "$fixture_rc" -eq 0 ]; then
+            bash scripts/capture_player_controls.sh > gameplay-capture/player-controls.log 2>&1
+            player_capture_rc=$?
+          else
+            cat gameplay-capture/player-fixture.log
+            player_capture_rc=$fixture_rc
+          fi
+          set -e
+          if [ -f gameplay-capture/player-controls.log ]; then cat gameplay-capture/player-controls.log; fi
+          if [ "$player_capture_rc" -eq 0 ]; then
+            python3 scripts/validate_player_controls_capture.py gameplay-capture > gameplay-capture/player-controls-validation.json 2> gameplay-capture/player-controls-validation-error.log || player_capture_rc=1
+          fi
+          # Report the final validated result, not only the capture-command exit.
+          printf '%s\\n' "$player_capture_rc" > gameplay-capture/player-controls-exit-code.txt
+          if [ -f gameplay-capture/player-cutaway-restored.png ]; then
+            python3 -m pip -q install pillow > gameplay-capture/visual-dependencies.log 2>&1 || true
+            python3 scripts/verify_roof_cutaway_visual.py gameplay-capture > gameplay-capture/roof-visual-check.log 2>&1 || echo "::warning::Roof cutaway not visually confirmed; see roof-visual-check.log"
+          fi
+          if [ "$player_capture_rc" -ne 0 ]; then
+            echo "::warning::Player-controls video or evidence validation failed; see uploaded logs"
+          fi
+          # Preserve client render-path evidence independently of screenshots.
+          python3 scripts/summarize_roof_hook_evidence.py gameplay-capture/client.log gameplay-capture/roof-hook-evidence.json || true
+          # Cutaway must never modify or remove server-side roof blocks.
+          python3 scripts/verify_roof_world_integrity.py > gameplay-capture/roof-world-integrity.log 2>&1
+          # Disposable UI demonstration citizens must not contaminate
+          # subsequent autonomous scientist identity/claim experiments.
+          python3 scripts/cleanup_player_camera_fixture.py > gameplay-capture/player-fixture-cleanup.log 2>&1
+          capture_start_ns=$(python3 -c 'import time; print(time.monotonic_ns())')
+          ffmpeg -hide_banner -loglevel warning -y -f x11grab -framerate 15 -video_size 1280x720 -i :99.0 -c:v libx264 -preset ultrafast -crf 28 -pix_fmt yuv420p gameplay-capture/minecraft-gameplay.mp4 > gameplay-capture/ffmpeg.log 2>&1 &
+          ffmpeg_pid=$!
+          sleep 6
+          set +e
+          python3 scripts/rcon_autonomous_scientist.py > gameplay-capture/scenario.log 2>&1
+          scenario_rc=$?
+          set -e
+          sleep 7
+          kill -INT "$ffmpeg_pid" 2>/dev/null || true
+          wait "$ffmpeg_pid" || true
+          cat gameplay-capture/scenario.log
+          if [ "$scenario_rc" -eq 0 ]; then python3 scripts/validate_citizen_baseline.py gameplay-capture/citizen-baseline.json; fi
+          if [ "$scenario_rc" -eq 0 ]; then python3 scripts/validate_contention_evidence.py gameplay-capture/contention-evidence.json; fi
+          python3 scripts/extract_gameplay_decisions.py --scenario-log gameplay-capture/scenario.log --capture-start-ns "$capture_start_ns" --output gameplay-capture/decision-events.json
+          test "$scenario_rc" -eq 0
+          test -s gameplay-capture/minecraft-gameplay.mp4
+          ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1 gameplay-capture/minecraft-gameplay.mp4
+          # A nonempty file alone does not prove decodable video. Decode and
+          # extract a review frame; errors fail the job rather than claiming a demo.
+          ffmpeg -hide_banner -v error -xerror -i gameplay-capture/minecraft-gameplay.mp4 -f null - 2> gameplay-capture/decode-validation.log
+          ffmpeg -hide_banner -v error -y -ss 1 -i gameplay-capture/minecraft-gameplay.mp4 -frames:v 1 gameplay-capture/gameplay-review-frame.png
+          test -s gameplay-capture/gameplay-review-frame.png
+          python3 scripts/validate_gameplay_capture.py gameplay-capture/minecraft-gameplay.mp4
+          # Preserve original gameplay, produce optional evidence-grounded annotation copy.
+          python3 scripts/annotate_gameplay_video.py --video gameplay-capture/minecraft-gameplay.mp4 --events gameplay-capture/decision-events.json --output gameplay-capture/minecraft-annotated.mp4
+          ffmpeg -hide_banner -v error -xerror -i gameplay-capture/minecraft-annotated.mp4 -f null -
+      - name: Upload genuine client footage and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: minecraft-graphical-gameplay-capture
+          path: |
+            gameplay-capture/
+            run/logs/latest.log
+          if-no-files-found: warn
+          retention-days: 14
