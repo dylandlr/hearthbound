@@ -36,6 +36,13 @@ public final class HaulClaimCommands {
                         : "Claim at " + pos.toShortString() + " belongs to " + owner), false);
                     return 1;
                 })))
+            .then(Commands.literal("history")
+                .then(Commands.argument("source", BlockPosArgument.blockPos()).executes(ctx -> {
+                    CommandSourceStack source = ctx.getSource();
+                    BlockPos pos = BlockPosArgument.getLoadedBlockPos(ctx, "source");
+                    source.sendSuccess(() -> Component.literal(HaulClaims.history(source.getLevel(), pos)), false);
+                    return 1;
+                })))
             .then(Commands.literal("release")
                 .then(Commands.argument("source", BlockPosArgument.blockPos())
                     .then(Commands.argument("expectedOwner", StringArgumentType.word()).executes(ctx -> {
