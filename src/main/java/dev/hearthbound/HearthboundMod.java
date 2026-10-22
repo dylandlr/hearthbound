@@ -2,6 +2,8 @@ package dev.hearthbound;
 
 import com.mojang.brigadier.CommandDispatcher;
 import dev.hearthbound.integration.MillstoneDiagnostics;
+import dev.hearthbound.integration.ForgeServerTickObserver;
+import net.minecraftforge.fml.ModList;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -36,9 +38,14 @@ public final class HearthboundMod {
                     .then(Commands.literal("status")
                             .executes(ctx -> {
                                 ctx.getSource().sendSuccess(
-                                        () -> Component.literal("Hearthbound 0.1 dev: bootstrap active. Citizen and Create controllers pending."),
+                                        ()-> Component.literal(
+                                                "Hearthbound bootstrap=loaded; Create=" +
+                                                (ModList.get().isLoaded("create") ? "loaded" : "MISSING") +
+                                                "; logicalTick=" + ForgeServerTickObserver.logicalTick(ctx.getSource().getServer()) +
+                                                "; dimension=" + ctx.getSource().getLevel().dimension().location() +
+                                                "; researchBridge=not-connected"),
                                         false);
-                                return 1;
+                                return ModList.get().isLoaded("create") ? 1 : 0;
                             })));
         }
     }
