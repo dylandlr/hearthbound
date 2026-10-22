@@ -373,7 +373,8 @@ with Rcon() as r:
         time.sleep(1)
         for name,actor in (("Iris",iris),("Rowan",rowan)):
             observations[name]=r.run(f"execute as {actor} at @s run sable auto-work-status")
-            if "haulIssued=true" in observations[name]:
+            if (choice_tick(observations[name]) > baseline[name]
+                    and "outcome=HAUL_ASSIGNED" in observations[name]):
                 selected=name
         if selected: break
     if not selected:
@@ -409,9 +410,16 @@ with Rcon() as r:
         winning_status=r.run(f"execute as {winning_actor} at @s run sable haul-status")
         if "Haul complete" not in winning_status:
             raise AssertionError("Shared claim vanished without verified completion: "+winning_status)
-    dual_issued=sum("haulIssued=true" in value for value in observations.values())
-    if dual_issued!=1:
-        raise AssertionError("Exclusive claim violated: "+str(observations))
+    # Sticky haulIssued status can refer to an earlier successful job.
+    # Reject only two fresh assignments observed while a single exclusive
+    # source claim is held; do not mistake historical status for concurrency.
+    fresh_assignees=[
+        name for name, value in observations.items()
+        if choice_tick(value)>baseline[name] and "outcome=HAUL_ASSIGNED" in value
+    ]
+    if len(fresh_assignees)!=1:
+        raise AssertionError("Expected one freshly assigned source owner: "
+                             +str(fresh_assignees)+" statuses="+str(observations))
     for actor in (iris,rowan):
         r.run(f"execute as {actor} at @s run sable auto-work-off")
     pathlib.Path("gameplay-capture/autonomous-contention.json").write_text(json.dumps({
@@ -424,12 +432,28 @@ with Rcon() as r:
     },indent=2)+"\n")
     print("AUTONOMOUS CONTENTION PASS: exactly one tick-policy assignment; exclusive claim retained")
 
+    # Ensure the previous autonomous contention job really finished.
+    # Disabling policy selection must not be mistaken for cancelling work.
+    for actor, name in ((iris, "Iris"), (rowan, "Rowan")):
+        for attempt in range(150):
+            state = r.run(f"execute as {actor} at @s run sable haul-status")
+            if "Haul complete" in state or "No active haul" in state:
+                break
+            time.sleep(1)
+        else:
+            raise AssertionError(f"{name} still has in-flight haul: {state}")
+
     # Separate alternate-work scenario: the job board should skip a claimed
     # source and allow an independent agent to discover an unclaimed one.
     # Claim is placed using real citizen hauling, never synthetic NBT state.
     # Retire wheat sources from the previous experiments so the board
     # has one claimed source and one unclaimed alternative, not stale offers.
-    for old_source in ("3 101 1","3 101 7","4 101 8"):
+    # Previously completed hauls leave wheat at destinations, which the
+    # shared read-only board correctly advertises as new source offers.
+    # Retire both previous sources AND destination fixtures so the next
+    # experiment has only the deliberately constructed alternative offer.
+    for old_source in ("3 101 1","3 101 7","4 101 8",
+                       "9 101 7","9 101 8","9 101 1"):
         r.run(f"setblock {old_source} minecraft:barrel replace")
     primary="4 101 10"
     alternative="4 101 12"
@@ -442,9 +466,16 @@ with Rcon() as r:
         r.run(f"setblock {pos} minecraft:barrel replace")
     r.contains(f"execute as {iris} at @s run sable haul {primary} {winner_dest}",
                "assigned wheat haul")
+    # Keep Iris's genuinely-owned primary job in flight while Rowan chooses.
+    # Otherwise Iris can finish between RCON commands and Rowan legitimately
+    # select the nearer primary source after its claim is released.
+    r.run(f"tp {iris} 0 101 1")
     first_claim=r.run(f"hearthboundclaims owner {primary}")
     if "belongs to" not in first_claim:
         raise AssertionError("Fixture failed to claim primary source: "+first_claim)
+    # Focus the local eight-block discovery window on the alternative, not
+    # earlier workshop stockpiles. No source is assigned directly to Rowan.
+    r.run(f"tp {rowan} 4 101 11")
     r.contains(f"execute as {rowan} at @s run sable auto-work-source-discover {fallback_dest}",
                "Configured discover-source auto work")
     r.contains(f"execute as {rowan} at @s run sable auto-work-on","Auto work enabled")
@@ -456,6 +487,15 @@ with Rcon() as r:
         if "haulIssued=true" in rowan_trace and "belongs to" in alternate_claim:
             alternate_seen=True
             break
+        # A completed physical haul may release its claim before polling;
+        # verify source debit and destination receipt rather than inferring
+        # alternative choice from unrelated completed-job status.
+        if "Haul complete" in r.run(f"execute as {rowan} at @s run sable haul-status"):
+            source_nbt=r.run(f"data get block {alternative} Items")
+            dest_nbt=r.run(f"data get block {fallback_dest} Items")
+            if "Count: 1b" in source_nbt and "minecraft:wheat" in dest_nbt:
+                alternate_seen=True
+                break
     if not alternate_seen:
         raise AssertionError("Rowan did not claim alternate wheat source: policy="+rowan_trace+" alternative="+alternate_claim+" source="+r.run(f"data get block {alternative} Items")+" haul="+r.run(f"execute as {rowan} at @s run sable haul-status"))
     first_remaining=r.run(f"hearthboundclaims owner {primary}")

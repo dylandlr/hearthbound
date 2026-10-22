@@ -1,6 +1,9 @@
 name: Minecraft graphical gameplay capture
 on:
   workflow_dispatch:
+  pull_request:
+    branches:
+      - feat/ci-gameplay-capture-v2-6
   push:
     branches:
       - feat/ci-gameplay-capture-v2-6
