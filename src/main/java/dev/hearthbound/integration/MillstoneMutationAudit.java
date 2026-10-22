@@ -3,6 +3,7 @@ package dev.hearthbound.integration;
 import com.simibubi.create.content.kinetics.millstone.MillstoneBlockEntity;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.registries.ForgeRegistries;
 import org.apache.logging.log4j.LogManager;
@@ -14,6 +15,7 @@ import org.apache.logging.log4j.Logger;
  */
 public final class MillstoneMutationAudit {
     private static final Logger LOGGER = LogManager.getLogger();
+    private static final UUID SERVER_SESSION_ID = UUID.randomUUID();
     private MillstoneMutationAudit() {}
 
     public record Snapshot(ItemStack input, List<ItemStack> outputs) {}
@@ -41,8 +43,12 @@ public final class MillstoneMutationAudit {
                     : old.isEmpty() ? now.getCount() : -1;
             if (increase > 0) deltas.add(ForgeRegistries.ITEMS.getKey(now.getItem()) + "x" + increase);
         }
-        LOGGER.info("HEARTHBOUND_MILLSTONE_MUTATION dimension={} pos={} input={} outputs={} proof=diagnostic_only",
-                millstone.getLevel().dimension().location(), millstone.getBlockPos(),
+        UUID observationId = UUID.randomUUID();
+        long logicalTick = ForgeServerTickObserver.logicalTick(millstone.getLevel().getServer());
+        // UUIDs identify observations within this server session; they are not durable operation receipts.
+        LOGGER.info("HEARTHBOUND_MILLSTONE_MUTATION session={} observation={} worldName={} dimension={} pos={} logicalTick={} input={} consumed=1 outputs={} evidence=diagnostic_only researchCredit=false",
+                SERVER_SESSION_ID, observationId, millstone.getLevel().getServer().getWorldData().getLevelName(),
+                millstone.getLevel().dimension().location(), millstone.getBlockPos(), logicalTick,
                 ForgeRegistries.ITEMS.getKey(previous.input().getItem()), deltas);
     }
 }
