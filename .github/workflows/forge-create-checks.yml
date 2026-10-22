@@ -59,6 +59,15 @@ jobs:
         run: gradle --no-daemon --stacktrace testMillstoneReceipts
       - name: Build distributable Forge JAR
         run: gradle --no-daemon --stacktrace build
+      - name: Verify built Forge mod archive
+        run: |
+          shopt -s nullglob
+          jars=(build/libs/*.jar)
+          if (( ${#jars[@]} != 1 )); then
+            echo "Expected exactly one mod JAR; found ${#jars[@]}" >&2
+            exit 1
+          fi
+          python3 scripts/verify_mod_jar.py "${jars[0]}"
       - name: Upload Hearthbound development JAR
         uses: actions/upload-artifact@v4
         with:
