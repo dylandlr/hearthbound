@@ -35,6 +35,7 @@ public final class MillstoneMutationAudit {
                 : afterInput.isEmpty() ? previous.input().getCount() : -1;
         if (consumed != 1) return; // No verified single-item input consumption.
         List<String> deltas = new ArrayList<>();
+        boolean ambiguousOutputs = false;
         for (int i = 0; i < millstone.outputInv.getSlots(); i++) {
             ItemStack old = previous.outputs().get(i);
             ItemStack now = millstone.outputInv.getStackInSlot(i);
@@ -42,13 +43,15 @@ public final class MillstoneMutationAudit {
                     ? now.getCount() - old.getCount()
                     : old.isEmpty() ? now.getCount() : -1;
             if (increase > 0) deltas.add(ForgeRegistries.ITEMS.getKey(now.getItem()) + "x" + increase);
+            if (increase < 0) ambiguousOutputs = true;
         }
+        String outputEvidence = ambiguousOutputs ? "ambiguous" : deltas.isEmpty() ? "none_observed" : "positive_deltas";
         UUID observationId = UUID.randomUUID();
         long logicalTick = ForgeServerTickObserver.logicalTick(millstone.getLevel().getServer());
         // UUIDs identify observations within this server session; they are not durable operation receipts.
-        LOGGER.info("HEARTHBOUND_MILLSTONE_MUTATION session={} observation={} worldName={} dimension={} pos={} logicalTick={} input={} consumed=1 outputs={} evidence=diagnostic_only researchCredit=false",
+        LOGGER.info("HEARTHBOUND_MILLSTONE_MUTATION session={} observation={} worldName={} dimension={} pos={} logicalTick={} input={} consumed=1 outputs={} outputEvidence={} evidence=diagnostic_only researchCredit=false",
                 SERVER_SESSION_ID, observationId, millstone.getLevel().getServer().getWorldData().getLevelName(),
                 millstone.getLevel().dimension().location(), millstone.getBlockPos(), logicalTick,
-                ForgeRegistries.ITEMS.getKey(previous.input().getItem()), deltas);
+                ForgeRegistries.ITEMS.getKey(previous.input().getItem()), deltas, outputEvidence);
     }
 }
