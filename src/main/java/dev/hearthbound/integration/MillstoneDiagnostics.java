@@ -10,6 +10,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.item.ItemStack;
+import com.simibubi.create.content.kinetics.millstone.MillstoneBlockEntity;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.registries.ForgeRegistries;
 
@@ -34,11 +35,20 @@ public final class MillstoneDiagnostics {
             source.sendFailure(Component.literal("Target is not a Create millstone: " + blockId));
             return 0;
         }
+        if (!(entity instanceof MillstoneBlockEntity millstone)) {
+            source.sendFailure(Component.literal("Create millstone block entity type mismatch"));
+            return 0;
+        }
         StringBuilder message = new StringBuilder()
             .append("dimension=").append(level.dimension().location())
             .append(" position=").append(pos.toShortString())
             .append(" hearthboundTick=").append(ForgeServerTickObserver.logicalTick(level.getServer()))
             .append(" blockEntity=").append(entity.getType())
+            .append(" rpm=").append(millstone.getSpeed())
+            .append(" timer=").append(millstone.timer)
+            .append(" processingSpeed=").append(millstone.getProcessingSpeed())
+            .append(" input=").append(millstone.inputInv.getStackInSlot(0))
+            .append(" outputSlots=").append(millstone.outputInv.getSlots())
             .append(" stacks=");
         final int[] count = {0};
         entity.getCapability(ForgeCapabilities.ITEM_HANDLER).ifPresent(handler -> {
