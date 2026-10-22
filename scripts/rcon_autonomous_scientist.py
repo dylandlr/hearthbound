@@ -471,6 +471,12 @@ with Rcon() as r:
     for old_source in ("3 101 1","3 101 7","4 101 8",
                        "9 101 7","9 101 8","9 101 1"):
         r.run(f"setblock {old_source} minecraft:barrel replace")
+    # The alternative source is outside the original roofed workshop.
+    # Build a safe, loaded floor and air corridor before moving citizens;
+    # otherwise Rowan can disappear in generated terrain or fall after
+    # teleporting onto an unsupported outdoor tile.
+    r.run("fill 2 100 10 11 100 14 minecraft:stone replace")
+    r.run("fill 2 101 11 11 103 14 minecraft:air replace")
     primary="4 101 10"
     alternative="4 101 12"
     winner_dest="9 101 10"
