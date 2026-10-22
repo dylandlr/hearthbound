@@ -22,3 +22,9 @@ This smoke test launches the **development** server, not a production deployment
 - Replace the current single-machine diagnostic with an actual Create operation event integration.
 
 This workflow is staged, **not run yet**. No live Minecraft startup or working in-game command is claimed.
+
+## GitHub Actions dispatch availability
+
+GitHub normally requires a `workflow_dispatch` workflow file to exist on the repository default branch before the manual **Run workflow** control is exposed. This smoke-test workflow is currently only on the draft feature branch; its dispatch UI may therefore not be available yet. Do not merge PR #76 merely to work around that. A maintainer can choose to land the reviewed, standalone workflow on the default branch before launching it, while keeping Create integration code in draft.
+
+The smoke test additionally requires the literal Hearthbound bootstrap log marker, rather than accepting generic Minecraft server readiness as proof of Hearthbound loading. A successful run still does not demonstrate millstone processing or the research journal.
