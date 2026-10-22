@@ -1,6 +1,7 @@
 package dev.hearthbound.integration;
 
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.core.BlockPos;
@@ -19,7 +20,7 @@ import net.minecraftforge.registries.ForgeRegistries;
 public final class MillstoneDiagnostics {
     private MillstoneDiagnostics() {}
 
-    public static int inspect(CommandContext<CommandSourceStack> ctx) {
+    public static int inspect(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         CommandSourceStack source = ctx.getSource();
         ServerLevel level = source.getLevel();
         BlockPos pos = BlockPosArgument.getLoadedBlockPos(ctx, "pos");
