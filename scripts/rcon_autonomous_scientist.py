@@ -561,7 +561,10 @@ with Rcon() as r:
                 alternate_seen=True
                 break
     if not alternate_seen:
-        raise AssertionError("Rowan did not claim alternate wheat source: policy="+rowan_trace+" alternative="+alternate_claim+" source="+r.run(f"data get block {alternative} Items")+" haul="+r.run(f"execute as {rowan} at @s run sable haul-status"))
+        actual_job=r.run(f"execute as {rowan} at @s run sable haul-audit")
+        primary_history=r.run(f"hearthboundclaims history {primary}")
+        alternative_history=r.run(f"hearthboundclaims history {alternative}")
+        raise AssertionError("Rowan did not claim alternate wheat source: job="+actual_job+" primary_history="+primary_history+" alternative_history="+alternative_history+" policy="+rowan_trace+" alternative="+alternate_claim+" source="+r.run(f"data get block {alternative} Items"))
     first_remaining=r.run(f"hearthboundclaims owner {primary}")
     released = first_remaining.startswith("No source claim at ")
     if first_remaining != first_claim and not released:
