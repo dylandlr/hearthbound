@@ -344,6 +344,11 @@ with Rcon() as r:
     # Two autonomous tick policies now observe the same explicitly authorized
     # source. Their destinations differ so successful work remains attributable.
     # This tests exclusive assignment, not alternative-job selection.
+    # Retire residual wheat offers from preceding independent and contention
+    # scenarios. The next experiment must contain just one executable source;
+    # otherwise both agents may legitimately accept different stockpiles.
+    for retired in ("3 101 1", "4 101 8", "9 101 8", "9 101 7"):
+        r.run(f"setblock {retired} minecraft:barrel replace")
     shared_source="3 101 7"
     # Use a standalone barrel to avoid double-chest inventory merging with
     # the previously used Rowan fixture. Assert the mutation itself succeeded.
