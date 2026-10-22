@@ -1,5 +1,12 @@
 name: Hearthbound dedicated server smoke test
 on:
+  push:
+    branches: [feat/create-forge-dependency-v1-2]
+    paths:
+      - '.github/workflows/dedicated-server-smoke.yml'
+      - 'src/**'
+      - 'build.gradle'
+      - 'gradle.properties'
   workflow_dispatch:
     inputs:
       accept_minecraft_eula:
@@ -10,7 +17,7 @@ on:
 
 jobs:
   server-smoke:
-    if: ${{ inputs.accept_minecraft_eula == true }}
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.accept_minecraft_eula == true) || (github.event_name == 'push' && vars.MINECRAFT_EULA_ACCEPTED == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
