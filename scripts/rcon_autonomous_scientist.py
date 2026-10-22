@@ -423,8 +423,19 @@ with Rcon() as r:
         if choice_tick(value)>baseline[name] and "outcome=HAUL_ASSIGNED" in value
     ]
     if len(fresh_assignees)!=1:
+        # Capture physical job identities and the authoritative source lock.
+        # A fresh policy selection alone cannot prove a double claim.
+        audits={
+            name:r.run(f"execute as {actor} at @s run sable haul-audit")
+            for name,actor in (("Iris",iris),("Rowan",rowan))
+        }
+        claim=r.run(f"hearthboundclaims owner {shared_source}")
+        pathlib.Path("gameplay-capture/contention-failure-diagnostics.json").write_text(
+            json.dumps({"source":shared_source,"claim":claim,"fresh_assignees":fresh_assignees,
+                        "audits":audits,"statuses":observations},indent=2)+"\\n")
         raise AssertionError("Expected one freshly assigned source owner: "
-                             +str(fresh_assignees)+" statuses="+str(observations))
+                             +str(fresh_assignees)+" source_claim="+claim+
+                             " audits="+str(audits)+" statuses="+str(observations))
     for actor in (iris,rowan):
         r.run(f"execute as {actor} at @s run sable auto-work-off")
     pathlib.Path("gameplay-capture/autonomous-contention.json").write_text(json.dumps({
