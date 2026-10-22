@@ -11,6 +11,34 @@ on:
       - '.github/workflows/forge-create-checks.yml'
   workflow_dispatch:
 jobs:
+  java-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Compile standalone research contracts
+        run: |
+          mkdir -p build/contract-classes
+          javac --release 17 -d build/contract-classes \
+            src/main/java/dev/hearthbound/research/MillstoneReceiptGate.java \
+            src/main/java/dev/hearthbound/research/ServerTickEventLedger.java \
+            src/main/java/dev/hearthbound/research/ServerTickClock.java \
+            src/main/java/dev/hearthbound/research/PersistentTickCounter.java \
+            src/test/java/dev/hearthbound/research/MillstoneReceiptGateTest.java \
+            src/test/java/dev/hearthbound/research/ServerTickEventLedgerTest.java \
+            src/test/java/dev/hearthbound/research/ServerTickClockTest.java \
+            src/test/java/dev/hearthbound/research/PersistentTickCounterTest.java
+      - name: Execute standalone contracts
+        run: |
+          for cls in MillstoneReceiptGateTest ServerTickEventLedgerTest ServerTickClockTest PersistentTickCounterTest; do
+            java -cp build/contract-classes dev.hearthbound.research.$cls
+          done
   compile-and-contract:
     runs-on: ubuntu-latest
     timeout-minutes: 35
