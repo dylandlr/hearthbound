@@ -28,7 +28,8 @@ public final class MillstoneTrace {
     public static synchronized String stop() {
         if (session == null) return "No active trace";
         StringBuilder out = new StringBuilder("Trace ").append(session.id()).append(" samples=").append(session.samples().size());
-        for (Sample sample : session.samples()) out.append("\n").append(sample.logicalTick()).append(" ").append(sample.inventories());
+        for (Sample sample : session.samples().subList(Math.max(0, session.samples().size()-20), session.samples().size())) out.append("\n").append(sample.logicalTick()).append(" ").append(sample.inventories());
+        if (session.samples().size() > 20) out.append("\n(only last 20 samples shown)");
         session = null;
         return out.toString();
     }
@@ -36,6 +37,7 @@ public final class MillstoneTrace {
         Session s = session;
         if (s == null || !level.dimension().location().toString().equals(s.dimension())) return;
         if (s.samples().size() >= s.maxSamples()) return;
+        if (!level.hasChunkAt(s.position())) return;
         try {
             requireMillstone(level, s.position());
             BlockEntity be = level.getBlockEntity(s.position());
