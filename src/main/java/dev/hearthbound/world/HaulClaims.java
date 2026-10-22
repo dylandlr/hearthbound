@@ -19,6 +19,23 @@ import net.minecraft.world.level.saveddata.SavedData;
 public final class HaulClaims extends SavedData {
     private static final String DATA_NAME = "hearthbound_haul_claims";
     private final Map<Long, UUID> claims = new HashMap<>();
+    private final java.util.ArrayList<String> transitions = new java.util.ArrayList<>();
+    private static final int HISTORY_LIMIT = 256;
+
+    private void record(ServerLevel level, String action, BlockPos source, UUID owner) {
+        transitions.add("tick=" + level.getGameTime() + " action=" + action
+            + " source=" + source.toShortString() + " owner=" + owner);
+        if (transitions.size() > HISTORY_LIMIT) transitions.remove(0);
+        setDirty();
+    }
+
+    public static String history(ServerLevel level, BlockPos source) {
+        String key = "source=" + source.toShortString() + " ";
+        java.util.List<String> events = get(level).transitions.stream()
+            .filter(entry -> entry.contains(key)).toList();
+        return "CLAIM_HISTORY " + source.toShortString() + " events=" + events.size()
+            + " | " + String.join(" | ", events);
+    }
 
     public static HaulClaims get(ServerLevel level) {
         return level.getDataStorage().computeIfAbsent(
@@ -34,6 +51,8 @@ public final class HaulClaims extends SavedData {
                 data.claims.put(entry.getLong("source"), entry.getUUID("owner"));
             }
         }
+        ListTag events = tag.getList("transitions", Tag.TAG_STRING);
+        for (int i = 0; i < events.size(); i++) data.transitions.add(events.getString(i));
         return data;
     }
 
@@ -47,19 +66,22 @@ public final class HaulClaims extends SavedData {
             entries.add(item);
         });
         tag.put("claims", entries);
+        ListTag events = new ListTag();
+        for (String event : transitions) events.add(net.minecraft.nbt.StringTag.valueOf(event));
+        tag.put("transitions", events);
         return tag;
     }
 
     public static boolean claim(ServerLevel level, BlockPos source, UUID citizenId) {
         HaulClaims data = get(level);
         UUID existing = data.claims.putIfAbsent(source.asLong(), citizenId);
-        if (existing == null) data.setDirty();
+        if (existing == null) data.record(level, "ACQUIRE", source, citizenId);
         return existing == null || existing.equals(citizenId);
     }
 
     public static void release(ServerLevel level, BlockPos source, UUID citizenId) {
         HaulClaims data = get(level);
-        if (data.claims.remove(source.asLong(), citizenId)) data.setDirty();
+        if (data.claims.remove(source.asLong(), citizenId)) data.record(level, "RELEASE", source, citizenId);
     }
 
     /**
@@ -70,7 +92,7 @@ public final class HaulClaims extends SavedData {
     public static boolean releaseIfOwned(ServerLevel level, BlockPos source, UUID expectedOwner) {
         HaulClaims data = get(level);
         boolean removed = data.claims.remove(source.asLong(), expectedOwner);
-        if (removed) data.setDirty();
+        if (removed) data.record(level, "ADMIN_RELEASE", source, expectedOwner);
         return removed;
     }
 

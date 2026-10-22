@@ -344,6 +344,11 @@ with Rcon() as r:
     # Two autonomous tick policies now observe the same explicitly authorized
     # source. Their destinations differ so successful work remains attributable.
     # This tests exclusive assignment, not alternative-job selection.
+    # Retire residual wheat offers from preceding independent and contention
+    # scenarios. The next experiment must contain just one executable source;
+    # otherwise both agents may legitimately accept different stockpiles.
+    for retired in ("3 101 1", "4 101 8", "9 101 8", "9 101 7"):
+        r.run(f"setblock {retired} minecraft:barrel replace")
     shared_source="3 101 7"
     # Use a standalone barrel to avoid double-chest inventory merging with
     # the previously used Rowan fixture. Assert the mutation itself succeeded.
@@ -418,8 +423,51 @@ with Rcon() as r:
         if choice_tick(value)>baseline[name] and "outcome=HAUL_ASSIGNED" in value
     ]
     if len(fresh_assignees)!=1:
-        raise AssertionError("Expected one freshly assigned source owner: "
-                             +str(fresh_assignees)+" statuses="+str(observations))
+        # Two fresh assignments can be sequential. Inspect real jobs and
+        # authoritative source ownership rather than treating assignments
+        # at different ticks as simultaneous lock ownership.
+        audits={
+            name:r.run(f"execute as {actor} at @s run sable haul-audit")
+            for name,actor in (("Iris",iris),("Rowan",rowan))
+        }
+        claim=r.run(f"hearthboundclaims owner {shared_source}")
+        claim_history=r.run(f"hearthboundclaims history {shared_source}")
+        events=re.findall(r"tick=(\d+) action=(ACQUIRE|RELEASE|ADMIN_RELEASE) source=3, 101, 7 owner=([0-9a-f-]{36})",claim_history)
+        active_claim=None
+        for tick,action,owner in events:
+            if action=="ACQUIRE":
+                if active_claim is not None:
+                    raise AssertionError("OVERLAPPING SOURCE CLAIM: "+claim_history)
+                active_claim=owner
+            elif action in ("RELEASE","ADMIN_RELEASE"):
+                if active_claim!=owner:
+                    raise AssertionError("SOURCE CLAIM RELEASE OWNER MISMATCH: "+claim_history)
+                active_claim=None
+        if len([e for e in events if e[1]=="ACQUIRE"])<2 or active_claim is None:
+            raise AssertionError("Insufficient authoritative sequential claim history: "+claim_history)
+        evidence={"source":shared_source,"claim":claim,"claim_history":claim_history,
+                  "fresh_assignees":fresh_assignees,"audits":audits,
+                  "statuses":observations}
+        pathlib.Path("gameplay-capture/contention-ownership-evidence.json").write_text(
+            json.dumps(evidence,indent=2)+"\\n")
+        source_marker="source=BlockPos{x=3, y=101, z=7}"
+        active=[name for name,audit in audits.items()
+                if source_marker in audit and "claim=owned" in audit
+                and "phase=2" not in audit]
+        finished=[name for name,audit in audits.items()
+                  if source_marker in audit and "phase=2" in audit
+                  and "status=Haul complete" in audit
+                  and "wheat=1" in audit]
+        if not (len(fresh_assignees)==2 and len(active)==1
+                and len(finished)==1 and active[0]!=finished[0]
+                and "belongs to" in claim
+                and "wheat=1" in audits[finished[0]]):
+            raise AssertionError("Shared source ownership not verified: "+str(evidence))
+        # A completed citizen's destination actually received the wheat.
+        completed_destination=("9 101 8" if finished[0]=="Iris" else "9 101 7")
+        receipt=r.run(f"data get block {completed_destination} Items")
+        if "minecraft:wheat" not in receipt:
+            raise AssertionError("Completed sequential haul lacks wheat receipt: "+receipt)
     for actor in (iris,rowan):
         r.run(f"execute as {actor} at @s run sable auto-work-off")
     pathlib.Path("gameplay-capture/autonomous-contention.json").write_text(json.dumps({
@@ -455,6 +503,12 @@ with Rcon() as r:
     for old_source in ("3 101 1","3 101 7","4 101 8",
                        "9 101 7","9 101 8","9 101 1"):
         r.run(f"setblock {old_source} minecraft:barrel replace")
+    # The alternative source is outside the original roofed workshop.
+    # Build a safe, loaded floor and air corridor before moving citizens;
+    # otherwise Rowan can disappear in generated terrain or fall after
+    # teleporting onto an unsupported outdoor tile.
+    r.run("fill 2 100 10 11 100 14 minecraft:stone replace")
+    r.run("fill 2 101 11 11 103 14 minecraft:air replace")
     primary="4 101 10"
     alternative="4 101 12"
     winner_dest="9 101 10"
@@ -483,6 +537,16 @@ with Rcon() as r:
     for _ in range(65):
         time.sleep(1)
         rowan_trace=r.run(f"execute as {rowan} at @s run sable auto-work-status")
+        if not rowan_trace.strip():
+            diagnostics={
+                "rowan_entity":r.run(f"data get entity {rowan} Pos"),
+                "rowan_nearby":r.run("execute positioned 4 101 11 if entity @e[type=minecraft:villager,name=Rowan,distance=..32]"),
+                "rowan_haul":r.run(f"execute as {rowan} at @s run sable haul-status"),
+                "board":r.run("execute positioned 4 101 11 run sable work-board 9 101 12"),
+            }
+            pathlib.Path("gameplay-capture/rowan-blank-status.json").write_text(
+                json.dumps(diagnostics,indent=2)+"\\n")
+            raise AssertionError("Rowan auto-work status became unaddressable: "+str(diagnostics))
         alternate_claim=r.run(f"hearthboundclaims owner {alternative}")
         if "haulIssued=true" in rowan_trace and "belongs to" in alternate_claim:
             alternate_seen=True
@@ -497,10 +561,19 @@ with Rcon() as r:
                 alternate_seen=True
                 break
     if not alternate_seen:
-        raise AssertionError("Rowan did not claim alternate wheat source: policy="+rowan_trace+" alternative="+alternate_claim+" source="+r.run(f"data get block {alternative} Items")+" haul="+r.run(f"execute as {rowan} at @s run sable haul-status"))
+        actual_job=r.run(f"execute as {rowan} at @s run sable haul-audit")
+        primary_history=r.run(f"hearthboundclaims history {primary}")
+        alternative_history=r.run(f"hearthboundclaims history {alternative}")
+        raise AssertionError("Rowan did not claim alternate wheat source: job="+actual_job+" primary_history="+primary_history+" alternative_history="+alternative_history+" policy="+rowan_trace+" alternative="+alternate_claim+" source="+r.run(f"data get block {alternative} Items"))
     first_remaining=r.run(f"hearthboundclaims owner {primary}")
-    if first_remaining not in (first_claim,f"No source claim at {primary}"):
+    released = first_remaining.startswith("No source claim at ")
+    if first_remaining != first_claim and not released:
         raise AssertionError("Alternate work overwrote existing claim: "+first_remaining)
+    # Claim release is valid only after Iris physically completed her job.
+    if released:
+        iris_status=r.run(f"execute as {iris} at @s run sable haul-status")
+        if "Haul complete" not in iris_status:
+            raise AssertionError("Primary source claim vanished before completion: "+iris_status)
     r.run(f"execute as {rowan} at @s run sable auto-work-off")
     pathlib.Path("gameplay-capture/alternative-work.json").write_text(json.dumps({
         "schema_version":1,
