@@ -431,7 +431,21 @@ with Rcon() as r:
             for name,actor in (("Iris",iris),("Rowan",rowan))
         }
         claim=r.run(f"hearthboundclaims owner {shared_source}")
-        evidence={"source":shared_source,"claim":claim,
+        claim_history=r.run(f"hearthboundclaims history {shared_source}")
+        events=re.findall(r"tick=(\\d+) action=(ACQUIRE|RELEASE|ADMIN_RELEASE) source=3, 101, 7 owner=([0-9a-f-]{36})",claim_history)
+        active_claim=None
+        for tick,action,owner in events:
+            if action=="ACQUIRE":
+                if active_claim is not None:
+                    raise AssertionError("OVERLAPPING SOURCE CLAIM: "+claim_history)
+                active_claim=owner
+            elif action in ("RELEASE","ADMIN_RELEASE"):
+                if active_claim!=owner:
+                    raise AssertionError("SOURCE CLAIM RELEASE OWNER MISMATCH: "+claim_history)
+                active_claim=None
+        if len([e for e in events if e[1]=="ACQUIRE"])<2 or active_claim is None:
+            raise AssertionError("Insufficient authoritative sequential claim history: "+claim_history)
+        evidence={"source":shared_source,"claim":claim,"claim_history":claim_history,
                   "fresh_assignees":fresh_assignees,"audits":audits,
                   "statuses":observations}
         pathlib.Path("gameplay-capture/contention-ownership-evidence.json").write_text(
