@@ -39,5 +39,5 @@ public final class ServerTickEventLedger {
         }
         lastTick=tick; nextOrdinal=ordinal+1;
     }
-    private ServerTickEventLedger() {}
+    public ServerTickEventLedger() {}
 }
