@@ -51,7 +51,11 @@ jobs:
             exit 1
           fi
           if ! grep -Fq 'Hearthbound bootstrap loaded.' server-smoke.log; then
-            echo 'Hearthbound bootstrap marker absent; server readiness alone is not sufficient' >&2
+            echo 'Hearthbound bootstrap marker absent' >&2
+            exit 1
+          fi
+          if ! grep -Eq 'HEARTHBOUND_SERVER_READY createLoaded=true logicalTick=[0-9]+' server-smoke.log; then
+            echo 'Hearthbound server-started marker with Create loaded absent' >&2
             exit 1
           fi
           if grep -Eiq 'Exception in server tick loop|Failed to start the minecraft server|Mod loading has failed' server-smoke.log; then
