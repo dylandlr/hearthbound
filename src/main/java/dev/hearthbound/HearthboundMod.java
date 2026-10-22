@@ -35,6 +35,11 @@ public final class HearthboundMod {
                     .then(Commands.literal("millstone")
                             .requires(source -> source.hasPermission(2))
                             .then(Commands.literal("trace")
+                                    .then(Commands.literal("status")
+                                            .executes(ctx -> {
+                                                ctx.getSource().sendSuccess(() -> Component.literal(MillstoneTrace.status()), false);
+                                                return 1;
+                                            }))
                                     .then(Commands.literal("stop")
                                             .executes(ctx -> {
                                                 ctx.getSource().sendSuccess(() -> Component.literal(MillstoneTrace.stop()), false);
