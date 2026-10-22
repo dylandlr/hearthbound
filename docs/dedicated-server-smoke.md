@@ -28,3 +28,11 @@ This workflow is staged, **not run yet**. No live Minecraft startup or working i
 GitHub normally requires a `workflow_dispatch` workflow file to exist on the repository default branch before the manual **Run workflow** control is exposed. This smoke-test workflow is currently only on the draft feature branch; its dispatch UI may therefore not be available yet. Do not merge PR #76 merely to work around that. A maintainer can choose to land the reviewed, standalone workflow on the default branch before launching it, while keeping Create integration code in draft.
 
 The smoke test additionally requires the literal Hearthbound bootstrap log marker, rather than accepting generic Minecraft server readiness as proof of Hearthbound loading. A successful run still does not demonstrate millstone processing or the research journal.
+
+## Feature-branch push dispatch (v3.2)
+
+To permit testing without merging the unverified integration into main, the smoke workflow also listens for pushes to the feature branch. The job is **skipped** unless the repository owner has explicitly set repository Actions variable `MINECRAFT_EULA_ACCEPTED` to the exact string `true` after reviewing and agreeing to the Minecraft EULA. This is a consent gate, not an automatic assertion of acceptance.
+
+From GitHub: Settings → Secrets and variables → Actions → Variables → New repository variable. Name: `MINECRAFT_EULA_ACCEPTED`, Value: `true` (only if accepted). A future push touching the workflow, source, or build files can then trigger the smoke job on this branch. Set it back to `false` to stop automatic test server launches.
+
+The earlier workflow_dispatch path remains; GitHub may not surface Run workflow until the file exists on the default branch. No user acceptance has been inferred or applied. Do not reuse the isolated CI server's `online-mode=false` setting on public deployments.
