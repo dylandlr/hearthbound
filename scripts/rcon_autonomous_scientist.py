@@ -448,7 +448,12 @@ with Rcon() as r:
     # Claim is placed using real citizen hauling, never synthetic NBT state.
     # Retire wheat sources from the previous experiments so the board
     # has one claimed source and one unclaimed alternative, not stale offers.
-    for old_source in ("3 101 1","3 101 7","4 101 8"):
+    # Previously completed hauls leave wheat at destinations, which the
+    # shared read-only board correctly advertises as new source offers.
+    # Retire both previous sources AND destination fixtures so the next
+    # experiment has only the deliberately constructed alternative offer.
+    for old_source in ("3 101 1","3 101 7","4 101 8",
+                       "9 101 7","9 101 8","9 101 1"):
         r.run(f"setblock {old_source} minecraft:barrel replace")
     primary="4 101 10"
     alternative="4 101 12"
@@ -468,6 +473,9 @@ with Rcon() as r:
     first_claim=r.run(f"hearthboundclaims owner {primary}")
     if "belongs to" not in first_claim:
         raise AssertionError("Fixture failed to claim primary source: "+first_claim)
+    # Focus the local eight-block discovery window on the alternative, not
+    # earlier workshop stockpiles. No source is assigned directly to Rowan.
+    r.run(f"tp {rowan} 4 101 11")
     r.contains(f"execute as {rowan} at @s run sable auto-work-source-discover {fallback_dest}",
                "Configured discover-source auto work")
     r.contains(f"execute as {rowan} at @s run sable auto-work-on","Auto work enabled")
