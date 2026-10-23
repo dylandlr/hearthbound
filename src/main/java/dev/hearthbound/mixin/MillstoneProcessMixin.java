@@ -21,7 +21,8 @@ public abstract class MillstoneProcessMixin {
     @Inject(method = "process", at = @At("RETURN"), remap = false)
     private void hearthbound$afterProcess(CallbackInfo ci) {
         try {
-            MillstoneMutationAudit.after((MillstoneBlockEntity) (Object) this, hearthbound$before,\n                    ((MillstoneRecipeAccessor) this).hearthbound$getLastRecipe());
+            MillstoneMutationAudit.after((MillstoneBlockEntity) (Object) this, hearthbound$before,
+                    ((MillstoneRecipeAccessor) this).hearthbound$getLastRecipe());
         } finally {
             hearthbound$before = null;
         }
