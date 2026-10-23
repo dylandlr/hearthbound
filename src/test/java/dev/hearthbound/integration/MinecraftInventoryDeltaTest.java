@@ -3,6 +3,7 @@ package dev.hearthbound.integration;
 import dev.hearthbound.research.InventoryDelta;
 import java.util.List;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.Bootstrap;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
@@ -14,6 +15,7 @@ public final class MinecraftInventoryDeltaTest {
         ok(MinecraftInventoryDelta.compare(List.of(a), List.of(b)).quality() == q);
     }
     public static void main(String[] args) {
+        Bootstrap.bootStrap();
         quality(InventoryDelta.Quality.NONE_OBSERVED, ItemStack.EMPTY, ItemStack.EMPTY);
         quality(InventoryDelta.Quality.POSITIVE_DELTAS, ItemStack.EMPTY, new ItemStack(Items.WHEAT, 1));
         quality(InventoryDelta.Quality.POSITIVE_DELTAS, new ItemStack(Items.WHEAT, 1), new ItemStack(Items.WHEAT, 3));
