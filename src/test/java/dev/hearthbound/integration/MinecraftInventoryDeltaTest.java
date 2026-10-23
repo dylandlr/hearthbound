@@ -4,6 +4,7 @@ import dev.hearthbound.research.InventoryDelta;
 import java.util.List;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.Bootstrap;
+import net.minecraft.SharedConstants;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
@@ -15,6 +16,7 @@ public final class MinecraftInventoryDeltaTest {
         ok(MinecraftInventoryDelta.compare(List.of(a), List.of(b)).quality() == q);
     }
     public static void main(String[] args) {
+        SharedConstants.tryDetectVersion();
         Bootstrap.bootStrap();
         quality(InventoryDelta.Quality.NONE_OBSERVED, ItemStack.EMPTY, ItemStack.EMPTY);
         quality(InventoryDelta.Quality.POSITIVE_DELTAS, ItemStack.EMPTY, new ItemStack(Items.WHEAT, 1));
