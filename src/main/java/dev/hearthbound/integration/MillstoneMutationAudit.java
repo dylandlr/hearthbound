@@ -1,6 +1,8 @@
 package dev.hearthbound.integration;
 
 import com.simibubi.create.content.kinetics.millstone.MillstoneBlockEntity;
+import com.simibubi.create.AllRecipeTypes;
+import net.minecraftforge.items.wrapper.RecipeWrapper;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -18,13 +20,18 @@ public final class MillstoneMutationAudit {
     private static final UUID SERVER_SESSION_ID = UUID.randomUUID();
     private MillstoneMutationAudit() {}
 
-    public record Snapshot(ItemStack input, List<ItemStack> outputs) {}
+    public record Snapshot(ItemStack input, List<ItemStack> outputs, String candidateRecipeId) {}
 
     public static Snapshot before(MillstoneBlockEntity millstone) {
         List<ItemStack> outputs = new ArrayList<>();
         for (int i = 0; i < millstone.outputInv.getSlots(); i++)
             outputs.add(millstone.outputInv.getStackInSlot(i).copy());
-        return new Snapshot(millstone.inputInv.getStackInSlot(0).copy(), List.copyOf(outputs));
+        String candidateRecipeId = "unresolved";
+        if (millstone.getLevel() != null && !millstone.getLevel().isClientSide()) {
+            candidateRecipeId = AllRecipeTypes.MILLING.find(new RecipeWrapper(millstone.inputInv), millstone.getLevel())
+                    .map(recipe -> recipe.getId().toString()).orElse("unresolved");
+        }
+        return new Snapshot(millstone.inputInv.getStackInSlot(0).copy(), List.copyOf(outputs), candidateRecipeId);
     }
 
     public static void after(MillstoneBlockEntity millstone, Snapshot previous) {
@@ -49,9 +56,9 @@ public final class MillstoneMutationAudit {
         UUID observationId = UUID.randomUUID();
         long logicalTick = ForgeServerTickObserver.logicalTick(millstone.getLevel().getServer());
         // UUIDs identify observations within this server session; they are not durable operation receipts.
-        LOGGER.info("HEARTHBOUND_MILLSTONE_MUTATION session={} observation={} worldName={} dimension={} pos={} logicalTick={} input={} consumed=1 outputs={} outputEvidence={} evidence=diagnostic_only researchCredit=false",
+        LOGGER.info("HEARTHBOUND_MILLSTONE_MUTATION session={} observation={} worldName={} dimension={} pos={} logicalTick={} input={} consumed=1 candidateRecipe={} outputs={} outputEvidence={} evidence=diagnostic_only researchCredit=false",
                 SERVER_SESSION_ID, observationId, millstone.getLevel().getServer().getWorldData().getLevelName(),
                 millstone.getLevel().dimension().location(), millstone.getBlockPos(), logicalTick,
-                ForgeRegistries.ITEMS.getKey(previous.input().getItem()), deltas, outputEvidence);
+                ForgeRegistries.ITEMS.getKey(previous.input().getItem()), previous.candidateRecipeId(), deltas, outputEvidence);
     }
 }
