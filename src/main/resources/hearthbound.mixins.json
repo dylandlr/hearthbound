@@ -3,6 +3,6 @@
   "minVersion": "0.8",
   "package": "dev.hearthbound.mixin",
   "compatibilityLevel": "JAVA_17",
-  "mixins": ["MillstoneProcessMixin"],
+  "mixins": ["MillstoneProcessMixin", "MillstoneRecipeAccessor"],
   "injectors": { "defaultRequire": 1 }
 }
