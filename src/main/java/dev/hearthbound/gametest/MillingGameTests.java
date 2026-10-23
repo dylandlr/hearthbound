@@ -44,11 +44,15 @@ public final class MillingGameTests {
         helper.runAfterDelay(280, () -> {
             helper.assertTrue(mill.inputInv.getStackInSlot(0).isEmpty(), "Create must consume the wheat");
             int flour = 0;
+            int seeds = 0;
             for (int i = 0; i < mill.outputInv.getSlots(); i++) {
                 ItemStack stack = mill.outputInv.getStackInSlot(i);
                 if (stack.is(AllItems.WHEAT_FLOUR.get())) flour += stack.getCount();
+                else if (stack.is(Items.WHEAT_SEEDS)) seeds += stack.getCount();
+                else helper.assertTrue(stack.isEmpty(), "Unexpected milling output");
             }
-            helper.assertTrue(flour == 1, "One wheat must produce one flour, including idle observation ticks");
+            helper.assertTrue(flour == 1 || flour == 3, "Wheat yields one flour plus an optional two-flour bonus");
+            helper.assertTrue(seeds <= 1, "Wheat yields at most one bonus seed");
             pass(helper, "milling_fixture_rotation");
         });
     }

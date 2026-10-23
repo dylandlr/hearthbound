@@ -1,5 +1,6 @@
 """Fail closed if required fixtures or the real process hook did not execute."""
 import pathlib
+import re
 import sys
 
 def verify(text):
@@ -10,7 +11,9 @@ def verify(text):
     events = [line for line in text.splitlines() if "HEARTHBOUND_MILLSTONE_MUTATION " in line]
     if len(events) != 1:
         raise ValueError(f"Expected exactly one milling event, found {len(events)}")
-    for field in ("input=minecraft:wheat ", "consumed=1 ", "create:wheat_flourx1",
+    if not re.search(r"create:wheat_flourx(?:1|3)(?=,|\])", events[0]):
+        raise ValueError("Expected one or three flour from the wheat recipe")
+    for field in ("input=minecraft:wheat ", "consumed=1 ",
                   "outputEvidence=positive_deltas", "researchCredit=false"):
         if field not in events[0]:
             raise ValueError(f"Missing milling evidence: {field}")

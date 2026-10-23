@@ -7,7 +7,7 @@ Minecraft EULA acceptance condition. The Gradle exit code must also be zero.
 
 Three required fixtures execute: eight inventory identity assertions, 200 ticks
 of unpowered milling, and one wheat processed with fixture-supplied rotation.
-The last fixture waits 280 ticks and requires exactly one flour. Create's normal
+The last fixture waits 280 ticks and requires one or three flour and at most one seed, matching Create's random bonuses. Create's normal
 world ticker executes the recipe; the test never calls process() or the audit.
 The log verifier requires all three named pass markers and exactly one positive
 wheat-to-flour mutation event across this isolated suite, so a missing Mixin,
