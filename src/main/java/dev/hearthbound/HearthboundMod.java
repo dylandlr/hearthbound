@@ -3,6 +3,7 @@ package dev.hearthbound;
 import com.mojang.brigadier.CommandDispatcher;
 import dev.hearthbound.integration.MillstoneDiagnostics;
 import dev.hearthbound.integration.MillstoneTrace;
+import dev.hearthbound.integration.RuntimeInventoryDeltaChecks;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import dev.hearthbound.integration.ForgeServerTickObserver;
 import net.minecraftforge.fml.ModList;
@@ -35,7 +36,21 @@ public final class HearthboundMod {
                     .then(Commands.literal("millstone")
                             .requires(source -> source.hasPermission(2))
                             .then(Commands.literal("trace")
-                                    .then(Commands.literal("status")
+                                    .then(Commands.literal("verify_inventory_delta")
+                            .requires(source -> source.hasPermission(2))
+                            .executes(ctx -> {
+                                try {
+                                    int passed = RuntimeInventoryDeltaChecks.verify();
+                                    ctx.getSource().sendSuccess(
+                                            () -> Component.literal("Minecraft ItemStack checks passed=" + passed), false);
+                                    return 1;
+                                } catch (RuntimeException failure) {
+                                    ctx.getSource().sendFailure(Component.literal(
+                                            "Minecraft ItemStack checks failed: " + failure.getMessage()));
+                                    return 0;
+                                }
+                            }))
+                    .then(Commands.literal("status")
                                             .executes(ctx -> {
                                                 ctx.getSource().sendSuccess(() -> Component.literal(MillstoneTrace.status()), false);
                                                 return 1;
