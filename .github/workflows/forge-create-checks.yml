@@ -59,8 +59,8 @@ jobs:
         run: gradle --no-daemon --stacktrace compileJava testClasses
       - name: Execute millstone receipt contract checks
         run: gradle --no-daemon --stacktrace testMillstoneReceipts
-      - name: Execute Minecraft ItemStack adapter checks
-        run: gradle --no-daemon --stacktrace testMinecraftInventoryDelta
+      # Minecraft-specific ItemStack assertions are compiled by testClasses but
+      # require a Forge GameTest/server runtime to execute safely.
       - name: Build distributable Forge JAR
         run: gradle --no-daemon --stacktrace build
       - name: Verify built Forge mod archive
