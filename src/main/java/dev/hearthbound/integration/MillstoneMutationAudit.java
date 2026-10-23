@@ -42,18 +42,13 @@ public final class MillstoneMutationAudit {
                 ? previous.input().getCount() - afterInput.getCount()
                 : afterInput.isEmpty() ? previous.input().getCount() : -1;
         if (consumed != 1) return; // No verified single-item input consumption.
-        List<String> deltas = new ArrayList<>();
-        boolean ambiguousOutputs = false;
-        for (int i = 0; i < millstone.outputInv.getSlots(); i++) {
-            ItemStack old = previous.outputs().get(i);
-            ItemStack now = millstone.outputInv.getStackInSlot(i);
-            int increase = now.isEmpty() ? 0 : ItemStack.isSameItemSameTags(old, now)
-                    ? now.getCount() - old.getCount()
-                    : old.isEmpty() ? now.getCount() : -1;
-            if (increase > 0) deltas.add(ForgeRegistries.ITEMS.getKey(now.getItem()) + "x" + increase);
-            if (increase < 0) ambiguousOutputs = true;
-        }
-        String outputEvidence = ambiguousOutputs ? "ambiguous" : deltas.isEmpty() ? "none_observed" : "positive_deltas";
+        List<ItemStack> current = new ArrayList<>();
+        for (int i = 0; i < millstone.outputInv.getSlots(); i++)
+            current.add(millstone.outputInv.getStackInSlot(i).copy());
+        var outputDelta = MinecraftInventoryDelta.compare(previous.outputs(), current);
+        List<String> deltas = outputDelta.increased().stream()
+                .map(stack -> stack.itemId() + "x" + stack.count()).toList();
+        String outputEvidence = outputDelta.quality().name().toLowerCase(java.util.Locale.ROOT);
         String executedRecipeId = executedRecipe == null ? "unresolved" : executedRecipe.getId().toString();
         UUID observationId = UUID.randomUUID();
         long logicalTick = ForgeServerTickObserver.logicalTick(millstone.getLevel().getServer());
