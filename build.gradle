@@ -12,6 +12,14 @@ minecraft {
     mappings channel: 'official', version: minecraft_version
     copyIdeResources = true
     runs {
+        gameTestServer {
+            arg '-mixin.config=hearthbound.mixins.json'
+            property 'mixin.env.remapRefMap', 'true'
+            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
+            workingDirectory project.file('run-gametest')
+            property 'forge.enabledGameTestNamespaces', 'hearthbound'
+            mods { hearthbound { source sourceSets.main } }
+        }
         client { arg '-mixin.config=hearthbound.mixins.json'; property("mixin.env.remapRefMap", "true"); property("mixin.env.refMapRemappingFile", "${projectDir}/build/createSrgToMcp/output.srg"); workingDirectory project.file('run'); property 'forge.logging.console.level', 'debug'; mods { hearthbound { source sourceSets.main } } }
         server { arg '-mixin.config=hearthbound.mixins.json'; property("mixin.env.remapRefMap", "true"); property("mixin.env.refMapRemappingFile", "${projectDir}/build/createSrgToMcp/output.srg"); workingDirectory project.file('run'); property 'forge.logging.console.level', 'debug'; mods { hearthbound { source sourceSets.main } } }
     }

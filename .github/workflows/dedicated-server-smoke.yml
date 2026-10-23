@@ -7,6 +7,7 @@ on:
       - 'src/**'
       - 'build.gradle'
       - 'gradle.properties'
+      - 'scripts/verify_gametest_log.py'
   workflow_dispatch:
     inputs:
       accept_minecraft_eula:
@@ -19,7 +20,7 @@ jobs:
   server-smoke:
     if: ${{ (github.event_name == 'workflow_dispatch' && inputs.accept_minecraft_eula == true) || (github.event_name == 'push' && vars.MINECRAFT_EULA_ACCEPTED == 'true') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     permissions:
       contents: read
     steps:
@@ -73,6 +74,14 @@ jobs:
             echo "Unexpected server exit code: $exit_code" >&2
             exit 1
           fi
+      - name: Run required Minecraft GameTests
+        shell: bash
+        run: |
+          mkdir -p run-gametest
+          printf 'eula=true\n' > run-gametest/eula.txt
+          set -o pipefail
+          timeout --signal=INT --kill-after=20s 600s gradle --no-daemon runGameTestServer 2>&1 | tee gametest.log
+          python scripts/verify_gametest_log.py gametest.log
       - name: Upload startup diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -80,6 +89,8 @@ jobs:
           name: hearthbound-server-smoke-logs
           path: |
             server-smoke.log
+            gametest.log
+            run-gametest/logs/*.log
             run/logs/*.log
           if-no-files-found: warn
           retention-days: 7
