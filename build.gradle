@@ -43,10 +43,5 @@ tasks.register('testMillstoneReceipts', JavaExec) {
     mainClass = 'dev.hearthbound.research.MillstoneReceiptGateTest'
 }
 
-tasks.register('testMinecraftInventoryDelta', JavaExec) {
-    group = 'verification'
-    description = 'Executes Minecraft ItemStack/NBT adapter checks in the Forge test runtime.'
-    dependsOn tasks.named('testClasses')
-    classpath = sourceSets.test.runtimeClasspath
-    mainClass = 'dev.hearthbound.integration.MinecraftInventoryDeltaTest'
-}
+// Minecraft ItemStack tests require an initialized Forge game runtime.
+// Their source is compiled by testClasses; do not execute via ordinary JavaExec.
