@@ -8,6 +8,7 @@ REQUIRED = {
     "META-INF/mods.toml",
     "hearthbound.mixins.json",
     "dev/hearthbound/mixin/MillstoneProcessMixin.class",
+    "dev/hearthbound/mixin/MillstoneRecipeAccessor.class",
     "dev/hearthbound/integration/MillstoneMutationAudit.class",
     "dev/hearthbound/HearthboundMod.class",
     "dev/hearthbound/integration/MillstoneDiagnostics.class",
@@ -30,7 +31,7 @@ def main(argv):
                 raise SystemExit(f"Incomplete mod JAR; missing: {', '.join(missing)}")
             mods = archive.read("META-INF/mods.toml").decode("utf-8")
             mixins = archive.read("hearthbound.mixins.json").decode("utf-8")
-            if "MillstoneProcessMixin" not in mixins:
+            if "MillstoneProcessMixin" not in mixins or "MillstoneRecipeAccessor" not in mixins:
                 raise SystemExit("Millstone mixin missing from mixin configuration")
             manifest = archive.read("META-INF/MANIFEST.MF").decode("utf-8")
             if "MixinConfigs: hearthbound.mixins.json" not in manifest:
