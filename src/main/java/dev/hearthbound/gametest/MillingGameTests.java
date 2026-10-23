@@ -51,7 +51,7 @@ public final class MillingGameTests {
                 else if (stack.is(Items.WHEAT_SEEDS)) seeds += stack.getCount();
                 else helper.assertTrue(stack.isEmpty(), "Unexpected milling output");
             }
-            helper.assertTrue(flour == 1 || flour == 3, "Wheat yields one flour plus an optional two-flour bonus");
+            helper.assertTrue(flour >= 1 && flour <= 3, "Wheat yields one guaranteed flour plus two independently rolled bonus items");
             helper.assertTrue(seeds <= 1, "Wheat yields at most one bonus seed");
             pass(helper, "milling_fixture_rotation");
         });
