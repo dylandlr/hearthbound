@@ -1,6 +1,6 @@
 package dev.hearthbound.integration;
 
-import com.simibubi.create.content.kinetics.millstone.MillstoneBlockEntity;
+import com.simibubi.create.content.kinetics.millstone.MillstoneBlockEntity;\nimport com.simibubi.create.content.kinetics.millstone.MillingRecipe;
 import com.simibubi.create.AllRecipeTypes;
 import net.minecraftforge.items.wrapper.RecipeWrapper;
 import java.util.ArrayList;
@@ -34,7 +34,7 @@ public final class MillstoneMutationAudit {
         return new Snapshot(millstone.inputInv.getStackInSlot(0).copy(), List.copyOf(outputs), candidateRecipeId);
     }
 
-    public static void after(MillstoneBlockEntity millstone, Snapshot previous) {
+    public static void after(MillstoneBlockEntity millstone, Snapshot previous, MillingRecipe executedRecipe) {
         if (previous == null || millstone.getLevel() == null || millstone.getLevel().isClientSide()) return;
         ItemStack afterInput = millstone.inputInv.getStackInSlot(0);
         int consumed = ItemStack.isSameItemSameTags(previous.input(), afterInput)
@@ -53,12 +53,12 @@ public final class MillstoneMutationAudit {
             if (increase < 0) ambiguousOutputs = true;
         }
         String outputEvidence = ambiguousOutputs ? "ambiguous" : deltas.isEmpty() ? "none_observed" : "positive_deltas";
-        UUID observationId = UUID.randomUUID();
+        String executedRecipeId = executedRecipe == null ? "unresolved" : executedRecipe.getId().toString();\n        UUID observationId = UUID.randomUUID();
         long logicalTick = ForgeServerTickObserver.logicalTick(millstone.getLevel().getServer());
         // UUIDs identify observations within this server session; they are not durable operation receipts.
-        LOGGER.info("HEARTHBOUND_MILLSTONE_MUTATION session={} observation={} worldName={} dimension={} pos={} logicalTick={} input={} consumed=1 candidateRecipe={} outputs={} outputEvidence={} evidence=diagnostic_only researchCredit=false",
+        LOGGER.info("HEARTHBOUND_MILLSTONE_MUTATION session={} observation={} worldName={} dimension={} pos={} logicalTick={} input={} consumed=1 candidateRecipe={} executedRecipe={} recipeAgreement={} outputs={} outputEvidence={} evidence=diagnostic_only researchCredit=false",
                 SERVER_SESSION_ID, observationId, millstone.getLevel().getServer().getWorldData().getLevelName(),
                 millstone.getLevel().dimension().location(), millstone.getBlockPos(), logicalTick,
-                ForgeRegistries.ITEMS.getKey(previous.input().getItem()), previous.candidateRecipeId(), deltas, outputEvidence);
+                ForgeRegistries.ITEMS.getKey(previous.input().getItem()), previous.candidateRecipeId(), executedRecipeId,\n                previous.candidateRecipeId().equals(executedRecipeId), deltas, outputEvidence);
     }
 }
