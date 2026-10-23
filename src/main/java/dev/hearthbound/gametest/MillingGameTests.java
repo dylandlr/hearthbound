@@ -16,13 +16,13 @@ import org.apache.logging.log4j.LogManager;
 @GameTestHolder("hearthbound")
 @PrefixGameTestTemplate(false)
 public final class MillingGameTests {
-    @GameTest(template = "empty", timeoutTicks = 40)
+    @GameTest(templateNamespace = "hearthbound", template = "empty", timeoutTicks = 40)
     public static void inventoryIdentity(GameTestHelper helper) {
         helper.assertTrue(RuntimeInventoryDeltaChecks.verify() == 8, "All eight inventory checks must execute");
         pass(helper, "inventory_identity");
     }
 
-    @GameTest(template = "empty", timeoutTicks = 220)
+    @GameTest(templateNamespace = "hearthbound", template = "empty", timeoutTicks = 220)
     public static void unpoweredMillstone(GameTestHelper helper) {
         MillstoneBlockEntity mill = place(helper);
         helper.runAfterDelay(200, () -> {
@@ -35,7 +35,7 @@ public final class MillingGameTests {
         });
     }
 
-    @GameTest(template = "empty", timeoutTicks = 320)
+    @GameTest(templateNamespace = "hearthbound", template = "empty", timeoutTicks = 320)
     public static void millingWithFixtureRotation(GameTestHelper helper) {
         MillstoneBlockEntity mill = place(helper);
         // Supply rotation only. Create's normal world ticker performs recipe processing.
