@@ -35,6 +35,8 @@ public final class MillingRestartCheck {
                     new java.io.File(new java.io.File(expectedPath).getParentFile(), "milling-machine-expected.nbt"));
             LogManager.getLogger().info("HEARTHBOUND_RESTART_PASS observation={} fullPayload=true duplicatesRejected=true",
                     observation.getUUID("Id"));
+            // Explicit CI mode: finish cleanly once all restart assertions pass.
+            event.getServer().halt(false);
         } catch (java.io.IOException failure) {
             throw new IllegalStateException("Cannot read restart expectation", failure);
         }

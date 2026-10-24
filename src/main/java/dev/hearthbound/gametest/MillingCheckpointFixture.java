@@ -10,7 +10,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.storage.LevelResource;
 
-/** CI fixture bridge only. Does not authorize processing or issue research credit. */
+/** CI fixture bridge. Credits only an isolated fixture ledger, never live citizens. */
 final class MillingCheckpointFixture {
     private MillingCheckpointFixture() {}
     static CompoundTag inventory(MillstoneBlockEntity mill) {
@@ -49,6 +49,7 @@ final class MillingCheckpointFixture {
             expected.put("Inventory", inventory(mill));
             mill.setChanged();
             mill.getLevel().getServer().saveAllChunks(false, true, true);
+            MillingDiscoveryFixture.award(mill, intent, expected);
             NbtIo.writeCompressed(expected, new java.io.File("milling-machine-expected.nbt"));
         } catch (java.io.IOException failure) {
             throw new IllegalStateException("Cannot checkpoint fixture machine", failure);
@@ -82,6 +83,7 @@ final class MillingCheckpointFixture {
         catch (java.io.IOException expectedConflict) { conflictRejected = true; }
         if (!conflictRejected || !intents.pending(pending.machineKey()).orElseThrow().equals(pending))
             throw new IllegalStateException("Changed machine state must preserve unresolved intent");
+        MillingDiscoveryFixture.verify(server, pending, expected);
         org.apache.logging.log4j.LogManager.getLogger().info(
                 "HEARTHBOUND_MACHINE_CHECKPOINT_PASS operation={} inventory=true recoveredIntent=true researchCredit=false",
                 pending.operationId());

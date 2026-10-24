@@ -77,7 +77,7 @@ jobs:
           exit_code=$?
           set -e
           tail -n 120 server-smoke.log
-          # A timeout is expected for a healthy long-running server.
+          # The opt-in restart checker requests clean shutdown after its assertions.
           if ! grep -Eq 'Done \([0-9.]+s\)!|Done \(' server-smoke.log; then
             echo 'No successful Minecraft server-ready message; inspect logs' >&2
             exit 1
@@ -98,11 +98,15 @@ jobs:
             echo 'Saved machine/intent checkpoint verification failed' >&2
             exit 1
           fi
+          if ! grep -Fq 'HEARTHBOUND_DISCOVERY_RESTART_PASS operation=' server-smoke.log; then
+            echo 'Discovery credit did not survive restart exactly once' >&2
+            exit 1
+          fi
           if grep -Eiq 'Exception in server tick loop|Failed to start the minecraft server|Mod loading has failed' server-smoke.log; then
             echo 'Server reported a startup/runtime failure' >&2
             exit 1
           fi
-          if [[ "$exit_code" != "124" && "$exit_code" != "0" ]]; then
+          if [[ "$exit_code" != "0" ]]; then
             echo "Unexpected server exit code: $exit_code" >&2
             exit 1
           fi
@@ -117,6 +121,7 @@ jobs:
             run-gametest/milling-expected.nbt
             run-gametest/milling-machine-expected.nbt
             run-gametest/**/hearthbound-fixture-intents/*.intent
+            run-gametest/**/hearthbound-fixture-credits/credits.v1
             run-gametest/**/data/hearthbound_milling_observations_v1.dat
             run-gametest/logs/*.log
             run/logs/*.log
