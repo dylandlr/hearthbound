@@ -1,0 +1,98 @@
+name: Hearthbound dedicated server smoke test
+on:
+  push:
+    branches: [feat/create-forge-dependency-v1-2]
+    paths:
+      - '.github/workflows/dedicated-server-smoke.yml'
+      - 'src/**'
+      - 'build.gradle'
+      - 'gradle.properties'
+      - 'scripts/verify_gametest_log.py'
+  workflow_dispatch:
+    inputs:
+      accept_minecraft_eula:
+        description: 'I have reviewed and accept the Minecraft EULA for this ephemeral test server'
+        required: true
+        type: boolean
+        default: false
+
+jobs:
+  server-smoke:
+    # Owner explicitly accepted the Minecraft EULA in ChatGPT on 2026-10-23.
+    # Applies to ephemeral tests on this branch; set the repository variable to false to disable.
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.accept_minecraft_eula == true) || (github.event_name == 'push' && github.ref == 'refs/heads/feat/create-forge-dependency-v1-2' && vars.MINECRAFT_EULA_ACCEPTED != 'false') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.8'
+      - name: Configure ephemeral local test server
+        shell: bash
+        run: |
+          mkdir -p run
+          printf 'eula=true\n' > run/eula.txt
+          cat > run/server.properties <<'EOF'
+          online-mode=false
+          server-port=25565
+          max-players=1
+          enable-command-block=true
+          spawn-protection=0
+          motd=Hearthbound CI smoke test
+          EOF
+      - name: Run required Minecraft GameTests
+        shell: bash
+        run: |
+          mkdir -p run-gametest
+          printf 'eula=true\n' > run-gametest/eula.txt
+          set -o pipefail
+          timeout --signal=INT --kill-after=20s 600s gradle --no-daemon runGameTestServer 2>&1 | tee gametest.log
+          python scripts/verify_gametest_log.py gametest.log
+      - name: Boot Forge development server
+        shell: bash
+        run: |
+          set +e
+          timeout --signal=TERM --kill-after=60s 300s gradle --no-daemon runServer > server-smoke.log 2>&1
+          exit_code=$?
+          set -e
+          tail -n 120 server-smoke.log
+          # A timeout is expected for a healthy long-running server.
+          if ! grep -Eq 'Done \([0-9.]+s\)!|Done \(' server-smoke.log; then
+            echo 'No successful Minecraft server-ready message; inspect logs' >&2
+            exit 1
+          fi
+          if ! grep -Fq 'Hearthbound bootstrap loaded.' server-smoke.log; then
+            echo 'Hearthbound bootstrap marker absent' >&2
+            exit 1
+          fi
+          if ! grep -Eq 'HEARTHBOUND_SERVER_READY createLoaded=true logicalTick=[0-9]+' server-smoke.log; then
+            echo 'Hearthbound server-started marker with Create loaded absent' >&2
+            exit 1
+          fi
+          if grep -Eiq 'Exception in server tick loop|Failed to start the minecraft server|Mod loading has failed' server-smoke.log; then
+            echo 'Server reported a startup/runtime failure' >&2
+            exit 1
+          fi
+          if [[ "$exit_code" != "124" && "$exit_code" != "0" ]]; then
+            echo "Unexpected server exit code: $exit_code" >&2
+            exit 1
+          fi
+      - name: Upload startup diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hearthbound-server-smoke-logs
+          path: |
+            server-smoke.log
+            gametest.log
+            run-gametest/logs/*.log
+            run/logs/*.log
+          if-no-files-found: warn
+          retention-days: 7

@@ -1,6 +1,13 @@
 package dev.hearthbound;
 
 import com.mojang.brigadier.CommandDispatcher;
+import dev.hearthbound.integration.MillstoneDiagnostics;
+import dev.hearthbound.integration.MillstoneTrace;
+import dev.hearthbound.integration.RuntimeInventoryDeltaChecks;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
+import dev.hearthbound.integration.ForgeServerTickObserver;
+import net.minecraftforge.fml.ModList;
+import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -26,12 +33,62 @@ public final class HearthboundMod {
         public static void onCommands(RegisterCommandsEvent event) {
             CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
             dispatcher.register(Commands.literal("hearthbound")
+                    .then(Commands.literal("millstone")
+                            .requires(source -> source.hasPermission(2))
+                            .then(Commands.literal("trace")
+                                    .then(Commands.literal("verify_inventory_delta")
+                            .requires(source -> source.hasPermission(2))
+                            .executes(ctx -> {
+                                try {
+                                    int passed = RuntimeInventoryDeltaChecks.verify();
+                                    ctx.getSource().sendSuccess(
+                                            () -> Component.literal("Minecraft ItemStack checks passed=" + passed), false);
+                                    return 1;
+                                } catch (RuntimeException failure) {
+                                    ctx.getSource().sendFailure(Component.literal(
+                                            "Minecraft ItemStack checks failed: " + failure.getMessage()));
+                                    return 0;
+                                }
+                            }))
+                    .then(Commands.literal("status")
+                                            .executes(ctx -> {
+                                                ctx.getSource().sendSuccess(() -> Component.literal(MillstoneTrace.status()), false);
+                                                return 1;
+                                            }))
+                                    .then(Commands.literal("stop")
+                                            .executes(ctx -> {
+                                                ctx.getSource().sendSuccess(() -> Component.literal(MillstoneTrace.stop()), false);
+                                                return 1;
+                                            }))
+                                    .then(Commands.literal("start")
+                                            .then(Commands.argument("pos", BlockPosArgument.blockPos())
+                                                    .then(Commands.argument("ticks", IntegerArgumentType.integer(1, 1200))
+                                                            .executes(ctx -> {
+                                                                var pos = BlockPosArgument.getLoadedBlockPos(ctx, "pos");
+                                                                var ticks = IntegerArgumentType.getInteger(ctx, "ticks");
+                                                                try {
+                                                                    var id = MillstoneTrace.begin(ctx.getSource().getLevel(), pos, ticks);
+                                                                    ctx.getSource().sendSuccess(() -> Component.literal("Started diagnostic trace " + id), false);
+                                                                    return 1;
+                                                                } catch (IllegalArgumentException | IllegalStateException e) {
+                                                                    ctx.getSource().sendFailure(Component.literal(e.getMessage()));
+                                                                    return 0;
+                                                                }
+                                                            })))))
+                            .then(Commands.literal("inspect")
+                                    .then(Commands.argument("pos", BlockPosArgument.blockPos())
+                                            .executes(MillstoneDiagnostics::inspect))))
                     .then(Commands.literal("status")
                             .executes(ctx -> {
                                 ctx.getSource().sendSuccess(
-                                        () -> Component.literal("Hearthbound 0.1 dev: bootstrap active. Citizen and Create controllers pending."),
+                                        ()-> Component.literal(
+                                                "Hearthbound bootstrap=loaded; Create=" +
+                                                (ModList.get().isLoaded("create") ? "loaded" : "MISSING") +
+                                                "; logicalTick=" + ForgeServerTickObserver.logicalTick(ctx.getSource().getServer()) +
+                                                "; dimension=" + ctx.getSource().getLevel().dimension().location() +
+                                                "; researchBridge=not-connected"),
                                         false);
-                                return 1;
+                                return ModList.get().isLoaded("create") ? 1 : 0;
                             })));
         }
     }
