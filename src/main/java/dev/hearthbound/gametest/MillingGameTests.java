@@ -44,6 +44,7 @@ public final class MillingGameTests {
     @GameTest(templateNamespace = "hearthbound", template = "empty", timeoutTicks = 500)
     public static void millingWithMotor(GameTestHelper helper) {
         MillstoneBlockEntity mill = place(helper);
+        var durableIntent = MillingCheckpointFixture.prepare(mill);
         // Let the motor propagate its default 16 RPM through Create's kinetic network.
         BlockPos motorPos = new BlockPos(1, 0, 1);
         helper.setBlock(motorPos, AllBlocks.CREATIVE_MOTOR.getDefaultState()
@@ -104,6 +105,7 @@ public final class MillingGameTests {
                     } catch (java.io.IOException failure) {
                         throw new IllegalStateException("Cannot write restart expectation", failure);
                     }
+                    MillingCheckpointFixture.checkpoint(mill, durableIntent);
                     pass(helper, "milling_motor_connection");
                 });
             });

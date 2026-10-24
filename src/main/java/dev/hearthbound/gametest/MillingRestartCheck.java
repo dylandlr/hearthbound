@@ -31,6 +31,8 @@ public final class MillingRestartCheck {
             try { journal.append(conflict); } catch (IllegalArgumentException expectedConflict) { rejected = true; }
             if (!rejected || !expected.equals(journal.save(new CompoundTag())))
                 throw new IllegalStateException("Conflict altered persisted journal");
+            MillingCheckpointFixture.verify(event.getServer(),
+                    new java.io.File(new java.io.File(expectedPath).getParentFile(), "milling-machine-expected.nbt"));
             LogManager.getLogger().info("HEARTHBOUND_RESTART_PASS observation={} fullPayload=true duplicatesRejected=true",
                     observation.getUUID("Id"));
         } catch (java.io.IOException failure) {
