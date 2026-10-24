@@ -55,6 +55,19 @@ jobs:
           set -o pipefail
           timeout --signal=INT --kill-after=20s 600s gradle --no-daemon runGameTestServer 2>&1 | tee gametest.log
           python scripts/verify_gametest_log.py gametest.log
+      - name: Select saved GameTest world for restart
+        shell: bash
+        run: |
+          mapfile -t journals < <(find run-gametest -type f -name hearthbound_milling_observations_v1.dat)
+          if [[ "${#journals[@]}" != "1" ]]; then
+            echo 'Expected exactly one saved milling journal' >&2
+            exit 1
+          fi
+          world="$(realpath "$(dirname "$(dirname "${journals[0]}")")")"
+          test -f "$world/level.dat"
+          test -f run-gametest/milling-expected.nbt
+          printf 'level-name=%s\n' "$world" >> run/server.properties
+          echo "HEARTHBOUND_RESTART_EXPECTED=$(realpath run-gametest/milling-expected.nbt)" >> "$GITHUB_ENV"
       - name: Boot Forge development server
         shell: bash
         run: |
@@ -76,6 +89,10 @@ jobs:
             echo 'Hearthbound server-started marker with Create loaded absent' >&2
             exit 1
           fi
+          if ! grep -Fq 'HEARTHBOUND_RESTART_PASS observation=' server-smoke.log; then
+            echo 'Saved milling journal failed second-process verification' >&2
+            exit 1
+          fi
           if grep -Eiq 'Exception in server tick loop|Failed to start the minecraft server|Mod loading has failed' server-smoke.log; then
             echo 'Server reported a startup/runtime failure' >&2
             exit 1
@@ -92,6 +109,8 @@ jobs:
           path: |
             server-smoke.log
             gametest.log
+            run-gametest/milling-expected.nbt
+            run-gametest/**/data/hearthbound_milling_observations_v1.dat
             run-gametest/logs/*.log
             run/logs/*.log
           if-no-files-found: warn

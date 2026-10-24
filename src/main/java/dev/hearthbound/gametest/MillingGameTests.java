@@ -96,6 +96,14 @@ public final class MillingGameTests {
                     helper.assertTrue(mill.inputInv.getStackInSlot(0).is(Items.WHEAT)
                             && mill.inputInv.getStackInSlot(0).getCount() == 1,
                             "Disconnected millstone must not consume new wheat");
+                    // Flush the real SavedData file before this JVM exits.
+                    helper.getLevel().getServer().overworld().getDataStorage().save();
+                    try {
+                        net.minecraft.nbt.NbtIo.writeCompressed(journal.save(new CompoundTag()),
+                                new java.io.File("milling-expected.nbt"));
+                    } catch (java.io.IOException failure) {
+                        throw new IllegalStateException("Cannot write restart expectation", failure);
+                    }
                     pass(helper, "milling_motor_connection");
                 });
             });
