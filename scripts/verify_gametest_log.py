@@ -4,7 +4,7 @@ import re
 import sys
 
 def verify(text):
-    for name in ("inventory_identity", "unpowered_millstone", "milling_fixture_rotation"):
+    for name in ("inventory_identity", "unpowered_millstone", "milling_motor_connection"):
         marker = "HEARTHBOUND_GAMETEST_PASS " + name
         if text.count(marker) != 1:
             raise ValueError(f"Expected exactly one pass marker: {name}")

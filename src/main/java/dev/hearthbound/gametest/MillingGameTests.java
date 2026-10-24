@@ -5,6 +5,9 @@ import com.simibubi.create.AllItems;
 import com.simibubi.create.content.kinetics.millstone.MillstoneBlockEntity;
 import dev.hearthbound.integration.RuntimeInventoryDeltaChecks;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.block.Blocks;
+import com.simibubi.create.content.kinetics.motor.CreativeMotorBlock;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.item.ItemStack;
@@ -35,13 +38,16 @@ public final class MillingGameTests {
         });
     }
 
-    @GameTest(templateNamespace = "hearthbound", template = "empty", timeoutTicks = 320)
-    public static void millingWithFixtureRotation(GameTestHelper helper) {
+    @GameTest(templateNamespace = "hearthbound", template = "empty", timeoutTicks = 500)
+    public static void millingWithMotor(GameTestHelper helper) {
         MillstoneBlockEntity mill = place(helper);
-        // Supply rotation only. Create's normal world ticker performs recipe processing.
-        // This fixture does not verify a mechanical power network.
-        helper.onEachTick(() -> mill.setSpeed(256));
+        // Let the motor propagate its default 16 RPM through Create's kinetic network.
+        BlockPos motorPos = new BlockPos(1, 0, 1);
+        helper.setBlock(motorPos, AllBlocks.CREATIVE_MOTOR.getDefaultState()
+                .setValue(CreativeMotorBlock.FACING, Direction.UP));
         helper.runAfterDelay(280, () -> {
+            helper.assertTrue(Math.abs(mill.getSpeed()) == 16, "Motor must supply 16 RPM through its shaft");
+            helper.assertTrue(mill.hasSource(), "Millstone must have a kinetic source");
             helper.assertTrue(mill.inputInv.getStackInSlot(0).isEmpty(), "Create must consume the wheat");
             int flour = 0;
             int seeds = 0;
@@ -53,7 +59,18 @@ public final class MillingGameTests {
             }
             helper.assertTrue(flour >= 1 && flour <= 3, "Wheat yields one guaranteed flour plus two independently rolled bonus items");
             helper.assertTrue(seeds <= 1, "Wheat yields at most one bonus seed");
-            pass(helper, "milling_fixture_rotation");
+            helper.setBlock(motorPos, Blocks.AIR.defaultBlockState());
+            helper.runAfterDelay(20, () -> {
+                helper.assertTrue(mill.getSpeed() == 0, "Removing the motor must stop rotation");
+                mill.inputInv.setStackInSlot(0, new ItemStack(Items.WHEAT));
+                helper.runAfterDelay(100, () -> {
+                    helper.assertTrue(mill.getSpeed() == 0, "Disconnected millstone must stay stopped");
+                    helper.assertTrue(mill.inputInv.getStackInSlot(0).is(Items.WHEAT)
+                            && mill.inputInv.getStackInSlot(0).getCount() == 1,
+                            "Disconnected millstone must not consume new wheat");
+                    pass(helper, "milling_motor_connection");
+                });
+            });
         });
     }
 
