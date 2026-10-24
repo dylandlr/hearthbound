@@ -26,6 +26,7 @@ jobs:
         run: |
           mkdir -p build/contract-classes
           javac --release 17 -d build/contract-classes \
+            src/main/java/dev/hearthbound/research/DurableOperationIntents.java \
             src/main/java/dev/hearthbound/research/DurableCreditLedger.java \
             src/main/java/dev/hearthbound/research/MillstoneRecoveryGate.java \
             src/main/java/dev/hearthbound/research/MillstoneReceiptGate.java \
@@ -33,6 +34,7 @@ jobs:
             src/main/java/dev/hearthbound/research/ServerTickClock.java \
             src/main/java/dev/hearthbound/research/PersistentTickCounter.java \
             src/main/java/dev/hearthbound/research/InventoryDelta.java \
+            src/test/java/dev/hearthbound/research/DurableOperationIntentsTest.java \
             src/test/java/dev/hearthbound/research/DurableCreditLedgerTest.java \
             src/test/java/dev/hearthbound/research/MillstoneRecoveryGateTest.java \
             src/test/java/dev/hearthbound/research/MillstoneReceiptGateTest.java \
@@ -42,7 +44,7 @@ jobs:
             src/test/java/dev/hearthbound/research/InventoryDeltaTest.java
       - name: Execute standalone contracts
         run: |
-          for cls in DurableCreditLedgerTest MillstoneRecoveryGateTest MillstoneReceiptGateTest ServerTickEventLedgerTest ServerTickClockTest PersistentTickCounterTest InventoryDeltaTest; do
+          for cls in DurableOperationIntentsTest DurableCreditLedgerTest MillstoneRecoveryGateTest MillstoneReceiptGateTest ServerTickEventLedgerTest ServerTickClockTest PersistentTickCounterTest InventoryDeltaTest; do
             java -cp build/contract-classes dev.hearthbound.research.$cls
           done
   compile-and-contract:
