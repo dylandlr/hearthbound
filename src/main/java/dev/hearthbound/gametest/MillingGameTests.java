@@ -4,6 +4,9 @@ import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.content.kinetics.millstone.MillstoneBlockEntity;
 import dev.hearthbound.integration.RuntimeInventoryDeltaChecks;
+import dev.hearthbound.integration.MillingObservationSavedData;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.Blocks;
@@ -59,6 +62,31 @@ public final class MillingGameTests {
             }
             helper.assertTrue(flour >= 1 && flour <= 3, "Wheat yields one guaranteed flour plus two independently rolled bonus items");
             helper.assertTrue(seeds <= 1, "Wheat yields at most one bonus seed");
+            MillingObservationSavedData journal = MillingObservationSavedData.get(helper.getLevel().getServer());
+            ListTag entries = journal.snapshot();
+            CompoundTag observation = null;
+            for (int i = 0; i < entries.size(); i++) {
+                CompoundTag candidate = entries.getCompound(i);
+                if (candidate.getLong("Position") == mill.getBlockPos().asLong()
+                        && candidate.getString("Dimension").equals(mill.getLevel().dimension().location().toString())) {
+                    helper.assertTrue(observation == null, "Exactly one observation for this machine");
+                    observation = candidate;
+                }
+            }
+            helper.assertTrue(observation != null, "Real milling must be recorded");
+            helper.assertTrue(ItemStack.of(observation.getCompound("InputBefore")).is(Items.WHEAT),
+                    "Journal must preserve consumed item identity");
+            helper.assertTrue(observation.getString("Recipe").equals("create:milling/wheat"),
+                    "Journal must retain Create's selected recipe");
+            MillingObservationSavedData restored = MillingObservationSavedData.load(journal.save(new CompoundTag()));
+            helper.assertTrue(restored.find(observation.getUUID("Id")).equals(observation),
+                    "NBT round trip must retain complete observation");
+            helper.assertTrue(!restored.append(observation), "Duplicate ID must be rejected after reload");
+            CompoundTag conflict = observation.copy();
+            conflict.putString("Recipe", "hearthbound:conflicting");
+            boolean rejected = false;
+            try { restored.append(conflict); } catch (IllegalArgumentException expected) { rejected = true; }
+            helper.assertTrue(rejected, "Conflicting duplicate must fail");
             helper.setBlock(motorPos, Blocks.AIR.defaultBlockState());
             helper.runAfterDelay(20, () -> {
                 helper.assertTrue(mill.getSpeed() == 0, "Removing the motor must stop rotation");

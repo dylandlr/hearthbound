@@ -8,6 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraftforge.registries.ForgeRegistries;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -52,11 +54,35 @@ public final class MillstoneMutationAudit {
         String executedRecipeId = executedRecipe == null ? "unresolved" : executedRecipe.getId().toString();
         UUID observationId = UUID.randomUUID();
         long logicalTick = ForgeServerTickObserver.logicalTick(millstone.getLevel().getServer());
-        // UUIDs identify observations within this server session; they are not durable operation receipts.
+        CompoundTag record = new CompoundTag();
+        record.putUUID("Id", observationId);
+        record.putUUID("Session", SERVER_SESSION_ID);
+        record.putLong("Tick", logicalTick);
+        record.putString("Dimension", millstone.getLevel().dimension().location().toString());
+        record.putLong("Position", millstone.getBlockPos().asLong());
+        record.putString("Recipe", executedRecipeId);
+        record.putString("CandidateRecipe", previous.candidateRecipeId());
+        record.putString("Quality", outputEvidence);
+        record.put("InputBefore", previous.input().save(new CompoundTag()));
+        record.put("InputAfter", afterInput.save(new CompoundTag()));
+        record.put("OutputBefore", serializeStacks(previous.outputs()));
+        record.put("OutputAfter", serializeStacks(current));
+        try {
+            MillingObservationSavedData.get(millstone.getLevel().getServer()).append(record);
+        } catch (RuntimeException failure) {
+            // Observability must not abort Create's completed mutation or award credit.
+            LOGGER.error("HEARTHBOUND_MILLING_JOURNAL_REJECTED observation=" + observationId, failure);
+        }
+        // SavedData checkpoints are not crash-atomic operation receipts.
         LOGGER.info("HEARTHBOUND_MILLSTONE_MUTATION session={} observation={} worldName={} dimension={} pos={} logicalTick={} input={} consumed=1 candidateRecipe={} executedRecipe={} recipeAgreement={} outputs={} outputEvidence={} evidence=diagnostic_only researchCredit=false",
                 SERVER_SESSION_ID, observationId, millstone.getLevel().getServer().getWorldData().getLevelName(),
                 millstone.getLevel().dimension().location(), millstone.getBlockPos(), logicalTick,
                 ForgeRegistries.ITEMS.getKey(previous.input().getItem()), previous.candidateRecipeId(), executedRecipeId,
                 previous.candidateRecipeId().equals(executedRecipeId), deltas, outputEvidence);
+    }
+    private static ListTag serializeStacks(List<ItemStack> stacks) {
+        ListTag result = new ListTag();
+        stacks.forEach(stack -> result.add(stack.save(new CompoundTag())));
+        return result;
     }
 }
