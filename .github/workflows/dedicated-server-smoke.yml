@@ -48,6 +48,7 @@ jobs:
           spawn-protection=0
           motd=Hearthbound CI smoke test
           EOF
+      # EULA-accepted smoke rerun requested after diagnostic improvements.
       - name: Run required Minecraft GameTests
         shell: bash
         run: |
