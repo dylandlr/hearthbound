@@ -53,9 +53,17 @@ jobs:
         run: |
           mkdir -p run-gametest
           printf 'eula=true\n' > run-gametest/eula.txt
-          set -o pipefail
-          timeout --signal=INT --kill-after=20s 600s gradle --no-daemon runGameTestServer 2>&1 | tee gametest.log
-          python scripts/verify_gametest_log.py gametest.log
+          set +e
+          timeout --signal=INT --kill-after=20s 600s gradle --no-daemon runGameTestServer > gametest.log 2>&1
+          game_exit=$?
+          set -e
+          tail -n 160 gametest.log
+          echo "GameTest process exit: $game_exit"
+          python3 scripts/verify_gametest_log.py gametest.log
+          if [[ "$game_exit" != "0" ]]; then
+            echo "GameTest markers were checked, but Minecraft exited abnormally: $game_exit" >&2
+            exit 1
+          fi
       - name: Select saved GameTest world for restart
         shell: bash
         run: |
