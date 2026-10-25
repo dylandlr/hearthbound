@@ -24,6 +24,7 @@ public final class CitizenEmbodiment {
         entity.getPersistentData().putUUID(CITIZEN_ID, citizenId);
         entity.setCustomName(net.minecraft.network.chat.Component.literal("Hearthbound Citizen"));
         entity.setCustomNameVisible(true);
+        entity.setPersistenceRequired();
         if (!level.addFreshEntity(entity)) throw new IllegalStateException("Citizen entity spawn rejected");
         return entity;
     }
