@@ -2,6 +2,7 @@ package dev.hearthbound;
 
 import com.mojang.brigadier.CommandDispatcher;
 import dev.hearthbound.integration.MillstoneDiagnostics;
+import dev.hearthbound.integration.ColonyInspectionCommands;
 import dev.hearthbound.integration.MillstoneTrace;
 import dev.hearthbound.integration.RuntimeInventoryDeltaChecks;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -32,6 +33,13 @@ public final class HearthboundMod {
         @SubscribeEvent
         public static void onCommands(RegisterCommandsEvent event) {
             CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
+            dispatcher.register(Commands.literal("hearthbound")
+                    .then(Commands.literal("citizens").requires(source -> source.hasPermission(2))
+                            .executes(ColonyInspectionCommands::citizens))
+                    .then(Commands.literal("tasks").requires(source -> source.hasPermission(2))
+                            .executes(ColonyInspectionCommands::tasks))
+                    .then(Commands.literal("observations").requires(source -> source.hasPermission(2))
+                            .executes(ColonyInspectionCommands::observations)));
             dispatcher.register(Commands.literal("hearthbound")
                     .then(Commands.literal("millstone")
                             .requires(source -> source.hasPermission(2))
