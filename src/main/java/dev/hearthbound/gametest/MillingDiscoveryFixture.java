@@ -66,8 +66,13 @@ final class MillingDiscoveryFixture {
         verifyActiveHandoff(server, intent);
         // The calling restart fixture already checked authoritative milling observation,
         // actual machine inventory, persisted receipt and exact citizen research credit.
-        var retired = store.retire(intent.machineKey(), intent.operationId(), TEST_CITIZEN,
-                MachineClaimRetirementGate.Decision.ELIGIBLE_FOR_RETIREMENT);
+        var claim = machineClaims(server).recover(intent.machineKey());
+        var proof = new MachineClaimRetirementGate.Evidence(intent.operationId(), TEST_CITIZEN,
+                true, true, true, true, true, false);
+        var decision = MachineClaimRetirementGate.evaluate(claim, proof);
+        if (decision != MachineClaimRetirementGate.Decision.ELIGIBLE_FOR_RETIREMENT)
+            throw new IllegalStateException("Verified fixture cannot retire machine");
+        var retired = store.retire(intent.machineKey(), intent.operationId(), TEST_CITIZEN, decision);
         if (!retired.retired()) throw new IllegalStateException("Claim retirement was not persisted");
         UUID nextCitizen = UUID.fromString("00000000-0000-0000-0000-000000000078");
         UUID nextOperation = UUID.randomUUID();
