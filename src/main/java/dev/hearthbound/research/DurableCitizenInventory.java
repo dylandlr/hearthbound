@@ -35,6 +35,14 @@ public final class DurableCitizenInventory {
      */
     public synchronized boolean reserve(UUID operationId) throws IOException {
         Objects.requireNonNull(operationId);
+        var existing = debits.find(operationId);
+        if (existing.isPresent()) {
+            var expected = new DurableCreditLedger.Credit(operationId, citizen, 1,
+                    "hearthbound:citizen_wheat_debit:v1:" + citizen + ":" + operationId);
+            if (!existing.get().equals(expected))
+                throw new IOException("Conflicting inventory operation");
+            return false;
+        }
         if (available() < 1) {
             // A previously successful reservation can be queried via a stable
             // receipt by the caller, but no new reservation can overdraw stock.
