@@ -100,6 +100,11 @@ public final class MillingGameTests {
             }
             helper.assertTrue(citizen.task().equals("IDLE"),
                     "Successful server-tick supply must finish task without repeated transfer");
+            helper.assertTrue(dev.hearthbound.integration.CitizenSupplyInspection.inspect(
+                    server,citizenId,level.dimension().location().toString(),
+                    mill.getBlockPos(),villager,mill)
+                    == dev.hearthbound.integration.CitizenSupplyRecovery.Decision.COMPLETED_OBSERVED,
+                    "Live recovery inspection must recognize the same durable operation receipt");
             helper.assertTrue(villager.getPersistentData().getLong("HearthboundLastSupplyMill")
                             == mill.getBlockPos().asLong()
                             && villager.getPersistentData().getLong("HearthboundLastSupplyTick") > 0,
