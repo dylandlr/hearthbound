@@ -12,6 +12,8 @@ import org.apache.logging.log4j.LogManager;
 @Mod.EventBusSubscriber(modid = "hearthbound", bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class MillingRestartCheck {
     private MillingRestartCheck() {}
+    private static java.io.File pendingCitizenCheck;
+    private static long restartTicks;
 
     @SubscribeEvent
     public static void onServerStarted(ServerStartedEvent event) {
@@ -44,15 +46,31 @@ public final class MillingRestartCheck {
                 throw new IllegalStateException("Conflict altered persisted journal");
             MillingCheckpointFixture.verify(event.getServer(),
                     new java.io.File(new java.io.File(expectedPath).getParentFile(), "milling-machine-expected.nbt"));
-            CitizenSupplyRestartFixture.verify(event.getServer(),
-                    new java.io.File(new java.io.File(expectedPath).getParentFile(),
-                            "citizen-supply-restart-expected.nbt"));
+            pendingCitizenCheck = new java.io.File(
+                    new java.io.File(expectedPath).getParentFile(),"citizen-supply-restart-expected.nbt");
+            restartTicks=0;
             LogManager.getLogger().info("HEARTHBOUND_RESTART_PASS observation={} fullPayload=true duplicatesRejected=true",
                     observation.getUUID("Id"));
             // Explicit CI mode: finish cleanly once all restart assertions pass.
-            event.getServer().halt(false);
+            // Allow Minecraft entity chunk loading to finish before inspecting villagers.
         } catch (java.io.IOException failure) {
             throw new IllegalStateException("Cannot read restart expectation", failure);
         }
     }
+    @SubscribeEvent
+    public static void afterRestartTick(net.minecraftforge.event.TickEvent.ServerTickEvent event) {
+        if(event.phase!=net.minecraftforge.event.TickEvent.Phase.END
+                || pendingCitizenCheck==null || ++restartTicks<80) return;
+        java.io.File expected=pendingCitizenCheck;
+        pendingCitizenCheck=null;
+        try {
+            CitizenSupplyRestartFixture.verify(event.getServer(),expected);
+            org.apache.logging.log4j.LogManager.getLogger().info(
+                    "HEARTHBOUND_CITIZEN_RESTART_DELAYED_CHECK_PASS ticks={}",restartTicks);
+            event.getServer().halt(false);
+        } catch(java.io.IOException failure) {
+            throw new IllegalStateException("Citizen supply world evidence missing after entity loading",failure);
+        }
+    }
+
 }
