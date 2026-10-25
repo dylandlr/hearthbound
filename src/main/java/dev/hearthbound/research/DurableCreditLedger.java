@@ -42,7 +42,13 @@ public final class DurableCreditLedger {
     }
 
     public synchronized boolean commit(Credit credit) throws IOException {
+        return commitBounded(credit, Long.MAX_VALUE);
+    }
+
+    /** One locked operation: replay lookup, balance check, then durable insertion. */
+    public synchronized boolean commitBounded(Credit credit, long maximumBalance) throws IOException {
         Objects.requireNonNull(credit);
+        if (maximumBalance < 0) throw new IllegalArgumentException("Negative limit");
         try (FileChannel lock = FileChannel.open(directory.resolve("credit.lock"), CREATE, WRITE);
              var held = lock.lock();
              FileChannel data = FileChannel.open(directory.resolve("credits.v1"), CREATE, READ, WRITE)) {
@@ -55,8 +61,11 @@ public final class DurableCreditLedger {
                 data.force(true);
                 return false;
             }
-            try { Math.addExact(balance(credits.values(), credit.beneficiary()), credit.amount()); }
+            final long nextBalance;
+            try { nextBalance = Math.addExact(balance(credits.values(), credit.beneficiary()), credit.amount()); }
             catch (ArithmeticException overflow) { throw new IOException("Balance overflow", overflow); }
+            if (nextBalance > maximumBalance)
+                throw new IOException("Ledger balance limit exceeded");
             byte[] payload = encode(credit);
             data.position(data.size());
             write(data, ByteBuffer.allocate(8).putInt(MAGIC).putInt(payload.length).flip());
