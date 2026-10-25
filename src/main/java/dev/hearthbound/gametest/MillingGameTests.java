@@ -5,6 +5,7 @@ import com.simibubi.create.AllItems;
 import com.simibubi.create.content.kinetics.millstone.MillstoneBlockEntity;
 import dev.hearthbound.integration.RuntimeInventoryDeltaChecks;
 import dev.hearthbound.integration.MillingObservationSavedData;
+import dev.hearthbound.research.ScriptedMillingPolicy;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.core.BlockPos;
@@ -47,6 +48,15 @@ public final class MillingGameTests {
         var durableIntent = MillingCheckpointFixture.prepare(mill);
         MillingDiscoveryFixture.prepareAssignment(helper.getLevel().getServer(), durableIntent,
                 mill.getLevel().dimension().location().toString(), mill.getBlockPos().asLong());
+        // First scripted-policy-to-Create action boundary. The GameTest still supplies
+        // the world fixture and assignment; no autonomous entity or pathfinding yet.
+        var policyObservation = new ScriptedMillingPolicy.Observation(
+                true, mill.inputInv.getStackInSlot(0).is(Items.WHEAT),
+                true, true, false, false);
+        var decision = ScriptedMillingPolicy.choose(policyObservation);
+        helper.assertTrue(decision == ScriptedMillingPolicy.Decision.PREPARE_MILLING,
+                "Scripted citizen policy must choose this assigned milling task");
+        LogManager.getLogger().info("HEARTHBOUND_SCRIPTED_MILLING_DECISION decision={} assigned=true", decision);
         // Let the motor propagate its default 16 RPM through Create's kinetic network.
         BlockPos motorPos = new BlockPos(1, 0, 1);
         helper.setBlock(motorPos, AllBlocks.CREATIVE_MOTOR.getDefaultState()
