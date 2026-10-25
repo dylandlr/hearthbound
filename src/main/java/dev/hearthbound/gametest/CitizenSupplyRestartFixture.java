@@ -59,6 +59,16 @@ public final class CitizenSupplyRestartFixture {
                 || !mill.inputInv.getStackInSlot(0).is(net.minecraft.world.item.Items.WHEAT)
                 || mill.inputInv.getStackInSlot(0).getCount()!=1)
             throw new IOException("Create millstone input did not survive restart");
+        // A completed prior delivery has an outstanding second task against
+        // the same write-ahead operation. It is unsafe to reinterpret that
+        // receipt as permission to replay the second delivery.
+        var decision=dev.hearthbound.integration.CitizenSupplyInspection.inspect(
+                server,citizen,tag.getString("Dimension"),millPos,villager,mill);
+        if(decision!=dev.hearthbound.integration.CitizenSupplyRecovery.Decision.AMBIGUOUS_BLOCKED)
+            throw new IOException("Recovered occupied machine must not authorize a repeated delivery");
+        org.apache.logging.log4j.LogManager.getLogger().info(
+                "HEARTHBOUND_CITIZEN_RESTART_NO_REPLAY_PASS citizen={} operation={} decision={}",
+                citizen,operation,decision);
         org.apache.logging.log4j.LogManager.getLogger().info(
                 "HEARTHBOUND_CITIZEN_SUPPLY_WORLD_RESTART_PASS citizen={} operation={} wheatRemaining={} millWheat=1",
                 citizen,operation,data.getInt("HearthboundWheat"));
