@@ -84,6 +84,7 @@ final class MillingCheckpointFixture {
         if (!conflictRejected || !intents.pending(pending.machineKey()).orElseThrow().equals(pending))
             throw new IllegalStateException("Changed machine state must preserve unresolved intent");
         MillingDiscoveryFixture.verify(server, pending, expected);
+        ConsecutiveMillingCredits.verifyRestart(server);
         org.apache.logging.log4j.LogManager.getLogger().info(
                 "HEARTHBOUND_MACHINE_CHECKPOINT_PASS operation={} inventory=true recoveredIntent=true researchCredit=false",
                 pending.operationId());
