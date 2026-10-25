@@ -94,7 +94,20 @@ public final class MillingGameTests {
             LogManager.getLogger().info(
                     "HEARTHBOUND_CITIZEN_REAL_WALK_SUPPLY_PASS citizen={} arrival={} mill={} movedWheat=1 conserved=true controller=server_tick",
                     citizenId,observedArrival,mill.getBlockPos());
-            pass(helper,"citizen_walks_and_supplies_mill");
+            // Submit a second funded request while the machine is still
+            // occupied. It must neither consume citizen wheat nor complete.
+            registry.assignMillSupply(citizenId,level.dimension().location().toString(),
+                    destination.asLong(),
+                    dev.hearthbound.integration.ForgeServerTickObserver.logicalTick(server));
+            helper.runAfterDelay(30, () -> {
+                helper.assertTrue(villager.getPersistentData().getInt("HearthboundWheat")==1
+                                && mill.inputInv.getStackInSlot(0).getCount()==1,
+                        "Occupied millstone must not consume a second citizen wheat");
+                helper.assertTrue(registry.snapshot().stream().anyMatch(item -> item.id().equals(citizenId)
+                                && item.task().startsWith("MILL_SUPPLY:")),
+                        "Blocked milling task must remain outstanding for recovery");
+                pass(helper,"citizen_walks_and_supplies_mill");
+            });
         });
     }
 
