@@ -74,6 +74,7 @@ jobs:
           test -f "$world/level.dat"
           test -f run-gametest/milling-expected.nbt
           test -f run-gametest/milling-machine-expected.nbt
+          test -f run-gametest/consecutive-millings-expected.nbt
           printf 'level-name=%s\n' "$world" >> run/server.properties
           echo "HEARTHBOUND_RESTART_EXPECTED=$(realpath run-gametest/milling-expected.nbt)" >> "$GITHUB_ENV"
       - name: Boot Forge development server
@@ -103,6 +104,10 @@ jobs:
           fi
           if ! grep -Fq 'HEARTHBOUND_MACHINE_CHECKPOINT_PASS operation=' server-smoke.log; then
             echo 'Saved machine/intent checkpoint verification failed' >&2
+            exit 1
+          fi
+          if ! grep -Fq 'HEARTHBOUND_TWO_CITIZEN_REAL_CREDITS_RESTART_PASS citizenA=' server-smoke.log; then
+            echo 'Two genuine Create citizen credits did not survive restart' >&2
             exit 1
           fi
           if ! grep -Fq 'HEARTHBOUND_MACHINE_HANDOFF_RESTART_PASS previousCitizen=' server-smoke.log; then
@@ -152,6 +157,8 @@ jobs:
             gametest.log
             run-gametest/milling-expected.nbt
             run-gametest/milling-machine-expected.nbt
+            run-gametest/consecutive-millings-expected.nbt
+            run-gametest/**/hearthbound-fixture-consecutive-credits/credits.v1
             run-gametest/**/hearthbound-fixture-intents/*.intent
             run-gametest/**/hearthbound-fixture-credits/credits.v1
             run-gametest/**/hearthbound-fixture-citizen-credits/credits.v1
