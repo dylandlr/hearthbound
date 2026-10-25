@@ -69,6 +69,7 @@ public final class MillingGameTests {
         var durableIntent = MillingCheckpointFixture.prepare(mill);
         MillingDiscoveryFixture.claimMachine(helper.getLevel().getServer(), durableIntent);
         MillingDiscoveryFixture.acquireHandoff(helper.getLevel().getServer(), durableIntent);
+        MillingDiscoveryFixture.beginObservationWindow(helper.getLevel().getServer(), durableIntent);
         MillingDiscoveryFixture.prepareAssignment(helper.getLevel().getServer(), durableIntent,
                 mill.getLevel().dimension().location().toString(), mill.getBlockPos().asLong());
         // First scripted-policy-to-Create action boundary. The GameTest still supplies
