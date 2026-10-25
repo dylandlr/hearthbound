@@ -53,7 +53,7 @@ jobs:
           spawn-protection=0
           motd=Hearthbound CI smoke test
           EOF
-      # EULA-accepted smoke rerun requested after diagnostic improvements.
+      # Evidence-manifest v1 acceptance run, explicitly requested after EULA acceptance.
       - name: Run required Minecraft GameTests
         shell: bash
         run: |
