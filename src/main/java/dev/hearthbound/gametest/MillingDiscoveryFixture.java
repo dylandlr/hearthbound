@@ -6,6 +6,8 @@ import dev.hearthbound.research.DurableCreditLedger;
 import dev.hearthbound.research.CitizenDiscoveryGate;
 import dev.hearthbound.research.CitizenDiscoveryCommitter;
 import dev.hearthbound.research.DurableMachineClaim;
+import dev.hearthbound.research.DurableMachineHandoff;
+import dev.hearthbound.research.MachineClaimRetirementGate;
 import dev.hearthbound.research.DurableOperationIntents;
 import dev.hearthbound.research.DurableOperationIntents.Intent;
 import net.minecraft.nbt.*;
@@ -31,6 +33,59 @@ final class MillingDiscoveryFixture {
         var directory = server.getWorldPath(LevelResource.ROOT).resolve("hearthbound-fixture-citizen-credits");
         java.nio.file.Files.createDirectories(directory);
         return new CitizenDiscoveryCommitter(directory);
+    }
+    private static DurableMachineHandoff handoffs(MinecraftServer server) throws IOException {
+        var directory = server.getWorldPath(LevelResource.ROOT).resolve("hearthbound-fixture-machine-handoffs");
+        java.nio.file.Files.createDirectories(directory);
+        return new DurableMachineHandoff(directory);
+    }
+    static void acquireHandoff(MinecraftServer server, Intent intent) {
+        try {
+            var store = handoffs(server);
+            var owner = store.acquire(intent.machineKey(), intent.operationId(), TEST_CITIZEN);
+            if (owner.retired() || owner.owner().generation() != 1)
+                throw new IllegalStateException("Initial machine owner must hold generation 1");
+            boolean rejected = false;
+            try {
+                store.acquire(intent.machineKey(), UUID.randomUUID(), UUID.randomUUID());
+            } catch (IOException conflict) { rejected = true; }
+            if (!rejected) throw new IllegalStateException("Competing machine handoff accepted");
+        } catch (IOException failure) {
+            throw new IllegalStateException("Cannot persist machine handoff before operation", failure);
+        }
+    }
+    private static void verifyActiveHandoff(MinecraftServer server, Intent intent) throws IOException {
+        var state = handoffs(server).current(intent.machineKey());
+        if (state == null || state.retired() || state.owner().generation() != 1
+                || !state.owner().operation().equals(intent.operationId())
+                || !state.owner().citizen().equals(TEST_CITIZEN))
+            throw new IllegalStateException("Machine handoff owner differs from active milling operation");
+    }
+    private static void finishHandoffAfterRestart(MinecraftServer server, Intent intent) throws IOException {
+        var store = handoffs(server);
+        verifyActiveHandoff(server, intent);
+        // The calling restart fixture already checked authoritative milling observation,
+        // actual machine inventory, persisted receipt and exact citizen research credit.
+        var retired = store.retire(intent.machineKey(), intent.operationId(), TEST_CITIZEN,
+                MachineClaimRetirementGate.Decision.ELIGIBLE_FOR_RETIREMENT);
+        if (!retired.retired()) throw new IllegalStateException("Claim retirement was not persisted");
+        UUID nextCitizen = UUID.fromString("00000000-0000-0000-0000-000000000078");
+        UUID nextOperation = UUID.randomUUID();
+        var successor = new DurableMachineHandoff(server.getWorldPath(LevelResource.ROOT)
+                .resolve("hearthbound-fixture-machine-handoffs"))
+                .acquire(intent.machineKey(), nextOperation, nextCitizen);
+        if (successor.retired() || successor.owner().generation() != 2
+                || !successor.owner().citizen().equals(nextCitizen))
+            throw new IllegalStateException("Second citizen did not acquire generation 2");
+        boolean staleRejected = false;
+        try {
+            store.retire(intent.machineKey(), intent.operationId(), TEST_CITIZEN,
+                    MachineClaimRetirementGate.Decision.ELIGIBLE_FOR_RETIREMENT);
+        } catch (IOException expected) { staleRejected = true; }
+        if (!staleRejected) throw new IllegalStateException("Stale owner retired successor");
+        org.apache.logging.log4j.LogManager.getLogger().info(
+                "HEARTHBOUND_MACHINE_HANDOFF_RESTART_PASS previousCitizen={} nextCitizen={} generation=2 staleRejected=true",
+                TEST_CITIZEN, nextCitizen);
     }
     private static DurableMachineClaim machineClaims(MinecraftServer server) throws IOException {
         var directory = server.getWorldPath(LevelResource.ROOT).resolve("hearthbound-fixture-machine-claims");
@@ -131,6 +186,7 @@ final class MillingDiscoveryFixture {
     static void award(MillstoneBlockEntity mill, Intent intent, CompoundTag expected) throws IOException {
         var server = mill.getLevel().getServer();
         verifyClaim(server, intent);
+        verifyActiveHandoff(server, intent);
         CompoundTag observed = observation(server, mill.getBlockPos().asLong());
         validate(intent, observed, expected.getCompound("Inventory"));
         CompoundTag receipt = new CompoundTag();
@@ -193,6 +249,7 @@ final class MillingDiscoveryFixture {
         org.apache.logging.log4j.LogManager.getLogger().info(
                 "HEARTHBOUND_CITIZEN_CREDIT_RESTART_PASS operation={} citizen={} balance=1 duplicateRejected=true",
                 intent.operationId(), TEST_CITIZEN);
+        finishHandoffAfterRestart(server, intent);
         org.apache.logging.log4j.LogManager.getLogger().info(
                 "HEARTHBOUND_DISCOVERY_RESTART_PASS operation={} recipe=create:milling/wheat balance=1 duplicateRejected=true",
                 intent.operationId());
