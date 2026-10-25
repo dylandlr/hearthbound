@@ -69,6 +69,7 @@ jobs:
             src/main/java/dev/hearthbound/research/DurableMachineClaim.java \
             src/main/java/dev/hearthbound/research/MachineClaimRetirementGate.java \
             src/main/java/dev/hearthbound/research/DurableMachineHandoff.java \
+            src/main/java/dev/hearthbound/research/DurableObservationWindow.java \
             src/test/java/dev/hearthbound/research/DurableOperationIntentsTest.java \
             src/test/java/dev/hearthbound/research/DurableCreditLedgerTest.java \
             src/test/java/dev/hearthbound/research/MillstoneRecoveryGateTest.java \
@@ -89,10 +90,11 @@ jobs:
             src/test/java/dev/hearthbound/research/DurableMachineClaimTest.java \
             src/test/java/dev/hearthbound/research/MachineClaimRetirementGateTest.java \
             src/test/java/dev/hearthbound/research/DurableMachineHandoffTest.java \
-            src/test/java/dev/hearthbound/research/TwoCitizenMillingCycleTest.java
+            src/test/java/dev/hearthbound/research/TwoCitizenMillingCycleTest.java \
+            src/test/java/dev/hearthbound/research/DurableObservationWindowTest.java
       - name: Execute standalone contracts
         run: |
-          for cls in DurableOperationIntentsTest DurableCreditLedgerTest MillstoneRecoveryGateTest MillstoneReceiptGateTest ServerTickEventLedgerTest ServerTickClockTest PersistentTickCounterTest InventoryDeltaTest CitizenDiscoveryGateTest CitizenDiscoveryCommitterTest ScriptedMillingPolicyTest ScriptedMillingExecutorTest ScriptedCitizenWorkLoopTest CitizenInventoryTest DurableCitizenInventoryTest WheatTransferRecoveryTest DurableCitizenWorkOrderTest DurableMachineClaimTest MachineClaimRetirementGateTest DurableMachineHandoffTest TwoCitizenMillingCycleTest; do
+          for cls in DurableOperationIntentsTest DurableCreditLedgerTest MillstoneRecoveryGateTest MillstoneReceiptGateTest ServerTickEventLedgerTest ServerTickClockTest PersistentTickCounterTest InventoryDeltaTest CitizenDiscoveryGateTest CitizenDiscoveryCommitterTest ScriptedMillingPolicyTest ScriptedMillingExecutorTest ScriptedCitizenWorkLoopTest CitizenInventoryTest DurableCitizenInventoryTest WheatTransferRecoveryTest DurableCitizenWorkOrderTest DurableMachineClaimTest MachineClaimRetirementGateTest DurableMachineHandoffTest TwoCitizenMillingCycleTest DurableObservationWindowTest; do
             java -cp build/contract-classes dev.hearthbound.research.$cls
           done
   compile-and-contract:
