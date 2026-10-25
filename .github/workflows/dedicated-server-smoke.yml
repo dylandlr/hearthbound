@@ -152,6 +152,7 @@ jobs:
             run-gametest/**/hearthbound-fixture-credits/credits.v1
             run-gametest/**/hearthbound-fixture-citizen-credits/credits.v1
             run-gametest/**/hearthbound-fixture-citizen-assignments/*.intent
+            run-gametest/**/hearthbound-fixture-machine-claims/*.intent
             run-gametest/**/data/hearthbound_milling_observations_v1.dat
             run-gametest/logs/*.log
             run/logs/*.log
