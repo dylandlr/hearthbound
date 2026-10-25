@@ -8,6 +8,8 @@ on:
       - 'build.gradle'
       - 'gradle.properties'
       - 'scripts/verify_gametest_log.py'
+      - 'scripts/package_experiment_evidence.py'
+      - 'scripts/test_package_experiment_evidence.py'
   workflow_dispatch:
     inputs:
       accept_minecraft_eula:
@@ -123,6 +125,9 @@ jobs:
             echo "Unexpected server exit code: $exit_code" >&2
             exit 1
           fi
+      - name: Verify evidence packager
+        if: always()
+        run: python3 -m unittest discover -s scripts -p 'test_package_experiment_evidence.py'
       - name: Create experiment evidence manifest
         if: always()
         shell: bash
