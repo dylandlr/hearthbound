@@ -16,6 +16,14 @@ public final class CitizenSupplyAssignment {
         Files.createDirectories(dir);
         return new DurableCitizenWorkOrder(dir);
     }
+    public static UUID prepareOrReject(MinecraftServer server, UUID citizen,
+                                       String dimension, BlockPos mill) {
+        try {
+            return prepare(server,citizen,dimension,mill);
+        } catch(IOException failure) {
+            throw new IllegalArgumentException("Could not persist citizen milling assignment",failure);
+        }
+    }
     public static String machineKey(String dimension,BlockPos mill) {
         return dimension+":"+mill.asLong();
     }
