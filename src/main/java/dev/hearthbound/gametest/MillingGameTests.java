@@ -67,6 +67,7 @@ public final class MillingGameTests {
                 "Occupied millstone cannot receive duplicate wheat");
         LogManager.getLogger().info("HEARTHBOUND_SCRIPTED_WORK_LOOP action=SUPPLY_WHEAT conserved=true");
         var durableIntent = MillingCheckpointFixture.prepare(mill);
+        MillingDiscoveryFixture.claimMachine(helper.getLevel().getServer(), durableIntent);
         MillingDiscoveryFixture.prepareAssignment(helper.getLevel().getServer(), durableIntent,
                 mill.getLevel().dimension().location().toString(), mill.getBlockPos().asLong());
         // First scripted-policy-to-Create action boundary. The GameTest still supplies
