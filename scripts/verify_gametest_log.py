@@ -4,7 +4,7 @@ import re
 import sys
 
 def verify(text):
-    for name in ("inventory_identity", "unpowered_millstone", "milling_motor_connection", "consecutive_real_millings", "persistent_citizen_registry", "visible_citizen_embodiment", "scripted_citizen_movement"):
+    for name in ("inventory_identity", "unpowered_millstone", "milling_motor_connection", "consecutive_real_millings", "persistent_citizen_registry", "visible_citizen_embodiment", "scripted_citizen_movement", "real_citizen_pathfinding"):
         marker = "HEARTHBOUND_GAMETEST_PASS " + name
         if text.count(marker) != 1:
             raise ValueError(f"Expected exactly one pass marker: {name}")
@@ -20,6 +20,8 @@ def verify(text):
     events = [line for line in text.splitlines() if "HEARTHBOUND_MILLSTONE_MUTATION " in line]
     if len(events) != 3:
         raise ValueError(f"Expected three real milling events, found {len(events)}")
+    if text.count("HEARTHBOUND_REAL_CITIZEN_NAVIGATION_PASS ") != 1:
+        raise ValueError("Expected physical villager pathfinding proof")
     if text.count("HEARTHBOUND_TWO_REAL_MILLINGS_PASS ") != 1:
         raise ValueError("Missing unique consecutive-real-millings verification")
     if not re.search(r"create:wheat_flourx[1-3](?=,|\])", events[0]):
