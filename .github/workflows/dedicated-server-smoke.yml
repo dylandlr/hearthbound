@@ -1,15 +1,6 @@
 name: Hearthbound dedicated server smoke test
 on:
-  push:
-    branches: [feat/create-forge-dependency-v1-2]
-    paths:
-      - '.github/workflows/dedicated-server-smoke.yml'
-      - 'src/**'
-      - 'build.gradle'
-      - 'gradle.properties'
-      - 'scripts/verify_gametest_log.py'
-      - 'scripts/package_experiment_evidence.py'
-      - 'scripts/test_package_experiment_evidence.py'
+  workflow_call:
   workflow_dispatch:
     inputs:
       accept_minecraft_eula:
@@ -21,9 +12,9 @@ on:
 jobs:
   server-smoke:
     # User explicitly confirmed EULA acceptance on 2026-10-24.
-    # Only an explicitly marked feature-branch push starts an ephemeral test.
+    # Invoked by the known Forge CI run on an explicitly marked push.
     # Repository MINECRAFT_EULA_ACCEPTED=false remains an override to disable.
-    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.accept_minecraft_eula == true) || (github.event_name == 'push' && github.ref == 'refs/heads/feat/create-forge-dependency-v1-2' && vars.MINECRAFT_EULA_ACCEPTED != 'false' && contains(github.event.head_commit.message, '[eula-accepted-smoke]')) }}
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.accept_minecraft_eula == true) || (github.event_name == 'push' && vars.MINECRAFT_EULA_ACCEPTED != 'false' && contains(github.event.head_commit.message, '[eula-accepted-smoke]')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     concurrency:
