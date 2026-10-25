@@ -14,3 +14,6 @@ The first real Minecraft milling and restart evidence remains [run 40159809558](
 
 ## Next live acceptance gate
 Persist server-owned citizen assignment before milling; attach its stable operation UUID to the machine's durable intent; verify observed Create process against the receipt and assignment; write credit; restart and verify the named citizen owns exactly one persisted research event. Only then expose recipe knowledge to the agent observation space.
+
+## Runtime attribution fixture extension
+The Forge GameTest now feeds the *real* observed milling record and a prepared durable operation intent through CitizenDiscoveryCommitter with a fixed fixture citizen UUID. It verifies exactly-once credit and re-checks after a separate dedicated-server restart. The fixture directory `hearthbound-fixture-citizen-credits` is separate from production citizen data. These tests establish transactional integration, not an autonomous actor, policy decision, or learned recipe knowledge.
