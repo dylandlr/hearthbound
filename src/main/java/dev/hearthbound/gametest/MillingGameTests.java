@@ -27,6 +27,20 @@ import org.apache.logging.log4j.LogManager;
 @GameTestHolder("hearthbound")
 @PrefixGameTestTemplate(false)
 public final class MillingGameTests {
+    @GameTest(templateNamespace = "hearthbound", template = "empty", timeoutTicks = 100)
+    public static void visibleCitizenEmbodiment(GameTestHelper helper) {
+        var level = helper.getLevel();
+        UUID id = UUID.randomUUID();
+        BlockPos pos = helper.absolutePos(new BlockPos(1, 1, 1));
+        var citizen = dev.hearthbound.integration.CitizenEmbodiment.spawn(level, id, pos);
+        helper.assertTrue(citizen.isAlive() && id.equals(
+                dev.hearthbound.integration.CitizenEmbodiment.identity(citizen)),
+                "Spawned villager must retain citizen identity");
+        helper.assertTrue(dev.hearthbound.integration.CitizenEmbodiment.find(level, id) != null,
+                "Server must find visible citizen by persistent ID");
+        pass(helper, "visible_citizen_embodiment");
+    }
+
     @GameTest(templateNamespace = "hearthbound", template = "empty", timeoutTicks = 40)
     public static void persistentCitizenRegistry(GameTestHelper helper) {
         var server = helper.getLevel().getServer();
