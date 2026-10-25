@@ -8,6 +8,9 @@ def verify(text):
         marker = "HEARTHBOUND_GAMETEST_PASS " + name
         if text.count(marker) != 1:
             raise ValueError(f"Expected exactly one pass marker: {name}")
+    marker = "HEARTHBOUND_CITIZEN_CREDIT_FIXTURE_PASS "
+    if text.count(marker) != 1:
+        raise ValueError("Expected exactly one citizen attribution fixture pass")
     events = [line for line in text.splitlines() if "HEARTHBOUND_MILLSTONE_MUTATION " in line]
     if len(events) != 1:
         raise ValueError(f"Expected exactly one milling event, found {len(events)}")
