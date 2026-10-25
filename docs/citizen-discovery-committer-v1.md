@@ -17,3 +17,6 @@ Persist server-owned citizen assignment before milling; attach its stable operat
 
 ## Runtime attribution fixture extension
 The Forge GameTest now feeds the *real* observed milling record and a prepared durable operation intent through CitizenDiscoveryCommitter with a fixed fixture citizen UUID. It verifies exactly-once credit and re-checks after a separate dedicated-server restart. The fixture directory `hearthbound-fixture-citizen-credits` is separate from production citizen data. These tests establish transactional integration, not an autonomous actor, policy decision, or learned recipe knowledge.
+
+## CI follow-up
+The first citizen-credit acceptance request failed in the evidence-packager unit test before Minecraft could run (Forge compilation passed). The fix updates the required GameTest/restart marker partitions and their self-test fixture. The subsequent acceptance request is an explicit EULA-authorized rerun; its outcome requires checking the linked CI job and archived logs.
