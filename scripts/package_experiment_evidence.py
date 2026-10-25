@@ -41,8 +41,8 @@ def make_manifest(root):
     # Outcomes are claims only if the required run logs exist and markers are present.
     game = files["gametest.log"]
     server = files["server-smoke.log"]
-    game_markers = MARKERS[:4] + (MARKERS[8],)
-    server_markers = MARKERS[4:8] + (MARKERS[9],)
+    game_markers = MARKERS[:4] + (MARKERS[7],)
+    server_markers = MARKERS[4:7] + (MARKERS[8], MARKERS[9])
     game_evidence = bool(game.get("present")) and all(game["marker_counts"][m] == 1 for m in game_markers)
     server_evidence = bool(server.get("present")) and all(server["marker_counts"][m] >= 1 for m in server_markers)
     return {
