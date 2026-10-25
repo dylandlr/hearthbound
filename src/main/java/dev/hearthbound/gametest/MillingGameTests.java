@@ -133,7 +133,7 @@ public final class MillingGameTests {
                         "Blocked milling task must remain outstanding for recovery");
                 try {
                     CitizenSupplyRestartFixture.write(server,citizenId,
-                            level.dimension().location().toString(),mill.getBlockPos(),1);
+                            level.dimension().location().toString(),mill.getBlockPos(),villager.blockPosition(),1);
                 } catch(java.io.IOException failure) {
                     throw new IllegalStateException("Could not stage citizen restart evidence",failure);
                 }
