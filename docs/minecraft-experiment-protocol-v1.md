@@ -31,3 +31,6 @@ Every completed or failed smoke job writes its run identifier and artifact name 
 
 ## Research extension
 After one verified smoke, add a versioned run specification (Minecraft/modpack versions, seeds, agent policy hash, reward schema, action/observation schema, trial duration), controlled baselines, and synchronized playback. Repeated seeded trials and outcome attribution are essential before describing agent learning as emergent.
+
+## CI linkage
+The Minecraft acceptance workflow is called from `forge-create-checks.yml` on explicitly tagged feature-branch pushes. The same run ID exposes Java contracts, Forge packaging and Minecraft acceptance jobs; the separate workflow no longer relies on discovering a standalone push run. The acceptance EULA gate and issue #77 evidence index remain in place.
