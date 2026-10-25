@@ -6,6 +6,9 @@ Convert a Forge build into a reproducible, inspectable Minecraft runtime experim
 ## Run identities and provenance
 The dedicated-server smoke workflow records the immutable GitHub run ID, attempt number, commit SHA and ref. Its artifact name embeds run ID and attempt. `evidence/manifest.json` stores SHA-256 hashes and counts of expected runtime markers for `gametest.log` and `server-smoke.log`. Artifacts are retained for 30 days. The GitHub Actions summary links to the run and its evidence; preserve the ZIP externally for long-term research.
 
+## Run discovery
+Every completed or failed smoke job writes its run identifier and artifact name as a comment to [experiment index issue #77](https://github.com/dylandlr/hearthbound/issues/77), using the workflow GITHUB_TOKEN with issues:write. This closes the gap where the available GitHub integration can read a known run ID but cannot list every workflow run. If that post fails, the run itself is marked unsuccessful and the GitHub Actions summary is the fallback. The index tracks run locations, not pass/fail verdicts.
+
 ## Execution
 - EULA acceptance required: manual workflow dispatch Boolean, or deliberately marked feature-branch commit `[eula-accepted-smoke]` with the repository variable not equal to `false`.
 - Each smoke attempt runs GameTests in a Forge game server and then restarts the saved world with a normal Forge server. CI uses Java 17 and Gradle 8.8.
