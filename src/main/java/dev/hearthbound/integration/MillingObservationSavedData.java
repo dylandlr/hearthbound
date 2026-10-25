@@ -39,6 +39,29 @@ public final class MillingObservationSavedData extends SavedData {
         return value == null ? null : value.copy();
     }
 
+    /**
+     * Resolve a single real machine outcome within a recorded operation's tick
+     * window. Ambiguity is an error, never "first matching wins".
+     * The caller must still verify durable pre-operation inventory evidence.
+     */
+    public CompoundTag uniqueInWindow(String dimension, long position, long minTick, long maxTick) {
+        if (dimension == null || dimension.isBlank() || minTick < 0 || maxTick < minTick)
+            throw new IllegalArgumentException("Invalid observation window");
+        CompoundTag matched = null;
+        for (CompoundTag item : observations.values()) {
+            long tick = item.getLong("Tick");
+            if (item.getString("Dimension").equals(dimension)
+                    && item.getLong("Position") == position
+                    && tick >= minTick && tick <= maxTick) {
+                if (matched != null)
+                    throw new IllegalStateException("Ambiguous milling observations in operation window");
+                matched = item;
+            }
+        }
+        if (matched == null) throw new IllegalStateException("No milling observation in operation window");
+        return matched.copy();
+    }
+
     public ListTag snapshot() {
         ListTag list = new ListTag();
         observations.values().forEach(value -> list.add(value.copy()));
