@@ -67,6 +67,8 @@ public final class CitizenMovementObserver {
                             CitizenSupplyAttempt.begin(server,operation,citizen.id(),citizen.dimension(),millPos);
                         } catch(java.io.IOException failure) { continue; }
                         if(ServerMillingActions.supplyWheat(mill,held)) {
+                            data.putUUID("HearthboundLastSupplyOperation",operation);
+                            data.putInt("HearthboundLastSupplyBefore",wheat);
                             data.putInt("HearthboundWheat",held.getCount());
                             data.putLong("HearthboundLastSupplyMill",millPos.asLong());
                             data.putLong("HearthboundLastSupplyTick",tick);
