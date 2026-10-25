@@ -62,6 +62,7 @@ jobs:
             src/main/java/dev/hearthbound/research/ScriptedMillingPolicy.java \
             src/main/java/dev/hearthbound/research/ScriptedMillingExecutor.java \
             src/main/java/dev/hearthbound/research/ScriptedCitizenWorkLoop.java \
+            src/main/java/dev/hearthbound/research/CitizenInventory.java \
             src/test/java/dev/hearthbound/research/DurableOperationIntentsTest.java \
             src/test/java/dev/hearthbound/research/DurableCreditLedgerTest.java \
             src/test/java/dev/hearthbound/research/MillstoneRecoveryGateTest.java \
@@ -74,10 +75,11 @@ jobs:
             src/test/java/dev/hearthbound/research/CitizenDiscoveryCommitterTest.java \
             src/test/java/dev/hearthbound/research/ScriptedMillingPolicyTest.java \
             src/test/java/dev/hearthbound/research/ScriptedMillingExecutorTest.java \
-            src/test/java/dev/hearthbound/research/ScriptedCitizenWorkLoopTest.java
+            src/test/java/dev/hearthbound/research/ScriptedCitizenWorkLoopTest.java \
+            src/test/java/dev/hearthbound/research/CitizenInventoryTest.java
       - name: Execute standalone contracts
         run: |
-          for cls in DurableOperationIntentsTest DurableCreditLedgerTest MillstoneRecoveryGateTest MillstoneReceiptGateTest ServerTickEventLedgerTest ServerTickClockTest PersistentTickCounterTest InventoryDeltaTest CitizenDiscoveryGateTest CitizenDiscoveryCommitterTest ScriptedMillingPolicyTest ScriptedMillingExecutorTest ScriptedCitizenWorkLoopTest; do
+          for cls in DurableOperationIntentsTest DurableCreditLedgerTest MillstoneRecoveryGateTest MillstoneReceiptGateTest ServerTickEventLedgerTest ServerTickClockTest PersistentTickCounterTest InventoryDeltaTest CitizenDiscoveryGateTest CitizenDiscoveryCommitterTest ScriptedMillingPolicyTest ScriptedMillingExecutorTest ScriptedCitizenWorkLoopTest CitizenInventoryTest; do
             java -cp build/contract-classes dev.hearthbound.research.$cls
           done
   compile-and-contract:
