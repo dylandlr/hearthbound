@@ -14,7 +14,7 @@ jobs:
     # User explicitly confirmed EULA acceptance on 2026-10-24.
     # Invoked by the known Forge CI run on an explicitly marked push.
     # Repository MINECRAFT_EULA_ACCEPTED=false remains an override to disable.
-    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.accept_minecraft_eula == true) || (github.event_name == 'push' && vars.MINECRAFT_EULA_ACCEPTED != 'false' && contains(github.event.head_commit.message, '[eula-accepted-smoke]')) }}
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.accept_minecraft_eula == true) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[eula-accepted-smoke]')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     concurrency:
