@@ -27,6 +27,38 @@ import org.apache.logging.log4j.LogManager;
 @GameTestHolder("hearthbound")
 @PrefixGameTestTemplate(false)
 public final class MillingGameTests {
+    @GameTest(templateNamespace = "hearthbound", template = "empty", timeoutTicks = 120)
+    public static void scriptedCitizenMovement(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var server = level.getServer();
+        var registry = dev.hearthbound.integration.CitizenRegistrySavedData.get(server);
+        UUID id = UUID.randomUUID();
+        BlockPos origin = helper.absolutePos(new BlockPos(1, 1, 1));
+        BlockPos target = helper.absolutePos(new BlockPos(4, 1, 1));
+        registry.register(id,"MovementFixture",level.dimension().location().toString(),
+                origin.asLong(),dev.hearthbound.integration.ForgeServerTickObserver.logicalTick(server));
+        var villager = dev.hearthbound.integration.CitizenEmbodiment.spawn(level,id,origin);
+        registry.assignMove(id,level.dimension().location().toString(),target.asLong(),
+                dev.hearthbound.integration.ForgeServerTickObserver.logicalTick(server));
+        helper.assertTrue(registry.snapshot().stream().anyMatch(c -> c.id().equals(id)
+                        && c.task().equals("MOVE:" + target.asLong())),
+                "Movement worksite must be registered");
+        // Force a genuine world-position change and verify authoritative observation,
+        // without relying on vanilla pathfinding through an unknown GameTest structure.
+        villager.moveTo(target.getX()+0.5,target.getY(),target.getZ()+0.5,0,0);
+        registry.observe(id,villager.blockPosition().asLong(),
+                dev.hearthbound.integration.ForgeServerTickObserver.logicalTick(server),true);
+        helper.assertTrue(registry.snapshot().stream().anyMatch(c -> c.id().equals(id)
+                        && c.task().equals("IDLE") && c.position()==target.asLong()),
+                "Actual entity position must be reflected in persistent citizen record");
+        var reloaded=dev.hearthbound.integration.CitizenRegistrySavedData.load(
+                registry.save(new CompoundTag()));
+        helper.assertTrue(reloaded.snapshot().stream().anyMatch(c -> c.id().equals(id)
+                        && c.position()==target.asLong() && c.task().equals("IDLE")),
+                "Citizen arrival must survive NBT round trip");
+        pass(helper,"scripted_citizen_movement");
+    }
+
     @GameTest(templateNamespace = "hearthbound", template = "empty", timeoutTicks = 100)
     public static void visibleCitizenEmbodiment(GameTestHelper helper) {
         var level = helper.getLevel();
