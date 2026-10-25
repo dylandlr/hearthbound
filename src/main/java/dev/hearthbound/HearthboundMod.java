@@ -36,6 +36,26 @@ public final class HearthboundMod {
         public static void onCommands(RegisterCommandsEvent event) {
             CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
             dispatcher.register(Commands.literal("hearthbound")
+                    .then(Commands.literal("move")
+                            .requires(source -> source.hasPermission(2))
+                            .then(Commands.argument("citizen", net.minecraft.commands.arguments.UuidArgument.uuid())
+                                    .then(Commands.argument("target", BlockPosArgument.blockPos())
+                                            .executes(ctx -> {
+                                                var source = ctx.getSource();
+                                                var id = net.minecraft.commands.arguments.UuidArgument.getUuid(ctx,"citizen");
+                                                var target = BlockPosArgument.getLoadedBlockPos(ctx,"target");
+                                                try {
+                                                    var record = CitizenRegistrySavedData.get(source.getServer()).assignMove(
+                                                            id,source.getLevel().dimension().location().toString(),
+                                                            target.asLong(),ForgeServerTickObserver.logicalTick(source.getServer()));
+                                                    source.sendSuccess(() -> Component.literal(
+                                                            "Assigned citizen " + record.name() + " to " + target),false);
+                                                    return 1;
+                                                } catch(IllegalArgumentException failure) {
+                                                    source.sendFailure(Component.literal(failure.getMessage()));
+                                                    return 0;
+                                                }
+                                            }))))
                     .then(Commands.literal("citizen")
                             .requires(source -> source.hasPermission(2))
                             .then(Commands.literal("create")
