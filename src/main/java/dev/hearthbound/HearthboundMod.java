@@ -36,6 +36,41 @@ public final class HearthboundMod {
         public static void onCommands(RegisterCommandsEvent event) {
             CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
             dispatcher.register(Commands.literal("hearthbound")
+                    .then(Commands.literal("mill_supply")
+                            .requires(source -> source.hasPermission(2))
+                            .then(Commands.argument("citizen", net.minecraft.commands.arguments.UuidArgument.uuid())
+                                    .then(Commands.argument("worksite", BlockPosArgument.blockPos())
+                                            .executes(ctx -> {
+                                                var source=ctx.getSource();
+                                                var id=net.minecraft.commands.arguments.UuidArgument.getUuid(ctx,"citizen");
+                                                var worksite=BlockPosArgument.getLoadedBlockPos(ctx,"worksite");
+                                                var registry=CitizenRegistrySavedData.get(source.getServer());
+                                                var villager=dev.hearthbound.integration.CitizenEmbodiment.find(source.getLevel(),id);
+                                                var mill=source.getLevel().getBlockEntity(worksite.offset(1,0,0));
+                                                if(villager==null || !(mill instanceof com.simibubi.create.content.kinetics.millstone.MillstoneBlockEntity)) {
+                                                    source.sendFailure(Component.literal("Citizen villager or adjacent east-side millstone missing"));
+                                                    return 0;
+                                                }
+                                                var player=source.getPlayerOrException();
+                                                var held=player.getMainHandItem();
+                                                if(!held.is(net.minecraft.world.item.Items.WHEAT) || held.getCount()<1) {
+                                                    source.sendFailure(Component.literal("Hold wheat in main hand to fund citizen's task"));
+                                                    return 0;
+                                                }
+                                                try {
+                                                    registry.assignMillSupply(id,source.getLevel().dimension().location().toString(),
+                                                            worksite.asLong(),ForgeServerTickObserver.logicalTick(source.getServer()));
+                                                    villager.getPersistentData().putInt("HearthboundWheat",
+                                                            villager.getPersistentData().getInt("HearthboundWheat")+1);
+                                                    held.shrink(1);
+                                                    source.sendSuccess(() -> Component.literal(
+                                                            "Citizen assigned to deliver one player-funded wheat to millstone east of " + worksite),false);
+                                                    return 1;
+                                                } catch(IllegalArgumentException failure) {
+                                                    source.sendFailure(Component.literal(failure.getMessage()));
+                                                    return 0;
+                                                }
+                                            }))))
                     .then(Commands.literal("move")
                             .requires(source -> source.hasPermission(2))
                             .then(Commands.argument("citizen", net.minecraft.commands.arguments.UuidArgument.uuid())
