@@ -15,6 +15,8 @@ def verify(text):
     marker = "HEARTHBOUND_CITIZEN_CREDIT_FIXTURE_PASS "
     if text.count(marker) != 1:
         raise ValueError("Expected exactly one citizen attribution fixture pass")
+    if text.count("HEARTHBOUND_SCRIPTED_WORK_LOOP action=SUPPLY_WHEAT conserved=true") != 1:
+        raise ValueError("Expected conserved wheat input")
     events = [line for line in text.splitlines() if "HEARTHBOUND_MILLSTONE_MUTATION " in line]
     if len(events) != 1:
         raise ValueError(f"Expected exactly one milling event, found {len(events)}")
