@@ -40,6 +40,7 @@ public final class DurableObservationWindow {
             return new Window(operation,UUID.fromString(parts[0]),parts[1],Long.parseLong(parts[2]),-1);
         }catch(IllegalArgumentException e){throw new IOException("Invalid start fields",e);}
     }
+    public Window started(UUID operation) throws IOException { return start(operation); }
     public boolean complete(UUID operation,UUID citizen,String machine,long endTick) throws IOException {
         Window first=start(operation);
         if(!first.citizenId().equals(citizen) || !first.machineKey().equals(machine)
