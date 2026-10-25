@@ -136,6 +136,24 @@ public final class MillingGameTests {
             helper.assertTrue(restored.find(observation.getUUID("Id")).equals(observation),
                     "NBT round trip must retain complete observation");
             helper.assertTrue(!restored.append(observation), "Duplicate ID must be rejected after reload");
+            long actualTick = observation.getLong("Tick");
+            helper.assertTrue(restored.uniqueInWindow(observation.getString("Dimension"),
+                            observation.getLong("Position"), actualTick, actualTick).equals(observation),
+                    "Exact operation tick must resolve its own observation");
+            CompoundTag second = observation.copy();
+            second.putUUID("Id", UUID.randomUUID());
+            second.putLong("Tick", actualTick + 1);
+            helper.assertTrue(restored.append(second), "Second distinct operation observation must append");
+            helper.assertTrue(restored.uniqueInWindow(observation.getString("Dimension"),
+                            observation.getLong("Position"), actualTick + 1, actualTick + 1).equals(second),
+                    "Later operation window must select only later observation");
+            boolean ambiguousWindow = false;
+            try {
+                restored.uniqueInWindow(observation.getString("Dimension"),
+                        observation.getLong("Position"), actualTick, actualTick + 1);
+            } catch (IllegalStateException expected) { ambiguousWindow = true; }
+            helper.assertTrue(ambiguousWindow, "Overlapping operation evidence must be rejected");
+
             CompoundTag conflict = observation.copy();
             conflict.putString("Recipe", "hearthbound:conflicting");
             boolean rejected = false;
