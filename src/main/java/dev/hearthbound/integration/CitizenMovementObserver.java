@@ -56,8 +56,17 @@ public final class CitizenMovementObserver {
                             continue;
                         }
                         var held=new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.WHEAT,wheat);
-                        if(CitizenSupplyAssignment.isAuthorized(server,citizen.id(),citizen.dimension(),millPos)
-                                && ServerMillingActions.supplyWheat(mill,held)) {
+                        if(!CitizenSupplyAssignment.isAuthorized(server,citizen.id(),citizen.dimension(),millPos))
+                            continue;
+                        java.util.UUID operation;
+                        try {
+                            operation=CitizenSupplyAssignment.require(server,citizen.id(),citizen.dimension(),millPos);
+                        } catch(java.io.IOException failure) { continue; }
+                        if(CitizenSupplyAttempt.hasAttempt(server,operation)) continue;
+                        try {
+                            CitizenSupplyAttempt.begin(server,operation,citizen.id(),citizen.dimension(),millPos);
+                        } catch(java.io.IOException failure) { continue; }
+                        if(ServerMillingActions.supplyWheat(mill,held)) {
                             data.putInt("HearthboundWheat",held.getCount());
                             data.putLong("HearthboundLastSupplyMill",millPos.asLong());
                             data.putLong("HearthboundLastSupplyTick",tick);
