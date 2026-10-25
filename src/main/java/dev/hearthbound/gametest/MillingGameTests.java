@@ -6,6 +6,8 @@ import com.simibubi.create.content.kinetics.millstone.MillstoneBlockEntity;
 import dev.hearthbound.integration.RuntimeInventoryDeltaChecks;
 import dev.hearthbound.integration.MillingObservationSavedData;
 import dev.hearthbound.research.ScriptedMillingPolicy;
+import dev.hearthbound.research.ScriptedMillingExecutor;
+import java.util.UUID;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.core.BlockPos;
@@ -53,10 +55,19 @@ public final class MillingGameTests {
         var policyObservation = new ScriptedMillingPolicy.Observation(
                 true, mill.inputInv.getStackInSlot(0).is(Items.WHEAT),
                 true, true, false, false);
-        var decision = ScriptedMillingPolicy.choose(policyObservation);
-        helper.assertTrue(decision == ScriptedMillingPolicy.Decision.PREPARE_MILLING,
-                "Scripted citizen policy must choose this assigned milling task");
-        LogManager.getLogger().info("HEARTHBOUND_SCRIPTED_MILLING_DECISION decision={} assigned=true", decision);
+        var task = new ScriptedMillingExecutor.State(durableIntent.operationId(),
+                UUID.fromString("00000000-0000-0000-0000-000000000077"),
+                ScriptedMillingExecutor.Phase.UNASSIGNED);
+        var planned = ScriptedMillingExecutor.plan(task, policyObservation);
+        helper.assertTrue(planned.authorizeMotorActivation()
+                        && planned.state().phase() == ScriptedMillingExecutor.Phase.READY_TO_POWER,
+                "Scripted citizen executor must authorize this milling operation");
+        var activeTask = ScriptedMillingExecutor.powered(planned.state());
+        helper.assertTrue(!ScriptedMillingExecutor.plan(activeTask, policyObservation).authorizeMotorActivation(),
+                "A processing task cannot energize the motor twice");
+        LogManager.getLogger().info(
+                "HEARTHBOUND_SCRIPTED_MILLING_DECISION decision=PREPARE_MILLING operation={} phase=PROCESSING assigned=true",
+                durableIntent.operationId());
         // Let the motor propagate its default 16 RPM through Create's kinetic network.
         BlockPos motorPos = new BlockPos(1, 0, 1);
         helper.setBlock(motorPos, AllBlocks.CREATIVE_MOTOR.getDefaultState()
