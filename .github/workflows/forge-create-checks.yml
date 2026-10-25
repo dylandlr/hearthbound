@@ -45,6 +45,8 @@ jobs:
           java-version: '17'
       - name: Validate experiment evidence packager
         run: python3 -m unittest discover -s scripts -p 'test_package_experiment_evidence.py'
+      - name: Validate local Minecraft dev-server launcher
+        run: python3 -m unittest discover -s scripts -p 'test_dev_server.py'
       - name: Compile standalone research contracts
         run: |
           mkdir -p build/contract-classes
