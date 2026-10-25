@@ -75,6 +75,7 @@ jobs:
           test -f run-gametest/milling-expected.nbt
           test -f run-gametest/milling-machine-expected.nbt
           test -f run-gametest/consecutive-millings-expected.nbt
+          test -f run-gametest/citizen-supply-restart-expected.nbt
           printf 'level-name=%s\n' "$world" >> run/server.properties
           echo "HEARTHBOUND_RESTART_EXPECTED=$(realpath run-gametest/milling-expected.nbt)" >> "$GITHUB_ENV"
       - name: Boot Forge development server
@@ -96,6 +97,10 @@ jobs:
           fi
           if ! grep -Eq 'HEARTHBOUND_SERVER_READY createLoaded=true logicalTick=[0-9]+' server-smoke.log; then
             echo 'Hearthbound server-started marker with Create loaded absent' >&2
+            exit 1
+          fi
+          if ! grep -Fq 'HEARTHBOUND_CITIZEN_SUPPLY_RESTART_PASS citizen=' server-smoke.log; then
+            echo 'Citizen supply journal or blocked work did not survive restart' >&2
             exit 1
           fi
           if ! grep -Fq 'HEARTHBOUND_RESTART_PASS observation=' server-smoke.log; then
@@ -158,6 +163,7 @@ jobs:
             run-gametest/milling-expected.nbt
             run-gametest/milling-machine-expected.nbt
             run-gametest/consecutive-millings-expected.nbt
+            run-gametest/citizen-supply-restart-expected.nbt
             run-gametest/**/hearthbound-fixture-consecutive-credits/credits.v1
             run-gametest/**/hearthbound-fixture-intents/*.intent
             run-gametest/**/hearthbound-fixture-credits/credits.v1
