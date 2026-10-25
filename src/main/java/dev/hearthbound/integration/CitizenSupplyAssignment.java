@@ -26,6 +26,14 @@ public final class CitizenSupplyAssignment {
                 "world",dimension,Long.toString(mill.asLong()));
         return prepared.intent().operationId();
     }
+    /** Unrecoverable or conflicting assignments must never authorize a mutation. */
+    public static boolean isAuthorized(MinecraftServer server,UUID citizen,String dimension,BlockPos mill) {
+        try {
+            return require(server,citizen,dimension,mill)!=null;
+        } catch(IOException | IllegalArgumentException invalid) {
+            return false;
+        }
+    }
     public static UUID require(MinecraftServer server,UUID citizen,String dimension,BlockPos mill)
             throws IOException {
         var key=machineKey(dimension,mill);
