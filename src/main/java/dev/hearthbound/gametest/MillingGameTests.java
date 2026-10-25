@@ -28,6 +28,24 @@ import org.apache.logging.log4j.LogManager;
 @PrefixGameTestTemplate(false)
 public final class MillingGameTests {
     @GameTest(templateNamespace = "hearthbound", template = "empty", timeoutTicks = 40)
+    public static void persistentCitizenRegistry(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        var registry = dev.hearthbound.integration.CitizenRegistrySavedData.get(server);
+        var id = UUID.randomUUID();
+        var record = registry.register(id, "FixtureSettler",
+                helper.getLevel().dimension().location().toString(),
+                helper.absolutePos(new BlockPos(1, 1, 1)).asLong(),
+                dev.hearthbound.integration.ForgeServerTickObserver.logicalTick(server));
+        helper.assertTrue(registry.snapshot().stream().anyMatch(item -> item.id().equals(id)),
+                "Citizen should appear in server-owned registry");
+        var reloaded = dev.hearthbound.integration.CitizenRegistrySavedData.load(
+                registry.save(new CompoundTag()));
+        helper.assertTrue(reloaded.snapshot().stream().anyMatch(item -> item.equals(record)),
+                "Citizen must survive NBT serialization");
+        pass(helper, "persistent_citizen_registry");
+    }
+
+    @GameTest(templateNamespace = "hearthbound", template = "empty", timeoutTicks = 40)
     public static void inventoryIdentity(GameTestHelper helper) {
         helper.assertTrue(RuntimeInventoryDeltaChecks.verify() == 8, "All eight inventory checks must execute");
         pass(helper, "inventory_identity");
