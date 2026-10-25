@@ -45,6 +45,8 @@ public final class MillingGameTests {
     public static void millingWithMotor(GameTestHelper helper) {
         MillstoneBlockEntity mill = place(helper);
         var durableIntent = MillingCheckpointFixture.prepare(mill);
+        MillingDiscoveryFixture.prepareAssignment(helper.getLevel().getServer(), durableIntent,
+                mill.getLevel().dimension().location().toString(), mill.getBlockPos().asLong());
         // Let the motor propagate its default 16 RPM through Create's kinetic network.
         BlockPos motorPos = new BlockPos(1, 0, 1);
         helper.setBlock(motorPos, AllBlocks.CREATIVE_MOTOR.getDefaultState()
