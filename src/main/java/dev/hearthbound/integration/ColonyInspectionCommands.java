@@ -32,15 +32,23 @@ public final class ColonyInspectionCommands {
         return count;
     }
     public static int citizens(CommandContext<CommandSourceStack> ctx) {
+        var entries = CitizenRegistrySavedData.get(ctx.getSource().getServer()).snapshot();
         ctx.getSource().sendSuccess(() -> Component.literal(
-                "Hearthbound live autonomous citizens=0; server-side NPC registry not installed. "
-                + "GameTest citizen IDs and credit fixtures are NOT live entities."), false);
-        return 1;
+                "Hearthbound persisted citizen records=" + entries.size()
+                + " (not spawned or autonomous entities)"), false);
+        entries.stream().limit(12).forEach(citizen ->
+                ctx.getSource().sendSuccess(() -> Component.literal(
+                        citizen.name() + " id=" + citizen.id() + " task=" + citizen.task()
+                        + " dimension=" + citizen.dimension()
+                        + " pos=" + net.minecraft.core.BlockPos.of(citizen.position())), false));
+        return entries.size();
     }
     public static int tasks(CommandContext<CommandSourceStack> ctx) {
+        var entries = CitizenRegistrySavedData.get(ctx.getSource().getServer()).snapshot();
+        long active = entries.stream().filter(citizen -> !"IDLE".equals(citizen.task())).count();
         ctx.getSource().sendSuccess(() -> Component.literal(
-                "Hearthbound live citizen tasks=0; persistent server task scheduler not installed. "
-                + "Fixture work orders are not active colony tasks."), false);
-        return 1;
+                "Hearthbound active persisted citizen tasks=" + active
+                + "; autonomous world task execution not installed."), false);
+        return (int) active;
     }
 }
