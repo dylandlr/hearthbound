@@ -34,3 +34,6 @@ After one verified smoke, add a versioned run specification (Minecraft/modpack v
 
 ## CI linkage
 The Minecraft acceptance workflow is called from `forge-create-checks.yml` on explicitly tagged feature-branch pushes. The same run ID exposes Java contracts, Forge packaging and Minecraft acceptance jobs; the separate workflow no longer relies on discovering a standalone push run. The acceptance EULA gate and issue #77 evidence index remain in place.
+
+## Trigger correction
+An explicit `[eula-accepted-smoke]` commit marker is the sole push opt-in for this authorized ephemeral experiment. The previously optional repository variable has been removed from this gate because its value could suppress a requested experiment. A manual dispatch still requires its EULA checkbox.
