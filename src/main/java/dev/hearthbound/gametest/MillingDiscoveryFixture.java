@@ -7,6 +7,8 @@ import dev.hearthbound.research.CitizenDiscoveryGate;
 import dev.hearthbound.research.CitizenDiscoveryCommitter;
 import dev.hearthbound.research.DurableMachineClaim;
 import dev.hearthbound.research.DurableMachineHandoff;
+import dev.hearthbound.research.DurableObservationWindow;
+import dev.hearthbound.integration.ForgeServerTickObserver;
 import dev.hearthbound.research.MachineClaimRetirementGate;
 import dev.hearthbound.research.DurableOperationIntents;
 import dev.hearthbound.research.DurableOperationIntents.Intent;
@@ -33,6 +35,40 @@ final class MillingDiscoveryFixture {
         var directory = server.getWorldPath(LevelResource.ROOT).resolve("hearthbound-fixture-citizen-credits");
         java.nio.file.Files.createDirectories(directory);
         return new CitizenDiscoveryCommitter(directory);
+    }
+    private static DurableObservationWindow windows(MinecraftServer server) throws IOException {
+        var base = server.getWorldPath(LevelResource.ROOT);
+        var starts = base.resolve("hearthbound-fixture-window-starts");
+        var ends = base.resolve("hearthbound-fixture-window-ends");
+        java.nio.file.Files.createDirectories(starts);
+        java.nio.file.Files.createDirectories(ends);
+        return new DurableObservationWindow(starts, ends);
+    }
+    static void beginObservationWindow(MinecraftServer server, Intent intent) {
+        try {
+            long tick = ForgeServerTickObserver.logicalTick(server);
+            windows(server).begin(intent.operationId(), TEST_CITIZEN, intent.machineKey(), tick);
+        } catch (IOException failure) {
+            throw new IllegalStateException("Cannot persist milling observation window", failure);
+        }
+    }
+    private static CompoundTag operationObservation(MinecraftServer server, Intent intent, long position)
+            throws IOException {
+        var windowStore = windows(server);
+        // Before credit is awarded, only the start bound is durable. Search a
+        // bounded interval up to the server's current authoritative logical tick.
+        var window = windowStore.started(intent.operationId());
+        if (!window.citizenId().equals(TEST_CITIZEN) || !window.machineKey().equals(intent.machineKey()))
+            throw new IOException("Observation start owner mismatch");
+        long upper = ForgeServerTickObserver.logicalTick(server);
+        CompoundTag observed = MillingObservationSavedData.get(server).uniqueInWindow(
+                "minecraft:overworld", position, window.startTick(), upper);
+        windowStore.complete(intent.operationId(), TEST_CITIZEN, intent.machineKey(), observed.getLong("Tick"));
+        var recovered = windowStore.recovered(intent.operationId());
+        if (observed.getLong("Tick") != recovered.endTick()
+                || recovered.startTick() > recovered.endTick())
+            throw new IOException("Observation operation window mismatch");
+        return observed;
     }
     private static DurableMachineHandoff handoffs(MinecraftServer server) throws IOException {
         var directory = server.getWorldPath(LevelResource.ROOT).resolve("hearthbound-fixture-machine-handoffs");
@@ -192,7 +228,7 @@ final class MillingDiscoveryFixture {
         var server = mill.getLevel().getServer();
         verifyClaim(server, intent);
         verifyActiveHandoff(server, intent);
-        CompoundTag observed = observation(server, mill.getBlockPos().asLong());
+        CompoundTag observed = operationObservation(server, intent, mill.getBlockPos().asLong());
         validate(intent, observed, expected.getCompound("Inventory"));
         CompoundTag receipt = new CompoundTag();
         receipt.putUUID("Operation", intent.operationId());
@@ -224,7 +260,9 @@ final class MillingDiscoveryFixture {
     }
     static void verify(MinecraftServer server, Intent intent, CompoundTag expected) throws IOException {
         verifyClaim(server, intent);
-        CompoundTag observed = observation(server, expected.getLong("Position"));
+        var window = windows(server).recovered(intent.operationId());
+        CompoundTag observed = MillingObservationSavedData.get(server).uniqueInWindow(
+                "minecraft:overworld", expected.getLong("Position"), window.startTick(), window.endTick());
         validate(intent, observed, expected.getCompound("Inventory"));
         String serialized = expected.getString("DiscoveryReceipt");
         CompoundTag receipt = parse(serialized);
