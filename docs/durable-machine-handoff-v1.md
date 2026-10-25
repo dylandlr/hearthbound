@@ -1,0 +1,9 @@
+# Durable machine handoff v1
+
+The new machine-keyed `DurableMachineHandoff` stores a checksummed current owner with an operation UUID, citizen UUID, generation number, and retired flag. An atomic file replacement with fsync under an exclusive filesystem lock persists each transition. Reopening the store after restart recovers the last committed state. Different owners cannot acquire an active machine. Identical acquisition requests are idempotent; retired operation IDs cannot reactivate. The generation increments when a new owner acquires a retired machine, and a stale former owner cannot retire that new owner.
+
+The `MachineClaimRetirementGate` must first validate durable receipt, credit, checkpoint, idle state and reconciled transfer. The handoff API accepts the gate's decision but **does not independently verify** source evidence; a production server adapter must invoke the gate and prevent untrusted callers from passing eligibility. The old `DurableMachineClaim` fixture remains a separate unresolved record; migrating it to this journal requires explicit reconciliation, not a silent handoff.
+
+Tests cover initial acquisition, duplicate request, exclusion, recovery after reopen, rejected unsafe retirement, second-owner acquisition, and stale-owner fencing.
+
+Limitations: this is a pure-Java machine ownership store, not a Forge lifecycle integration. It is designed for a single host/filesystem with supported advisory locks and atomic renames. Concurrent threads in one JVM still require serial scheduling to avoid overlapping file lock exceptions. A server crash during a staged write may leave a temporary file that requires cleanup, but should not silently authorize a second active owner. Minecraft runtime GameTests and operation-key checkpoint linkage remain future acceptance gates.
