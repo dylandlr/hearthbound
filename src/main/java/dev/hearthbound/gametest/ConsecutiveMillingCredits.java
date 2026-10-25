@@ -48,7 +48,10 @@ final class ConsecutiveMillingCredits {
         NbtIo.writeCompressed(tag,new java.io.File("consecutive-millings-expected.nbt"));
     }
     static void verifyRestart(MinecraftServer server) throws IOException {
-        var file=new java.io.File("consecutive-millings-expected.nbt");
+        String existing = System.getenv("HEARTHBOUND_RESTART_EXPECTED");
+        if (existing == null || existing.isBlank()) throw new IOException("Missing restart expectation location");
+        var file = new java.io.File(new java.io.File(existing).getParentFile(),
+                "consecutive-millings-expected.nbt");
         if(!file.isFile()) throw new IOException("Missing consecutive milling expectation");
         var record=NbtIo.readCompressed(file);
         UUID first=record.getUUID("FirstOperation"),second=record.getUUID("SecondOperation");
