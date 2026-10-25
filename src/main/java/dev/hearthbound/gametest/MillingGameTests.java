@@ -57,6 +57,12 @@ public final class MillingGameTests {
         var villager = dev.hearthbound.integration.CitizenEmbodiment.spawn(level,citizenId,origin);
         villager.setNoAi(false);
         villager.getPersistentData().putInt("HearthboundWheat", 2);
+        try {
+            dev.hearthbound.integration.CitizenSupplyAssignment.prepare(
+                    server,citizenId,level.dimension().location().toString(),destination.offset(1,0,0));
+        } catch(java.io.IOException error) {
+            throw new IllegalStateException(error);
+        }
         registry.assignMillSupply(citizenId,level.dimension().location().toString(),destination.asLong(),
                 dev.hearthbound.integration.ForgeServerTickObserver.logicalTick(server));
         helper.runAfterDelay(5, () -> {
