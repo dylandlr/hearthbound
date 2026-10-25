@@ -66,6 +66,9 @@ public final class MillingGameTests {
         } catch(java.io.IOException error) {
             throw new IllegalStateException(error);
         }
+        helper.assertTrue(dev.hearthbound.integration.CitizenSupplyAssignment.isAuthorized(
+                        server,citizenId,level.dimension().location().toString(),destination.offset(1,0,0)),
+                "Prepared citizen work order must be recoverable before moving or supplying");
         registry.assignMillSupply(citizenId,level.dimension().location().toString(),destination.asLong(),
                 dev.hearthbound.integration.ForgeServerTickObserver.logicalTick(server));
         helper.runAfterDelay(5, () -> {
