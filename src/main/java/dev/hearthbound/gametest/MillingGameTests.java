@@ -56,9 +56,9 @@ public final class MillingGameTests {
                 origin.asLong(),dev.hearthbound.integration.ForgeServerTickObserver.logicalTick(server));
         var villager = dev.hearthbound.integration.CitizenEmbodiment.spawn(level,citizenId,origin);
         villager.setNoAi(false);
-        registry.assignMove(citizenId,level.dimension().location().toString(),destination.asLong(),
+        villager.getPersistentData().putInt("HearthboundWheat", 2);
+        registry.assignMillSupply(citizenId,level.dimension().location().toString(),destination.asLong(),
                 dev.hearthbound.integration.ForgeServerTickObserver.logicalTick(server));
-        ItemStack held = new ItemStack(Items.WHEAT,2);
         helper.runAfterDelay(230, () -> {
             var citizen = registry.snapshot().stream().filter(item -> item.id().equals(citizenId))
                     .findFirst().orElseThrow();
@@ -67,17 +67,13 @@ public final class MillingGameTests {
                             && observedArrival.distSqr(destination) <= 4
                             && observedArrival.distSqr(origin) > 4,
                     "Physical citizen must have navigated and reached worksite before supply");
-            helper.assertTrue(mill.inputInv.getStackInSlot(0).isEmpty(), "Mill input must start empty");
-            helper.assertTrue(ServerMillingActions.supplyWheat(mill,held),
-                    "Real server adapter must accept citizen wheat after arrival");
-            helper.assertTrue(held.getCount()==1
-                            && mill.inputInv.getStackInSlot(0).is(Items.WHEAT)
+            helper.assertTrue(mill.inputInv.getStackInSlot(0).is(Items.WHEAT)
                             && mill.inputInv.getStackInSlot(0).getCount()==1,
-                    "Wheat transfer must conserve inventory");
-            helper.assertTrue(!ServerMillingActions.supplyWheat(mill,held),
-                    "Cannot double-supply occupied millstone");
+                    "Tick-driven citizen must have supplied real Create millstone");
+            helper.assertTrue(villager.getPersistentData().getInt("HearthboundWheat")==1,
+                    "Exactly one wheat must be debited from citizen entity inventory");
             LogManager.getLogger().info(
-                    "HEARTHBOUND_CITIZEN_REAL_WALK_SUPPLY_PASS citizen={} arrival={} mill={} movedWheat=1 conserved=true",
+                    "HEARTHBOUND_CITIZEN_REAL_WALK_SUPPLY_PASS citizen={} arrival={} mill={} movedWheat=1 conserved=true controller=server_tick",
                     citizenId,observedArrival,mill.getBlockPos());
             pass(helper,"citizen_walks_and_supplies_mill");
         });
