@@ -87,3 +87,12 @@ jobs:
           path: build/libs/*.jar
           if-no-files-found: error
           retention-days: 14
+
+  minecraft-acceptance:
+    # Explicit EULA-authorized opt-in; included in this workflow's known run ID.
+    if: ${{ github.event_name == 'push' && vars.MINECRAFT_EULA_ACCEPTED != 'false' && contains(github.event.head_commit.message, '[eula-accepted-smoke]') }}
+    needs: [java-contracts, compile-and-contract]
+    permissions:
+      contents: read
+      issues: write
+    uses: ./.github/workflows/dedicated-server-smoke.yml
