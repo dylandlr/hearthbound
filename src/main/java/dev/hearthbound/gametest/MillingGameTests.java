@@ -35,11 +35,14 @@ public final class MillingGameTests {
     public static void realCitizenPathfinding(GameTestHelper helper) {
         var level = helper.getLevel();
         var server = level.getServer();
-        // Make the path independent of the empty structure template.
-        for (int x = 1; x <= 7; x++) {
-            helper.setBlock(new BlockPos(x, 0, 1), Blocks.STONE.defaultBlockState());
-            helper.setBlock(new BlockPos(x, 1, 1), Blocks.AIR.defaultBlockState());
-            helper.setBlock(new BlockPos(x, 2, 1), Blocks.AIR.defaultBlockState());
+        // A wide, roofless, unobstructed platform so vanilla navigation has
+        // room to turn and avoid adjacent GameTest structures.
+        for (int x = 0; x <= 9; x++) {
+            for (int z = 0; z <= 3; z++) {
+                helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE.defaultBlockState());
+                for (int y = 1; y <= 4; y++)
+                    helper.setBlock(new BlockPos(x, y, z), Blocks.AIR.defaultBlockState());
+            }
         }
         BlockPos origin = helper.absolutePos(new BlockPos(1, 1, 1));
         BlockPos target = helper.absolutePos(new BlockPos(7, 1, 1));
@@ -54,8 +57,15 @@ public final class MillingGameTests {
                 dev.hearthbound.integration.ForgeServerTickObserver.logicalTick(server));
         helper.runAfterDelay(230, () -> {
             var actual = villager.blockPosition();
+            LogManager.getLogger().info(
+                    "HEARTHBOUND_REAL_CITIZEN_NAVIGATION_CHECK citizen={} actual={} target={} distanceSq={} task={} navigationDone={}",
+                    citizenId, actual, target, actual.distSqr(target),
+                    registry.snapshot().stream().filter(c -> c.id().equals(citizenId))
+                            .map(c -> c.task()).findFirst().orElse("MISSING"),
+                    villager.getNavigation().isDone());
             helper.assertTrue(actual.distSqr(target) <= 4,
-                    "Villager must physically navigate to worksite without teleportation");
+                    "Villager must physically navigate to worksite without teleportation; actual="
+                            + actual + " target=" + target);
             helper.assertTrue(registry.snapshot().stream().anyMatch(c -> c.id().equals(citizenId)
                             && c.task().equals("IDLE") && c.position()==actual.asLong()),
                     "Movement controller must persist actual arrived entity position");
