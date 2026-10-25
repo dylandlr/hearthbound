@@ -5,6 +5,7 @@ import dev.hearthbound.integration.MillingObservationSavedData;
 import dev.hearthbound.research.DurableCreditLedger;
 import dev.hearthbound.research.CitizenDiscoveryGate;
 import dev.hearthbound.research.CitizenDiscoveryCommitter;
+import dev.hearthbound.research.DurableMachineClaim;
 import dev.hearthbound.research.DurableOperationIntents;
 import dev.hearthbound.research.DurableOperationIntents.Intent;
 import net.minecraft.nbt.*;
@@ -30,6 +31,29 @@ final class MillingDiscoveryFixture {
         var directory = server.getWorldPath(LevelResource.ROOT).resolve("hearthbound-fixture-citizen-credits");
         java.nio.file.Files.createDirectories(directory);
         return new CitizenDiscoveryCommitter(directory);
+    }
+    private static DurableMachineClaim machineClaims(MinecraftServer server) throws IOException {
+        var directory = server.getWorldPath(LevelResource.ROOT).resolve("hearthbound-fixture-machine-claims");
+        java.nio.file.Files.createDirectories(directory);
+        return new DurableMachineClaim(directory);
+    }
+    static void claimMachine(MinecraftServer server, Intent intent) {
+        try {
+            if (!machineClaims(server).claim(intent.machineKey(), intent.operationId(), TEST_CITIZEN).newlyCreated())
+                throw new IllegalStateException("Fixture machine claim was not new");
+        } catch (IOException failure) {
+            throw new IllegalStateException("Cannot claim machine before powered operation", failure);
+        }
+    }
+    private static void verifyClaim(MinecraftServer server, Intent intent) throws IOException {
+        var claim = machineClaims(server).recover(intent.machineKey());
+        if (!claim.operationId().equals(intent.operationId()) || !claim.citizenId().equals(TEST_CITIZEN))
+            throw new IllegalStateException("Recovered machine claim belongs to different operation or citizen");
+        boolean rejected = false;
+        try {
+            machineClaims(server).claim(intent.machineKey(), UUID.randomUUID(), UUID.randomUUID());
+        } catch (IOException conflict) { rejected = true; }
+        if (!rejected) throw new IllegalStateException("Competing machine claim accepted");
     }
     private static DurableOperationIntents assignmentStore(MinecraftServer server) throws IOException {
         var directory = server.getWorldPath(LevelResource.ROOT).resolve("hearthbound-fixture-citizen-assignments");
@@ -106,6 +130,7 @@ final class MillingDiscoveryFixture {
     }
     static void award(MillstoneBlockEntity mill, Intent intent, CompoundTag expected) throws IOException {
         var server = mill.getLevel().getServer();
+        verifyClaim(server, intent);
         CompoundTag observed = observation(server, mill.getBlockPos().asLong());
         validate(intent, observed, expected.getCompound("Inventory"));
         CompoundTag receipt = new CompoundTag();
@@ -137,6 +162,7 @@ final class MillingDiscoveryFixture {
                 "HEARTHBOUND_DISCOVERY_FIXTURE_AWARDED operation={} recipe=create:milling/wheat balance=1", intent.operationId());
     }
     static void verify(MinecraftServer server, Intent intent, CompoundTag expected) throws IOException {
+        verifyClaim(server, intent);
         CompoundTag observed = observation(server, expected.getLong("Position"));
         validate(intent, observed, expected.getCompound("Inventory"));
         String serialized = expected.getString("DiscoveryReceipt");
