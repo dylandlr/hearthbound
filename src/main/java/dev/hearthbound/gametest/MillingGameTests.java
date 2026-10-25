@@ -184,6 +184,74 @@ public final class MillingGameTests {
         });
     }
 
+    /**
+     * Two actual Create process() executions on the same physical millstone.
+     * This checks live machine evidence only; separate durable citizen credits
+     * are exercised by their own fixture and contract tests.
+     */
+    @GameTest(templateNamespace = "hearthbound", template = "empty", timeoutTicks = 850)
+    public static void consecutiveRealMillings(GameTestHelper helper) {
+        MillstoneBlockEntity mill = place(helper);
+        BlockPos motorPos = new BlockPos(1, 0, 1);
+        var server = helper.getLevel().getServer();
+        String dimension = mill.getLevel().dimension().location().toString();
+        long position = mill.getBlockPos().asLong();
+        long firstStart = dev.hearthbound.integration.ForgeServerTickObserver.logicalTick(server);
+        helper.setBlock(motorPos, AllBlocks.CREATIVE_MOTOR.getDefaultState()
+                .setValue(CreativeMotorBlock.FACING, Direction.UP));
+        helper.runAfterDelay(280, () -> {
+            helper.assertTrue(mill.inputInv.getStackInSlot(0).isEmpty(),
+                    "First real milling must consume its input");
+            long firstEnd = dev.hearthbound.integration.ForgeServerTickObserver.logicalTick(server);
+            CompoundTag first = MillingObservationSavedData.get(server).uniqueInWindow(
+                    dimension, position, firstStart, firstEnd);
+            helper.assertTrue(first.getString("Recipe").equals("create:milling/wheat"),
+                    "First operation must execute Create wheat milling");
+            helper.assertTrue(first.getString("Quality").equals("positive_deltas"),
+                    "First operation must have positive output evidence");
+            helper.setBlock(motorPos, Blocks.AIR.defaultBlockState());
+            helper.runAfterDelay(25, () -> {
+                helper.assertTrue(mill.getSpeed() == 0, "Motor must stop between operations");
+                helper.assertTrue(mill.inputInv.getStackInSlot(0).isEmpty(),
+                        "Second input must not exist before supply");
+                ItemStack held = new ItemStack(Items.WHEAT, 1);
+                helper.assertTrue(ServerMillingActions.supplyWheat(mill, held) && held.isEmpty(),
+                        "Second real wheat input must be conserved");
+                long secondStart = dev.hearthbound.integration.ForgeServerTickObserver.logicalTick(server);
+                helper.setBlock(motorPos, AllBlocks.CREATIVE_MOTOR.getDefaultState()
+                        .setValue(CreativeMotorBlock.FACING, Direction.UP));
+                helper.runAfterDelay(280, () -> {
+                    helper.assertTrue(mill.inputInv.getStackInSlot(0).isEmpty(),
+                            "Second real milling must consume its input");
+                    long secondEnd = dev.hearthbound.integration.ForgeServerTickObserver.logicalTick(server);
+                    CompoundTag second = MillingObservationSavedData.get(server).uniqueInWindow(
+                            dimension, position, secondStart, secondEnd);
+                    helper.assertTrue(!first.getUUID("Id").equals(second.getUUID("Id")),
+                            "Real operations must have distinct observation IDs");
+                    helper.assertTrue(second.getLong("Tick") > first.getLong("Tick"),
+                            "Second real operation must occur after the first");
+                    helper.assertTrue(second.getString("Recipe").equals("create:milling/wheat")
+                                    && second.getString("Quality").equals("positive_deltas"),
+                            "Second operation must produce real Create wheat flour");
+                    boolean overlapRejected = false;
+                    try {
+                        MillingObservationSavedData.get(server).uniqueInWindow(
+                                dimension, position, firstStart, secondEnd);
+                    } catch (IllegalStateException expected) { overlapRejected = true; }
+                    helper.assertTrue(overlapRejected,
+                            "Cross-operation observation interval must fail closed");
+                    helper.setBlock(motorPos, Blocks.AIR.defaultBlockState());
+                    helper.getLevel().getServer().overworld().getDataStorage().save();
+                    LogManager.getLogger().info(
+                            "HEARTHBOUND_TWO_REAL_MILLINGS_PASS firstObservation={} secondObservation={} firstTick={} secondTick={} distinct=true",
+                            first.getUUID("Id"), second.getUUID("Id"),
+                            first.getLong("Tick"), second.getLong("Tick"));
+                    pass(helper, "consecutive_real_millings");
+                });
+            });
+        });
+    }
+
     private static MillstoneBlockEntity place(GameTestHelper helper) {
         BlockPos pos = new BlockPos(1, 1, 1);
         helper.setBlock(pos, AllBlocks.MILLSTONE.getDefaultState());
