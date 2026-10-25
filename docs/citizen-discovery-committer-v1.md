@@ -20,3 +20,6 @@ The Forge GameTest now feeds the *real* observed milling record and a prepared d
 
 ## CI follow-up
 The first citizen-credit acceptance request failed in the evidence-packager unit test before Minecraft could run (Forge compilation passed). The fix updates the required GameTest/restart marker partitions and their self-test fixture. The subsequent acceptance request is an explicit EULA-authorized rerun; its outcome requires checking the linked CI job and archived logs.
+
+## Push-run observability
+GitHub PR checks and push checks for the same SHA are distinct. The PR workflow is expected to skip Minecraft acceptance. An independent, early `experiment-launch-index` job on explicitly tagged *pushes* writes the push run ID to issue #77 before build/test jobs can fail. Follow that run ID to inspect the actual acceptance job; absence of a launch entry is a trigger or permissions problem, not a Minecraft pass.
