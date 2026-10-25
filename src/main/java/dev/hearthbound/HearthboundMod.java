@@ -58,6 +58,7 @@ public final class HearthboundMod {
                                                     return 0;
                                                 }
                                                 try {
+                                                    dev.hearthbound.integration.CitizenSupplyAssignment.prepareOrReject(source.getServer(),id,source.getLevel().dimension().location().toString(),worksite.offset(1,0,0));
                                                     registry.assignMillSupply(id,source.getLevel().dimension().location().toString(),
                                                             worksite.asLong(),ForgeServerTickObserver.logicalTick(source.getServer()));
                                                     villager.getPersistentData().putInt("HearthboundWheat",
