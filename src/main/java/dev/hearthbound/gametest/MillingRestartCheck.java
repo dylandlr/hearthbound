@@ -44,6 +44,9 @@ public final class MillingRestartCheck {
                 throw new IllegalStateException("Conflict altered persisted journal");
             MillingCheckpointFixture.verify(event.getServer(),
                     new java.io.File(new java.io.File(expectedPath).getParentFile(), "milling-machine-expected.nbt"));
+            CitizenSupplyRestartFixture.verify(event.getServer(),
+                    new java.io.File(new java.io.File(expectedPath).getParentFile(),
+                            "citizen-supply-restart-expected.nbt"));
             LogManager.getLogger().info("HEARTHBOUND_RESTART_PASS observation={} fullPayload=true duplicatesRejected=true",
                     observation.getUUID("Id"));
             // Explicit CI mode: finish cleanly once all restart assertions pass.
