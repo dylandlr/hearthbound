@@ -59,6 +59,12 @@ public final class MillingGameTests {
         villager.getPersistentData().putInt("HearthboundWheat", 2);
         registry.assignMillSupply(citizenId,level.dimension().location().toString(),destination.asLong(),
                 dev.hearthbound.integration.ForgeServerTickObserver.logicalTick(server));
+        helper.runAfterDelay(5, () -> {
+            helper.assertTrue(mill.inputInv.getStackInSlot(0).isEmpty(),
+                    "Citizen must not supply millstone before physically arriving");
+            helper.assertTrue(villager.getPersistentData().getInt("HearthboundWheat")==2,
+                    "Citizen wheat cannot be debited before arrival");
+        });
         helper.runAfterDelay(230, () -> {
             var citizen = registry.snapshot().stream().filter(item -> item.id().equals(citizenId))
                     .findFirst().orElseThrow();
@@ -72,6 +78,8 @@ public final class MillingGameTests {
                     "Tick-driven citizen must have supplied real Create millstone");
             helper.assertTrue(villager.getPersistentData().getInt("HearthboundWheat")==1,
                     "Exactly one wheat must be debited from citizen entity inventory");
+            helper.assertTrue(citizen.task().equals("IDLE"),
+                    "Successful server-tick supply must finish task without repeated transfer");
             LogManager.getLogger().info(
                     "HEARTHBOUND_CITIZEN_REAL_WALK_SUPPLY_PASS citizen={} arrival={} mill={} movedWheat=1 conserved=true controller=server_tick",
                     citizenId,observedArrival,mill.getBlockPos());
