@@ -20,16 +20,24 @@ public final class MillingRestartCheck {
         try {
             CompoundTag expected = NbtIo.readCompressed(new java.io.File(expectedPath));
             MillingObservationSavedData journal = MillingObservationSavedData.get(event.getServer());
-            if (!expected.equals(journal.save(new CompoundTag())) || journal.snapshot().size() != 1)
-                throw new IllegalStateException("Persisted milling journal differs after restart");
-            CompoundTag observation = journal.snapshot().getCompound(0);
+            // The saved world now contains three genuine Create operations. The
+            // original checkpoint records only the first operation's journal;
+            // require its exact immutable payload rather than rejecting newer
+            // observations from the separate consecutive-milling GameTest.
+            var original = expected.getList("Observations", net.minecraft.nbt.Tag.TAG_COMPOUND);
+            if (original.size() != 1 || journal.snapshot().size() != 3)
+                throw new IllegalStateException("Unexpected milling journal count after restart");
+            CompoundTag observation = original.getCompound(0);
+            if (!observation.equals(journal.find(observation.getUUID("Id"))))
+                throw new IllegalStateException("Original milling evidence changed after restart");
+            CompoundTag beforeConflict = journal.save(new CompoundTag());
             if (journal.append(observation))
                 throw new IllegalStateException("Duplicate accepted after restart");
             CompoundTag conflict = observation.copy();
             conflict.putString("Recipe", "hearthbound:conflicting");
             boolean rejected = false;
             try { journal.append(conflict); } catch (IllegalArgumentException expectedConflict) { rejected = true; }
-            if (!rejected || !expected.equals(journal.save(new CompoundTag())))
+            if (!rejected || !beforeConflict.equals(journal.save(new CompoundTag())))
                 throw new IllegalStateException("Conflict altered persisted journal");
             MillingCheckpointFixture.verify(event.getServer(),
                     new java.io.File(new java.io.File(expectedPath).getParentFile(), "milling-machine-expected.nbt"));
