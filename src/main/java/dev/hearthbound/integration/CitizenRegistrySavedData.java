@@ -53,6 +53,24 @@ public final class CitizenRegistrySavedData extends SavedData {
         setDirty();
         return changed;
     }
+    public Citizen assignMillSupply(UUID id,String dimension,long worksite,long tick) {
+        Citizen current=citizens.get(id);
+        if(current==null || !current.dimension().equals(dimension) || tick<current.lastTick()
+                || !"IDLE".equals(current.task()))
+            throw new IllegalArgumentException("Citizen must be idle in the assigned dimension");
+        Citizen next=new Citizen(id,current.name(),dimension,current.position(),
+                "MILL_SUPPLY:"+worksite,tick);
+        citizens.put(id,next);
+        setDirty();
+        return next;
+    }
+    public void completeSupply(UUID id,long position,long tick) {
+        Citizen current=citizens.get(id);
+        if(current==null || !current.task().startsWith("MILL_SUPPLY:"))
+            throw new IllegalStateException("Citizen has no outstanding milling task");
+        citizens.put(id,new Citizen(id,current.name(),current.dimension(),position,"IDLE",tick));
+        setDirty();
+    }
     public void observe(UUID id, long position, long tick, boolean arrived) {
         Citizen current = citizens.get(id);
         if (current == null || tick < current.lastTick()) return;
