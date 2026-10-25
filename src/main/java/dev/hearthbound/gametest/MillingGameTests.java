@@ -31,6 +31,58 @@ public final class MillingGameTests {
      * Real navigation acceptance: no teleport or programmatic completion.
      * The Forge server tick controller must move a villager across solid terrain.
      */
+    /**
+     * Integration across a physically navigated citizen and Create's server
+     * inventory primitive. Test controls the supply action after arrival.
+     */
+    @GameTest(templateNamespace = "hearthbound", template = "empty", timeoutTicks = 330)
+    public static void citizenWalksAndSuppliesMill(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var server = level.getServer();
+        for (int x = 0; x <= 9; x++) for (int z = 0; z <= 3; z++) {
+            helper.setBlock(new BlockPos(x, 0, z), Blocks.STONE.defaultBlockState());
+            for (int y = 1; y <= 4; y++)
+                helper.setBlock(new BlockPos(x, y, z), Blocks.AIR.defaultBlockState());
+        }
+        BlockPos origin = helper.absolutePos(new BlockPos(1, 1, 1));
+        BlockPos destination = helper.absolutePos(new BlockPos(7, 1, 1));
+        // Place real Create machinery adjacent to the designated worksite.
+        helper.setBlock(new BlockPos(8, 1, 1), AllBlocks.MILLSTONE.getDefaultState());
+        var mill = (MillstoneBlockEntity) level.getBlockEntity(helper.absolutePos(new BlockPos(8, 1, 1)));
+        helper.assertTrue(mill != null, "Create millstone must exist as a real block entity");
+        UUID citizenId = UUID.randomUUID();
+        var registry = dev.hearthbound.integration.CitizenRegistrySavedData.get(server);
+        registry.register(citizenId, "MillWorkerFixture",level.dimension().location().toString(),
+                origin.asLong(),dev.hearthbound.integration.ForgeServerTickObserver.logicalTick(server));
+        var villager = dev.hearthbound.integration.CitizenEmbodiment.spawn(level,citizenId,origin);
+        villager.setNoAi(false);
+        registry.assignMove(citizenId,level.dimension().location().toString(),destination.asLong(),
+                dev.hearthbound.integration.ForgeServerTickObserver.logicalTick(server));
+        ItemStack held = new ItemStack(Items.WHEAT,2);
+        helper.runAfterDelay(230, () -> {
+            var citizen = registry.snapshot().stream().filter(item -> item.id().equals(citizenId))
+                    .findFirst().orElseThrow();
+            BlockPos observedArrival = BlockPos.of(citizen.position());
+            helper.assertTrue(citizen.task().equals("IDLE")
+                            && observedArrival.distSqr(destination) <= 4
+                            && observedArrival.distSqr(origin) > 4,
+                    "Physical citizen must have navigated and reached worksite before supply");
+            helper.assertTrue(mill.inputInv.getStackInSlot(0).isEmpty(), "Mill input must start empty");
+            helper.assertTrue(ServerMillingActions.supplyWheat(mill,held),
+                    "Real server adapter must accept citizen wheat after arrival");
+            helper.assertTrue(held.getCount()==1
+                            && mill.inputInv.getStackInSlot(0).is(Items.WHEAT)
+                            && mill.inputInv.getStackInSlot(0).getCount()==1,
+                    "Wheat transfer must conserve inventory");
+            helper.assertTrue(!ServerMillingActions.supplyWheat(mill,held),
+                    "Cannot double-supply occupied millstone");
+            LogManager.getLogger().info(
+                    "HEARTHBOUND_CITIZEN_REAL_WALK_SUPPLY_PASS citizen={} arrival={} mill={} movedWheat=1 conserved=true",
+                    citizenId,observedArrival,mill.getBlockPos());
+            pass(helper,"citizen_walks_and_supplies_mill");
+        });
+    }
+
     @GameTest(templateNamespace = "hearthbound", template = "empty", timeoutTicks = 300)
     public static void realCitizenPathfinding(GameTestHelper helper) {
         var level = helper.getLevel();
