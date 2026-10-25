@@ -8,6 +8,8 @@ def verify(text):
         marker = "HEARTHBOUND_GAMETEST_PASS " + name
         if text.count(marker) != 1:
             raise ValueError(f"Expected exactly one pass marker: {name}")
+    if text.count("HEARTHBOUND_SCRIPTED_WORK_LOOP action=ACTIVATE_POWER") != 1:
+        raise ValueError("Expected exactly one scripted work-loop motor activation")
     if text.count("HEARTHBOUND_SCRIPTED_MILLING_DECISION decision=PREPARE_MILLING") != 1:
         raise ValueError("Expected exactly one scripted milling decision")
     marker = "HEARTHBOUND_CITIZEN_CREDIT_FIXTURE_PASS "
