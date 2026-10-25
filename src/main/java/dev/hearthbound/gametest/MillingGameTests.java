@@ -131,6 +131,26 @@ public final class MillingGameTests {
         });
     }
 
+    @GameTest(templateNamespace = "hearthbound", template = "empty", timeoutTicks = 40)
+    public static void citizenSupplyRecoveryContract(GameTestHelper helper) {
+        var recovery=dev.hearthbound.integration.CitizenSupplyRecovery.classify(
+                new dev.hearthbound.integration.CitizenSupplyRecovery.Evidence(
+                        true,true,1,2,true,true));
+        helper.assertTrue(recovery==dev.hearthbound.integration.CitizenSupplyRecovery.Decision.COMPLETED_OBSERVED,
+                "Durable attempt and matching completed-operation receipt must classify as completed");
+        var uncertain=dev.hearthbound.integration.CitizenSupplyRecovery.classify(
+                new dev.hearthbound.integration.CitizenSupplyRecovery.Evidence(
+                        true,false,2,2,false,false));
+        helper.assertTrue(uncertain==dev.hearthbound.integration.CitizenSupplyRecovery.Decision.AMBIGUOUS_BLOCKED,
+                "Interrupted attempt must never auto-replay");
+        var missingReceipt=dev.hearthbound.integration.CitizenSupplyRecovery.classify(
+                new dev.hearthbound.integration.CitizenSupplyRecovery.Evidence(
+                        true,true,1,2,false,true));
+        helper.assertTrue(missingReceipt==dev.hearthbound.integration.CitizenSupplyRecovery.Decision.AMBIGUOUS_BLOCKED,
+                "Wheat count and machine input alone cannot prove operation identity");
+        pass(helper,"citizen_supply_recovery_contract");
+    }
+
     @GameTest(templateNamespace = "hearthbound", template = "empty", timeoutTicks = 300)
     public static void realCitizenPathfinding(GameTestHelper helper) {
         var level = helper.getLevel();
