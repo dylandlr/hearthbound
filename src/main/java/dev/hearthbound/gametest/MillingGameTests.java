@@ -75,7 +75,7 @@ public final class MillingGameTests {
                             + "; observed=" + arrival + " target=" + target);
             LogManager.getLogger().info(
                     "HEARTHBOUND_REAL_CITIZEN_NAVIGATION_PASS citizen={} from={} to={} arrived={}",
-                    citizenId,origin,actual,true);
+                    citizenId,origin,arrival,true);
             pass(helper,"real_citizen_pathfinding");
         });
     }
