@@ -1,0 +1,7 @@
+# Minecraft restart machine handoff fixture v1
+
+The existing powered Create GameTest now acquires an active generation-1 ownership entry for fixture citizen 077 *before* motor activation. An overlapping claim is rejected. At the completion checkpoint, the award procedure checks both original machine claims and the active handoff journal. After a separate Minecraft server restart verifies the saved millstone inventory, matching operation receipt and exactly-once citizen credit, it evaluates the retirement gate, durably retires the original owner, and grants a generation-2 ownership entry to fixture citizen 078. The old owner must not retire that new owner.
+
+The dedicated-server smoke workflow requires `HEARTHBOUND_MACHINE_HANDOFF_RESTART_PASS` and archives the handoff journal. The evidence manifest includes this as a required restart marker.
+
+**Boundaries:** This tests **two ownership generations**, not two completed milling cycles. The second citizen has not physically transferred wheat or operated Create machinery. The retirement proof in this controlled fixture is asserted from the already completed restart verification; a production server-side actor must provide independently bound proofs and enforce matching machine incarnations. The legacy machine-claim fixture remains unresolved, so this is not yet production migration. A live NPC and continuous scheduler are still outstanding.
