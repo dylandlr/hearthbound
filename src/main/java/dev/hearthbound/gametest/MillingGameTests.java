@@ -27,6 +27,45 @@ import org.apache.logging.log4j.LogManager;
 @GameTestHolder("hearthbound")
 @PrefixGameTestTemplate(false)
 public final class MillingGameTests {
+    /**
+     * Real navigation acceptance: no teleport or programmatic completion.
+     * The Forge server tick controller must move a villager across solid terrain.
+     */
+    @GameTest(templateNamespace = "hearthbound", template = "empty", timeoutTicks = 300)
+    public static void realCitizenPathfinding(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var server = level.getServer();
+        // Make the path independent of the empty structure template.
+        for (int x = 1; x <= 7; x++) {
+            helper.setBlock(new BlockPos(x, 0, 1), Blocks.STONE.defaultBlockState());
+            helper.setBlock(new BlockPos(x, 1, 1), Blocks.AIR.defaultBlockState());
+            helper.setBlock(new BlockPos(x, 2, 1), Blocks.AIR.defaultBlockState());
+        }
+        BlockPos origin = helper.absolutePos(new BlockPos(1, 1, 1));
+        BlockPos target = helper.absolutePos(new BlockPos(7, 1, 1));
+        UUID citizenId = UUID.randomUUID();
+        var registry = dev.hearthbound.integration.CitizenRegistrySavedData.get(server);
+        registry.register(citizenId, "PathfindingFixture",
+                level.dimension().location().toString(), origin.asLong(),
+                dev.hearthbound.integration.ForgeServerTickObserver.logicalTick(server));
+        var villager = dev.hearthbound.integration.CitizenEmbodiment.spawn(level,citizenId,origin);
+        villager.setNoAi(false);
+        registry.assignMove(citizenId,level.dimension().location().toString(),target.asLong(),
+                dev.hearthbound.integration.ForgeServerTickObserver.logicalTick(server));
+        helper.runAfterDelay(230, () -> {
+            var actual = villager.blockPosition();
+            helper.assertTrue(actual.distSqr(target) <= 4,
+                    "Villager must physically navigate to worksite without teleportation");
+            helper.assertTrue(registry.snapshot().stream().anyMatch(c -> c.id().equals(citizenId)
+                            && c.task().equals("IDLE") && c.position()==actual.asLong()),
+                    "Movement controller must persist actual arrived entity position");
+            LogManager.getLogger().info(
+                    "HEARTHBOUND_REAL_CITIZEN_NAVIGATION_PASS citizen={} from={} to={} arrived={}",
+                    citizenId,origin,actual,true);
+            pass(helper,"real_citizen_pathfinding");
+        });
+    }
+
     @GameTest(templateNamespace = "hearthbound", template = "empty", timeoutTicks = 120)
     public static void scriptedCitizenMovement(GameTestHelper helper) {
         var level = helper.getLevel();
