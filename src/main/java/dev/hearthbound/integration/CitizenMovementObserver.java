@@ -30,8 +30,14 @@ public final class CitizenMovementObserver {
             catch(NumberFormatException badTask){continue;}
             BlockPos target=BlockPos.of(encoded);
             boolean arrived=villager.blockPosition().distSqr(target)<=4;
-            if(!arrived) villager.getNavigation().moveTo(
-                    target.getX()+0.5,target.getY(),target.getZ()+0.5,0.7);
+            if(!arrived) {
+                boolean accepted = villager.getNavigation().moveTo(
+                        target.getX()+0.5,target.getY(),target.getZ()+0.5,0.7);
+                if(tick%40==0) org.apache.logging.log4j.LogManager.getLogger().info(
+                        "HEARTHBOUND_CITIZEN_NAVIGATION_PROGRESS citizen={} actual={} target={} pathAccepted={} navigationDone={} tick={}",
+                        citizen.id(),villager.blockPosition(),target,accepted,
+                        villager.getNavigation().isDone(),tick);
+            }
             registry.observe(citizen.id(),villager.blockPosition().asLong(),tick,arrived);
             if(arrived) org.apache.logging.log4j.LogManager.getLogger().info(
                     "HEARTHBOUND_CITIZEN_ARRIVED citizen={} pos={} tick={}",
