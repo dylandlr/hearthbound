@@ -23,3 +23,6 @@ The first citizen-credit acceptance request failed in the evidence-packager unit
 
 ## Push-run observability
 GitHub PR checks and push checks for the same SHA are distinct. The PR workflow is expected to skip Minecraft acceptance. An independent, early `experiment-launch-index` job on explicitly tagged *pushes* writes the push run ID to issue #77 before build/test jobs can fail. Follow that run ID to inspect the actual acceptance job; absence of a launch entry is a trigger or permissions problem, not a Minecraft pass.
+
+## Pre-operation citizen assignment fixture
+The GameTest now saves an assignment record with the existing durable-intent store before motor activation. Both initial credit and restart verification independently reload this record by operation UUID rather than fabricating ownership from the post-milling observation. The assignment artifact is archived with the evidence bundle. This remains an isolated test citizen, not a production policy.
