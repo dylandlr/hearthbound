@@ -1,0 +1,64 @@
+package dev.hearthbound.integration;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.UUID;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.level.saveddata.SavedData;
+
+/** First persistent, server-owned citizen registry. Records are not spawned entities. */
+public final class CitizenRegistrySavedData extends SavedData {
+    private static final String KEY = "hearthbound_citizens_v1";
+    private final Map<UUID, Citizen> citizens = new LinkedHashMap<>();
+    public record Citizen(UUID id, String name, String dimension, long position, String task, long lastTick) {}
+    public static CitizenRegistrySavedData get(MinecraftServer server) {
+        return server.overworld().getDataStorage().computeIfAbsent(
+                CitizenRegistrySavedData::load, CitizenRegistrySavedData::new, KEY);
+    }
+    public static CitizenRegistrySavedData load(CompoundTag data) {
+        if (data.getInt("Version") != 1) throw new IllegalArgumentException("Invalid citizen registry version");
+        CitizenRegistrySavedData result = new CitizenRegistrySavedData();
+        ListTag list = data.getList("Citizens", Tag.TAG_COMPOUND);
+        for (int i=0;i<list.size();i++) {
+            CompoundTag item = list.getCompound(i);
+            if (!item.hasUUID("Id") || item.getString("Name").isBlank())
+                throw new IllegalArgumentException("Invalid citizen record");
+            Citizen citizen = new Citizen(item.getUUID("Id"), item.getString("Name"),
+                    item.getString("Dimension"), item.getLong("Position"),
+                    item.getString("Task"), item.getLong("LastTick"));
+            if(result.citizens.putIfAbsent(citizen.id(), citizen)!=null)
+                throw new IllegalArgumentException("Duplicate citizen ID");
+        }
+        return result;
+    }
+    public Citizen register(UUID id,String name,String dimension,long position,long tick) {
+        if(id==null || name==null || name.isBlank() || dimension==null || dimension.isBlank() || tick<0)
+            throw new IllegalArgumentException("Invalid citizen identity");
+        if(citizens.containsKey(id)) throw new IllegalArgumentException("Citizen already exists");
+        Citizen record = new Citizen(id,name,dimension,position,"IDLE",tick);
+        citizens.put(id,record);
+        setDirty();
+        return record;
+    }
+    public int size() {return citizens.size();}
+    public java.util.List<Citizen> snapshot() {return java.util.List.copyOf(citizens.values());}
+    @Override public CompoundTag save(CompoundTag data) {
+        data.putInt("Version",1);
+        ListTag list=new ListTag();
+        for(Citizen citizen:citizens.values()) {
+            CompoundTag item=new CompoundTag();
+            item.putUUID("Id",citizen.id());
+            item.putString("Name",citizen.name());
+            item.putString("Dimension",citizen.dimension());
+            item.putLong("Position",citizen.position());
+            item.putString("Task",citizen.task());
+            item.putLong("LastTick",citizen.lastTick());
+            list.add(item);
+        }
+        data.put("Citizens",list);
+        return data;
+    }
+}
