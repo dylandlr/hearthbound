@@ -80,6 +80,17 @@ public final class MillingGameTests {
                     "Exactly one wheat must be debited from citizen entity inventory");
             helper.assertTrue(citizen.task().equals("IDLE"),
                     "Successful server-tick supply must finish task without repeated transfer");
+            helper.assertTrue(villager.getPersistentData().getLong("HearthboundLastSupplyMill")
+                            == mill.getBlockPos().asLong()
+                            && villager.getPersistentData().getLong("HearthboundLastSupplyTick") > 0,
+                    "Real server supply must retain the machine and logical tick on citizen entity");
+            var roundTrip = dev.hearthbound.integration.CitizenRegistrySavedData.load(
+                    registry.save(new CompoundTag()));
+            helper.assertTrue(roundTrip.snapshot().stream().anyMatch(item -> item.id().equals(citizenId)
+                            && item.task().equals("IDLE")
+                            && item.position()==citizen.position()),
+                    "Completed supply task must round-trip through Minecraft SavedData");
+
             LogManager.getLogger().info(
                     "HEARTHBOUND_CITIZEN_REAL_WALK_SUPPLY_PASS citizen={} arrival={} mill={} movedWheat=1 conserved=true controller=server_tick",
                     citizenId,observedArrival,mill.getBlockPos());
