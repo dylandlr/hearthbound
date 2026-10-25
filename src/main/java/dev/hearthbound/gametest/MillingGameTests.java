@@ -7,6 +7,7 @@ import dev.hearthbound.integration.RuntimeInventoryDeltaChecks;
 import dev.hearthbound.integration.MillingObservationSavedData;
 import dev.hearthbound.research.ScriptedMillingPolicy;
 import dev.hearthbound.research.ScriptedMillingExecutor;
+import dev.hearthbound.research.ScriptedCitizenWorkLoop;
 import java.util.UUID;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -58,6 +59,15 @@ public final class MillingGameTests {
         var task = new ScriptedMillingExecutor.State(durableIntent.operationId(),
                 UUID.fromString("00000000-0000-0000-0000-000000000077"),
                 ScriptedMillingExecutor.Phase.UNASSIGNED);
+        var workStep = ScriptedCitizenWorkLoop.tick(task,
+                new ScriptedCitizenWorkLoop.Snapshot(true, false,
+                        mill.inputInv.getStackInSlot(0).is(Items.WHEAT),
+                        true, true, false, false, false));
+        helper.assertTrue(workStep.action() == ScriptedCitizenWorkLoop.Action.ACTIVATE_POWER,
+                "Tick-driven citizen must request motor power after wheat is in millstone");
+        LogManager.getLogger().info(
+                "HEARTHBOUND_SCRIPTED_WORK_LOOP action=ACTIVATE_POWER operation={}",
+                durableIntent.operationId());
         var planned = ScriptedMillingExecutor.plan(task, policyObservation);
         helper.assertTrue(planned.authorizeMotorActivation()
                         && planned.state().phase() == ScriptedMillingExecutor.Phase.READY_TO_POWER,
