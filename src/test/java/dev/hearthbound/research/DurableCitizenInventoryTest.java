@@ -16,6 +16,15 @@ public final class DurableCitizenInventoryTest {
         try { restart.reserve(UUID.randomUUID()); }
         catch (java.io.IOException expected) { depleted=true; }
         if (!depleted || restart.available()!=0) throw new AssertionError("Wheat overdraft");
-        System.out.println("DurableCitizenInventory: 3 checks passed");
+        // Sequential independent instances share the same file-locked stock cap.
+        var second = new DurableCitizenInventory(dir, citizen, 1);
+        if (second.reserve(operation))
+            throw new AssertionError("Second instance duplicated existing operation");
+        boolean blocked = false;
+        try { second.reserve(UUID.randomUUID()); }
+        catch (java.io.IOException expected) { blocked = true; }
+        if (!blocked || second.available() != 0)
+            throw new AssertionError("Second instance bypassed stock cap");
+        System.out.println("DurableCitizenInventory: 5 checks passed");
     }
 }
