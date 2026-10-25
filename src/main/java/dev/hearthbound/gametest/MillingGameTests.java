@@ -131,6 +131,12 @@ public final class MillingGameTests {
                 helper.assertTrue(registry.snapshot().stream().anyMatch(item -> item.id().equals(citizenId)
                                 && item.task().startsWith("MILL_SUPPLY:")),
                         "Blocked milling task must remain outstanding for recovery");
+                try {
+                    CitizenSupplyRestartFixture.write(server,citizenId,
+                            level.dimension().location().toString(),mill.getBlockPos(),1);
+                } catch(java.io.IOException failure) {
+                    throw new IllegalStateException("Could not stage citizen restart evidence",failure);
+                }
                 pass(helper,"citizen_walks_and_supplies_mill");
             });
         });
