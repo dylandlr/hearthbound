@@ -43,6 +43,25 @@ public final class CitizenRegistrySavedData extends SavedData {
         setDirty();
         return record;
     }
+    public Citizen assignMove(UUID id, String dimension, long target, long tick) {
+        Citizen current = citizens.get(id);
+        if (current == null || !current.dimension().equals(dimension) || tick < current.lastTick())
+            throw new IllegalArgumentException("Missing citizen or inconsistent dimension/tick");
+        Citizen changed = new Citizen(id, current.name(), dimension, current.position(),
+                "MOVE:" + target, tick);
+        citizens.put(id, changed);
+        setDirty();
+        return changed;
+    }
+    public void observe(UUID id, long position, long tick, boolean arrived) {
+        Citizen current = citizens.get(id);
+        if (current == null || tick < current.lastTick()) return;
+        String task = arrived && current.task().startsWith("MOVE:") ? "IDLE" : current.task();
+        if (current.position() != position || !task.equals(current.task())) {
+            citizens.put(id, new Citizen(id,current.name(),current.dimension(),position,task,tick));
+            setDirty();
+        }
+    }
     public int size() {return citizens.size();}
     public java.util.List<Citizen> snapshot() {return java.util.List.copyOf(citizens.values());}
     @Override public CompoundTag save(CompoundTag data) {
