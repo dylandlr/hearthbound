@@ -90,7 +90,7 @@ jobs:
 
   minecraft-acceptance:
     # Explicit EULA-authorized opt-in; included in this workflow's known run ID.
-    if: ${{ github.event_name == 'push' && vars.MINECRAFT_EULA_ACCEPTED != 'false' && contains(github.event.head_commit.message, '[eula-accepted-smoke]') }}
+    if: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[eula-accepted-smoke]') }}
     needs: [java-contracts, compile-and-contract]
     permissions:
       contents: read
