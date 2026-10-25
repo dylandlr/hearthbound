@@ -3,6 +3,8 @@ package dev.hearthbound.gametest;
 import com.simibubi.create.content.kinetics.millstone.MillstoneBlockEntity;
 import dev.hearthbound.integration.MillingObservationSavedData;
 import dev.hearthbound.research.DurableCreditLedger;
+import dev.hearthbound.research.CitizenDiscoveryGate;
+import dev.hearthbound.research.CitizenDiscoveryCommitter;
 import dev.hearthbound.research.DurableOperationIntents.Intent;
 import net.minecraft.nbt.*;
 import net.minecraft.server.MinecraftServer;
@@ -20,6 +22,24 @@ final class MillingDiscoveryFixture {
         var directory = server.getWorldPath(LevelResource.ROOT).resolve("hearthbound-fixture-credits");
         java.nio.file.Files.createDirectories(directory);
         return new DurableCreditLedger(directory);
+    }
+    // Dedicated fixed test citizen. Never exposed as a live autonomous actor.
+    private static final UUID TEST_CITIZEN = UUID.fromString("00000000-0000-0000-0000-000000000077");
+    private static CitizenDiscoveryCommitter citizenCredits(MinecraftServer server) throws IOException {
+        var directory = server.getWorldPath(LevelResource.ROOT).resolve("hearthbound-fixture-citizen-credits");
+        java.nio.file.Files.createDirectories(directory);
+        return new CitizenDiscoveryCommitter(directory);
+    }
+    private static CitizenDiscoveryGate.Assignment assignment(Intent intent, CompoundTag observed) {
+        return new CitizenDiscoveryGate.Assignment(intent.operationId(), TEST_CITIZEN,
+                "world", observed.getString("Dimension"),
+                Long.toString(observed.getLong("Position")), "create:milling/wheat", true);
+    }
+    private static CitizenDiscoveryGate.Observation outcome(Intent intent, CompoundTag observed) {
+        return new CitizenDiscoveryGate.Observation(intent.operationId(), "world",
+                observed.getString("Dimension"), Long.toString(observed.getLong("Position")),
+                observed.getString("CandidateRecipe"), observed.getString("Recipe"),
+                1, observed.getString("Quality").equals("positive_deltas"), true);
     }
     private static CompoundTag parse(String evidence) {
         try { return TagParser.parseTag(evidence); }
@@ -70,6 +90,17 @@ final class MillingDiscoveryFixture {
         if (credits.balance(BENEFICIARY) != 0 || !credits.commit(credit)
                 || credits.commit(credit) || credits.balance(BENEFICIARY) != 1)
             throw new IllegalStateException("Fixture discovery must credit exactly once");
+        var citizen = citizenCredits(server);
+        var attributed = citizen.commit(assignment(intent, observed), outcome(intent, observed), serialized);
+        if (!attributed.newlyCredited() || attributed.citizenResearchBalance() != 1)
+            throw new IllegalStateException("Fixture citizen did not receive exactly one verified credit");
+        if (citizen.commit(assignment(intent, observed), outcome(intent, observed), serialized).newlyCredited())
+            throw new IllegalStateException("Fixture citizen received duplicate credit");
+        expected.putUUID("Citizen", TEST_CITIZEN);
+        expected.putString("CitizenReceipt", serialized);
+        org.apache.logging.log4j.LogManager.getLogger().info(
+                "HEARTHBOUND_CITIZEN_CREDIT_FIXTURE_PASS operation={} citizen={} balance=1",
+                intent.operationId(), TEST_CITIZEN);
         expected.putString("DiscoveryReceipt", serialized);
         org.apache.logging.log4j.LogManager.getLogger().info(
                 "HEARTHBOUND_DISCOVERY_FIXTURE_AWARDED operation={} recipe=create:milling/wheat balance=1", intent.operationId());
@@ -95,6 +126,16 @@ final class MillingDiscoveryFixture {
         catch (IOException conflict) { rejected = true; }
         if (!rejected || credits.balance(BENEFICIARY) != 1)
             throw new IllegalStateException("Conflicting retry changed discovery credit");
+        if (!expected.hasUUID("Citizen") || !expected.getUUID("Citizen").equals(TEST_CITIZEN)
+                || !expected.getString("CitizenReceipt").equals(serialized))
+            throw new IllegalStateException("Citizen fixture provenance changed");
+        var citizen = citizenCredits(server);
+        if (citizen.balance(TEST_CITIZEN) != 1 ||
+                citizen.commit(assignment(intent, observed), outcome(intent, observed), serialized).newlyCredited())
+            throw new IllegalStateException("Citizen credit missing or duplicated after restart");
+        org.apache.logging.log4j.LogManager.getLogger().info(
+                "HEARTHBOUND_CITIZEN_CREDIT_RESTART_PASS operation={} citizen={} balance=1 duplicateRejected=true",
+                intent.operationId(), TEST_CITIZEN);
         org.apache.logging.log4j.LogManager.getLogger().info(
                 "HEARTHBOUND_DISCOVERY_RESTART_PASS operation={} recipe=create:milling/wheat balance=1 duplicateRejected=true",
                 intent.operationId());
