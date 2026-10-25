@@ -32,7 +32,9 @@ public final class CitizenEmbodiment {
         return tag.hasUUID(CITIZEN_ID) ? tag.getUUID(CITIZEN_ID) : null;
     }
     public static Villager find(ServerLevel level, UUID citizenId) {
-        return level.getEntities(EntityType.VILLAGER, entity ->
-                citizenId.equals(identity(entity))).stream().findFirst().orElse(null);
+        return level.getEntitiesOfClass(Villager.class,
+                new net.minecraft.world.phys.AABB(-30000000, level.getMinBuildHeight(), -30000000,
+                        30000000, level.getMaxBuildHeight(), 30000000),
+                entity -> citizenId.equals(identity(entity))).stream().findFirst().orElse(null);
     }
 }
