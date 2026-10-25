@@ -70,6 +70,17 @@ public final class DurableCreditLedger {
         }
     }
 
+    /** Read a committed operation without confusing absence with storage failure. */
+    public synchronized Optional<Credit> find(UUID operationId) throws IOException {
+        Objects.requireNonNull(operationId);
+        try (FileChannel lock = FileChannel.open(directory.resolve("credit.lock"), CREATE, WRITE);
+             var held = lock.lock()) {
+            try (FileChannel data = FileChannel.open(directory.resolve("credits.v1"), READ)) {
+                return Optional.ofNullable(read(data).get(operationId));
+            } catch (NoSuchFileException absent) { return Optional.empty(); }
+        }
+    }
+
     public synchronized long balance(UUID beneficiary) throws IOException {
         Objects.requireNonNull(beneficiary);
         try (FileChannel lock = FileChannel.open(directory.resolve("credit.lock"), CREATE, WRITE);
