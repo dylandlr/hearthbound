@@ -196,6 +196,8 @@ public final class MillingGameTests {
         var server = helper.getLevel().getServer();
         String dimension = mill.getLevel().dimension().location().toString();
         long position = mill.getBlockPos().asLong();
+        UUID operationA = UUID.randomUUID();
+        UUID operationB = UUID.randomUUID();
         long firstStart = dev.hearthbound.integration.ForgeServerTickObserver.logicalTick(server);
         helper.setBlock(motorPos, AllBlocks.CREATIVE_MOTOR.getDefaultState()
                 .setValue(CreativeMotorBlock.FACING, Direction.UP));
@@ -240,6 +242,15 @@ public final class MillingGameTests {
                     } catch (IllegalStateException expected) { overlapRejected = true; }
                     helper.assertTrue(overlapRejected,
                             "Cross-operation observation interval must fail closed");
+                    try {
+                        ConsecutiveMillingCredits.award(server, operationA,
+                                ConsecutiveMillingCredits.FIRST, first);
+                        ConsecutiveMillingCredits.award(server, operationB,
+                                ConsecutiveMillingCredits.SECOND, second);
+                        ConsecutiveMillingCredits.saveExpected(operationA, operationB, first, second);
+                    } catch (java.io.IOException failure) {
+                        throw new IllegalStateException("Two real citizen credits failed", failure);
+                    }
                     helper.setBlock(motorPos, Blocks.AIR.defaultBlockState());
                     helper.getLevel().getServer().overworld().getDataStorage().save();
                     LogManager.getLogger().info(
