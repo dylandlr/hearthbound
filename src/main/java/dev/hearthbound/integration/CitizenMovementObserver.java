@@ -46,9 +46,20 @@ public final class CitizenMovementObserver {
                     var data=villager.getPersistentData();
                     int wheat=data.getInt("HearthboundWheat");
                     if(wheat>0) {
+                        // Fail closed if a previous interruption or external actor
+                        // left the mill occupied. Never debit citizen wheat when
+                        // we cannot attribute the machine input to this task.
+                        if(!mill.inputInv.getStackInSlot(0).isEmpty()) {
+                            if(tick%100==0) org.apache.logging.log4j.LogManager.getLogger().warn(
+                                    "HEARTHBOUND_CITIZEN_SUPPLY_BLOCKED citizen={} mill={} reason=occupied_input task=retained",
+                                    citizen.id(),millPos);
+                            continue;
+                        }
                         var held=new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.WHEAT,wheat);
                         if(ServerMillingActions.supplyWheat(mill,held)) {
                             data.putInt("HearthboundWheat",held.getCount());
+                            data.putLong("HearthboundLastSupplyMill",millPos.asLong());
+                            data.putLong("HearthboundLastSupplyTick",tick);
                             registry.completeSupply(citizen.id(),villager.blockPosition().asLong(),tick);
                             org.apache.logging.log4j.LogManager.getLogger().info(
                                     "HEARTHBOUND_CITIZEN_AUTOMATED_SUPPLY citizen={} mill={} remainingWheat={} tick={}",
