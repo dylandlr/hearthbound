@@ -65,6 +65,7 @@ jobs:
             src/main/java/dev/hearthbound/research/CitizenInventory.java \
             src/main/java/dev/hearthbound/research/DurableCitizenInventory.java \
             src/main/java/dev/hearthbound/research/WheatTransferRecovery.java \
+            src/main/java/dev/hearthbound/research/DurableCitizenWorkOrder.java \
             src/test/java/dev/hearthbound/research/DurableOperationIntentsTest.java \
             src/test/java/dev/hearthbound/research/DurableCreditLedgerTest.java \
             src/test/java/dev/hearthbound/research/MillstoneRecoveryGateTest.java \
@@ -80,10 +81,11 @@ jobs:
             src/test/java/dev/hearthbound/research/ScriptedCitizenWorkLoopTest.java \
             src/test/java/dev/hearthbound/research/CitizenInventoryTest.java \
             src/test/java/dev/hearthbound/research/DurableCitizenInventoryTest.java \
-            src/test/java/dev/hearthbound/research/WheatTransferRecoveryTest.java
+            src/test/java/dev/hearthbound/research/WheatTransferRecoveryTest.java \
+            src/test/java/dev/hearthbound/research/DurableCitizenWorkOrderTest.java
       - name: Execute standalone contracts
         run: |
-          for cls in DurableOperationIntentsTest DurableCreditLedgerTest MillstoneRecoveryGateTest MillstoneReceiptGateTest ServerTickEventLedgerTest ServerTickClockTest PersistentTickCounterTest InventoryDeltaTest CitizenDiscoveryGateTest CitizenDiscoveryCommitterTest ScriptedMillingPolicyTest ScriptedMillingExecutorTest ScriptedCitizenWorkLoopTest CitizenInventoryTest DurableCitizenInventoryTest WheatTransferRecoveryTest; do
+          for cls in DurableOperationIntentsTest DurableCreditLedgerTest MillstoneRecoveryGateTest MillstoneReceiptGateTest ServerTickEventLedgerTest ServerTickClockTest PersistentTickCounterTest InventoryDeltaTest CitizenDiscoveryGateTest CitizenDiscoveryCommitterTest ScriptedMillingPolicyTest ScriptedMillingExecutorTest ScriptedCitizenWorkLoopTest CitizenInventoryTest DurableCitizenInventoryTest WheatTransferRecoveryTest DurableCitizenWorkOrderTest; do
             java -cp build/contract-classes dev.hearthbound.research.$cls
           done
   compile-and-contract:
