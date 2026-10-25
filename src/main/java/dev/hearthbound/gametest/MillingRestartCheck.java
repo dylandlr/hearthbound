@@ -25,11 +25,14 @@ public final class MillingRestartCheck {
             // require its exact immutable payload rather than rejecting newer
             // observations from the separate consecutive-milling GameTest.
             var original = expected.getList("Observations", net.minecraft.nbt.Tag.TAG_COMPOUND);
-            if (original.size() != 1 || journal.snapshot().size() != 3)
+            if (original.isEmpty() || original.size() > 3 || journal.snapshot().size() != 3)
                 throw new IllegalStateException("Unexpected milling journal count after restart");
+            for (int i = 0; i < original.size(); i++) {
+                CompoundTag saved = original.getCompound(i);
+                if (!saved.equals(journal.find(saved.getUUID("Id"))))
+                    throw new IllegalStateException("Original milling evidence changed after restart");
+            }
             CompoundTag observation = original.getCompound(0);
-            if (!observation.equals(journal.find(observation.getUUID("Id"))))
-                throw new IllegalStateException("Original milling evidence changed after restart");
             CompoundTag beforeConflict = journal.save(new CompoundTag());
             if (journal.append(observation))
                 throw new IllegalStateException("Duplicate accepted after restart");
