@@ -5,6 +5,7 @@ import dev.hearthbound.integration.MillingObservationSavedData;
 import dev.hearthbound.research.DurableCreditLedger;
 import dev.hearthbound.research.CitizenDiscoveryGate;
 import dev.hearthbound.research.CitizenDiscoveryCommitter;
+import dev.hearthbound.research.DurableOperationIntents;
 import dev.hearthbound.research.DurableOperationIntents.Intent;
 import net.minecraft.nbt.*;
 import net.minecraft.server.MinecraftServer;
@@ -30,10 +31,40 @@ final class MillingDiscoveryFixture {
         java.nio.file.Files.createDirectories(directory);
         return new CitizenDiscoveryCommitter(directory);
     }
-    private static CitizenDiscoveryGate.Assignment assignment(Intent intent, CompoundTag observed) {
-        return new CitizenDiscoveryGate.Assignment(intent.operationId(), TEST_CITIZEN,
-                "world", observed.getString("Dimension"),
-                Long.toString(observed.getLong("Position")), "create:milling/wheat", true);
+    private static DurableOperationIntents assignmentStore(MinecraftServer server) throws IOException {
+        var directory = server.getWorldPath(LevelResource.ROOT).resolve("hearthbound-fixture-citizen-assignments");
+        java.nio.file.Files.createDirectories(directory);
+        return new DurableOperationIntents(directory);
+    }
+    private static String assignmentKey(Intent intent) {
+        return "citizen-assignment/" + intent.operationId();
+    }
+    static void prepareAssignment(MinecraftServer server, Intent intent, String dimension, long position) {
+        CompoundTag record = new CompoundTag();
+        record.putUUID("Operation", intent.operationId());
+        record.putUUID("Citizen", TEST_CITIZEN);
+        record.putString("World", "world");
+        record.putString("Dimension", dimension);
+        record.putString("Position", Long.toString(position));
+        record.putString("Recipe", "create:milling/wheat");
+        try {
+            if (!assignmentStore(server).prepare(assignmentKey(intent), record.toString()).newlyCreated())
+                throw new IllegalStateException("Fixture citizen assignment must be new");
+        } catch (IOException error) {
+            throw new IllegalStateException("Cannot persist citizen assignment before milling", error);
+        }
+    }
+    private static CitizenDiscoveryGate.Assignment assignment(MinecraftServer server, Intent intent) throws IOException {
+        var stored = assignmentStore(server).pending(assignmentKey(intent))
+                .orElseThrow(() -> new IllegalStateException("Missing pre-operation citizen assignment"));
+        CompoundTag record = parse(stored.evidence());
+        if (!record.hasUUID("Operation") || !record.hasUUID("Citizen")
+                || !record.getUUID("Operation").equals(intent.operationId())
+                || !record.getUUID("Citizen").equals(TEST_CITIZEN))
+            throw new IllegalStateException("Citizen assignment does not match durable operation");
+        return new CitizenDiscoveryGate.Assignment(record.getUUID("Operation"), record.getUUID("Citizen"),
+                record.getString("World"), record.getString("Dimension"),
+                record.getString("Position"), record.getString("Recipe"), true);
     }
     private static CitizenDiscoveryGate.Observation outcome(Intent intent, CompoundTag observed) {
         return new CitizenDiscoveryGate.Observation(intent.operationId(), "world",
@@ -91,10 +122,10 @@ final class MillingDiscoveryFixture {
                 || credits.commit(credit) || credits.balance(BENEFICIARY) != 1)
             throw new IllegalStateException("Fixture discovery must credit exactly once");
         var citizen = citizenCredits(server);
-        var attributed = citizen.commit(assignment(intent, observed), outcome(intent, observed), serialized);
+        var attributed = citizen.commit(assignment(server, intent), outcome(intent, observed), serialized);
         if (!attributed.newlyCredited() || attributed.citizenResearchBalance() != 1)
             throw new IllegalStateException("Fixture citizen did not receive exactly one verified credit");
-        if (citizen.commit(assignment(intent, observed), outcome(intent, observed), serialized).newlyCredited())
+        if (citizen.commit(assignment(server, intent), outcome(intent, observed), serialized).newlyCredited())
             throw new IllegalStateException("Fixture citizen received duplicate credit");
         expected.putUUID("Citizen", TEST_CITIZEN);
         expected.putString("CitizenReceipt", serialized);
@@ -131,7 +162,7 @@ final class MillingDiscoveryFixture {
             throw new IllegalStateException("Citizen fixture provenance changed");
         var citizen = citizenCredits(server);
         if (citizen.balance(TEST_CITIZEN) != 1 ||
-                citizen.commit(assignment(intent, observed), outcome(intent, observed), serialized).newlyCredited())
+                citizen.commit(assignment(server, intent), outcome(intent, observed), serialized).newlyCredited())
             throw new IllegalStateException("Citizen credit missing or duplicated after restart");
         org.apache.logging.log4j.LogManager.getLogger().info(
                 "HEARTHBOUND_CITIZEN_CREDIT_RESTART_PASS operation={} citizen={} balance=1 duplicateRejected=true",
