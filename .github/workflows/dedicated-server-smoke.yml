@@ -158,6 +158,8 @@ jobs:
             run-gametest/**/hearthbound-fixture-citizen-assignments/*.intent
             run-gametest/**/hearthbound-fixture-machine-claims/*.intent
             run-gametest/**/hearthbound-fixture-machine-handoffs/*.handoff
+            run-gametest/**/hearthbound-fixture-window-starts/*.intent
+            run-gametest/**/hearthbound-fixture-window-ends/credits.v1
             run-gametest/**/data/hearthbound_milling_observations_v1.dat
             run-gametest/logs/*.log
             run/logs/*.log
