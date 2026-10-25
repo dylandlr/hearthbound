@@ -57,6 +57,9 @@ public final class MillingGameTests {
         var villager = dev.hearthbound.integration.CitizenEmbodiment.spawn(level,citizenId,origin);
         villager.setNoAi(false);
         villager.getPersistentData().putInt("HearthboundWheat", 2);
+        helper.assertTrue(!dev.hearthbound.integration.CitizenSupplyAssignment.isAuthorized(
+                        server,citizenId,level.dimension().location().toString(),destination.offset(1,0,0)),
+                "Unprepared citizen operation cannot authorize supply");
         try {
             dev.hearthbound.integration.CitizenSupplyAssignment.prepare(
                     server,citizenId,level.dimension().location().toString(),destination.offset(1,0,0));
