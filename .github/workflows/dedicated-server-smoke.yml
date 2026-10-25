@@ -99,6 +99,10 @@ jobs:
             echo 'Hearthbound server-started marker with Create loaded absent' >&2
             exit 1
           fi
+          if ! grep -Fq 'HEARTHBOUND_CITIZEN_RESTART_NO_REPLAY_PASS citizen=' server-smoke.log; then
+            echo 'Recovered citizen attempted unsafe replay or recovery decision was not blocked' >&2
+            exit 1
+          fi
           if ! grep -Fq 'HEARTHBOUND_CITIZEN_SUPPLY_WORLD_RESTART_PASS citizen=' server-smoke.log; then
             echo 'Citizen entity or real Create millstone inventory failed saved-world restart verification' >&2
             exit 1
