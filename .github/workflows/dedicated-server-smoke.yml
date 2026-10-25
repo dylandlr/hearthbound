@@ -18,9 +18,10 @@ on:
 
 jobs:
   server-smoke:
-    # Owner explicitly accepted the Minecraft EULA in ChatGPT on 2026-10-23.
-    # Applies to ephemeral tests on this branch; set the repository variable to false to disable.
-    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.accept_minecraft_eula == true) || (github.event_name == 'push' && github.ref == 'refs/heads/feat/create-forge-dependency-v1-2' && vars.MINECRAFT_EULA_ACCEPTED != 'false') }}
+    # User explicitly confirmed EULA acceptance on 2026-10-24.
+    # Only an explicitly marked feature-branch push starts an ephemeral test.
+    # Repository MINECRAFT_EULA_ACCEPTED=false remains an override to disable.
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.accept_minecraft_eula == true) || (github.event_name == 'push' && github.ref == 'refs/heads/feat/create-forge-dependency-v1-2' && vars.MINECRAFT_EULA_ACCEPTED != 'false' && contains(github.event.head_commit.message, '[eula-accepted-smoke]')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     permissions:
