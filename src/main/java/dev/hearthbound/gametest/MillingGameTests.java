@@ -90,6 +90,14 @@ public final class MillingGameTests {
                     "Tick-driven citizen must have supplied real Create millstone");
             helper.assertTrue(villager.getPersistentData().getInt("HearthboundWheat")==1,
                     "Exactly one wheat must be debited from citizen entity inventory");
+            try {
+                var persistedOperation=dev.hearthbound.integration.CitizenSupplyAssignment.require(
+                        server,citizenId,level.dimension().location().toString(),mill.getBlockPos());
+                helper.assertTrue(dev.hearthbound.integration.CitizenSupplyAttempt.hasAttempt(
+                        server,persistedOperation),"A durable attempt must precede real Create mutation");
+            } catch(java.io.IOException failure) {
+                throw new IllegalStateException("Missing durable delivery evidence",failure);
+            }
             helper.assertTrue(citizen.task().equals("IDLE"),
                     "Successful server-tick supply must finish task without repeated transfer");
             helper.assertTrue(villager.getPersistentData().getLong("HearthboundLastSupplyMill")
