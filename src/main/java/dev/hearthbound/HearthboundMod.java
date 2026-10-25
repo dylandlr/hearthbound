@@ -3,6 +3,7 @@ package dev.hearthbound;
 import com.mojang.brigadier.CommandDispatcher;
 import dev.hearthbound.integration.MillstoneDiagnostics;
 import dev.hearthbound.integration.ColonyInspectionCommands;
+import dev.hearthbound.integration.CitizenRegistrySavedData;
 import dev.hearthbound.integration.MillstoneTrace;
 import dev.hearthbound.integration.RuntimeInventoryDeltaChecks;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -34,6 +35,23 @@ public final class HearthboundMod {
         public static void onCommands(RegisterCommandsEvent event) {
             CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
             dispatcher.register(Commands.literal("hearthbound")
+                    .then(Commands.literal("citizen")
+                            .requires(source -> source.hasPermission(2))
+                            .then(Commands.literal("create")
+                                    .executes(ctx -> {
+                                        var source = ctx.getSource();
+                                        var player = source.getPlayerOrException();
+                                        var registry = CitizenRegistrySavedData.get(source.getServer());
+                                        var id = java.util.UUID.randomUUID();
+                                        var record = registry.register(id, "Settler-" + (registry.size() + 1),
+                                                source.getLevel().dimension().location().toString(),
+                                                player.blockPosition().asLong(),
+                                                ForgeServerTickObserver.logicalTick(source.getServer()));
+                                        source.sendSuccess(() -> Component.literal("Created persistent citizen record "
+                                                + record.name() + " id=" + record.id()
+                                                + " (not yet a spawned NPC)"), false);
+                                        return 1;
+                                    })))
                     .then(Commands.literal("citizens").requires(source -> source.hasPermission(2))
                             .executes(ColonyInspectionCommands::citizens))
                     .then(Commands.literal("tasks").requires(source -> source.hasPermission(2))
