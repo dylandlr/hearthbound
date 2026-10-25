@@ -105,6 +105,10 @@ jobs:
             echo 'Saved machine/intent checkpoint verification failed' >&2
             exit 1
           fi
+          if ! grep -Fq 'HEARTHBOUND_CITIZEN_CREDIT_RESTART_PASS operation=' server-smoke.log; then
+            echo 'Citizen research credit did not persist through server restart' >&2
+            exit 1
+          fi
           if ! grep -Fq 'HEARTHBOUND_DISCOVERY_RESTART_PASS operation=' server-smoke.log; then
             echo 'Discovery credit did not survive restart exactly once' >&2
             exit 1
@@ -146,6 +150,7 @@ jobs:
             run-gametest/milling-machine-expected.nbt
             run-gametest/**/hearthbound-fixture-intents/*.intent
             run-gametest/**/hearthbound-fixture-credits/credits.v1
+            run-gametest/**/hearthbound-fixture-citizen-credits/credits.v1
             run-gametest/**/data/hearthbound_milling_observations_v1.dat
             run-gametest/logs/*.log
             run/logs/*.log
