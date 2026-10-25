@@ -22,7 +22,7 @@ class EvidenceTests(unittest.TestCase):
     def test_required_markers_still_need_successful_job(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
-            (root / "gametest.log").write_text("\n".join(module.MARKERS[:4] + (module.MARKERS[7],)))
+            (root / "gametest.log").write_text("\n".join(module.MARKERS[:4] + (module.MARKERS[7], module.MARKERS[11])))
             (root / "server-smoke.log").write_text("\n".join(module.MARKERS[4:7] + module.MARKERS[8:]))
             old = os.environ.get("HB_JOB_STATUS")
             try:
