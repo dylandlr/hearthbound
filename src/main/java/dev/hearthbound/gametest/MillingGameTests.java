@@ -4,6 +4,7 @@ import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.content.kinetics.millstone.MillstoneBlockEntity;
 import dev.hearthbound.integration.RuntimeInventoryDeltaChecks;
+import dev.hearthbound.integration.ServerMillingActions;
 import dev.hearthbound.integration.MillingObservationSavedData;
 import dev.hearthbound.research.ScriptedMillingPolicy;
 import dev.hearthbound.research.ScriptedMillingExecutor;
@@ -48,6 +49,23 @@ public final class MillingGameTests {
     @GameTest(templateNamespace = "hearthbound", template = "empty", timeoutTicks = 500)
     public static void millingWithMotor(GameTestHelper helper) {
         MillstoneBlockEntity mill = place(helper);
+        // Work-loop requests input transfer; the server adapter performs the mutation.
+        mill.inputInv.setStackInSlot(0, ItemStack.EMPTY);
+        ItemStack citizenHeld = new ItemStack(Items.WHEAT, 2);
+        var supplyAction = ScriptedCitizenWorkLoop.tick(
+                new ScriptedMillingExecutor.State(UUID.randomUUID(),
+                        UUID.fromString("00000000-0000-0000-0000-000000000077"),
+                        ScriptedMillingExecutor.Phase.UNASSIGNED),
+                new ScriptedCitizenWorkLoop.Snapshot(true, true, false, true, true, false, false, false));
+        helper.assertTrue(supplyAction.action() == ScriptedCitizenWorkLoop.Action.SUPPLY_WHEAT,
+                "Scripted controller must request wheat transfer");
+        helper.assertTrue(ServerMillingActions.supplyWheat(mill, citizenHeld)
+                        && citizenHeld.getCount() == 1
+                        && mill.inputInv.getStackInSlot(0).getCount() == 1,
+                "Server inventory adapter must conserve wheat");
+        helper.assertTrue(!ServerMillingActions.supplyWheat(mill, citizenHeld),
+                "Occupied millstone cannot receive duplicate wheat");
+        LogManager.getLogger().info("HEARTHBOUND_SCRIPTED_WORK_LOOP action=SUPPLY_WHEAT conserved=true");
         var durableIntent = MillingCheckpointFixture.prepare(mill);
         MillingDiscoveryFixture.prepareAssignment(helper.getLevel().getServer(), durableIntent,
                 mill.getLevel().dimension().location().toString(), mill.getBlockPos().asLong());
