@@ -88,10 +88,11 @@ jobs:
             src/test/java/dev/hearthbound/research/DurableCitizenWorkOrderTest.java \
             src/test/java/dev/hearthbound/research/DurableMachineClaimTest.java \
             src/test/java/dev/hearthbound/research/MachineClaimRetirementGateTest.java \
-            src/test/java/dev/hearthbound/research/DurableMachineHandoffTest.java
+            src/test/java/dev/hearthbound/research/DurableMachineHandoffTest.java \
+            src/test/java/dev/hearthbound/research/TwoCitizenMillingCycleTest.java
       - name: Execute standalone contracts
         run: |
-          for cls in DurableOperationIntentsTest DurableCreditLedgerTest MillstoneRecoveryGateTest MillstoneReceiptGateTest ServerTickEventLedgerTest ServerTickClockTest PersistentTickCounterTest InventoryDeltaTest CitizenDiscoveryGateTest CitizenDiscoveryCommitterTest ScriptedMillingPolicyTest ScriptedMillingExecutorTest ScriptedCitizenWorkLoopTest CitizenInventoryTest DurableCitizenInventoryTest WheatTransferRecoveryTest DurableCitizenWorkOrderTest DurableMachineClaimTest MachineClaimRetirementGateTest DurableMachineHandoffTest; do
+          for cls in DurableOperationIntentsTest DurableCreditLedgerTest MillstoneRecoveryGateTest MillstoneReceiptGateTest ServerTickEventLedgerTest ServerTickClockTest PersistentTickCounterTest InventoryDeltaTest CitizenDiscoveryGateTest CitizenDiscoveryCommitterTest ScriptedMillingPolicyTest ScriptedMillingExecutorTest ScriptedCitizenWorkLoopTest CitizenInventoryTest DurableCitizenInventoryTest WheatTransferRecoveryTest DurableCitizenWorkOrderTest DurableMachineClaimTest MachineClaimRetirementGateTest DurableMachineHandoffTest TwoCitizenMillingCycleTest; do
             java -cp build/contract-classes dev.hearthbound.research.$cls
           done
   compile-and-contract:
