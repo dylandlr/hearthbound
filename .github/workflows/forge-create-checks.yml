@@ -11,6 +11,27 @@ on:
       - '.github/workflows/forge-create-checks.yml'
   workflow_dispatch:
 jobs:
+  experiment-launch-index:
+    if: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[eula-accepted-smoke]') }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Register experiment before build dependencies
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo, issue_number: 77,
+              body: [
+                'HEARTHBOUND_EXPERIMENT_LAUNCH_V1',
+                `run_id=${context.runId}`,
+                `attempt=${process.env.GITHUB_RUN_ATTEMPT}`,
+                `commit=${context.sha}`,
+                `run_url=https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+                'state=started; this entry is not evidence of a completed GameTest'
+              ].join('\\n')
+            });
   java-contracts:
     runs-on: ubuntu-latest
     timeout-minutes: 5
