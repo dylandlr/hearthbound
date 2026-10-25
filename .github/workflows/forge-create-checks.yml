@@ -36,6 +36,7 @@ jobs:
             src/main/java/dev/hearthbound/research/ServerTickClock.java \
             src/main/java/dev/hearthbound/research/PersistentTickCounter.java \
             src/main/java/dev/hearthbound/research/InventoryDelta.java \
+            src/main/java/dev/hearthbound/research/CitizenDiscoveryGate.java \
             src/test/java/dev/hearthbound/research/DurableOperationIntentsTest.java \
             src/test/java/dev/hearthbound/research/DurableCreditLedgerTest.java \
             src/test/java/dev/hearthbound/research/MillstoneRecoveryGateTest.java \
@@ -43,10 +44,11 @@ jobs:
             src/test/java/dev/hearthbound/research/ServerTickEventLedgerTest.java \
             src/test/java/dev/hearthbound/research/ServerTickClockTest.java \
             src/test/java/dev/hearthbound/research/PersistentTickCounterTest.java \
-            src/test/java/dev/hearthbound/research/InventoryDeltaTest.java
+            src/test/java/dev/hearthbound/research/InventoryDeltaTest.java \
+            src/test/java/dev/hearthbound/research/CitizenDiscoveryGateTest.java
       - name: Execute standalone contracts
         run: |
-          for cls in DurableOperationIntentsTest DurableCreditLedgerTest MillstoneRecoveryGateTest MillstoneReceiptGateTest ServerTickEventLedgerTest ServerTickClockTest PersistentTickCounterTest InventoryDeltaTest; do
+          for cls in DurableOperationIntentsTest DurableCreditLedgerTest MillstoneRecoveryGateTest MillstoneReceiptGateTest ServerTickEventLedgerTest ServerTickClockTest PersistentTickCounterTest InventoryDeltaTest CitizenDiscoveryGateTest; do
             java -cp build/contract-classes dev.hearthbound.research.$cls
           done
   compile-and-contract:
