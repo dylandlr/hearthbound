@@ -15,7 +15,7 @@ import java.util.UUID;
 public final class CitizenSupplyRestartFixture {
     private CitizenSupplyRestartFixture() {}
     public static void write(MinecraftServer server, UUID citizen, String dimension,
-                             BlockPos mill, int expectedWheat) throws IOException {
+                             BlockPos mill, BlockPos villagerPosition, int expectedWheat) throws IOException {
         UUID operation=CitizenSupplyAssignment.require(server,citizen,dimension,mill);
         if(!CitizenSupplyAttempt.hasAttempt(server,operation))
             throw new IOException("Missing write-ahead delivery attempt");
@@ -25,6 +25,7 @@ public final class CitizenSupplyRestartFixture {
         tag.putString("Dimension",dimension);
         tag.putLong("Mill",mill.asLong());
         tag.putInt("RemainingWheat",expectedWheat);
+        tag.putLong("VillagerPosition",villagerPosition.asLong());
         NbtIo.writeCompressed(tag,new File("citizen-supply-restart-expected.nbt"));
     }
     public static void verify(MinecraftServer server,File expectedFile) throws IOException {
@@ -38,6 +39,29 @@ public final class CitizenSupplyRestartFixture {
                 .anyMatch(c -> c.id().equals(citizen) && c.task().startsWith("MILL_SUPPLY:"));
         if(!retained)
             throw new IOException("Blocked citizen work task did not survive restart");
+        var level=server.getLevel(net.minecraft.resources.ResourceKey.create(
+                net.minecraft.core.registries.Registries.DIMENSION,
+                new net.minecraft.resources.ResourceLocation(tag.getString("Dimension"))));
+        if(level==null) throw new IOException("Citizen dimension missing on restart");
+        BlockPos millPos=BlockPos.of(tag.getLong("Mill"));
+        level.getChunkAt(millPos);
+        level.getChunkAt(BlockPos.of(tag.getLong("VillagerPosition")));
+        var villager=dev.hearthbound.integration.CitizenEmbodiment.find(level,citizen);
+        if(villager==null) throw new IOException("Citizen entity missing after restart");
+        var data=villager.getPersistentData();
+        if(data.getInt("HearthboundWheat")!=tag.getInt("RemainingWheat")
+                || !data.hasUUID("HearthboundLastSupplyOperation")
+                || !operation.equals(data.getUUID("HearthboundLastSupplyOperation"))
+                || data.getLong("HearthboundLastSupplyMill")!=millPos.asLong())
+            throw new IOException("Villager resource balance or delivery receipt changed on restart");
+        var machine=level.getBlockEntity(millPos);
+        if(!(machine instanceof com.simibubi.create.content.kinetics.millstone.MillstoneBlockEntity mill)
+                || !mill.inputInv.getStackInSlot(0).is(net.minecraft.world.item.Items.WHEAT)
+                || mill.inputInv.getStackInSlot(0).getCount()!=1)
+            throw new IOException("Create millstone input did not survive restart");
+        org.apache.logging.log4j.LogManager.getLogger().info(
+                "HEARTHBOUND_CITIZEN_SUPPLY_WORLD_RESTART_PASS citizen={} operation={} wheatRemaining={} millWheat=1",
+                citizen,operation,data.getInt("HearthboundWheat"));
         org.apache.logging.log4j.LogManager.getLogger().info(
                 "HEARTHBOUND_CITIZEN_SUPPLY_RESTART_PASS citizen={} operation={} pendingTask=true",
                 citizen,operation);
