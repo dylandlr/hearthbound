@@ -71,6 +71,21 @@ public final class CitizenCrashRestartCheck {
             // must yield an empty input for this specific new operation.
             if(!stack.isEmpty())
                 throw new IOException("Unexpected Create input after pre-mutation hard crash");
+            // Resolve the original villager; do not synthesize a replacement
+            // when a hard crash caused entity data to be lost.
+            for(int dx=-2;dx<=2;dx++) for(int dz=-2;dz<=2;dz++)
+                level.getChunkAt(millPosition.offset(dx*16,0,dz*16));
+            var villager=dev.hearthbound.integration.CitizenEmbodiment.find(level,citizen);
+            if(villager==null)
+                throw new IOException("Interrupted citizen entity absent after hard-crash restart");
+            var citizenData=villager.getPersistentData();
+            if(citizenData.getInt("HearthboundWheat")!=2
+                    || citizenData.hasUUID("HearthboundLastSupplyOperation")
+                    && operation.equals(citizenData.getUUID("HearthboundLastSupplyOperation")))
+                throw new IOException("Pre-mutation citizen wheat or receipt inconsistent on restart");
+            LogManager.getLogger().info(
+                    "HEARTHBOUND_CRASH_RESTART_CITIZEN_PASS operation={} citizen={} wheat=2 receiptAbsent=true",
+                    operation,citizen);
             var registered=dev.hearthbound.integration.CitizenRegistrySavedData.get(server).snapshot()
                     .stream().filter(item -> item.id().equals(citizen)).findFirst();
             if(registered.isPresent() && "IDLE".equals(registered.get().task()))
