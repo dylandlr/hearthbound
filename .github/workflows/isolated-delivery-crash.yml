@@ -88,6 +88,7 @@ jobs:
             echo 'Cannot identify injected operation UUID' >&2
             exit 1
           fi
+          echo "HEARTHBOUND_CRASH_OPERATION=$operation" >> "$GITHUB_ENV"
           expected="$(printf 'supply-attempt/%s' "$operation" | sha256sum | cut -d' ' -f1).intent"
           if [ "$(cat new-crash-attempts.txt)" != "$expected" ]; then
             echo 'New durable attempt does not match the exact hard-crashed operation' >&2
@@ -125,6 +126,7 @@ jobs:
             tail -n 150 crash-restart.log
             exit 1
           }
+          grep -F "HEARTHBOUND_CRASH_RESTART_EXACT_ATTEMPT_PASS operation=$HEARTHBOUND_CRASH_OPERATION" crash-restart.log
           grep -F 'HEARTHBOUND_CRASH_RESTART_JOURNALS_PASS' crash-restart.log
           if grep -Fq 'HEARTHBOUND_CITIZEN_AUTOMATED_SUPPLY' crash-restart.log; then
             echo 'Unexpected replay after restart' >&2
