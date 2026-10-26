@@ -162,6 +162,20 @@ public final class MillingGameTests {
         pass(helper,"citizen_supply_recovery_contract");
     }
 
+    @GameTest(templateNamespace = "hearthbound", template = "empty", timeoutTicks = 40)
+    public static void citizenSupplyInterruptionBoundaries(GameTestHelper helper) {
+        var recovery=dev.hearthbound.integration.CitizenSupplyRecovery.class;
+        for(var point:dev.hearthbound.integration.CitizenSupplyRecovery.InterruptionPoint.values()) {
+            var decision=dev.hearthbound.integration.CitizenSupplyRecovery.interrupted(point);
+            var expected=point==dev.hearthbound.integration.CitizenSupplyRecovery.InterruptionPoint.BEFORE_ATTEMPT
+                    ? dev.hearthbound.integration.CitizenSupplyRecovery.Decision.NOT_STARTED
+                    : dev.hearthbound.integration.CitizenSupplyRecovery.Decision.AMBIGUOUS_BLOCKED;
+            helper.assertTrue(decision==expected,
+                    "Interruption must never authorize blind mutation replay at " + point);
+        }
+        pass(helper,"citizen_supply_interruption_boundaries");
+    }
+
     @GameTest(templateNamespace = "hearthbound", template = "empty", timeoutTicks = 300)
     public static void realCitizenPathfinding(GameTestHelper helper) {
         var level = helper.getLevel();
