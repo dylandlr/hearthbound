@@ -64,6 +64,39 @@ jobs:
             exit 1
           fi
           echo "HEARTHBOUND_ISOLATED_CRASH_PASS attempts=$count noTransferMarker=true"
+      - name: Locate saved world after abrupt exit
+        shell: bash
+        run: |
+          mapfile -t journals < <(find run-gametest -type f -path '*/hearthbound-citizen-supply-attempts/*.intent')
+          if [ "${#journals[@]}" -lt 1 ]; then
+            echo 'No saved crash attempt exists' >&2
+            exit 1
+          fi
+          world="$(dirname "$(dirname "${journals[0]}")")"
+          if [ ! -f "$world/level.dat" ]; then
+            echo "Crash world is not restartable (level.dat absent): $world" >&2
+            exit 1
+          fi
+          echo "HEARTHBOUND_CRASH_WORLD=$(realpath "$world")" >> "$GITHUB_ENV"
+      - name: Restart same disposable world in second JVM
+        shell: bash
+        env:
+          HEARTHBOUND_FAULT_TEST_ACK: isolated-citizen-crash-test
+          HEARTHBOUND_CITIZEN_RECOVERY_STAGE: inspect_after_crash
+        run: |
+          mkdir -p run
+          printf 'eula=true\n' > run/eula.txt
+          printf 'online-mode=false\nlevel-name=%s\n' "$HEARTHBOUND_CRASH_WORLD" > run/server.properties
+          timeout --signal=TERM --kill-after=30s 300s gradle --no-daemon runServer > crash-restart.log 2>&1 || {
+            tail -n 150 crash-restart.log
+            exit 1
+          }
+          grep -F 'HEARTHBOUND_CRASH_RESTART_JOURNALS_PASS' crash-restart.log
+          if grep -Fq 'HEARTHBOUND_CITIZEN_AUTOMATED_SUPPLY' crash-restart.log; then
+            echo 'Unexpected replay after restart' >&2
+            exit 1
+          fi
+          echo 'HEARTHBOUND_ISOLATED_CRASH_RESTART_PASS journalsPersisted=true noReplayMarker=true'
       - name: Upload crash evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -73,6 +106,7 @@ jobs:
           retention-days: 14
           path: |
             crash-gametest.log
+            crash-restart.log
             run-gametest/**/hearthbound-citizen-supply-attempts/*.intent
             run-gametest/**/hearthbound-citizen-milling-workorders/*.intent
             run-gametest/**/level.dat
