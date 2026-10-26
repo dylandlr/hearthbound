@@ -5,7 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.stream.Stream;
 import net.minecraft.world.level.storage.LevelResource;
-import net.minecraftforge.event.server.ServerStartedEvent;
+import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.apache.logging.log4j.LogManager;
@@ -17,12 +17,18 @@ import org.apache.logging.log4j.LogManager;
 @Mod.EventBusSubscriber(modid = "hearthbound", bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class CitizenCrashRestartCheck {
     private CitizenCrashRestartCheck() {}
+    private static long inspectionTicks;
+    private static boolean inspected;
+
     @SubscribeEvent
-    public static void onStarted(ServerStartedEvent event) {
+    public static void onTick(TickEvent.ServerTickEvent event) {
+        if(event.phase != TickEvent.Phase.END || inspected) return;
         if (!"isolated-citizen-crash-test".equals(
                 System.getenv("HEARTHBOUND_FAULT_TEST_ACK"))
                 || !"inspect_after_crash".equals(
                 System.getenv("HEARTHBOUND_CITIZEN_RECOVERY_STAGE"))) return;
+        if(++inspectionTicks < 80) return;
+        inspected=true;
         var server = event.getServer();
         Path world = server.getWorldPath(LevelResource.ROOT);
         Path attempts = world.resolve("hearthbound-citizen-supply-attempts");
