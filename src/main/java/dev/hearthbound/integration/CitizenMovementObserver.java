@@ -63,6 +63,7 @@ public final class CitizenMovementObserver {
                             operation=CitizenSupplyAssignment.require(server,citizen.id(),citizen.dimension(),millPos);
                         } catch(java.io.IOException failure) { continue; }
                         if(CitizenSupplyAttempt.hasAttempt(server,operation)) continue;
+                        CitizenSupplyCrashProbe.checkpointBeforeAttempt(server,operation);
                         try {
                             CitizenSupplyAttempt.begin(server,operation,citizen.id(),citizen.dimension(),millPos);
                         } catch(java.io.IOException failure) { continue; }
