@@ -1,0 +1,7 @@
+# Isolated Minecraft crash probe CI v1
+
+The workflow `.github/workflows/isolated-delivery-crash.yml` is **manual-only** and requires explicit confirmation that the world is disposable and that the Minecraft EULA is accepted. It launches an ephemeral Forge GameTest server with the previously implemented crash hook enabled, intentionally terminates that JVM after the durable citizen delivery attempt is written and before Create's inventory mutation, and requires the `HEARTHBOUND_FAULT_INJECTION_AFTER_ATTEMPT` marker. It rejects an ordinary successful shutdown or timeout, checks that a write-ahead attempt was materialized, and confirms no successful delivery marker occurred before the injected halt. Raw crash logs and persisted operation files are uploaded as CI artifacts.
+
+This is only **phase one** of the actual crash/restart project. The workflow does not yet boot the killed world a second time or verify Minecraft's entity and Create block data after an abrupt crash. Because Gradle can convert a forked JVM exit code of 86 into a generic nonzero task error, the workflow verifies the precise crash hook log rather than claiming the outer Gradle process exited 86. Also, the GameTest world may not have been saved when the deliberate halt occurs. Do not treat a passing phase-one probe as evidence of crash-safe or exactly-once delivery.
+
+Normal push CI and standard Minecraft acceptance never set the crash-hook variables. The workflow must be manually dispatched, and it has not been executed merely by committing the file.
