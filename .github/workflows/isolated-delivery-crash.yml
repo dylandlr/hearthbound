@@ -1,0 +1,79 @@
+name: Hearthbound isolated delivery crash probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      acknowledge_disposable_world:
+        description: 'I understand this intentionally halts a disposable Minecraft server'
+        required: true
+        type: boolean
+        default: false
+      accept_minecraft_eula:
+        description: 'I have reviewed and accept the Minecraft EULA for the ephemeral server'
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  after-attempt-crash:
+    if: ${{ inputs.acknowledge_disposable_world && inputs.accept_minecraft_eula }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.8'
+      - name: Prepare disposable GameTest world
+        shell: bash
+        run: |
+          mkdir -p run-gametest
+          printf 'eula=true\n' > run-gametest/eula.txt
+      - name: Hard-crash Minecraft after journal write
+        shell: bash
+        env:
+          HEARTHBOUND_FAULT_TEST_ACK: isolated-citizen-crash-test
+          HEARTHBOUND_CITIZEN_CRASH_STAGE: after_attempt_before_mutation
+        run: |
+          set +e
+          timeout --signal=INT --kill-after=20s 600s gradle --no-daemon runGameTestServer > crash-gametest.log 2>&1
+          code=$?
+          set -e
+          echo "Gradle process exit: $code"
+          grep -F 'HEARTHBOUND_FAULT_INJECTION_AFTER_ATTEMPT' crash-gametest.log
+          # Gradle may map forked JVM exit 86 to a nonzero task-failure exit;
+          # the explicit server log is the authoritative injection proof.
+          if [ "$code" -eq 0 ] || [ "$code" -eq 124 ]; then
+            echo 'Expected abrupt Minecraft shutdown, not clean exit or timeout' >&2
+            exit 1
+          fi
+          count="$(find run-gametest -type f -path '*/hearthbound-citizen-supply-attempts/*.intent' | wc -l)"
+          if [ "$count" -lt 1 ]; then
+            echo 'Crash produced no durable delivery attempt' >&2
+            exit 1
+          fi
+          if grep -Fq 'HEARTHBOUND_CITIZEN_AUTOMATED_SUPPLY' crash-gametest.log; then
+            echo 'Delivery occurred before intended pre-mutation crash point' >&2
+            exit 1
+          fi
+          echo "HEARTHBOUND_ISOLATED_CRASH_PASS attempts=$count noTransferMarker=true"
+      - name: Upload crash evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hearthbound-isolated-crash-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            crash-gametest.log
+            run-gametest/**/hearthbound-citizen-supply-attempts/*.intent
+            run-gametest/**/hearthbound-citizen-milling-workorders/*.intent
+            run-gametest/**/level.dat
+            run-gametest/logs/*.log
