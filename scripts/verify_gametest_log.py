@@ -4,7 +4,7 @@ import re
 import sys
 
 def verify(text):
-    for name in ("inventory_identity", "unpowered_millstone", "milling_motor_connection", "consecutive_real_millings", "persistent_citizen_registry", "visible_citizen_embodiment", "scripted_citizen_movement", "real_citizen_pathfinding", "citizen_walks_and_supplies_mill", "citizen_supply_recovery_contract"):
+    for name in ("inventory_identity", "unpowered_millstone", "milling_motor_connection", "consecutive_real_millings", "persistent_citizen_registry", "visible_citizen_embodiment", "scripted_citizen_movement", "real_citizen_pathfinding", "citizen_walks_and_supplies_mill", "citizen_supply_recovery_contract", "citizen_supply_interruption_boundaries"):
         marker = "HEARTHBOUND_GAMETEST_PASS " + name
         if text.count(marker) != 1:
             raise ValueError(f"Expected exactly one pass marker: {name}")
