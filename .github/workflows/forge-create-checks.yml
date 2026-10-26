@@ -146,3 +146,14 @@ jobs:
       contents: read
       issues: write
     uses: ./.github/workflows/dedicated-server-smoke.yml
+
+  isolated-crash-acceptance:
+    # Requires both EULA authorization and an explicit disposable crash opt-in.
+    if: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[eula-accepted-smoke]') && contains(github.event.head_commit.message, '[isolated-crash]') }}
+    needs: [java-contracts, compile-and-contract]
+    permissions:
+      contents: read
+    uses: ./.github/workflows/isolated-delivery-crash.yml
+    with:
+      acknowledge_disposable_world: true
+      accept_minecraft_eula: true
