@@ -128,6 +128,7 @@ jobs:
           }
           grep -F "HEARTHBOUND_CRASH_RESTART_EXACT_ATTEMPT_PASS operation=$HEARTHBOUND_CRASH_OPERATION" crash-restart.log
           grep -F "HEARTHBOUND_CRASH_RESTART_MACHINE_PASS operation=$HEARTHBOUND_CRASH_OPERATION" crash-restart.log
+          grep -F "HEARTHBOUND_CRASH_RESTART_CITIZEN_PASS operation=$HEARTHBOUND_CRASH_OPERATION" crash-restart.log
           grep -F 'HEARTHBOUND_CRASH_RESTART_JOURNALS_PASS' crash-restart.log
           if grep -Fq 'HEARTHBOUND_CITIZEN_AUTOMATED_SUPPLY' crash-restart.log; then
             echo 'Unexpected replay after restart' >&2
