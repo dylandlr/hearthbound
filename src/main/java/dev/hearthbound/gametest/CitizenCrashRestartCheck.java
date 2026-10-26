@@ -32,6 +32,24 @@ public final class CitizenCrashRestartCheck {
             long orderCount = countIntents(orders);
             if (attemptCount < 1 || orderCount < 1)
                 throw new IOException("Crash world must retain both operation and attempt journals");
+            String requested=System.getenv("HEARTHBOUND_CRASH_OPERATION");
+            if(requested==null || requested.isBlank())
+                throw new IOException("Missing crash operation identity");
+            java.util.UUID operation;
+            try { operation=java.util.UUID.fromString(requested); }
+            catch(IllegalArgumentException malformed) {
+                throw new IOException("Malformed crash operation UUID",malformed);
+            }
+            var journal=new dev.hearthbound.research.DurableOperationIntents(attempts);
+            var exact=journal.pending(dev.hearthbound.integration.CitizenSupplyAttempt.key(operation))
+                    .orElseThrow(() -> new IOException("Injected operation attempt not found after restart"));
+            String[] fields=exact.evidence().split("\\|",-1);
+            if(fields.length!=5 || !fields[0].equals(operation.toString())
+                    || !fields[4].equals("wheat=1"))
+                throw new IOException("Injected operation evidence differs after restart");
+            LogManager.getLogger().info(
+                    "HEARTHBOUND_CRASH_RESTART_EXACT_ATTEMPT_PASS operation={} citizen={} dimension={} mill={}",
+                    operation,fields[1],fields[2],fields[3]);
             // No task mutation or inventory supply is permitted by this probe.
             LogManager.getLogger().info(
                     "HEARTHBOUND_CRASH_RESTART_JOURNALS_PASS attempts={} orders={} replayed=false",
