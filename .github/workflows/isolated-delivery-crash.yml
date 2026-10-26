@@ -1,6 +1,14 @@
 name: Hearthbound isolated delivery crash probe
 
 on:
+  workflow_call:
+    inputs:
+      acknowledge_disposable_world:
+        required: true
+        type: boolean
+      accept_minecraft_eula:
+        required: true
+        type: boolean
   workflow_dispatch:
     inputs:
       acknowledge_disposable_world:
