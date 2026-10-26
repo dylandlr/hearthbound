@@ -36,6 +36,27 @@ jobs:
         run: |
           mkdir -p run-gametest
           printf 'eula=true\n' > run-gametest/eula.txt
+      - name: Establish a fully saved baseline world
+        shell: bash
+        run: |
+          timeout --signal=INT --kill-after=20s 600s gradle --no-daemon runGameTestServer > baseline-gametest.log 2>&1
+          python3 scripts/verify_gametest_log.py baseline-gametest.log
+          mapfile -t levels < <(find run-gametest -type f -name level.dat)
+          if [ "${#levels[@]}" -ne 1 ]; then
+            echo 'Exactly one restartable GameTest world must exist in baseline' >&2
+            exit 1
+          fi
+          echo "HEARTHBOUND_BASELINE_LEVEL=$(realpath "${levels[0]}")" >> "$GITHUB_ENV"
+          tar -C run-gametest -cf baseline-world.tar .
+          sha256sum baseline-world.tar > baseline-world.sha256
+          echo 'HEARTHBOUND_CRASH_BASELINE_PASS completeWorldSave=true'
+      - name: Restore baseline into disposable crash world
+        shell: bash
+        run: |
+          rm -rf run-gametest
+          mkdir -p run-gametest
+          tar -C run-gametest -xf baseline-world.tar
+          test -f "$HEARTHBOUND_BASELINE_LEVEL"
       - name: Hard-crash Minecraft after journal write
         shell: bash
         env:
@@ -105,6 +126,8 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
           path: |
+            baseline-gametest.log
+            baseline-world.sha256
             crash-gametest.log
             crash-restart.log
             run-gametest/**/hearthbound-citizen-supply-attempts/*.intent
