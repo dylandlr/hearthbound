@@ -50,6 +50,34 @@ public final class CitizenCrashRestartCheck {
             LogManager.getLogger().info(
                     "HEARTHBOUND_CRASH_RESTART_EXACT_ATTEMPT_PASS operation={} citizen={} dimension={} mill={}",
                     operation,fields[1],fields[2],fields[3]);
+            java.util.UUID citizen;
+            net.minecraft.core.BlockPos millPosition;
+            try {
+                citizen=java.util.UUID.fromString(fields[1]);
+                millPosition=net.minecraft.core.BlockPos.of(Long.parseLong(fields[3]));
+            } catch(IllegalArgumentException malformed) {
+                throw new IOException("Invalid citizen or mill position in crash journal",malformed);
+            }
+            var level=server.getLevel(net.minecraft.resources.ResourceKey.create(
+                    net.minecraft.core.registries.Registries.DIMENSION,
+                    new net.minecraft.resources.ResourceLocation(fields[2])));
+            if(level==null) throw new IOException("Crash operation dimension missing after restart");
+            level.getChunkAt(millPosition);
+            var machine=level.getBlockEntity(millPosition);
+            if(!(machine instanceof com.simibubi.create.content.kinetics.millstone.MillstoneBlockEntity mill))
+                throw new IOException("Real Create millstone missing after crash restart");
+            var stack=mill.inputInv.getStackInSlot(0);
+            // The crash hook fires before inventory mutation. Baseline fixtures
+            // must yield an empty input for this specific new operation.
+            if(!stack.isEmpty())
+                throw new IOException("Unexpected Create input after pre-mutation hard crash");
+            var registered=dev.hearthbound.integration.CitizenRegistrySavedData.get(server).snapshot()
+                    .stream().filter(item -> item.id().equals(citizen)).findFirst();
+            if(registered.isPresent() && "IDLE".equals(registered.get().task()))
+                throw new IOException("Interrupted citizen work cannot be marked complete");
+            LogManager.getLogger().info(
+                    "HEARTHBOUND_CRASH_RESTART_MACHINE_PASS operation={} mill={} inputEmpty=true citizenCompleted=false",
+                    operation,millPosition);
             // No task mutation or inventory supply is permitted by this probe.
             LogManager.getLogger().info(
                     "HEARTHBOUND_CRASH_RESTART_JOURNALS_PASS attempts={} orders={} replayed=false",
