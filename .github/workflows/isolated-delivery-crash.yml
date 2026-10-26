@@ -69,6 +69,7 @@ jobs:
           code=$?
           set -e
           echo "Gradle process exit: $code"
+          grep -F 'HEARTHBOUND_FAULT_PRE_ATTEMPT_WORLD_SAVED' crash-gametest.log
           grep -F 'HEARTHBOUND_FAULT_INJECTION_AFTER_ATTEMPT' crash-gametest.log
           # Gradle may map forked JVM exit 86 to a nonzero task-failure exit;
           # the explicit server log is the authoritative injection proof.
