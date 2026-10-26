@@ -49,6 +49,7 @@ jobs:
           echo "HEARTHBOUND_BASELINE_LEVEL=$(realpath "${levels[0]}")" >> "$GITHUB_ENV"
           tar -C run-gametest -cf baseline-world.tar .
           sha256sum baseline-world.tar > baseline-world.sha256
+          find run-gametest -type f -path '*/hearthbound-citizen-supply-attempts/*.intent' -printf '%f\n' | sort > baseline-attempts.txt
           echo 'HEARTHBOUND_CRASH_BASELINE_PASS completeWorldSave=true'
       - name: Restore baseline into disposable crash world
         shell: bash
@@ -75,9 +76,11 @@ jobs:
             echo 'Expected abrupt Minecraft shutdown, not clean exit or timeout' >&2
             exit 1
           fi
-          count="$(find run-gametest -type f -path '*/hearthbound-citizen-supply-attempts/*.intent' | wc -l)"
-          if [ "$count" -lt 1 ]; then
-            echo 'Crash produced no durable delivery attempt' >&2
+          find run-gametest -type f -path '*/hearthbound-citizen-supply-attempts/*.intent' -printf '%f\n' | sort > crashed-attempts.txt
+          comm -13 baseline-attempts.txt crashed-attempts.txt > new-crash-attempts.txt
+          count="$(wc -l < new-crash-attempts.txt)"
+          if [ "$count" -ne 1 ]; then
+            echo "Expected exactly one NEW crash attempt (not preexisting baseline attempts); found $count" >&2
             exit 1
           fi
           if grep -Fq 'HEARTHBOUND_CITIZEN_AUTOMATED_SUPPLY' crash-gametest.log; then
@@ -128,6 +131,9 @@ jobs:
           path: |
             baseline-gametest.log
             baseline-world.sha256
+            baseline-attempts.txt
+            crashed-attempts.txt
+            new-crash-attempts.txt
             crash-gametest.log
             crash-restart.log
             run-gametest/**/hearthbound-citizen-supply-attempts/*.intent
