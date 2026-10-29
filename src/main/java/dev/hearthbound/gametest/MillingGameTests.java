@@ -525,6 +525,33 @@ public final class MillingGameTests {
         });
     }
 
+    /**
+     * Real Create output-handler integration, without minting output inside
+     * the production extraction primitive. A fixture supplies processed
+     * output as the controlled starting state.
+     */
+    @GameTest(templateNamespace = "hearthbound", template = "empty", timeoutTicks = 40)
+    public static void millstoneOutputExtractionConservesItems(GameTestHelper helper) {
+        helper.setBlock(new BlockPos(1,1,1), AllBlocks.MILLSTONE.getDefaultState());
+        var mill=(MillstoneBlockEntity)helper.getBlockEntity(new BlockPos(1,1,1));
+        helper.assertTrue(mill!=null,"Create millstone output fixture must exist");
+        mill.outputInv.setStackInSlot(0,new ItemStack(Items.WHEAT,3));
+        var first=ServerMillingActions.collectOutput(mill,0,2);
+        helper.assertTrue(first.is(Items.WHEAT) && first.getCount()==2,
+                "Citizen must collect exactly two items from real Create output");
+        helper.assertTrue(mill.outputInv.getStackInSlot(0).getCount()==1,
+                "Exactly one item must remain in the output handler");
+        var second=ServerMillingActions.collectOutput(mill,0,10);
+        helper.assertTrue(second.is(Items.WHEAT) && second.getCount()==1,
+                "Second extraction must be capped to actual remaining items");
+        helper.assertTrue(mill.outputInv.getStackInSlot(0).isEmpty(),
+                "Output handler must be empty after removing all three items");
+        helper.assertTrue(ServerMillingActions.collectOutput(mill,0,1).isEmpty()
+                        && ServerMillingActions.collectOutput(mill,-1,1).isEmpty(),
+                "Empty or invalid output extraction cannot create items");
+        pass(helper,"millstone_output_extraction_conserves_items");
+    }
+
     private static MillstoneBlockEntity place(GameTestHelper helper) {
         BlockPos pos = new BlockPos(1, 1, 1);
         helper.setBlock(pos, AllBlocks.MILLSTONE.getDefaultState());
