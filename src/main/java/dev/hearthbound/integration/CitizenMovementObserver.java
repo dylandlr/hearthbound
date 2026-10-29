@@ -19,7 +19,8 @@ public final class CitizenMovementObserver {
         var registry=CitizenRegistrySavedData.get(server);
         for(var citizen:registry.snapshot()) {
             boolean supply = citizen.task().startsWith("MILL_SUPPLY:");
-            if(!supply && !citizen.task().startsWith("MOVE:")) continue;
+            boolean collect = citizen.task().startsWith("MILL_COLLECT:");
+            if(!supply && !collect && !citizen.task().startsWith("MOVE:")) continue;
             var level=server.getLevel(net.minecraft.resources.ResourceKey.create(
                     net.minecraft.core.registries.Registries.DIMENSION,
                     new net.minecraft.resources.ResourceLocation(citizen.dimension())));
@@ -27,7 +28,7 @@ public final class CitizenMovementObserver {
             var villager=CitizenEmbodiment.find(level,citizen.id());
             if(villager==null || !villager.isAlive())continue;
             long encoded;
-            try {encoded=Long.parseLong(citizen.task().substring(supply ? 12 : 5));}
+            try {encoded=Long.parseLong(citizen.task().substring(supply ? 12 : collect ? 13 : 5));}
             catch(NumberFormatException badTask){continue;}
             BlockPos target=BlockPos.of(encoded);
             boolean arrived=villager.blockPosition().distSqr(target)<=4;
@@ -81,8 +82,19 @@ public final class CitizenMovementObserver {
                         }
                     }
                 }
-            } else if(!supply) registry.observe(citizen.id(),villager.blockPosition().asLong(),tick,arrived);
-            if(arrived && !supply) org.apache.logging.log4j.LogManager.getLogger().info(
+            } else if(collect && arrived) {
+                var millPos=target.offset(1,0,0);
+                var entity=level.getBlockEntity(millPos);
+                if(entity instanceof com.simibubi.create.content.kinetics.millstone.MillstoneBlockEntity mill
+                        && CitizenMillCollection.collect(server,citizen.id(),citizen.dimension(),
+                                millPos,villager,mill)) {
+                    registry.completeCollect(citizen.id(),villager.blockPosition().asLong(),tick);
+                    org.apache.logging.log4j.LogManager.getLogger().info(
+                            "HEARTHBOUND_CITIZEN_REAL_OUTPUT_COLLECTED citizen={} mill={} tick={}",
+                            citizen.id(),millPos,tick);
+                }
+            } else if(!supply && !collect) registry.observe(citizen.id(),villager.blockPosition().asLong(),tick,arrived);
+            if(arrived && !supply && !collect) org.apache.logging.log4j.LogManager.getLogger().info(
                     "HEARTHBOUND_CITIZEN_ARRIVED citizen={} pos={} tick={}",
                     citizen.id(),villager.blockPosition(),tick);
         }
