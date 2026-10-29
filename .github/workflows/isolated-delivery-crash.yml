@@ -92,7 +92,7 @@ jobs:
             echo "Expected exactly one NEW crash attempt (not preexisting baseline attempts); found $count" >&2
             exit 1
           fi
-          operation="$(sed -n 's/.*HEARTHBOUND_FAULT_INJECTION_AFTER_ATTEMPT operation=\\([0-9a-f-]*\\) exit=86.*/\\1/p' crash-gametest.log | tail -n 1)"
+          operation="$(grep -oE 'HEARTHBOUND_FAULT_INJECTION_AFTER_ATTEMPT operation=[0-9a-f-]+ exit=86' crash-gametest.log | tail -n 1 | cut -d= -f2 | cut -d' ' -f1)"
           if ! [[ "$operation" =~ ^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$ ]]; then
             echo 'Cannot identify injected operation UUID' >&2
             exit 1
