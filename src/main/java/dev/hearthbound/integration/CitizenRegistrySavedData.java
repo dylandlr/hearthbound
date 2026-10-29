@@ -64,6 +64,25 @@ public final class CitizenRegistrySavedData extends SavedData {
         setDirty();
         return next;
     }
+    /** Assign a physical approach to collect real millstone output. */
+    public Citizen assignMillCollect(UUID id,String dimension,long worksite,long tick) {
+        Citizen current=citizens.get(id);
+        if(current==null || !current.dimension().equals(dimension) || tick<current.lastTick()
+                || !"IDLE".equals(current.task()))
+            throw new IllegalArgumentException("Citizen must be idle in the assigned dimension");
+        Citizen next=new Citizen(id,current.name(),dimension,current.position(),
+                "MILL_COLLECT:"+worksite,tick);
+        citizens.put(id,next);
+        setDirty();
+        return next;
+    }
+    public void completeCollect(UUID id,long position,long tick) {
+        Citizen current=citizens.get(id);
+        if(current==null || !current.task().startsWith("MILL_COLLECT:"))
+            throw new IllegalStateException("Citizen has no outstanding collection task");
+        citizens.put(id,new Citizen(id,current.name(),current.dimension(),position,"IDLE",tick));
+        setDirty();
+    }
     public void completeSupply(UUID id,long position,long tick) {
         Citizen current=citizens.get(id);
         if(current==null || !current.task().startsWith("MILL_SUPPLY:"))
