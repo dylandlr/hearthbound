@@ -552,6 +552,41 @@ public final class MillingGameTests {
         pass(helper,"millstone_output_extraction_conserves_items");
     }
 
+    @GameTest(templateNamespace = "hearthbound", template = "empty", timeoutTicks = 100)
+    public static void citizenCollectsRealMillstoneOutput(GameTestHelper helper) {
+        var level=helper.getLevel();
+        var server=level.getServer();
+        helper.setBlock(new BlockPos(1,0,1),Blocks.STONE.defaultBlockState());
+        helper.setBlock(new BlockPos(2,0,1),Blocks.STONE.defaultBlockState());
+        helper.setBlock(new BlockPos(2,1,1),AllBlocks.MILLSTONE.getDefaultState());
+        var mill=(MillstoneBlockEntity)helper.getBlockEntity(new BlockPos(2,1,1));
+        helper.assertTrue(mill!=null,"Real Create millstone must exist");
+        mill.outputInv.setStackInSlot(0,new ItemStack(Items.WHEAT,2));
+        BlockPos worker=helper.absolutePos(new BlockPos(1,1,1));
+        UUID id=UUID.randomUUID();
+        var registry=dev.hearthbound.integration.CitizenRegistrySavedData.get(server);
+        registry.register(id,"CollectorFixture",level.dimension().location().toString(),
+                worker.asLong(),dev.hearthbound.integration.ForgeServerTickObserver.logicalTick(server));
+        var villager=dev.hearthbound.integration.CitizenEmbodiment.spawn(level,id,worker);
+        registry.assignMillCollect(id,level.dimension().location().toString(),worker.asLong(),
+                dev.hearthbound.integration.ForgeServerTickObserver.logicalTick(server));
+        helper.runAfterDelay(60,()-> {
+            var citizen=registry.snapshot().stream().filter(item->item.id().equals(id))
+                    .findFirst().orElseThrow();
+            helper.assertTrue("IDLE".equals(citizen.task()),
+                    "Server-tick citizen controller must complete real millstone collection");
+            helper.assertTrue(mill.outputInv.getStackInSlot(0).isEmpty(),
+                    "Real Create output must be depleted, not duplicated");
+            var data=villager.getPersistentData();
+            helper.assertTrue(data.hasUUID("HearthboundLastCollectionOperation"),
+                    "Citizen must retain operation receipt");
+            var collected=ItemStack.of(data.getCompound("HearthboundMillCollected"));
+            helper.assertTrue(collected.is(Items.WHEAT) && collected.getCount()==2,
+                    "Actual collected items must be owned by the real villager");
+            pass(helper,"citizen_collects_real_millstone_output");
+        });
+    }
+
     private static MillstoneBlockEntity place(GameTestHelper helper) {
         BlockPos pos = new BlockPos(1, 1, 1);
         helper.setBlock(pos, AllBlocks.MILLSTONE.getDefaultState());
