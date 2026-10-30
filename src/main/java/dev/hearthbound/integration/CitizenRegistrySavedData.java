@@ -101,6 +101,29 @@ public final class CitizenRegistrySavedData extends SavedData {
         citizens.put(id,new Citizen(id,current.name(),current.dimension(),position,"IDLE",tick));
         setDirty();
     }
+    /** Wait for observed Create output; do not assume milling finished on supply. */
+    public Citizen awaitMillOutput(UUID id,String dimension,long approach,long position,long tick) {
+        Citizen current=citizens.get(id);
+        if(current==null || !current.dimension().equals(dimension) || tick<current.lastTick()
+                || !"MILL_SUPPLY:".concat(Long.toString(approach)).equals(current.task()))
+            throw new IllegalStateException("Only an assigned supplier can await its mill output");
+        Citizen next=new Citizen(id,current.name(),dimension,position,
+                "MILL_WAIT_OUTPUT:"+approach,tick);
+        citizens.put(id,next);
+        setDirty();
+        return next;
+    }
+    public Citizen collectReadyMillOutput(UUID id,long approach,long tick) {
+        Citizen current=citizens.get(id);
+        if(current==null || tick<current.lastTick()
+                || !current.task().equals("MILL_WAIT_OUTPUT:"+approach))
+            throw new IllegalStateException("Citizen is not awaiting that mill");
+        Citizen next=new Citizen(id,current.name(),current.dimension(),current.position(),
+                "MILL_COLLECT:"+approach,tick);
+        citizens.put(id,next);
+        setDirty();
+        return next;
+    }
     public void completeSupply(UUID id,long position,long tick) {
         Citizen current=citizens.get(id);
         if(current==null || !current.task().startsWith("MILL_SUPPLY:"))
