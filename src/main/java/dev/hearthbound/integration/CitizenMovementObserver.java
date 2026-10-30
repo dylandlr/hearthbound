@@ -90,6 +90,20 @@ public final class CitizenMovementObserver {
                         && CitizenMillCollection.collect(server,citizen.id(),citizen.dimension(),
                                 millPos,villager,mill)) {
                     registry.completeCollect(citizen.id(),villager.blockPosition().asLong(),tick);
+                    // Explicitly configured colony worksite enables the next
+                    // hierarchical action. No inferred or arbitrary chest targets.
+                    var memory=villager.getPersistentData();
+                    if(memory.contains("HearthboundStockpileTarget",net.minecraft.nbt.Tag.TAG_LONG)) {
+                        var storageApproach=BlockPos.of(memory.getLong("HearthboundStockpileTarget"));
+                        var storage=level.getBlockEntity(storageApproach.offset(1,0,0));
+                        if(storage instanceof net.minecraft.world.Container) {
+                            registry.assignStockpileDelivery(citizen.id(),citizen.dimension(),
+                                    storageApproach.asLong(),tick);
+                            org.apache.logging.log4j.LogManager.getLogger().info(
+                                    "HEARTHBOUND_CITIZEN_CHAINED_STOCKPILE citizen={} approach={} tick={}",
+                                    citizen.id(),storageApproach,tick);
+                        }
+                    }
                     org.apache.logging.log4j.LogManager.getLogger().info(
                             "HEARTHBOUND_CITIZEN_REAL_OUTPUT_COLLECTED citizen={} mill={} tick={}",
                             citizen.id(),millPos,tick);
