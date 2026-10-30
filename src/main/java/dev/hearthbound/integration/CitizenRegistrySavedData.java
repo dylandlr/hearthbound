@@ -76,6 +76,24 @@ public final class CitizenRegistrySavedData extends SavedData {
         setDirty();
         return next;
     }
+    public Citizen assignStockpileDelivery(UUID id,String dimension,long destination,long tick) {
+        Citizen current=citizens.get(id);
+        if(current==null || !current.dimension().equals(dimension) || tick<current.lastTick()
+                || !"IDLE".equals(current.task()))
+            throw new IllegalArgumentException("Citizen must be idle for stockpile delivery");
+        Citizen next=new Citizen(id,current.name(),dimension,current.position(),
+                "STOCKPILE_DELIVER:"+destination,tick);
+        citizens.put(id,next);
+        setDirty();
+        return next;
+    }
+    public void completeStockpileDelivery(UUID id,long position,long tick) {
+        Citizen current=citizens.get(id);
+        if(current==null || !current.task().startsWith("STOCKPILE_DELIVER:"))
+            throw new IllegalStateException("No outstanding stockpile delivery");
+        citizens.put(id,new Citizen(id,current.name(),current.dimension(),position,"IDLE",tick));
+        setDirty();
+    }
     public void completeCollect(UUID id,long position,long tick) {
         Citizen current=citizens.get(id);
         if(current==null || !current.task().startsWith("MILL_COLLECT:"))
