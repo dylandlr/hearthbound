@@ -21,7 +21,8 @@ public final class CitizenMovementObserver {
             boolean supply = citizen.task().startsWith("MILL_SUPPLY:");
             boolean collect = citizen.task().startsWith("MILL_COLLECT:");
             boolean deliver = citizen.task().startsWith("STOCKPILE_DELIVER:");
-            if(!supply && !collect && !deliver && !citizen.task().startsWith("MOVE:")) continue;
+            boolean waitOutput = citizen.task().startsWith("MILL_WAIT_OUTPUT:");
+            if(!supply && !collect && !deliver && !waitOutput && !citizen.task().startsWith("MOVE:")) continue;
             var level=server.getLevel(net.minecraft.resources.ResourceKey.create(
                     net.minecraft.core.registries.Registries.DIMENSION,
                     new net.minecraft.resources.ResourceLocation(citizen.dimension())));
@@ -29,7 +30,7 @@ public final class CitizenMovementObserver {
             var villager=CitizenEmbodiment.find(level,citizen.id());
             if(villager==null || !villager.isAlive())continue;
             long encoded;
-            try {encoded=Long.parseLong(citizen.task().substring(supply ? 12 : collect ? 13 : deliver ? 18 : 5));}
+            try {encoded=Long.parseLong(citizen.task().substring(supply ? 12 : collect ? 13 : deliver ? 18 : waitOutput ? 17 : 5));}
             catch(NumberFormatException badTask){continue;}
             BlockPos target=BlockPos.of(encoded);
             boolean arrived=villager.blockPosition().distSqr(target)<=4;
@@ -41,7 +42,17 @@ public final class CitizenMovementObserver {
                         citizen.id(),villager.blockPosition(),target,accepted,
                         villager.getNavigation().isDone(),tick);
             }
-            if(supply && arrived) {
+            if(waitOutput && arrived) {
+                var entity=level.getBlockEntity(target.offset(1,0,0));
+                if(entity instanceof com.simibubi.create.content.kinetics.millstone.MillstoneBlockEntity mill
+                        && mill.inputInv.getStackInSlot(0).isEmpty()
+                        && !mill.outputInv.getStackInSlot(0).isEmpty()) {
+                    registry.collectReadyMillOutput(citizen.id(),encoded,tick);
+                    org.apache.logging.log4j.LogManager.getLogger().info(
+                            "HEARTHBOUND_CITIZEN_MILL_OUTPUT_READY citizen={} mill={} tick={}",
+                            citizen.id(),target.offset(1,0,0),tick);
+                }
+            } else if(supply && arrived) {
                 var millPos=target.offset(1,0,0);
                 var entity=level.getBlockEntity(millPos);
                 if(entity instanceof com.simibubi.create.content.kinetics.millstone.MillstoneBlockEntity mill) {
@@ -76,7 +87,12 @@ public final class CitizenMovementObserver {
                             data.putInt("HearthboundWheat",held.getCount());
                             data.putLong("HearthboundLastSupplyMill",millPos.asLong());
                             data.putLong("HearthboundLastSupplyTick",tick);
-                            registry.completeSupply(citizen.id(),villager.blockPosition().asLong(),tick);
+                            if(data.contains("HearthboundProductionStockpileTarget",net.minecraft.nbt.Tag.TAG_LONG)) {
+                                data.putLong("HearthboundStockpileTarget",
+                                        data.getLong("HearthboundProductionStockpileTarget"));
+                                registry.awaitMillOutput(citizen.id(),citizen.dimension(),encoded,
+                                        villager.blockPosition().asLong(),tick);
+                            } else registry.completeSupply(citizen.id(),villager.blockPosition().asLong(),tick);
                             org.apache.logging.log4j.LogManager.getLogger().info(
                                     "HEARTHBOUND_CITIZEN_AUTOMATED_SUPPLY citizen={} mill={} remainingWheat={} tick={}",
                                     citizen.id(),millPos,held.getCount(),tick);
@@ -120,7 +136,7 @@ public final class CitizenMovementObserver {
                             citizen.id(),storagePos,tick);
                 }
             } else if(!supply && !collect && !deliver) registry.observe(citizen.id(),villager.blockPosition().asLong(),tick,arrived);
-            if(arrived && !supply && !collect && !deliver) org.apache.logging.log4j.LogManager.getLogger().info(
+            if(arrived && !supply && !collect && !deliver && !waitOutput) org.apache.logging.log4j.LogManager.getLogger().info(
                     "HEARTHBOUND_CITIZEN_ARRIVED citizen={} pos={} tick={}",
                     citizen.id(),villager.blockPosition(),tick);
         }
