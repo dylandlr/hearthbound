@@ -587,6 +587,43 @@ public final class MillingGameTests {
         });
     }
 
+    @GameTest(templateNamespace = "hearthbound", template = "empty", timeoutTicks = 100)
+    public static void citizenDeliversCollectedOutputToChest(GameTestHelper helper) {
+        var level=helper.getLevel();
+        var server=level.getServer();
+        helper.setBlock(new BlockPos(1,0,1),Blocks.STONE.defaultBlockState());
+        helper.setBlock(new BlockPos(2,0,1),Blocks.STONE.defaultBlockState());
+        helper.setBlock(new BlockPos(2,1,1),Blocks.CHEST.defaultBlockState());
+        BlockPos worker=helper.absolutePos(new BlockPos(1,1,1));
+        var chest=(net.minecraft.world.level.block.entity.ChestBlockEntity)
+                helper.getBlockEntity(new BlockPos(2,1,1));
+        helper.assertTrue(chest!=null,"Real chest fixture required");
+        UUID id=UUID.randomUUID();
+        var registry=dev.hearthbound.integration.CitizenRegistrySavedData.get(server);
+        registry.register(id,"StockpileFixture",level.dimension().location().toString(),
+                worker.asLong(),dev.hearthbound.integration.ForgeServerTickObserver.logicalTick(server));
+        var villager=dev.hearthbound.integration.CitizenEmbodiment.spawn(level,id,worker);
+        var carried=new ItemStack(Items.WHEAT,2);
+        var tag=new CompoundTag();
+        carried.save(tag);
+        villager.getPersistentData().put("HearthboundMillCollected",tag);
+        villager.getPersistentData().putUUID("HearthboundLastCollectionOperation",UUID.randomUUID());
+        registry.assignStockpileDelivery(id,level.dimension().location().toString(),
+                worker.asLong(),dev.hearthbound.integration.ForgeServerTickObserver.logicalTick(server));
+        helper.runAfterDelay(60,()->{
+            var citizen=registry.snapshot().stream().filter(item->item.id().equals(id))
+                    .findFirst().orElseThrow();
+            helper.assertTrue("IDLE".equals(citizen.task()),"Citizen must finish stockpile work");
+            helper.assertTrue(chest.getItem(0).is(Items.WHEAT) && chest.getItem(0).getCount()==2,
+                    "Real stockpile must receive exactly the collected two items");
+            helper.assertTrue(!villager.getPersistentData().contains("HearthboundMillCollected"),
+                    "Citizen must not retain duplicate carried goods");
+            helper.assertTrue(villager.getPersistentData().hasUUID("HearthboundLastStockpileOperation"),
+                    "Citizen must retain durable stockpile handoff operation");
+            pass(helper,"citizen_delivers_collected_output_to_chest");
+        });
+    }
+
     private static MillstoneBlockEntity place(GameTestHelper helper) {
         BlockPos pos = new BlockPos(1, 1, 1);
         helper.setBlock(pos, AllBlocks.MILLSTONE.getDefaultState());
