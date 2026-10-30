@@ -20,7 +20,8 @@ public final class CitizenMovementObserver {
         for(var citizen:registry.snapshot()) {
             boolean supply = citizen.task().startsWith("MILL_SUPPLY:");
             boolean collect = citizen.task().startsWith("MILL_COLLECT:");
-            if(!supply && !collect && !citizen.task().startsWith("MOVE:")) continue;
+            boolean deliver = citizen.task().startsWith("STOCKPILE_DELIVER:");
+            if(!supply && !collect && !deliver && !citizen.task().startsWith("MOVE:")) continue;
             var level=server.getLevel(net.minecraft.resources.ResourceKey.create(
                     net.minecraft.core.registries.Registries.DIMENSION,
                     new net.minecraft.resources.ResourceLocation(citizen.dimension())));
@@ -28,7 +29,7 @@ public final class CitizenMovementObserver {
             var villager=CitizenEmbodiment.find(level,citizen.id());
             if(villager==null || !villager.isAlive())continue;
             long encoded;
-            try {encoded=Long.parseLong(citizen.task().substring(supply ? 12 : collect ? 13 : 5));}
+            try {encoded=Long.parseLong(citizen.task().substring(supply ? 12 : collect ? 13 : deliver ? 18 : 5));}
             catch(NumberFormatException badTask){continue;}
             BlockPos target=BlockPos.of(encoded);
             boolean arrived=villager.blockPosition().distSqr(target)<=4;
@@ -93,8 +94,19 @@ public final class CitizenMovementObserver {
                             "HEARTHBOUND_CITIZEN_REAL_OUTPUT_COLLECTED citizen={} mill={} tick={}",
                             citizen.id(),millPos,tick);
                 }
-            } else if(!supply && !collect) registry.observe(citizen.id(),villager.blockPosition().asLong(),tick,arrived);
-            if(arrived && !supply && !collect) org.apache.logging.log4j.LogManager.getLogger().info(
+            } else if(deliver && arrived) {
+                var storagePos=target.offset(1,0,0);
+                var block=level.getBlockEntity(storagePos);
+                if(block instanceof net.minecraft.world.Container chest
+                        && CitizenStockpileDelivery.deliver(server,citizen.id(),
+                                citizen.dimension(),storagePos,villager,chest)) {
+                    registry.completeStockpileDelivery(citizen.id(),villager.blockPosition().asLong(),tick);
+                    org.apache.logging.log4j.LogManager.getLogger().info(
+                            "HEARTHBOUND_CITIZEN_STOCKPILE_DELIVERED citizen={} storage={} tick={}",
+                            citizen.id(),storagePos,tick);
+                }
+            } else if(!supply && !collect && !deliver) registry.observe(citizen.id(),villager.blockPosition().asLong(),tick,arrived);
+            if(arrived && !supply && !collect && !deliver) org.apache.logging.log4j.LogManager.getLogger().info(
                     "HEARTHBOUND_CITIZEN_ARRIVED citizen={} pos={} tick={}",
                     citizen.id(),villager.blockPosition(),tick);
         }
