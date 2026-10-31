@@ -19,8 +19,14 @@ public final class MillProcessReceipts extends SavedData {
     private static final String NAME = "hearthbound_mill_process_receipts_v1";
     private final java.util.Map<UUID, Receipt> receipts = new java.util.HashMap<>();
 
-    public record Receipt(UUID job, UUID citizen, long pos, long tick, int wheatBefore,
-                          int wheatAfter, int flourBefore, int flourAfter) {}
+    public record Receipt(UUID job, UUID citizen, long pos, long startTick, long tick, int wheatBefore,
+                          int wheatAfter, int flourBefore, int flourAfter) {
+        /** Older receipts cannot claim verified start time. */
+        public Receipt(UUID job, UUID citizen, long pos, long tick, int wheatBefore,
+                       int wheatAfter, int flourBefore, int flourAfter) {
+            this(job, citizen, pos, -1L, tick, wheatBefore, wheatAfter, flourBefore, flourAfter);
+        }
+    }
 
     private MillProcessReceipts() {}
 
@@ -34,6 +40,7 @@ public final class MillProcessReceipts extends SavedData {
         for (int i=0;i<entries.size();i++) {
             CompoundTag t=entries.getCompound(i);
             Receipt receipt=new Receipt(t.getUUID("job"), t.getUUID("citizen"), t.getLong("pos"),
+                t.contains("startTick") ? t.getLong("startTick") : -1L,
                 t.getLong("tick"),t.getInt("wheatBefore"),t.getInt("wheatAfter"),
                 t.getInt("flourBefore"),t.getInt("flourAfter"));
             if (data.receipts.putIfAbsent(receipt.job(), receipt)!=null)
@@ -51,6 +58,7 @@ public final class MillProcessReceipts extends SavedData {
             t.putUUID("citizen",receipt.citizen());
             t.putLong("pos",receipt.pos());
             t.putLong("tick",receipt.tick());
+            t.putLong("startTick",receipt.startTick());
             t.putInt("wheatBefore",receipt.wheatBefore());
             t.putInt("wheatAfter",receipt.wheatAfter());
             t.putInt("flourBefore",receipt.flourBefore());
@@ -125,6 +133,12 @@ public final class MillProcessReceipts extends SavedData {
             LOG.info("HEARTHBOUND_PROCESS_REJECT missing-or-conflicting-mill-reservation job={}; reserved machine invalidated", job);
             return;
         }
+        long startTick = MillExperimentTrace.verifiedProcessingStartTick(citizen, pos, level.getGameTime());
+        if (startTick < 0) {
+            MillReservations.taint(level, pos, job, citizen.getUUID());
+            LOG.warn("HEARTHBOUND_PROCESS_REJECT missing-observed-start job={}", job);
+            return;
+        }
         MillProcessReceipts ledger=get(level);
         if (ledger.receipts.containsKey(job)) {
             // A second real processing operation on a one-wheat experiment
@@ -133,7 +147,7 @@ public final class MillProcessReceipts extends SavedData {
             LOG.info("HEARTHBOUND_PROCESS_REJECT extra-process tainted job={}", job);
             return;
         }
-        ledger.receipts.put(job,new Receipt(job,citizen.getUUID(),pos.asLong(),level.getGameTime(),
+        ledger.receipts.put(job,new Receipt(job,citizen.getUUID(),pos.asLong(),startTick,level.getGameTime(),
             wheatBefore,wheatAfter,flourBefore,flourAfter));
         ledger.setDirty();
         LOG.info("HEARTHBOUND_PROCESS_RECEIPT job={} citizen={}", job, citizen.getUUID());
@@ -150,6 +164,7 @@ public final class MillProcessReceipts extends SavedData {
         return !MillReservations.isTainted(level, job)
             && receipt != null && receipt.citizen().equals(citizen)
             && receipt.pos() == machine.asLong()
+            && receipt.startTick() >= 0 && receipt.startTick() < receipt.tick()
             && receipt.wheatBefore() - receipt.wheatAfter() == 1
             && receipt.flourAfter() > receipt.flourBefore();
     }
@@ -162,6 +177,6 @@ public final class MillProcessReceipts extends SavedData {
         return "MILL_PROCESS VERIFIED_CALLBACK job="+job+" citizen="+receipt.citizen()
             +" wheatBefore="+receipt.wheatBefore()+" wheatAfter="+receipt.wheatAfter()
             +" flourBefore="+receipt.flourBefore()+" flourAfter="+receipt.flourAfter()
-            +" tick="+receipt.tick()+" NO_RESEARCH_CREDIT";
+            +" startTick="+receipt.startTick()+" tick="+receipt.tick()+" NO_RESEARCH_CREDIT";
     }
 }

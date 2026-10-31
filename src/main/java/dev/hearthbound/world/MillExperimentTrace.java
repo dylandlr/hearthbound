@@ -174,6 +174,19 @@ public final class MillExperimentTrace {
             && now - trace.getLong("startedTick") <= 2400L;
     }
 
+    /** Actual server-observed powered processing start, never inferred from completion. */
+    public static long verifiedProcessingStartTick(Villager citizen, BlockPos machine, long finishTick) {
+        CompoundTag trace = citizen.getPersistentData().getCompound(KEY);
+        if (!trace.hasUUID("jobId") || trace.getLong("millstone") != machine.asLong()
+                || !trace.contains("processingObservedTick")
+                || !trace.contains("authorizedTick")
+                || trace.getInt("authorizedInputCount") != 1) return -1L;
+        long started = trace.getLong("processingObservedTick");
+        long authorized = trace.getLong("authorizedTick");
+        if (started < authorized || started >= finishTick) return -1L;
+        return started;
+    }
+
     public static UUID jobId(Villager citizen) {
         return citizen.getPersistentData().getCompound(KEY).getUUID("jobId");
     }
