@@ -169,6 +169,25 @@ public final class MillProcessReceipts extends SavedData {
             && receipt.flourAfter() > receipt.flourBefore();
     }
 
+    /**
+     * Export only a verified, untainted server receipt for a known job and citizen.
+     * The caller must obtain worldIdentity from a durable per-save UUID, never a
+     * random UUID or world seed regenerated during recovery.
+     */
+    public static dev.hearthbound.evidence.VerifiedMillAttribution.Claim exportVerified(
+            ServerLevel level, UUID worldIdentity, UUID job, UUID citizen, BlockPos machine) {
+        if (worldIdentity == null || !hasReceipt(level, job, citizen, machine)
+                || !MillReservations.matches(level, machine, job, citizen))
+            throw new IllegalArgumentException("unverified receipt or ownership");
+        Receipt r = get(level).receipts.get(job);
+        return dev.hearthbound.evidence.VerifiedMillAttribution.validate(
+            new dev.hearthbound.evidence.VerifiedMillAttribution.Proof(
+                worldIdentity, job, citizen, level.dimension().location().toString(),
+                machine.asLong(), r.startTick(), r.tick(),
+                r.wheatBefore(), r.wheatAfter(), r.flourBefore(), r.flourAfter(),
+                true, MillReservations.isTainted(level, job)));
+    }
+
     public static String inspect(ServerLevel level, UUID job) {
         Receipt receipt=get(level).receipts.get(job);
         if (MillReservations.isTainted(level, job))
