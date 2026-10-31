@@ -1,0 +1,159 @@
+name: Forge Create integration checks
+on:
+  push:
+    branches: [feat/create-forge-dependency-v1-2]
+  pull_request:
+    paths:
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle.properties'
+      - 'src/**'
+      - '.github/workflows/forge-create-checks.yml'
+  workflow_dispatch:
+jobs:
+  experiment-launch-index:
+    if: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[eula-accepted-smoke]') }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Register experiment before build dependencies
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo, issue_number: 77,
+              body: [
+                'HEARTHBOUND_EXPERIMENT_LAUNCH_V1',
+                `run_id=${context.runId}`,
+                `attempt=${process.env.GITHUB_RUN_ATTEMPT}`,
+                `commit=${context.sha}`,
+                `run_url=https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+                'state=started; this entry is not evidence of a completed GameTest'
+              ].join('\\n')
+            });
+  java-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Validate experiment evidence packager
+        run: python3 -m unittest discover -s scripts -p 'test_package_experiment_evidence.py'
+      - name: Validate local Minecraft dev-server launcher
+        run: python3 -m unittest discover -s scripts -p 'test_dev_server.py'
+      - name: Compile standalone research contracts
+        run: |
+          mkdir -p build/contract-classes
+          javac --release 17 -d build/contract-classes \
+            src/main/java/dev/hearthbound/research/DurableOperationIntents.java \
+            src/main/java/dev/hearthbound/research/DurableCreditLedger.java \
+            src/main/java/dev/hearthbound/research/MillstoneRecoveryGate.java \
+            src/main/java/dev/hearthbound/research/MillstoneReceiptGate.java \
+            src/main/java/dev/hearthbound/research/ServerTickEventLedger.java \
+            src/main/java/dev/hearthbound/research/ServerTickClock.java \
+            src/main/java/dev/hearthbound/research/PersistentTickCounter.java \
+            src/main/java/dev/hearthbound/research/InventoryDelta.java \
+            src/main/java/dev/hearthbound/research/CitizenDiscoveryGate.java \
+            src/main/java/dev/hearthbound/research/CitizenDiscoveryCommitter.java \
+            src/main/java/dev/hearthbound/research/ScriptedMillingPolicy.java \
+            src/main/java/dev/hearthbound/research/ScriptedMillingExecutor.java \
+            src/main/java/dev/hearthbound/research/ScriptedCitizenWorkLoop.java \
+            src/main/java/dev/hearthbound/research/CitizenInventory.java \
+            src/main/java/dev/hearthbound/research/DurableCitizenInventory.java \
+            src/main/java/dev/hearthbound/research/WheatTransferRecovery.java \
+            src/main/java/dev/hearthbound/research/DurableCitizenWorkOrder.java \
+            src/main/java/dev/hearthbound/research/DurableMachineClaim.java \
+            src/main/java/dev/hearthbound/research/MachineClaimRetirementGate.java \
+            src/main/java/dev/hearthbound/research/DurableMachineHandoff.java \
+            src/main/java/dev/hearthbound/research/DurableObservationWindow.java \
+            src/test/java/dev/hearthbound/research/DurableOperationIntentsTest.java \
+            src/test/java/dev/hearthbound/research/DurableCreditLedgerTest.java \
+            src/test/java/dev/hearthbound/research/MillstoneRecoveryGateTest.java \
+            src/test/java/dev/hearthbound/research/MillstoneReceiptGateTest.java \
+            src/test/java/dev/hearthbound/research/ServerTickEventLedgerTest.java \
+            src/test/java/dev/hearthbound/research/ServerTickClockTest.java \
+            src/test/java/dev/hearthbound/research/PersistentTickCounterTest.java \
+            src/test/java/dev/hearthbound/research/InventoryDeltaTest.java \
+            src/test/java/dev/hearthbound/research/CitizenDiscoveryGateTest.java \
+            src/test/java/dev/hearthbound/research/CitizenDiscoveryCommitterTest.java \
+            src/test/java/dev/hearthbound/research/ScriptedMillingPolicyTest.java \
+            src/test/java/dev/hearthbound/research/ScriptedMillingExecutorTest.java \
+            src/test/java/dev/hearthbound/research/ScriptedCitizenWorkLoopTest.java \
+            src/test/java/dev/hearthbound/research/CitizenInventoryTest.java \
+            src/test/java/dev/hearthbound/research/DurableCitizenInventoryTest.java \
+            src/test/java/dev/hearthbound/research/WheatTransferRecoveryTest.java \
+            src/test/java/dev/hearthbound/research/DurableCitizenWorkOrderTest.java \
+            src/test/java/dev/hearthbound/research/DurableMachineClaimTest.java \
+            src/test/java/dev/hearthbound/research/MachineClaimRetirementGateTest.java \
+            src/test/java/dev/hearthbound/research/DurableMachineHandoffTest.java \
+            src/test/java/dev/hearthbound/research/TwoCitizenMillingCycleTest.java \
+            src/test/java/dev/hearthbound/research/DurableObservationWindowTest.java
+      - name: Execute standalone contracts
+        run: |
+          for cls in DurableOperationIntentsTest DurableCreditLedgerTest MillstoneRecoveryGateTest MillstoneReceiptGateTest ServerTickEventLedgerTest ServerTickClockTest PersistentTickCounterTest InventoryDeltaTest CitizenDiscoveryGateTest CitizenDiscoveryCommitterTest ScriptedMillingPolicyTest ScriptedMillingExecutorTest ScriptedCitizenWorkLoopTest CitizenInventoryTest DurableCitizenInventoryTest WheatTransferRecoveryTest DurableCitizenWorkOrderTest DurableMachineClaimTest MachineClaimRetirementGateTest DurableMachineHandoffTest TwoCitizenMillingCycleTest DurableObservationWindowTest; do
+            java -cp build/contract-classes dev.hearthbound.research.$cls
+          done
+  compile-and-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.8'
+      - name: Compile Forge mod and tests
+        run: gradle --no-daemon --stacktrace compileJava testClasses
+      - name: Execute millstone receipt contract checks
+        run: gradle --no-daemon --stacktrace testMillstoneReceipts
+      # Minecraft-specific ItemStack assertions are compiled by testClasses but
+      # require a Forge GameTest/server runtime to execute safely.
+      - name: Build distributable Forge JAR
+        run: gradle --no-daemon --stacktrace build
+      - name: Verify built Forge mod archive
+        run: |
+          shopt -s nullglob
+          jars=(build/libs/*.jar)
+          if (( ${#jars[@]} != 1 )); then
+            echo "Expected exactly one mod JAR; found ${#jars[@]}" >&2
+            exit 1
+          fi
+          python3 scripts/verify_mod_jar.py "${jars[0]}"
+      - name: Upload Hearthbound development JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: hearthbound-forge-1.20.1-dev
+          path: build/libs/*.jar
+          if-no-files-found: error
+          retention-days: 14
+
+  minecraft-acceptance:
+    # Explicit EULA-authorized opt-in; included in this workflow's known run ID.
+    if: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[eula-accepted-smoke]') }}
+    needs: [java-contracts, compile-and-contract]
+    permissions:
+      contents: read
+      issues: write
+    uses: ./.github/workflows/dedicated-server-smoke.yml
+
+  isolated-crash-acceptance:
+    # Requires both EULA authorization and an explicit disposable crash opt-in.
+    if: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[eula-accepted-smoke]') && contains(github.event.head_commit.message, '[isolated-crash]') }}
+    needs: [java-contracts, compile-and-contract]
+    permissions:
+      contents: read
+    uses: ./.github/workflows/isolated-delivery-crash.yml
+    with:
+      acknowledge_disposable_world: true
+      accept_minecraft_eula: true

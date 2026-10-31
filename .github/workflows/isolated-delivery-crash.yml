@@ -1,0 +1,165 @@
+name: Hearthbound isolated delivery crash probe
+
+on:
+  workflow_call:
+    inputs:
+      acknowledge_disposable_world:
+        required: true
+        type: boolean
+      accept_minecraft_eula:
+        required: true
+        type: boolean
+  workflow_dispatch:
+    inputs:
+      acknowledge_disposable_world:
+        description: 'I understand this intentionally halts a disposable Minecraft server'
+        required: true
+        type: boolean
+        default: false
+      accept_minecraft_eula:
+        description: 'I have reviewed and accept the Minecraft EULA for the ephemeral server'
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  after-attempt-crash:
+    if: ${{ inputs.acknowledge_disposable_world && inputs.accept_minecraft_eula }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.8'
+      - name: Prepare disposable GameTest world
+        shell: bash
+        run: |
+          mkdir -p run-gametest
+          printf 'eula=true\n' > run-gametest/eula.txt
+      - name: Establish a fully saved baseline world
+        shell: bash
+        run: |
+          timeout --signal=INT --kill-after=20s 600s gradle --no-daemon runGameTestServer > baseline-gametest.log 2>&1
+          python3 scripts/verify_gametest_log.py baseline-gametest.log
+          mapfile -t levels < <(find run-gametest -type f -name level.dat)
+          if [ "${#levels[@]}" -ne 1 ]; then
+            echo 'Exactly one restartable GameTest world must exist in baseline' >&2
+            exit 1
+          fi
+          echo "HEARTHBOUND_BASELINE_LEVEL=$(realpath "${levels[0]}")" >> "$GITHUB_ENV"
+          tar -C run-gametest -cf baseline-world.tar .
+          sha256sum baseline-world.tar > baseline-world.sha256
+          find run-gametest -type f -path '*/hearthbound-citizen-supply-attempts/*.intent' -printf '%f\n' | sort > baseline-attempts.txt
+          echo 'HEARTHBOUND_CRASH_BASELINE_PASS completeWorldSave=true'
+      - name: Restore baseline into disposable crash world
+        shell: bash
+        run: |
+          rm -rf run-gametest
+          mkdir -p run-gametest
+          tar -C run-gametest -xf baseline-world.tar
+          test -f "$HEARTHBOUND_BASELINE_LEVEL"
+      - name: Hard-crash Minecraft after journal write
+        shell: bash
+        env:
+          HEARTHBOUND_FAULT_TEST_ACK: isolated-citizen-crash-test
+          HEARTHBOUND_CITIZEN_CRASH_STAGE: after_attempt_before_mutation
+        run: |
+          set +e
+          timeout --signal=INT --kill-after=20s 600s gradle --no-daemon runGameTestServer > crash-gametest.log 2>&1
+          code=$?
+          set -e
+          echo "Gradle process exit: $code"
+          grep -F 'HEARTHBOUND_FAULT_PRE_ATTEMPT_WORLD_SAVED' crash-gametest.log
+          grep -F 'HEARTHBOUND_FAULT_INJECTION_AFTER_ATTEMPT' crash-gametest.log
+          # Gradle may map forked JVM exit 86 to a nonzero task-failure exit;
+          # the explicit server log is the authoritative injection proof.
+          if [ "$code" -eq 0 ] || [ "$code" -eq 124 ]; then
+            echo 'Expected abrupt Minecraft shutdown, not clean exit or timeout' >&2
+            exit 1
+          fi
+          find run-gametest -type f -path '*/hearthbound-citizen-supply-attempts/*.intent' -printf '%f\n' | sort > crashed-attempts.txt
+          comm -13 baseline-attempts.txt crashed-attempts.txt > new-crash-attempts.txt
+          count="$(wc -l < new-crash-attempts.txt)"
+          if [ "$count" -ne 1 ]; then
+            echo "Expected exactly one NEW crash attempt (not preexisting baseline attempts); found $count" >&2
+            exit 1
+          fi
+          operation="$(grep -oE 'HEARTHBOUND_FAULT_INJECTION_AFTER_ATTEMPT operation=[0-9a-f-]+ exit=86' crash-gametest.log | tail -n 1 | cut -d= -f2 | cut -d' ' -f1)"
+          if ! [[ "$operation" =~ ^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$ ]]; then
+            echo 'Cannot identify injected operation UUID' >&2
+            exit 1
+          fi
+          echo "HEARTHBOUND_CRASH_OPERATION=$operation" >> "$GITHUB_ENV"
+          expected="$(printf 'supply-attempt/%s' "$operation" | sha256sum | cut -d' ' -f1).intent"
+          if [ "$(cat new-crash-attempts.txt)" != "$expected" ]; then
+            echo 'New durable attempt does not match the exact hard-crashed operation' >&2
+            exit 1
+          fi
+          if grep -Fq 'HEARTHBOUND_CITIZEN_AUTOMATED_SUPPLY' crash-gametest.log; then
+            echo 'Delivery occurred before intended pre-mutation crash point' >&2
+            exit 1
+          fi
+          echo "HEARTHBOUND_ISOLATED_CRASH_PASS attempts=$count noTransferMarker=true"
+      - name: Locate saved world after abrupt exit
+        shell: bash
+        run: |
+          mapfile -t journals < <(find run-gametest -type f -path '*/hearthbound-citizen-supply-attempts/*.intent')
+          if [ "${#journals[@]}" -lt 1 ]; then
+            echo 'No saved crash attempt exists' >&2
+            exit 1
+          fi
+          world="$(dirname "$(dirname "${journals[0]}")")"
+          if [ ! -f "$world/level.dat" ]; then
+            echo "Crash world is not restartable (level.dat absent): $world" >&2
+            exit 1
+          fi
+          echo "HEARTHBOUND_CRASH_WORLD=$(realpath "$world")" >> "$GITHUB_ENV"
+      - name: Restart same disposable world in second JVM
+        shell: bash
+        env:
+          HEARTHBOUND_FAULT_TEST_ACK: isolated-citizen-crash-test
+          HEARTHBOUND_CITIZEN_RECOVERY_STAGE: inspect_after_crash
+        run: |
+          mkdir -p run
+          printf 'eula=true\n' > run/eula.txt
+          printf 'online-mode=false\nlevel-name=%s\n' "$HEARTHBOUND_CRASH_WORLD" > run/server.properties
+          timeout --signal=TERM --kill-after=30s 300s gradle --no-daemon runServer > crash-restart.log 2>&1 || {
+            tail -n 150 crash-restart.log
+            exit 1
+          }
+          grep -F "HEARTHBOUND_CRASH_RESTART_EXACT_ATTEMPT_PASS operation=$HEARTHBOUND_CRASH_OPERATION" crash-restart.log
+          grep -F "HEARTHBOUND_CRASH_RESTART_MACHINE_PASS operation=$HEARTHBOUND_CRASH_OPERATION" crash-restart.log
+          grep -F "HEARTHBOUND_CRASH_RESTART_CITIZEN_PASS operation=$HEARTHBOUND_CRASH_OPERATION" crash-restart.log
+          grep -F 'HEARTHBOUND_CRASH_RESTART_JOURNALS_PASS' crash-restart.log
+          if grep -Fq 'HEARTHBOUND_CITIZEN_AUTOMATED_SUPPLY' crash-restart.log; then
+            echo 'Unexpected replay after restart' >&2
+            exit 1
+          fi
+          echo 'HEARTHBOUND_ISOLATED_CRASH_RESTART_PASS journalsPersisted=true noReplayMarker=true'
+      - name: Upload crash evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hearthbound-isolated-crash-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            baseline-gametest.log
+            baseline-world.sha256
+            baseline-attempts.txt
+            crashed-attempts.txt
+            new-crash-attempts.txt
+            crash-gametest.log
+            crash-restart.log
+            run-gametest/**/hearthbound-citizen-supply-attempts/*.intent
+            run-gametest/**/hearthbound-citizen-milling-workorders/*.intent
+            run-gametest/**/level.dat
+            run-gametest/logs/*.log

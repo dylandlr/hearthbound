@@ -1,0 +1,222 @@
+name: Hearthbound dedicated server smoke test
+on:
+  workflow_call:
+  workflow_dispatch:
+    inputs:
+      accept_minecraft_eula:
+        description: 'I have reviewed and accept the Minecraft EULA for this ephemeral test server'
+        required: true
+        type: boolean
+        default: false
+
+jobs:
+  server-smoke:
+    # User explicitly confirmed EULA acceptance on 2026-10-24.
+    # Invoked by the known Forge CI run on an explicitly marked push.
+    # Repository MINECRAFT_EULA_ACCEPTED=false remains an override to disable.
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.accept_minecraft_eula == true) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[eula-accepted-smoke]')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    concurrency:
+      group: hearthbound-minecraft-smoke
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.8'
+      - name: Configure ephemeral local test server
+        shell: bash
+        run: |
+          mkdir -p run
+          printf 'eula=true\n' > run/eula.txt
+          cat > run/server.properties <<'EOF'
+          online-mode=false
+          server-port=25565
+          max-players=1
+          enable-command-block=true
+          spawn-protection=0
+          motd=Hearthbound CI smoke test
+          EOF
+      # Evidence-index v1 acceptance run, explicitly requested after EULA acceptance.
+      - name: Run required Minecraft GameTests
+        shell: bash
+        run: |
+          mkdir -p run-gametest
+          printf 'eula=true\n' > run-gametest/eula.txt
+          set +e
+          timeout --signal=INT --kill-after=20s 600s gradle --no-daemon runGameTestServer > gametest.log 2>&1
+          game_exit=$?
+          set -e
+          tail -n 160 gametest.log
+          echo "GameTest process exit: $game_exit"
+          python3 scripts/verify_gametest_log.py gametest.log
+          if [[ "$game_exit" != "0" ]]; then
+            echo "GameTest markers were checked, but Minecraft exited abnormally: $game_exit" >&2
+            exit 1
+          fi
+      - name: Select saved GameTest world for restart
+        shell: bash
+        run: |
+          mapfile -t journals < <(find run-gametest -type f -name hearthbound_milling_observations_v1.dat)
+          if [[ "${#journals[@]}" != "1" ]]; then
+            echo 'Expected exactly one saved milling journal' >&2
+            exit 1
+          fi
+          world="$(realpath "$(dirname "$(dirname "${journals[0]}")")")"
+          test -f "$world/level.dat"
+          test -f run-gametest/milling-expected.nbt
+          test -f run-gametest/milling-machine-expected.nbt
+          test -f run-gametest/consecutive-millings-expected.nbt
+          test -f run-gametest/citizen-supply-restart-expected.nbt
+          printf 'level-name=%s\n' "$world" >> run/server.properties
+          echo "HEARTHBOUND_RESTART_EXPECTED=$(realpath run-gametest/milling-expected.nbt)" >> "$GITHUB_ENV"
+      - name: Boot Forge development server
+        shell: bash
+        run: |
+          set +e
+          timeout --signal=TERM --kill-after=60s 300s gradle --no-daemon runServer > server-smoke.log 2>&1
+          exit_code=$?
+          set -e
+          tail -n 120 server-smoke.log
+          # The opt-in restart checker requests clean shutdown after its assertions.
+          if ! grep -Eq 'Done \([0-9.]+s\)!|Done \(' server-smoke.log; then
+            echo 'No successful Minecraft server-ready message; inspect logs' >&2
+            exit 1
+          fi
+          if ! grep -Fq 'Hearthbound bootstrap loaded.' server-smoke.log; then
+            echo 'Hearthbound bootstrap marker absent' >&2
+            exit 1
+          fi
+          if ! grep -Eq 'HEARTHBOUND_SERVER_READY createLoaded=true logicalTick=[0-9]+' server-smoke.log; then
+            echo 'Hearthbound server-started marker with Create loaded absent' >&2
+            exit 1
+          fi
+          if ! grep -Fq 'HEARTHBOUND_CITIZEN_RESTART_NO_REPLAY_PASS citizen=' server-smoke.log; then
+            echo 'Recovered citizen attempted unsafe replay or recovery decision was not blocked' >&2
+            exit 1
+          fi
+          if ! grep -Fq 'HEARTHBOUND_CITIZEN_SUPPLY_WORLD_RESTART_PASS citizen=' server-smoke.log; then
+            echo 'Citizen entity or real Create millstone inventory failed saved-world restart verification' >&2
+            exit 1
+          fi
+          if ! grep -Fq 'HEARTHBOUND_CITIZEN_SUPPLY_RESTART_PASS citizen=' server-smoke.log; then
+            echo 'Citizen supply journal or blocked work did not survive restart' >&2
+            exit 1
+          fi
+          if ! grep -Fq 'HEARTHBOUND_RESTART_PASS observation=' server-smoke.log; then
+            echo 'Saved milling journal failed second-process verification' >&2
+            exit 1
+          fi
+          if ! grep -Fq 'HEARTHBOUND_MACHINE_CHECKPOINT_PASS operation=' server-smoke.log; then
+            echo 'Saved machine/intent checkpoint verification failed' >&2
+            exit 1
+          fi
+          if ! grep -Fq 'HEARTHBOUND_TWO_CITIZEN_REAL_CREDITS_RESTART_PASS citizenA=' server-smoke.log; then
+            echo 'Two genuine Create citizen credits did not survive restart' >&2
+            exit 1
+          fi
+          if ! grep -Fq 'HEARTHBOUND_MACHINE_HANDOFF_RESTART_PASS previousCitizen=' server-smoke.log; then
+            echo 'Machine handoff did not survive Minecraft restart' >&2
+            exit 1
+          fi
+          if ! grep -Fq 'HEARTHBOUND_CITIZEN_CREDIT_RESTART_PASS operation=' server-smoke.log; then
+            echo 'Citizen research credit did not persist through server restart' >&2
+            exit 1
+          fi
+          if ! grep -Fq 'HEARTHBOUND_DISCOVERY_RESTART_PASS operation=' server-smoke.log; then
+            echo 'Discovery credit did not survive restart exactly once' >&2
+            exit 1
+          fi
+          if grep -Eiq 'Exception in server tick loop|Failed to start the minecraft server|Mod loading has failed' server-smoke.log; then
+            echo 'Server reported a startup/runtime failure' >&2
+            exit 1
+          fi
+          if [[ "$exit_code" != "0" ]]; then
+            echo "Unexpected server exit code: $exit_code" >&2
+            exit 1
+          fi
+      - name: Verify evidence packager
+        if: always()
+        run: python3 -m unittest discover -s scripts -p 'test_package_experiment_evidence.py'
+      - name: Create experiment evidence manifest
+        if: always()
+        shell: bash
+        env:
+          HB_REPOSITORY: ${{ github.repository }}
+          HB_RUN_ID: ${{ github.run_id }}
+          HB_RUN_ATTEMPT: ${{ github.run_attempt }}
+          HB_COMMIT: ${{ github.sha }}
+          HB_REF: ${{ github.ref }}
+          HB_JOB_STATUS: ${{ job.status }}
+        run: |
+          python3 scripts/package_experiment_evidence.py --output evidence
+
+      - name: Upload startup diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hearthbound-server-smoke-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            evidence/**
+            server-smoke.log
+            gametest.log
+            run-gametest/milling-expected.nbt
+            run-gametest/milling-machine-expected.nbt
+            run-gametest/consecutive-millings-expected.nbt
+            run-gametest/citizen-supply-restart-expected.nbt
+            run-gametest/**/hearthbound-fixture-consecutive-credits/credits.v1
+            run-gametest/**/hearthbound-fixture-intents/*.intent
+            run-gametest/**/hearthbound-fixture-credits/credits.v1
+            run-gametest/**/hearthbound-fixture-citizen-credits/credits.v1
+            run-gametest/**/hearthbound-fixture-citizen-assignments/*.intent
+            run-gametest/**/hearthbound-fixture-machine-claims/*.intent
+            run-gametest/**/hearthbound-fixture-machine-handoffs/*.handoff
+            run-gametest/**/hearthbound-fixture-window-starts/*.intent
+            run-gametest/**/hearthbound-fixture-window-ends/credits.v1
+            run-gametest/**/data/hearthbound_milling_observations_v1.dat
+            run-gametest/logs/*.log
+            run/logs/*.log
+          if-no-files-found: error
+          retention-days: 30
+      - name: Index run in GitHub issue 77
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = [
+              'HEARTHBOUND_EXPERIMENT_RUN_V1',
+              `run_id=${context.runId}`,
+              `attempt=${process.env.GITHUB_RUN_ATTEMPT}`,
+              `commit=${context.sha}`,
+              `job_status=${{ toJSON(job.status) }}`,
+              `run_url=${runUrl}`,
+              `artifact=hearthbound-server-smoke-evidence-${context.runId}-${process.env.GITHUB_RUN_ATTEMPT}`,
+              'The run conclusion and artifact logs must be checked before treating this as verified gameplay.'
+            ].join('\\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: 77, body
+            });
+
+      - name: Publish experiment evidence summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '## Hearthbound Minecraft experiment'
+            echo ''
+            echo "- **Run:** [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+            echo "- **Commit:** \`${{ github.sha }}\`"
+            echo "- **Outcome:** ${{ job.status }}"
+            echo '- **Evidence:** Download the hearthbound-server-smoke-evidence artifact from this run.'
+            echo '- **Manifest:** evidence/manifest.json (log hashes, marker counts, expected receipts).'
+          } >> "$GITHUB_STEP_SUMMARY"
