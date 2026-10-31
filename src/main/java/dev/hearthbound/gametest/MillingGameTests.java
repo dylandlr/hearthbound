@@ -747,6 +747,63 @@ public final class MillingGameTests {
         }
     }
 
+    /**
+     * One real powered Minecraft production run. No fixture injects flour:
+     * the Create motor and wheat milling recipe must generate the output.
+     */
+    @GameTest(templateNamespace = "hearthbound", template = "empty", timeoutTicks = 900)
+    public static void citizenProducesAndStoresRealFlour(GameTestHelper helper) {
+        var level=helper.getLevel();
+        var server=level.getServer();
+        for(int x=0;x<=4;x++) for(int z=0;z<=5;z++) {
+            helper.setBlock(new BlockPos(x,0,z),Blocks.STONE.defaultBlockState());
+            for(int y=1;y<=3;y++) helper.setBlock(new BlockPos(x,y,z),Blocks.AIR.defaultBlockState());
+        }
+        helper.setBlock(new BlockPos(2,1,1),AllBlocks.MILLSTONE.getDefaultState());
+        helper.setBlock(new BlockPos(2,0,1),AllBlocks.CREATIVE_MOTOR.getDefaultState()
+                .setValue(CreativeMotorBlock.FACING,Direction.UP));
+        helper.setBlock(new BlockPos(2,1,4),Blocks.CHEST.defaultBlockState());
+        var mill=(MillstoneBlockEntity)helper.getBlockEntity(new BlockPos(2,1,1));
+        var chest=(net.minecraft.world.level.block.entity.ChestBlockEntity)
+                helper.getBlockEntity(new BlockPos(2,1,4));
+        helper.assertTrue(mill!=null && chest!=null,"Real powered millstone and chest required");
+        BlockPos approach=helper.absolutePos(new BlockPos(1,1,1));
+        BlockPos storage=helper.absolutePos(new BlockPos(1,1,4));
+        UUID citizen=UUID.randomUUID();
+        long tick=dev.hearthbound.integration.ForgeServerTickObserver.logicalTick(server);
+        var registry=dev.hearthbound.integration.CitizenRegistrySavedData.get(server);
+        registry.register(citizen,"FlourProductionFixture",level.dimension().location().toString(),approach.asLong(),tick);
+        var villager=dev.hearthbound.integration.CitizenEmbodiment.spawn(level,citizen,approach);
+        villager.getPersistentData().putInt("HearthboundWheat",1);
+        try {
+            dev.hearthbound.integration.CitizenProductionOrder.start(server,
+                    level.dimension().location().toString(),citizen,approach,storage);
+        } catch(java.io.IOException failure) {
+            throw new IllegalStateException("Production order authorization failed",failure);
+        }
+        helper.runAfterDelay(700,()->{
+            var task=registry.snapshot().stream().filter(entry->entry.id().equals(citizen))
+                    .findFirst().orElseThrow();
+            helper.assertTrue("IDLE".equals(task.task()),
+                    "Citizen must finish milling and stockpile stages under one order");
+            helper.assertTrue(mill.inputInv.getStackInSlot(0).isEmpty(),
+                    "Create millstone must consume the real wheat input");
+            helper.assertTrue(villager.getPersistentData().getInt("HearthboundWheat")==0,
+                    "Exactly one wheat must leave the citizen");
+            int flour=0;
+            for(int slot=0;slot<chest.getContainerSize();slot++) {
+                var stack=chest.getItem(slot);
+                if(stack.is(AllItems.WHEAT_FLOUR.get())) flour+=stack.getCount();
+            }
+            helper.assertTrue(flour>0,"Powered Create millstone must produce real flour in stockpile");
+            helper.assertTrue(!villager.getPersistentData().contains("HearthboundMillCollected"),
+                    "Citizen must not retain a duplicate cargo stack");
+            helper.assertTrue(villager.getPersistentData().hasUUID("HearthboundLastStockpileOperation"),
+                    "Stockpile delivery must have a durable operation receipt");
+            pass(helper,"citizen_produces_and_stores_real_flour");
+        });
+    }
+
     private static MillstoneBlockEntity place(GameTestHelper helper) {
         BlockPos pos = new BlockPos(1, 1, 1);
         helper.setBlock(pos, AllBlocks.MILLSTONE.getDefaultState());
