@@ -709,6 +709,44 @@ public final class MillingGameTests {
         });
     }
 
+    @GameTest(templateNamespace = "hearthbound", template = "empty", timeoutTicks = 60)
+    public static void productionOrderStartsOneGuardedCitizenWorkflow(GameTestHelper helper) {
+        var level=helper.getLevel();
+        var server=level.getServer();
+        helper.setBlock(new BlockPos(1,0,1),Blocks.STONE.defaultBlockState());
+        helper.setBlock(new BlockPos(2,0,1),Blocks.STONE.defaultBlockState());
+        helper.setBlock(new BlockPos(2,1,1),AllBlocks.MILLSTONE.getDefaultState());
+        helper.setBlock(new BlockPos(2,1,3),Blocks.CHEST.defaultBlockState());
+        BlockPos millApproach=helper.absolutePos(new BlockPos(1,1,1));
+        BlockPos storageApproach=helper.absolutePos(new BlockPos(1,1,3));
+        UUID id=UUID.randomUUID();
+        long tick=dev.hearthbound.integration.ForgeServerTickObserver.logicalTick(server);
+        var registry=dev.hearthbound.integration.CitizenRegistrySavedData.get(server);
+        registry.register(id,"ProductionOrderFixture",level.dimension().location().toString(),
+                millApproach.asLong(),tick);
+        var villager=dev.hearthbound.integration.CitizenEmbodiment.spawn(level,id,millApproach);
+        villager.getPersistentData().putInt("HearthboundWheat",1);
+        try {
+            UUID operation=dev.hearthbound.integration.CitizenProductionOrder.start(
+                    server,level.dimension().location().toString(),id,millApproach,storageApproach);
+            helper.assertTrue(operation!=null,"A valid production order must have a durable operation");
+            helper.assertTrue(registry.snapshot().stream().anyMatch(item ->
+                    item.id().equals(id) && item.task().equals("MILL_SUPPLY:"+millApproach.asLong())),
+                    "Starting one production order must schedule real supply task");
+            boolean rejected=false;
+            try {
+                dev.hearthbound.integration.CitizenProductionOrder.start(
+                        server,level.dimension().location().toString(),id,millApproach,storageApproach);
+            } catch(IllegalStateException expected) { rejected=true; }
+            helper.assertTrue(rejected,"A second concurrent order must be rejected");
+            helper.assertTrue(villager.getPersistentData().getLong("HearthboundProductionStockpileTarget")
+                    ==storageApproach.asLong(),"Production order must retain exact stockpile target");
+            pass(helper,"production_order_starts_one_guarded_citizen_workflow");
+        } catch(java.io.IOException failure) {
+            throw new IllegalStateException("Could not persist the production order",failure);
+        }
+    }
+
     private static MillstoneBlockEntity place(GameTestHelper helper) {
         BlockPos pos = new BlockPos(1, 1, 1);
         helper.setBlock(pos, AllBlocks.MILLSTONE.getDefaultState());
