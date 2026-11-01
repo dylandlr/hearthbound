@@ -3,6 +3,7 @@ package dev.hearthbound.evidence;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * Owns the existing attributed inbox / durable ledger pair in the server process.
@@ -14,9 +15,12 @@ public final class ResearchJournalRuntime implements AutoCloseable {
     private final DurableRewardLedger ledger;
     private boolean closed;
 
-    public ResearchJournalRuntime(Path inboxFile, Path ledgerFile) throws IOException {
+    public ResearchJournalRuntime(Path inboxFile, Path ledgerFile, UUID worldId) throws IOException {
         Objects.requireNonNull(inboxFile);
         Objects.requireNonNull(ledgerFile);
+        if (JournalWorldBinding.verify(inboxFile.toAbsolutePath().normalize().getParent(), worldId, inboxFile, ledgerFile)
+                != JournalWorldBinding.Result.VERIFIED)
+            throw new IOException("Research journals not yet bound; restart required");
         inbox = new AttributedMillInbox(inboxFile);
         DurableRewardLedger opened;
         try { opened = new DurableRewardLedger(ledgerFile); }
