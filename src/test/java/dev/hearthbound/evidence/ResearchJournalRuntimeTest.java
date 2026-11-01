@@ -9,12 +9,15 @@ public final class ResearchJournalRuntimeTest {
   Path dir=Files.createTempDirectory("hb-journal");
   try{
    Path inbox=dir.resolve("inbox.bin"),ledger=dir.resolve("rewards.bin");
+   UUID world=UUID.randomUUID();
+   check(JournalWorldBinding.verify(dir,world,inbox,ledger)==JournalWorldBinding.Result.RESTART_REQUIRED);
+   check(JournalWorldBinding.verify(dir,world,inbox,ledger)==JournalWorldBinding.Result.VERIFIED);
    String citizen=UUID.randomUUID().toString();
    String job=UUID.randomUUID().toString();
    VerifiedMillAttribution.Claim claim=new VerifiedMillAttribution.Claim(
       "hearthbound:mill:v1:"+UUID.randomUUID()+":minecraft:overworld:"+job,
       citizen,job,"minecraft:overworld","42",10,20);
-   try(ResearchJournalRuntime runtime=new ResearchJournalRuntime(inbox,ledger)){
+   try(ResearchJournalRuntime runtime=new ResearchJournalRuntime(inbox,ledger,world)){
     check(runtime.enqueue(claim));
     check(!runtime.enqueue(claim));
     check(runtime.pendingCount()==1);
@@ -27,13 +30,13 @@ public final class ResearchJournalRuntimeTest {
        List.of(new DurableRewardLedger.Reward(citizen,"research",1000)))));
     check(credited.total(citizen,"research")==1000);
    }
-   try(ResearchJournalRuntime runtime=new ResearchJournalRuntime(inbox,ledger)){
+   try(ResearchJournalRuntime runtime=new ResearchJournalRuntime(inbox,ledger,world)){
     check(runtime.pendingCount()==1);
     runtime.drainUnsafeForStandaloneTestsOnly();
     check(runtime.pendingCount()==0);
     check(runtime.researchMilliPoints(citizen)==1000);
    }
-   try(ResearchJournalRuntime runtime=new ResearchJournalRuntime(inbox,ledger)){
+   try(ResearchJournalRuntime runtime=new ResearchJournalRuntime(inbox,ledger,world)){
     check(runtime.pendingCount()==0);
     check(runtime.researchMilliPoints(citizen)==1000);
    }
