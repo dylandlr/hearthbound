@@ -131,4 +131,40 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
         raise AssertionError("Wheat delivered but Sable not near destination: " + output)
     print("Sable proximity verified at destination chest")
 
+
+
+    # Experimental real Create processing probe (separate from citizen learning).
+    # Motor -> vertical shaft -> millstone. Failure must fail CI, not be called success.
+    print("Beginning powered millstone wheat-to-flour acceptance probe")
+    def checked(command, label, require=None):
+        global next_id
+        sock.sendall(packet(next_id, 2, command))
+        received, _, output = response(sock)
+        print(f"{label}: {output}")
+        if received != next_id or (require and require.lower() not in output.lower()):
+            raise AssertionError(f"{label} failed: {output!r}")
+        next_id += 1
+        return output
+
+    checked("setblock 9 98 3 create:creative_motor[facing=up] replace",
+            "creative motor", "changed the block")
+    checked("setblock 9 99 3 create:shaft[axis=y] replace",
+            "vertical shaft", "changed the block")
+    checked("setblock 9 100 3 create:millstone replace",
+            "powered millstone", "changed the block")
+    checked("summon minecraft:item 9.5 101.2 3.5 {Item:{id:\"minecraft:wheat\",Count:1b},PickupDelay:32767s}",
+            "wheat dropped onto real millstone", "summoned")
+    flour_observed = False
+    for i in range(90):
+        time.sleep(2)
+        result = checked("sable mill-inspect 9 100 3", f"milling sample {i}")
+        import re
+        flour = re.search(r"\\bflour=(\\d+)", result)
+        if flour and int(flour.group(1)) > 0:
+            flour_observed = True
+            print("REAL_CREATE_FLOUR_OBSERVED " + result)
+            break
+    if not flour_observed:
+        raise AssertionError("NO_REAL_CREATE_PRODUCTION: did not observe flour in 180s")
+
 print("Hearthbound server commands, entity spawn and wheat hauling verified")
