@@ -150,6 +150,10 @@ public final class MillProcessReceipts extends SavedData {
         ledger.receipts.put(job,new Receipt(job,citizen.getUUID(),pos.asLong(),startTick,level.getGameTime(),
             wheatBefore,wheatAfter,flourBefore,flourAfter));
         ledger.setDirty();
+        boolean newlyRemembered = CitizenMillMemory.record(
+            citizen, job, pos.asLong(), level.getGameTime());
+        LOG.info("HEARTHBOUND_CITIZEN_MILL_EXPERIENCE citizen={} job={} recorded={} total={}",
+            citizen.getUUID(), job, newlyRemembered, CitizenMillMemory.observedProcesses(citizen));
         LOG.info("HEARTHBOUND_PROCESS_RECEIPT job={} citizen={}", job, citizen.getUUID());
     }
 
