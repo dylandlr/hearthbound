@@ -90,6 +90,20 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
     if mill_id != 91 or "MILL NOT_CREATE_MILLSTONE" not in mill_output:
         raise AssertionError("Mill inspection failed closed incorrectly: " + mill_output)
 
+    # Probe a REAL Create block registered in the running Forge world.
+    # This does not claim powered processing or wheat-to-flour success.
+    sock.sendall(packet(92, 2, "setblock 9 100 3 create:millstone replace"))
+    block_id, _, block_output = response(sock)
+    print("create millstone placement:", block_output)
+    if block_id != 92 or "changed the block" not in block_output.lower():
+        raise AssertionError("Create millstone could not be placed: " + block_output)
+
+    sock.sendall(packet(93, 2, "sable mill-inspect 9 100 3"))
+    inspect_id, _, inspect_output = response(sock)
+    print("real Create mill inspection:", inspect_output)
+    if inspect_id != 93 or "NOT_CREATE_MILLSTONE" in inspect_output or "MILL" not in inspect_output:
+        raise AssertionError("Real Create millstone was not recognized: " + inspect_output)
+
     # This is a true Minecraft server-side behavior check: inventories must move.
     # It may expose pathfinding or vanilla villager AI interference; failed CI is useful evidence.
     transferred = False
