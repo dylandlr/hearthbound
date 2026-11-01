@@ -150,8 +150,11 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
             "creative motor", "changed the block")
     checked("setblock 9 99 3 create:shaft[axis=y] replace",
             "vertical shaft", "changed the block")
-    checked("setblock 9 100 3 create:millstone replace",
-            "powered millstone", "changed the block")
+    # The earlier machine-recognition probe already placed this block.
+    # Verify it remains the real Create millstone after shaft/motor installation.
+    verified = checked("sable mill-inspect 9 100 3", "powered millstone exists")
+    if "MILL OBSERVED" not in verified or "block=create:millstone" not in verified:
+        raise AssertionError("Powered fixture lost its Create millstone: " + verified)
     checked("summon minecraft:item 9.5 101.2 3.5 {Item:{id:\"minecraft:wheat\",Count:1b},PickupDelay:32767s}",
             "wheat dropped onto real millstone", "summoned")
     flour_observed = False
