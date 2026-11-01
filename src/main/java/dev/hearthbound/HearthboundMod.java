@@ -26,6 +26,13 @@ public final class HearthboundMod {
         public static void onCommands(RegisterCommandsEvent event) {
             CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
             dispatcher.register(Commands.literal("hearthbound")
+                    .then(Commands.literal("research_status")
+                            .executes(ctx -> {
+                                ctx.getSource().sendSuccess(
+                                        () -> Component.literal(dev.hearthbound.world.ResearchStartupObserver.status()),
+                                        false);
+                                return 1;
+                            }))
                     .then(Commands.literal("status")
                             .executes(ctx -> {
                                 ctx.getSource().sendSuccess(
