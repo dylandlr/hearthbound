@@ -35,7 +35,7 @@ public final class DurableRewardLedger implements AutoCloseable {
  public synchronized boolean hasCredit(String id){return known.containsKey(id);}
  public synchronized long total(String citizen,String domain){return totals.getOrDefault(key(citizen,domain),0L);}
  public synchronized int creditCount(){return known.size();}
- private static String key(String citizen,String domain){return citizen+"\u0000"+domain;}
+ private static String key(String citizen,String domain){return citizen+Character.toString((char)0)+domain;}
  private void apply(Credit c){known.put(c.eventId(),c);for(Reward r:c.rewards())totals.merge(key(r.citizenId(),r.domain()),r.milliPoints(),Math::addExact);}
  private void recover()throws IOException{
   file.position(0);
