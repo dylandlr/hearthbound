@@ -23,8 +23,9 @@ public final class CitizenMillMemory {
         for (int i = 0; i < jobs.size(); i++) {
             if (job.toString().equals(jobs.getString(i))) return false;
         }
-        // No old job is re-awarded: the durable receipt ledger also enforces
-        // idempotency by job UUID; recent list is for citizen readback only.
+        // This bounded cache only guards recent repeated calls. The authoritative
+        // MillProcessReceipts map prevents a second acceptance for any job UUID.
+        // This is not a durable cross-store transaction with the receipt.
         if (jobs.size() >= MAX_RECENT) jobs.remove(0);
         jobs.add(net.minecraft.nbt.StringTag.valueOf(job.toString()));
         state.put("recentJobs", jobs);
