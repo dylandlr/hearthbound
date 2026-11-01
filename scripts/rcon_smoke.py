@@ -159,7 +159,7 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
         time.sleep(2)
         result = checked("sable mill-inspect 9 100 3", f"milling sample {i}")
         import re
-        flour = re.search(r"\\bflour=(\\d+)", result)
+        flour = re.search(r"\bflour=(\d+)", result)
         if flour and int(flour.group(1)) > 0:
             flour_observed = True
             print("REAL_CREATE_FLOUR_OBSERVED " + result)
