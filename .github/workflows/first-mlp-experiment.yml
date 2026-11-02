@@ -1,0 +1,24 @@
+name: First MLP policy experiment
+on:
+  pull_request:
+    paths:
+      - 'experiments/first-mlp/**'
+      - '.github/workflows/first-mlp-experiment.yml'
+  workflow_dispatch:
+jobs:
+  synthetic-policy-benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install numeric learning dependencies
+        run: pip install numpy 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+      - name: Run reproducible held-out benchmark
+        run: python experiments/first-mlp/policy_experiment.py --output policy-results.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-policy-results
+          path: policy-results.json
