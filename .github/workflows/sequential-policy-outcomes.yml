@@ -1,0 +1,25 @@
+name: Sequential policy outcome comparison
+on:
+  pull_request:
+    paths:
+      - 'experiments/first-mlp/**'
+      - '.github/workflows/sequential-policy-outcomes.yml'
+  workflow_dispatch:
+jobs:
+  outcomes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy 'torch==2.5.1' --index-url https://download.pytorch.org/whl/cpu
+      - name: Test stateful simulator mechanics
+        run: python experiments/first-mlp/test_sequential_rollout.py
+      - name: Compare policies on paired held-out episodes
+        run: python experiments/first-mlp/sequential_rollout.py --episodes 300 --steps 60 --output sequential-results.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sequential-policy-outcomes
+          path: sequential-results.json
