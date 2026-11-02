@@ -196,7 +196,7 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
         memory = checked(
             'data get entity @e[type=minecraft:villager,name=Sable,limit=1] ForgeData."hearthbound.verifiedMillExperience.v1".observedVerifiedProcesses',
             f"citizen experiment memory {i}")
-        if re.search(r"\\bflour=[1-9]\\d*", mill) and re.search(r"\\b1L\\b", memory):
+        if re.search(r"\bflour=[1-9]\d*", mill) and re.search(r"\b1L\b", memory):
             print("REAL_CITIZEN_EXPERIENCE_OBSERVED", audit, mill, memory)
             matched = True
             break
