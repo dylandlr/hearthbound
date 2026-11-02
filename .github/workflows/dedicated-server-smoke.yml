@@ -56,6 +56,39 @@ jobs:
           fi
           echo "Hearthbound mod initialization confirmed"
           python3 scripts/rcon_smoke.py
+          echo "Verifying citizen NBT survives save and dedicated-server restart"
+          python3 scripts/rcon_verify_sable_restart.py checkpoint
+          for i in $(seq 1 60); do
+            if ! kill -0 "$pid" 2>/dev/null; then break; fi
+            sleep 2
+          done
+          if kill -0 "$pid" 2>/dev/null; then
+            echo "First server failed to stop after save-all"
+            exit 1
+          fi
+          wait "$pid" || true
+          mv server-smoke.log server-before-restart.log
+          gradle --no-daemon runServer > server-after-restart.log 2>&1 &
+          pid=$!
+          restarted=0
+          for i in $(seq 1 240); do
+            if grep -Eq 'Done \([0-9.]+s\)! For help, type "help"' server-after-restart.log; then
+              restarted=1
+              break
+            fi
+            if ! kill -0 "$pid" 2>/dev/null; then
+              echo "Server exited during restart"
+              tail -n 120 server-after-restart.log
+              exit 1
+            fi
+            sleep 2
+          done
+          if [ "$restarted" -ne 1 ]; then
+            echo "Server failed to restart"
+            tail -n 120 server-after-restart.log
+            exit 1
+          fi
+          python3 scripts/rcon_verify_sable_restart.py verify
           grep -E 'Hearthbound bootstrap loaded|Done \(' server-smoke.log || true
       - name: Upload startup logs
         if: always()
@@ -64,6 +97,8 @@ jobs:
           name: minecraft-dedicated-server-smoke-logs
           path: |
             server-smoke.log
+            server-before-restart.log
+            server-after-restart.log
             run/logs/latest.log
           if-no-files-found: warn
           retention-days: 14
