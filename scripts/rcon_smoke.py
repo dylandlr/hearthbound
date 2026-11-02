@@ -170,4 +170,37 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
     if not flour_observed:
         raise AssertionError("NO_REAL_CREATE_PRODUCTION: did not observe flour in 180s")
 
+
+    # Separate trial: actual citizen delivery to a clean, reserved Create millstone.
+    # The motor-only run above deliberately earns no research credit or citizen memory.
+    print("Beginning Sable-authored wheat milling trial")
+    checked("setblock 9 100 3 minecraft:air replace", "clear prior machine", "changed the block")
+    checked("setblock 9 100 3 create:millstone replace", "fresh millstone", "changed the block")
+    checked('setblock 8 100 1 minecraft:chest{Items:[{Slot:0b,id:"minecraft:wheat",Count:1b}]} replace',
+            "citizen source chest", "changed the block")
+    checked("tp @e[type=minecraft:villager,name=Sable,limit=1] 7 100 1",
+            "position Sable near the mill", "teleported")
+    assignment = checked(
+        "execute at @e[type=minecraft:villager,name=Sable,limit=1] run sable haul 8 100 1 9 100 3",
+        "Sable mill job assignment")
+    if "Sable assigned wheat haul" not in assignment:
+        raise AssertionError("No authorized Sable mill task: " + assignment)
+    import re
+    matched = False
+    for i in range(90):
+        time.sleep(2)
+        audit = checked(
+            'execute at @e[type=minecraft:villager,name=Sable,limit=1] run sable haul-audit',
+            f"authorized mill audit {i}")
+        mill = checked("sable mill-inspect 9 100 3", f"authorized mill sample {i}")
+        memory = checked(
+            'data get entity @e[type=minecraft:villager,name=Sable,limit=1] ForgeData."hearthbound.verifiedMillExperience.v1".observedVerifiedProcesses',
+            f"citizen experiment memory {i}")
+        if re.search(r"\\bflour=[1-9]\\d*", mill) and re.search(r"\\b1L\\b", memory):
+            print("REAL_CITIZEN_EXPERIENCE_OBSERVED", audit, mill, memory)
+            matched = True
+            break
+    if not matched:
+        raise AssertionError("NO_AUTHORIZED_CITIZEN_MILL_EXPERIENCE: no matching flour and persisted citizen memory within 180 seconds")
+
 print("Hearthbound server commands, entity spawn and wheat hauling verified")
