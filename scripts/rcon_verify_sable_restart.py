@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+"""RCON persistence checkpoint for the same live Minecraft dedicated-server world."""
+import os, socket, struct, sys
+
+HOST, PORT = "127.0.0.1", 25575
+PASSWORD = os.environ["HEARTHBOUND_RCON_PASSWORD"]
+def packet(i, kind, data):
+    body = struct.pack("<ii", i, kind) + data.encode() + b"\0\0"
+    return struct.pack("<i", len(body)) + body
+def exactly(sock, size):
+    out = b""
+    while len(out) < size:
+        chunk = sock.recv(size-len(out))
+        if not chunk: raise ConnectionError("RCON disconnected")
+        out += chunk
+    return out
+def reply(sock):
+    size = struct.unpack("<i", exactly(sock,4))[0]
+    if size < 10 or size > 100000: raise ValueError("invalid RCON length")
+    content = exactly(sock,size)
+    return struct.unpack("<ii",content[:8])[0],content[8:-2].decode(errors="replace")
+def run(sock,i,command):
+    sock.sendall(packet(i,2,command))
+    num,output = reply(sock)
+    if num != i: raise RuntimeError("RCON id mismatch")
+    print(command,output,flush=True)
+    return output
+
+mode=sys.argv[1]
+with socket.create_connection((HOST,PORT),timeout=15) as sock:
+    sock.settimeout(20)
+    sock.sendall(packet(1,3,PASSWORD))
+    rid,_=reply(sock)
+    if rid!=1:rid,_=reply(sock)
+    if rid!=1:raise RuntimeError("RCON authentication failed")
+    if mode=="checkpoint":
+        output=run(sock,2,'data get entity @e[type=minecraft:villager,name=Sable,limit=1] ForgeData."hearthbound.verifiedMillExperience.v1".observedVerifiedProcesses')
+        if "1L" not in output: raise AssertionError("Sable's verified mill experience absent before save")
+        output=run(sock,3,"save-all flush")
+        if "Saved the game" not in output and "Saving" not in output: raise AssertionError("save-all flush did not confirm save")
+        run(sock,4,"stop")
+    elif mode=="verify":
+        run(sock,2,"forceload add 0 0 10 4")
+        output=run(sock,3,'execute if entity @e[type=minecraft:villager,name=Sable]')
+        if "Test passed" not in output:raise AssertionError("Sable missing after restart")
+        output=run(sock,4,'data get entity @e[type=minecraft:villager,name=Sable,limit=1] ForgeData."hearthbound.verifiedMillExperience.v1".observedVerifiedProcesses')
+        if "1L" not in output:raise AssertionError("Sable's verified experience did not persist")
+        print("SABLE_VERIFIED_EXPERIENCE_SURVIVED_REAL_SERVER_RESTART",flush=True)
+    else:raise ValueError("expected checkpoint or verify")
