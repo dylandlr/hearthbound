@@ -280,6 +280,28 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
                                "real partial observation of unsupported source")
     if "state=UNKNOWN" not in observed_unknown or "reason=NO_BLOCK_ENTITY" not in observed_unknown:
         raise AssertionError("Source observer fabricated knowledge of missing inventory: " + observed_unknown)
+    def verify_v2_tensor(response, source_kind):
+        if "observation_schema=hearthbound.mill-observation.v2" not in response:
+            raise AssertionError("Unversioned Minecraft observation: " + response)
+        import re
+        found = re.search(r"\btensor_v2=([0-9.,]+)", response)
+        if not found:
+            raise AssertionError("Missing v2 feature tensor: " + response)
+        values = [float(part) for part in found.group(1).split(",")]
+        if len(values) != 10 or any(not 0 <= value <= 1 for value in values):
+            raise AssertionError("Invalid ten-feature Minecraft observation: " + response)
+        expected = {
+            "EMPTY":(0.0,1.0,0.0),
+            "UNKNOWN":(1.0,0.0,0.0),
+            "AVAILABLE":(0.0,0.0,1.0),
+        }[source_kind]
+        if values[5:8] != list(expected) or values[9] != 0.0:
+            raise AssertionError("Incorrect source knowledge/mask in v2 tensor: " + response)
+        if values[0] != 1.0 or values[1] != 0.0 or values[2] != 0.0:
+            raise AssertionError("Unexpected powered idle-mill features: " + response)
+        print("REAL_OBSERVATION_V2 stage=" + source_kind.lower()
+              + " schema=hearthbound.mill-observation.v2"
+              + " tensor=" + found.group(1))
     empty_plan = checked("hearthbound policy_source_plan 8 100 1 9 100 3",
                          "live source-aware empty planner")
     if "source=EMPTY" not in empty_plan or "action=WAIT_FOR_SUPPLY" not in empty_plan or "EXECUTION_DISABLED" not in empty_plan:
@@ -288,7 +310,9 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
                            "live source-aware unknown planner")
     if "source=UNKNOWN" not in unknown_plan or "action=INSPECT_SOURCE" not in unknown_plan or "EXECUTION_DISABLED" not in unknown_plan:
         raise AssertionError("Source-aware planner fabricated availability: " + unknown_plan)
+    verify_v2_tensor(empty_plan, "EMPTY")
     print("REAL_SOURCE_PLAN stage=empty action=WAIT_FOR_SUPPLY source=EMPTY read_only=true")
+    verify_v2_tensor(unknown_plan, "UNKNOWN")
     print("REAL_SOURCE_PLAN stage=unknown action=INSPECT_SOURCE source=UNKNOWN read_only=true")
     print("REAL_SOURCE_OBSERVATION stage=empty state=EMPTY wheat=0")
     print("REAL_SOURCE_OBSERVATION stage=unknown state=UNKNOWN wheat=0")
@@ -320,6 +344,7 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
                              "live source-aware available planner")
     if "source=AVAILABLE" not in available_plan or "action=REQUEST_WHEAT_HAUL" not in available_plan or "EXECUTION_DISABLED" not in available_plan:
         raise AssertionError("Source-aware planner failed to identify real wheat: " + available_plan)
+    verify_v2_tensor(available_plan, "AVAILABLE")
     print("REAL_SOURCE_PLAN stage=available action=REQUEST_WHEAT_HAUL source=AVAILABLE read_only=true")
     print("REAL_SOURCE_OBSERVATION stage=available state=AVAILABLE wheat=1")
 

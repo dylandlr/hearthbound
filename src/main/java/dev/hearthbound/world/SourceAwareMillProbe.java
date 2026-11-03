@@ -48,6 +48,14 @@ public final class SourceAwareMillProbe {
         var observation=new SourceAwareMillPlanner.Observation(
             mill.getSpeed()!=0,wheat,flour,blocked,state,SableHauling.active(citizen));
         var intent=SourceAwareMillPlanner.decide(observation);
+        var v2=new dev.hearthbound.evidence.MillObservationV2.Snapshot(
+            observation.powered(), wheat, flour, blocked,
+            CitizenMillMemory.observedProcesses(citizen),
+            dev.hearthbound.evidence.MillObservationV2.SourceState.valueOf(state.name()),
+            observation.taskActive(),sourceObservation.tick(),level.getGameTime());
+        double[] features=dev.hearthbound.evidence.MillObservationV2.encode(v2);
+        var tensorText=new java.util.StringJoiner(",");
+        for (double value:features) tensorText.add(Double.toString(value));
         return "SOURCE_PLAN source=" + state + " wheat_source=" + sourceObservation.wheat()
             + " source_reason=" + sourceObservation.reason()
             + " mill_powered=" + observation.powered()
@@ -56,6 +64,9 @@ public final class SourceAwareMillProbe {
             + " action=" + intent + " dispatch_candidate="
             + SourceAwareMillPlanner.dispatchCandidate(intent)
             + " tick=" + level.getGameTime()
-            + " planner=scripted_source_aware_v1 ML_MODEL_UNCHANGED EXECUTION_DISABLED";
+            + " planner=scripted_source_aware_v1"
+            + " observation_schema=" + dev.hearthbound.evidence.MillObservationV2.SCHEMA
+            + " tensor_v2=" + tensorText
+            + " ML_MODEL_UNCHANGED EXECUTION_DISABLED";
     }
 }
