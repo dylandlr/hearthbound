@@ -255,8 +255,8 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
     print("Beginning Sable-authored wheat milling trial")
     checked("setblock 9 100 3 minecraft:air replace", "clear prior machine", "changed the block")
     checked("setblock 9 100 3 create:millstone replace", "fresh millstone", "changed the block")
-    checked('setblock 8 100 1 minecraft:chest{Items:[{Slot:0b,id:"minecraft:wheat",Count:1b}]} replace',
-            "citizen source chest", "changed the block")
+    checked('setblock 8 100 1 minecraft:chest replace',
+            "citizen empty wheat source", "changed the block")
     checked("tp @e[type=minecraft:villager,name=Sable,limit=1] 7 100 1",
             "position Sable near the mill", "teleported")
     # Newly rebuilt Create mill can require a few server ticks for kinetic power.
@@ -270,6 +270,23 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
         time.sleep(1)
     else:
         raise AssertionError("Policy dispatch mill never became powered")
+    # Controlled shortage: no wheat exists in the source chest. This MUST be
+    # rejected by the real server without a new hauling assignment or credit.
+    shortage = checked("hearthbound policy_trial 8 100 1 9 100 3 " + TRIAL_MODE,
+                       "real source shortage rejection")
+    if "Source inventory has no real wheat" not in shortage:
+        raise AssertionError("Missing-wheat trial was not explicitly rejected: " + shortage)
+    idle_audit = checked(
+        'execute at @e[type=minecraft:villager,name=Sable,limit=1] run sable haul-audit',
+        "no new hauling job after shortage")
+    if "status=Haul complete" not in idle_audit:
+        raise AssertionError("Shortage may have created or changed a hauling task: " + idle_audit)
+    print("REAL_POLICY_TRIAL_REJECTION mode=" + TRIAL_MODE
+          + " reason=SOURCE_NO_WHEAT dispatched=false"
+          + " credit=0 existing_job_unchanged=true")
+    checked('setblock 8 100 1 minecraft:chest{Items:[{Slot:0b,id:"minecraft:wheat",Count:1b}]} replace',
+            "restored trial source wheat", "changed the block")
+
     before_time = checked("time query gametime", "trial start server game time")
     start_time_values = re.findall(r"\d+", before_time)
     if not start_time_values:
