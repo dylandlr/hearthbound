@@ -158,7 +158,7 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
         # responses here, then emit one compact, parseable evidence record.
         def value(text, key):
             import re
-            found = re.search(r"(?:^|\\s)" + re.escape(key) + r"=([^\\s]+)", text)
+            found = re.search(r"(?:^|\s)" + re.escape(key) + r"=([^\s]+)", text)
             if not found:
                 raise AssertionError("Missing shadow field " + key + ": " + text)
             return found.group(1)
