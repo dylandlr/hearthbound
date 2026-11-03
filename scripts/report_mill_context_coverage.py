@@ -46,9 +46,14 @@ def main():
     p.add_argument("scripted",type=Path)
     p.add_argument("trained",type=Path)
     p.add_argument("--output",type=Path,default=Path("real-mill-context-coverage.json"))
+    p.add_argument("--synthetic-fixture",action="store_true",help="Label non-Minecraft unit-test inputs explicitly")
     args=p.parse_args()
     report=parse(args.scripted.read_text()+"\n"+args.trained.read_text())
+    if args.synthetic_fixture:
+        report["origin"]="SYNTHETIC_FIXTURE_ONLY"
+        report["distinct_measured_contexts"]=0
+        report["simulation_fixture_testing_only"]=True
     args.output.write_text(json.dumps(report,indent=2,sort_keys=True)+"\n")
-    print("VERIFIED_REAL_MILL_CONTEXT_COVERAGE",json.dumps(report,sort_keys=True))
+    print("SYNTHETIC_MILL_CONTEXT_CHECK" if args.synthetic_fixture else "VERIFIED_REAL_MILL_CONTEXT_COVERAGE",json.dumps(report,sort_keys=True))
 if __name__=="__main__":
     main()
