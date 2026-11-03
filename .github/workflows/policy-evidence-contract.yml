@@ -9,6 +9,8 @@ on:
       - 'scripts/test_report_policy_trial.py'
       - 'scripts/test_evidence_workflow_wiring.py'
       - '.github/workflows/dedicated-server-smoke.yml'
+      - 'scripts/report_source_plans.py'
+      - 'scripts/test_report_source_plans.py'
       - 'scripts/report_source_observations.py'
       - 'scripts/test_report_source_observations.py'
       - 'scripts/report_policy_rejection.py'
@@ -32,6 +34,7 @@ jobs:
       - name: Verify Python syntax and strict evidence parsing
         run: |
           python -m py_compile scripts/rcon_smoke.py scripts/report_live_shadow.py scripts/compare_real_policy_trials.py scripts/build_minecraft_experience.py scripts/aggregate_minecraft_experience.py scripts/report_policy_rejection.py scripts/report_source_observations.py
+          python scripts/test_report_source_plans.py
           python scripts/test_evidence_workflow_wiring.py
           python scripts/test_report_source_observations.py
           python scripts/test_report_policy_rejection.py
