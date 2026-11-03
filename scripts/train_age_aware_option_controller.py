@@ -93,6 +93,8 @@ class DelayedWorld:
             raise ValueError("Invalid delay configuration")
         self.samples=deque()
         self.forced_current=None
+        self.last_sample_step=None
+        self.last_sample=None
         self.memory=Memory()
         self.rejections=0
         self.refreshes=0
@@ -101,6 +103,9 @@ class DelayedWorld:
         self.colony=0.
         self.events=[]
     def sense(self):
+        if self.last_sample_step==self.world.steps:
+            sample=self.last_sample
+            return sample[1],self.world.steps-sample[0]
         # A sample has an immutable collection step; age is public to
         # the controller, whereas current inventory remains supervisor-only.
         if self.forced_current is not None:
@@ -109,6 +114,8 @@ class DelayedWorld:
         else:
             self.samples.append((self.world.steps,self.world.vector()))
             sample=self.samples[max(0,len(self.samples)-1-self.delay)]
+        self.last_sample_step=self.world.steps
+        self.last_sample=sample
         age=self.world.steps-sample[0]
         return sample[1],age
     def act(self,choice,low,obs,age,record=False):
@@ -182,13 +189,11 @@ def train(seed,low,episodes=520):
             valid=option_mask(observed)
             options=[i for i,v in enumerate(valid) if v]
             action=r.choice(options) if r.random()<epsilon else select(online,x,valid)
+            rejected_before=world.rejections
             reward_total,done,_=world.act(action,low,observed,age)
-            # Penalize rejected stale proposals in the *training* objective.
-            # This is separate from the unmodified reported world rewards.
-            penalty=.18 if world.events and world.events[-1].get("supervisor_rejected") else 0.
-            # No record() in training, so calculate per-step rejections directly.
-            # Use counter difference to avoid using privileged world state for
-            # action selection or leak a label into the next observation.
+            # Penalize rejected stale proposals only in the TD training target.
+            # The original environment's personal/colony reward stays intact.
+            penalty=.18 if world.rejections>rejected_before else 0.
             nx_observed,nx_age=world.sense()
             nx=world.memory.encode(nx_observed,nx_age)
             next_mask=option_mask(nx_observed)
