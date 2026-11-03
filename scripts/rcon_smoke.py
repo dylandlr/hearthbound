@@ -8,6 +8,9 @@ import time
 HOST = "127.0.0.1"
 PORT = 25575
 PASSWORD = os.environ["HEARTHBOUND_RCON_PASSWORD"]
+TRIAL_MODE = os.environ.get("HEARTHBOUND_TRIAL_MODE", "TRAINED_MLP").upper()
+if TRIAL_MODE not in ("SCRIPTED", "TRAINED_MLP"):
+    raise ValueError("HEARTHBOUND_TRIAL_MODE must be SCRIPTED or TRAINED_MLP")
 
 def packet(request_id, packet_type, payload):
     body = struct.pack("<ii", request_id, packet_type) + payload.encode() + b"\x00\x00"
@@ -242,12 +245,17 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
         time.sleep(1)
     else:
         raise AssertionError("Policy dispatch mill never became powered")
+    before_time = checked("time query gametime", "trial start server game time")
+    start_time_values = re.findall(r"\d+", before_time)
+    if not start_time_values:
+        raise AssertionError("No authoritative Minecraft start game time: " + before_time)
+    trial_start_tick = int(start_time_values[-1])
     assignment = checked(
-        "hearthbound policy_trial 8 100 1 9 100 3 TRAINED_MLP",
-        "trained MLP one-shot hauling dispatch")
-    if "POLICY_TRIAL_ASSIGNED" not in assignment or "mode=TRAINED_MLP" not in assignment:
-        raise AssertionError("Trained MLP did not dispatch authorized Sable task: " + assignment)
-    print("REAL_MLP_SELECTED_SABLE_HAUL", assignment)
+        "hearthbound policy_trial 8 100 1 9 100 3 " + TRIAL_MODE,
+        "one-shot policy hauling dispatch " + TRIAL_MODE)
+    if "POLICY_TRIAL_ASSIGNED" not in assignment or ("mode=" + TRIAL_MODE) not in assignment:
+        raise AssertionError("Policy did not dispatch authorized Sable task: " + assignment)
+    print("REAL_POLICY_SELECTED_SABLE_HAUL mode=" + TRIAL_MODE, assignment)
     import re
     matched = False
     for i in range(90):
@@ -267,6 +275,18 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
                 raise AssertionError("Trained MLP did not load for experienced citizen: " + probe)
             if "experience=1" not in probe or "policy=scripted_reference" not in probe:
                 raise AssertionError("Live policy probe cannot observe verified Sable experience: " + probe)
+            end_time = checked("time query gametime", "trial completed server game time")
+            end_time_values = re.findall(r"\d+", end_time)
+            if not end_time_values:
+                raise AssertionError("No authoritative Minecraft completion game time: " + end_time)
+            elapsed = int(end_time_values[-1]) - trial_start_tick
+            if elapsed < 0:
+                raise AssertionError("World game time decreased during policy experiment")
+            print("REAL_POLICY_TRIAL_RESULT mode=" + TRIAL_MODE
+                  + " completion=1 elapsed_ticks=" + str(elapsed)
+                  + " verified_experience=1 flour_observed=1"
+                  + " executor=SableHauling")
+
             results=compare_shadow("citizen_experienced", "COLLECT_OUTPUT")
             for value in results.values():
                 if "experience=1" not in value:
