@@ -33,6 +33,7 @@ jobs:
           python3 scripts/test_report_policy_trial.py
           python3 scripts/test_report_live_shadow.py
           python3 scripts/test_rcon_frames.py
+          python3 scripts/test_validate_live_perception_receipts.py
       - name: Resolve and compile Forge dependencies before startup clock
         shell: bash
         run: |
@@ -106,6 +107,20 @@ jobs:
           python3 scripts/report_source_observations.py smoke-rcon.log --output source-observations.json
           python3 scripts/report_source_plans.py smoke-rcon.log --output source-plans.json
           python3 scripts/report_observation_v2.py smoke-rcon.log --output observation-v2.json
+          echo "Verifying actual read-only Forge source receipt transitions by RCON"
+          python3 scripts/rcon_perception_acceptance.py | tee real-perception-rcon.log
+          python3 scripts/validate_live_perception_receipts.py             real-perception-receipts.txt --output real-perception-validated.json
+          python3 - <<'PY'
+          import json
+          a=json.load(open("real-perception-acceptance.json"))
+          b=json.load(open("real-perception-validated.json"))
+          assert a["origin"]=="REAL_FORGE_RCON"
+          assert a["verified_events"]==b["receipts"]==3
+          assert [e["state"] for e in a["states"]]==["EMPTY","AVAILABLE","EMPTY"]
+          assert a["camera_frames_captured"]==0 and a["neural_learning_performed"] is False
+          assert b["task_execution_authorized"] is False
+          print("VERIFIED_REAL_PERCEPTION_ACCEPTANCE read_only=true transitions=3")
+          PY
           echo "Verifying citizen NBT survives save and dedicated-server restart"
           python3 scripts/rcon_verify_sable_restart.py checkpoint
           for i in $(seq 1 60); do
@@ -155,6 +170,10 @@ jobs:
             server-after-restart.log
             run/logs/latest.log
             smoke-rcon.log
+            real-perception-rcon.log
+            real-perception-receipts.txt
+            real-perception-acceptance.json
+            real-perception-validated.json
             live-shadow-report.json
             policy-trial-result.json
             policy-rejection.json
