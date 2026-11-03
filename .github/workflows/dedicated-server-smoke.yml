@@ -39,6 +39,12 @@ jobs:
             fi
             echo "FORGE_PREFLIGHT_ATTEMPT_FAILED attempt=$attempt"
             tail -n 65 forge-preflight.log
+            # A Java compilation error is deterministic: retries cannot
+            # repair source. Only retry intermittent dependency/network issues.
+            if grep -Eq '(^|[[:space:]])[[:alnum:]_./-]+\\.java:[0-9]+: error:|Compilation failed; see the compiler error output' forge-preflight.log; then
+              echo "FORGE_SOURCE_COMPILATION_FAILURE"
+              exit 1
+            fi
             if [ "$attempt" -eq 3 ]; then
               echo "FORGE_DEPENDENCY_OR_COMPILATION_FAILURE"
               exit 1
