@@ -173,6 +173,8 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
             raise AssertionError("Policy probe unexpectedly attempted execution: " + probe)
         if "action=REQUEST_WHEAT_HAUL" in probe and "powered=true" in probe:
             power_ready = True
+            if "mlp_action=REQUEST_WHEAT_HAUL" not in probe or "ML_INFERENCE_READ_ONLY" not in probe:
+                raise AssertionError("Trained MLP disagrees with empty powered mill: " + probe)
             print("LIVE_CREATE_POWER_CONFIRMED " + probe)
             break
         if "action=INSPECT_UNPOWERED" not in probe or "powered=false" not in probe:
@@ -197,6 +199,8 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
     probe = checked("hearthbound policy_probe 9 100 3", "finished mill policy probe")
     if "action=COLLECT_OUTPUT" not in probe:
         raise AssertionError("Live policy probe did not recognize finished Create product: " + probe)
+    if "mlp_action=COLLECT_OUTPUT" not in probe or "ML_INFERENCE_READ_ONLY" not in probe:
+        raise AssertionError("Trained MLP failed to recognize finished output: " + probe)
 
 
 
@@ -229,6 +233,8 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
             print("REAL_CITIZEN_EXPERIENCE_OBSERVED", audit, mill, memory)
             probe = checked("hearthbound policy_probe 9 100 3",
                             "live trained-policy input probe after verified citizen experiment")
+            if "mlp_action=COLLECT_OUTPUT" not in probe or "model=mill-mlp-v1" not in probe:
+                raise AssertionError("Trained MLP did not load for experienced citizen: " + probe)
             if "experience=1" not in probe or "policy=scripted_reference" not in probe:
                 raise AssertionError("Live policy probe cannot observe verified Sable experience: " + probe)
 
