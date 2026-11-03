@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'src/main/java/dev/hearthbound/evidence/MillMlpInference.java'
+      - 'src/main/java/dev/hearthbound/evidence/MillPolicyShadow.java'
+      - 'src/test/java/dev/hearthbound/evidence/MillPolicyShadowTest.java'
       - 'src/test/java/dev/hearthbound/evidence/MillMlpInferenceTest.java'
       - 'src/main/resources/hearthbound/policy/**'
       - '.github/workflows/trained-mill-mlp.yml'
@@ -21,6 +23,10 @@ jobs:
           mkdir -p /tmp/hb-mlp
           javac --release 17 -d /tmp/hb-mlp \
             src/main/java/dev/hearthbound/evidence/MillMlpInference.java \
-            src/test/java/dev/hearthbound/evidence/MillMlpInferenceTest.java
+            src/main/java/dev/hearthbound/evidence/MillPolicyShadow.java \
+            src/test/java/dev/hearthbound/evidence/MillMlpInferenceTest.java \
+            src/test/java/dev/hearthbound/evidence/MillPolicyShadowTest.java
           java -cp /tmp/hb-mlp:src/main/resources \
             dev.hearthbound.evidence.MillMlpInferenceTest
+          java -cp /tmp/hb-mlp:src/main/resources \
+            dev.hearthbound.evidence.MillPolicyShadowTest
