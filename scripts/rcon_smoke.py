@@ -231,11 +231,23 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
             "citizen source chest", "changed the block")
     checked("tp @e[type=minecraft:villager,name=Sable,limit=1] 7 100 1",
             "position Sable near the mill", "teleported")
+    # Newly rebuilt Create mill can require a few server ticks for kinetic power.
+    for ready_attempt in range(45):
+        observed = checked("hearthbound policy_probe 9 100 3",
+                           f"policy dispatch power check {ready_attempt}")
+        if "powered=true" in observed and "action=REQUEST_WHEAT_HAUL" in observed:
+            break
+        if "powered=false" not in observed:
+            raise AssertionError("Unexpected live world state before policy dispatch: "+observed)
+        time.sleep(1)
+    else:
+        raise AssertionError("Policy dispatch mill never became powered")
     assignment = checked(
-        "execute at @e[type=minecraft:villager,name=Sable,limit=1] run sable haul 8 100 1 9 100 3",
-        "Sable mill job assignment")
-    if "Sable assigned wheat haul" not in assignment:
-        raise AssertionError("No authorized Sable mill task: " + assignment)
+        "hearthbound policy_trial 8 100 1 9 100 3 TRAINED_MLP",
+        "trained MLP one-shot hauling dispatch")
+    if "POLICY_TRIAL_ASSIGNED" not in assignment or "mode=TRAINED_MLP" not in assignment:
+        raise AssertionError("Trained MLP did not dispatch authorized Sable task: " + assignment)
+    print("REAL_MLP_SELECTED_SABLE_HAUL", assignment)
     import re
     matched = False
     for i in range(90):
