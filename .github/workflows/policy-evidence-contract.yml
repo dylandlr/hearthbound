@@ -1,0 +1,28 @@
+name: Minecraft policy evidence contracts
+on:
+  pull_request:
+    paths:
+      - 'scripts/rcon_smoke.py'
+      - 'scripts/report_live_shadow.py'
+      - 'scripts/test_report_live_shadow.py'
+      - 'scripts/report_policy_trial.py'
+      - 'scripts/test_report_policy_trial.py'
+      - 'scripts/compare_real_policy_trials.py'
+      - 'scripts/test_compare_real_policy_trials.py'
+      - '.github/workflows/policy-evidence-contract.yml'
+  workflow_dispatch:
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify Python syntax and strict evidence parsing
+        run: |
+          python -m py_compile scripts/rcon_smoke.py scripts/report_live_shadow.py scripts/compare_real_policy_trials.py
+          python scripts/test_report_live_shadow.py
+          python scripts/test_report_policy_trial.py
+          python scripts/test_compare_real_policy_trials.py
+          python scripts/test_rcon_frames.py

@@ -154,9 +154,34 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
             if "selected_action=" + expected not in output:
                 raise AssertionError("Unexpected " + mode + " on " + stage + ": " + output)
             results[mode] = output
+        # GitHub truncates very long console lines. Audit both full RCON
+        # responses here, then emit one compact, parseable evidence record.
+        def value(text, key):
+            import re
+            found = re.search(r"(?:^|\s)" + re.escape(key) + r"=([^\s]+)", text)
+            if not found:
+                raise AssertionError("Missing shadow field " + key + ": " + text)
+            return found.group(1)
+        for field in ("citizen", "pos", "powered", "wheat", "flour", "blocked", "experience"):
+            if value(results["SCRIPTED"], field) != value(results["TRAINED_MLP"], field):
+                raise AssertionError("Shadow policies observed different " + field)
+        for mode,output in results.items():
+            if value(output, "selected_action") != expected or value(output,"shadow_mode") != mode:
+                raise AssertionError("Invalid shadow result: " + output)
+        trained=results["TRAINED_MLP"]
         print("LIVE_SHADOW_PAIR stage=" + stage + " expected=" + expected
-              + " scripted=" + results["SCRIPTED"]
-              + " trained=" + results["TRAINED_MLP"])
+              + " scripted=" + value(results["SCRIPTED"], "selected_action")
+              + " trained=" + value(trained, "selected_action")
+              + " raw_mlp=" + value(trained,"mlp_action")
+              + " citizen=" + value(trained,"citizen")
+              + " powered=" + value(trained,"powered")
+              + " wheat=" + value(trained,"wheat")
+              + " flour=" + value(trained,"flour")
+              + " blocked=" + value(trained,"blocked")
+              + " experience=" + value(trained,"experience")
+              + " disagreement=" + value(trained,"model_disagreement")
+              + " masked=" + value(trained,"action_masked")
+              + " read_only=true")
         return results
 
     # Experimental real Create processing probe (separate from citizen learning).
