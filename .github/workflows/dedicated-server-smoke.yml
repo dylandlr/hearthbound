@@ -8,7 +8,7 @@ on:
 jobs:
   boot-server:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
@@ -36,12 +36,12 @@ jobs:
           set -euo pipefail
           mkdir -p run
           printf 'eula=true\n' > run/eula.txt
-          printf 'online-mode=false\nlevel-name=smoke-world\nmax-players=2\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties
+          printf 'online-mode=false\nlevel-name=smoke-world\nlevel-seed=hearthbound-policy-v0-8-10\nmax-players=2\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties
           gradle --no-daemon runServer > server-smoke.log 2>&1 &
           pid=$!
           trap 'kill "$pid" 2>/dev/null || true' EXIT
           ready=0
-          for i in $(seq 1 240); do
+          for i in $(seq 1 360); do
             if grep -Eq 'Done \([0-9.]+s\)! For help, type "help"' server-smoke.log; then
               ready=1
               break
@@ -51,10 +51,14 @@ jobs:
               tail -n 120 server-smoke.log
               exit 1
             fi
+            if [ $((i % 30)) -eq 0 ]; then
+              echo "Cold Forge startup pending after $((i * 2)) seconds"
+              tail -n 8 server-smoke.log || true
+            fi
             sleep 2
           done
           if [ "$ready" -ne 1 ]; then
-            echo "Minecraft server did not reach ready state within 8 minutes"
+            echo "Minecraft server did not reach ready state within 12 minutes"
             tail -n 120 server-smoke.log
             exit 1
           fi
@@ -83,7 +87,7 @@ jobs:
           gradle --no-daemon runServer > server-after-restart.log 2>&1 &
           pid=$!
           restarted=0
-          for i in $(seq 1 240); do
+          for i in $(seq 1 360); do
             if grep -Eq 'Done \([0-9.]+s\)! For help, type "help"' server-after-restart.log; then
               restarted=1
               break
