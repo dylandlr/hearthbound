@@ -24,6 +24,7 @@ jobs:
           gradle-version: '8.8'
       - name: Validate evidence parser and RCON framing
         run: |
+          python3 scripts/test_report_policy_trial.py
           python3 scripts/test_report_live_shadow.py
           python3 scripts/test_rcon_frames.py
       - name: Start a disposable Forge dedicated server
