@@ -70,7 +70,7 @@ jobs:
             simulated-neural-q-java-weights.txt synthetic-source-states.log TRAINED_MLP | tee synthetic-context-trained.log
           python scripts/report_mill_context_coverage.py \
             synthetic-context-scripted.log synthetic-context-trained.log \
-            --output synthetic-mill-context-check.json
+            --output synthetic-mill-context-check.json --synthetic-fixture
       - uses: actions/upload-artifact@v4
         with:
           name: simulator-neural-q-java-parity
