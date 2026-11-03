@@ -109,6 +109,13 @@ def main():
         if not empty["tick"]<=stocked["tick"]<=emptied["tick"]:
             raise AssertionError("Nonmonotonic server ticks")
 
+        # Real private citizen memory must reflect the last verified
+        # server observation, without authorizing an inventory operation.
+        memory=command("hearthbound knowledge_source 6 100 2")
+        for token in ("status=KNOWN", "state=EMPTY", "wheat=0",
+                      "origin=DIRECT_FORGE_OBSERVATION", "action_authorized=false"):
+            if token not in memory:
+                raise AssertionError("Citizen memory mismatch: "+memory)
         verified=validate_lines(RECEIPTS)
         if verified["receipts"]!=3 or verified["distinct_sources"]!=1:
             raise AssertionError("Incomplete live receipt chain")
@@ -118,6 +125,24 @@ def main():
         removed=command("hearthbound perception_unwatch 6 100 2")
         if "removed=true" not in removed:
             raise AssertionError("Source watch not removed")
+        # Stop the watch; its last-known observation must age rather than
+        # magically updating from server truth. Poll actual server game ticks.
+        stale=None
+        for _ in range(85):
+            value=command("hearthbound knowledge_source 6 100 2")
+            if "status=KNOWN" in value and "freshness=STALE" in value:
+                stale=value
+                break
+            time.sleep(0.2)
+        if stale is None:
+            raise AssertionError("Last-known knowledge failed to become stale after unwatch")
+        if "state=EMPTY" not in stale or "wheat=0" not in stale:
+            raise AssertionError("Stale observation lost its last-known state: "+stale)
+        if "action_authorized=false" not in stale:
+            raise AssertionError("Stale memory acquired execution authority: "+stale)
+        missing=command("hearthbound knowledge_source 7 100 2")
+        if "status=UNKNOWN" not in missing or "action_authorized=false" not in missing:
+            raise AssertionError("Unobserved source unexpectedly known: "+missing)
         # Main thread sampling remains passive; independently collected RCON
         # state is only an acceptance fixture, NOT neural-model input.
         Path("real-perception-receipts.txt").write_text("\n".join(RECEIPTS)+"\n")

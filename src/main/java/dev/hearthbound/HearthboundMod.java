@@ -64,6 +64,24 @@ public final class HearthboundMod {
                                 ctx.getSource().sendSuccess(() -> Component.literal(result),false);
                                 return 1;
                             }))
+                    .then(Commands.literal("knowledge_source")
+                            .requires(source -> source.hasPermission(2))
+                            .then(Commands.argument("source", BlockPosArgument.blockPos())
+                                .executes(ctx -> {
+                                    var level=ctx.getSource().getLevel();
+                                    var pos=BlockPosArgument.getBlockPos(ctx,"source");
+                                    var citizens=level.getEntitiesOfClass(
+                                        net.minecraft.world.entity.npc.Villager.class,
+                                        new net.minecraft.world.phys.AABB(pos).inflate(16),
+                                        citizen -> "Sable".equals(citizen.getName().getString())
+                                            && citizen.getPersistentData().getBoolean("hearthbound.sable"));
+                                    String result=citizens.size()==1
+                                        ? dev.hearthbound.world.CitizenSourceKnowledge.inspect(
+                                            level,pos,citizens.get(0))
+                                        : "CITIZEN_KNOWLEDGE status=ABSTAIN reason=REQUIRES_ONE_MARKED_SABLE action_authorized=false";
+                                    ctx.getSource().sendSuccess(() -> Component.literal(result),false);
+                                    return 1;
+                                })))
                     .then(Commands.literal("perception_receipts")
                             .requires(source -> source.hasPermission(2))
                             .executes(ctx -> {
