@@ -140,6 +140,22 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
 
 
 
+    # Shared read-only comparison of both policy modes on one real server state.
+    def compare_shadow(stage, expected):
+        results = {}
+        for mode in ("SCRIPTED", "TRAINED_MLP"):
+            output = checked("hearthbound policy_shadow 9 100 3 " + mode,
+                             stage + " " + mode + " shadow")
+            if ("shadow_mode=" + mode) not in output or "EXECUTION_DISABLED" not in output:
+                raise AssertionError("Invalid live shadow observation " + stage + ": " + output)
+            if "selected_action=" + expected not in output:
+                raise AssertionError("Unexpected " + mode + " on " + stage + ": " + output)
+            results[mode] = output
+        print("LIVE_SHADOW_PAIR stage=" + stage + " expected=" + expected
+              + " scripted=" + results["SCRIPTED"]
+              + " trained=" + results["TRAINED_MLP"])
+        return results
+
     # Experimental real Create processing probe (separate from citizen learning).
     # Motor -> vertical shaft -> millstone. Failure must fail CI, not be called success.
     print("Beginning powered millstone wheat-to-flour acceptance probe")
@@ -175,15 +191,7 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
             power_ready = True
             if "mlp_action=REQUEST_WHEAT_HAUL" not in probe or "ML_INFERENCE_READ_ONLY" not in probe:
                 raise AssertionError("Trained MLP disagrees with empty powered mill: " + probe)
-            scripted_shadow=checked("hearthbound policy_shadow 9 100 3 SCRIPTED",
-                                    "scripted live shadow")
-            learned_shadow=checked("hearthbound policy_shadow 9 100 3 TRAINED_MLP",
-                                   "trained live shadow")
-            for result,mode in ((scripted_shadow,"SCRIPTED"),(learned_shadow,"TRAINED_MLP")):
-                if "shadow_mode="+mode not in result or "selected_action=REQUEST_WHEAT_HAUL" not in result:
-                    raise AssertionError("Shadow mode live disagreement: " + result)
-                if "EXECUTION_DISABLED" not in result:
-                    raise AssertionError("Shadow test was not read-only: " + result)
+            compare_shadow("empty_powered", "REQUEST_WHEAT_HAUL")
             print("LIVE_CREATE_POWER_CONFIRMED " + probe)
             break
         if "action=INSPECT_UNPOWERED" not in probe or "powered=false" not in probe:
@@ -210,6 +218,7 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
         raise AssertionError("Live policy probe did not recognize finished Create product: " + probe)
     if "mlp_action=COLLECT_OUTPUT" not in probe or "ML_INFERENCE_READ_ONLY" not in probe:
         raise AssertionError("Trained MLP failed to recognize finished output: " + probe)
+    compare_shadow("output_ready", "COLLECT_OUTPUT")
 
 
 
@@ -246,6 +255,10 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
                 raise AssertionError("Trained MLP did not load for experienced citizen: " + probe)
             if "experience=1" not in probe or "policy=scripted_reference" not in probe:
                 raise AssertionError("Live policy probe cannot observe verified Sable experience: " + probe)
+            results=compare_shadow("citizen_experienced", "COLLECT_OUTPUT")
+            for value in results.values():
+                if "experience=1" not in value:
+                    raise AssertionError("Shadow policy did not read persistent experience: " + value)
 
             matched = True
             break
