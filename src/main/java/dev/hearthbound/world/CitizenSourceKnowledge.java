@@ -23,6 +23,12 @@ public final class CitizenSourceKnowledge {
 
     private CitizenSourceKnowledge() {}
 
+    public static boolean isCitizen(Villager citizen) {
+        return citizen != null &&
+            (citizen.getPersistentData().getBoolean("hearthbound.sable")
+             || citizen.getPersistentData().getBoolean("hearthbound.citizen"));
+    }
+
     private static String key(ServerLevel level, BlockPos source) {
         return level.dimension().location().toString() + "|" +
             source.getX() + "," + source.getY() + "," + source.getZ();
@@ -36,7 +42,7 @@ public final class CitizenSourceKnowledge {
         if (snapshot.state() == SourceWheatObservation.State.UNKNOWN ||
                 snapshot.tick() != level.getGameTime() ||
                 !observer.level().dimension().equals(level.dimension()) ||
-                !observer.getPersistentData().getBoolean("hearthbound.sable") ||
+                !isCitizen(observer) ||
                 !"OBSERVED".equals(snapshot.reason()) ||
                 !level.hasChunkAt(source) ||
                 observer.distanceToSqr(source.getX() + 0.5, source.getY() + 0.5,
@@ -80,8 +86,7 @@ public final class CitizenSourceKnowledge {
      */
     static CompoundTag directEvidence(ServerLevel level, BlockPos source, Villager citizen) {
         if (level == null || source == null || citizen == null ||
-            !(citizen.getPersistentData().getBoolean("hearthbound.sable") ||
-              citizen.getPersistentData().getBoolean("hearthbound.citizen")) ||
+            !isCitizen(citizen) ||
             citizen.level() != level)
             return null;
         ListTag entries = citizen.getPersistentData().getCompound(ROOT)
@@ -102,7 +107,7 @@ public final class CitizenSourceKnowledge {
         String prefix = "CITIZEN_KNOWLEDGE schema=" + SCHEMA
             + " citizen=" + citizen.getUUID()
             + " source=" + key(level, source);
-        if (!citizen.getPersistentData().getBoolean("hearthbound.sable"))
+        if (!isCitizen(citizen))
             return prefix + " status=DENIED reason=UNMARKED_CITIZEN action_authorized=false";
         ListTag entries = citizen.getPersistentData().getCompound(ROOT)
             .getList(ENTRIES, Tag.TAG_COMPOUND);
