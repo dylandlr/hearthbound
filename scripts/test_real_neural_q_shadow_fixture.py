@@ -25,6 +25,11 @@ def make():
                      f"schema=hearthbound.mill-observation.v2 tensor={VECTORS[stage]}")
         lines.append(f"REAL_SOURCE_PLAN stage={stage} action={action} "
                      f"source={state} read_only=true")
+    # Synthetic, not actual-game, coverage for unsupported Create states.
+    lines.append("REAL_MILL_CONTEXT stage=unpowered reference=INSPECT_UNPOWERED "
+                 "tensor=0,0,0,0,0,1,0,0,0,0 read_only=true")
+    lines.append("REAL_MILL_CONTEXT stage=output_ready reference=COLLECT_OUTPUT "
+                 "tensor=1,0,1,0,0,1,0,0,0,0 read_only=true")
     return "\n".join(lines)+"\n"
 def main():
     p=argparse.ArgumentParser()

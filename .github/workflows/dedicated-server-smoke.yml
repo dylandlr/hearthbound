@@ -195,6 +195,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python3 scripts/test_report_mill_context_coverage.py
           python3 scripts/test_report_real_neural_q_shadow.py
           python3 scripts/train_simulated_mill_neural_q.py \
             --seed 11 --episodes 300 --heldout 80 \
@@ -207,7 +208,10 @@ jobs:
           mkdir -p /tmp/hb-neural-q
           javac --release 17 -d /tmp/hb-neural-q \
             src/test/java/dev/hearthbound/evidence/SimulatedNeuralQParity.java \
-            src/test/java/dev/hearthbound/evidence/RealMinecraftNeuralQShadow.java
+            src/test/java/dev/hearthbound/evidence/RealMinecraftNeuralQShadow.java \
+            src/main/java/dev/hearthbound/evidence/NeuralQContextGate.java \
+            src/test/java/dev/hearthbound/evidence/RealMinecraftNeuralQContextReplay.java \
+            src/test/java/dev/hearthbound/evidence/NeuralQContextGateTest.java
           java -cp /tmp/hb-neural-q dev.hearthbound.evidence.SimulatedNeuralQParity \
             simulated-shadow-java-weights.txt simulated-shadow-python-fixtures.txt
           java -cp /tmp/hb-neural-q dev.hearthbound.evidence.RealMinecraftNeuralQShadow \
@@ -219,6 +223,16 @@ jobs:
           python3 scripts/report_real_neural_q_shadow.py \
             neural-shadow-scripted.log neural-shadow-trained.log \
             --output real-neural-q-shadow.json
+          java -cp /tmp/hb-neural-q dev.hearthbound.evidence.NeuralQContextGateTest
+          java -cp /tmp/hb-neural-q dev.hearthbound.evidence.RealMinecraftNeuralQContextReplay \
+            simulated-shadow-java-weights.txt \
+            policy-trials/minecraft-policy-trial-SCRIPTED/smoke-rcon.log SCRIPTED | tee mill-context-scripted.log
+          java -cp /tmp/hb-neural-q dev.hearthbound.evidence.RealMinecraftNeuralQContextReplay \
+            simulated-shadow-java-weights.txt \
+            policy-trials/minecraft-policy-trial-TRAINED_MLP/smoke-rcon.log TRAINED_MLP | tee mill-context-trained.log
+          python3 scripts/report_mill_context_coverage.py \
+            mill-context-scripted.log mill-context-trained.log \
+            --output real-mill-context-coverage.json
       - uses: actions/upload-artifact@v4
         with:
           name: minecraft-policy-comparison
@@ -226,5 +240,6 @@ jobs:
             policy-comparison.json
             minecraft-experience-dataset.json
             real-neural-q-shadow.json
+            real-mill-context-coverage.json
             simulated-shadow-checkpoint.json
           if-no-files-found: error
