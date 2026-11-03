@@ -284,7 +284,7 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
         if "observation_schema=hearthbound.mill-observation.v2" not in response:
             raise AssertionError("Unversioned Minecraft observation: " + response)
         import re
-        found = re.search(r"\\btensor_v2=([0-9.,]+)", response)
+        found = re.search(r"\btensor_v2=([0-9.,]+)", response)
         if not found:
             raise AssertionError("Missing v2 feature tensor: " + response)
         values = [float(part) for part in found.group(1).split(",")]
