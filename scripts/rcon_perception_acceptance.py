@@ -109,6 +109,13 @@ def main():
         if not empty["tick"]<=stocked["tick"]<=emptied["tick"]:
             raise AssertionError("Nonmonotonic server ticks")
 
+        # Real private citizen memory must reflect the last verified
+        # server observation, without authorizing an inventory operation.
+        memory=command("hearthbound knowledge_source 6 100 2")
+        for token in ("status=KNOWN", "state=EMPTY", "wheat=0",
+                      "origin=DIRECT_FORGE_OBSERVATION", "action_authorized=false"):
+            if token not in memory:
+                raise AssertionError("Citizen memory mismatch: "+memory)
         verified=validate_lines(RECEIPTS)
         if verified["receipts"]!=3 or verified["distinct_sources"]!=1:
             raise AssertionError("Incomplete live receipt chain")
