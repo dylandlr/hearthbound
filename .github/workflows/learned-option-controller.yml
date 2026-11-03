@@ -1,0 +1,53 @@
+name: Learned high-level option controller
+on:
+  pull_request:
+    paths:
+      - 'scripts/train_learned_option_controller.py'
+      - 'scripts/test_train_learned_option_controller.py'
+      - '.github/workflows/learned-option-controller.yml'
+  workflow_dispatch:
+jobs:
+  learned-options:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify reward-trained option selection and baseline parity
+        run: |
+          python3 -m py_compile scripts/train_learned_option_controller.py scripts/test_train_learned_option_controller.py
+          python3 scripts/test_train_learned_option_controller.py
+      - name: Train and compare four policy arms on same heldout simulator seeds
+        run: |
+          python3 scripts/train_learned_option_controller.py \
+            --low-episodes 350 --meta-episodes 480 --heldout 40 \
+            --output learned-option-controller.json
+      - name: Audit policies, replay histories and simulation provenance
+        run: |
+          python3 - <<'PY'
+          import json
+          r=json.load(open("learned-option-controller.json"))
+          assert r["schema"]=="hearthbound.learned-options.v1"
+          assert r["meta_option_selection_learned"] is True
+          assert r["option_primitive_executors"]=="HAND_DESIGNED_BOUNDED"
+          assert r["recurrent_network_trained"] is False
+          assert r["minecraft_worlds"]==0
+          assert r["minecraft_execution_authorized"] is False
+          assert len(r["results"])==3
+          for row in r["results"]:
+              assert row["models_frozen"] and row["meta_updates"]>0
+              assert len(row["scenarios"])==6
+              for case in row["scenarios"].values():
+                  for key in ("learned_options","frozen_neural","engineered_memory","scripted"):
+                      assert case[key]["episodes"]==40
+                      assert case[key]["invalid_requests"]==0
+                  assert case["learned_trace"]["events"]
+          print("PASS 3 training seeds x 6 scenarios x 40 heldout simulated worlds per policy")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: learned-option-controller-evidence
+          path: learned-option-controller.json
+          if-no-files-found: error
