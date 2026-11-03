@@ -81,7 +81,8 @@ def mask(observation):
     mask_base=base.action_mask(observation)
     # Broad "seek wheat" option: inspect unknown source or haul observed
     # available wheat. The lower level action is never allowed to violate masks.
-    seek=any(mask_base[i] for i in range(4))
+    seek=(bool(mask_base[2] or mask_base[3]) or
+          observation[5]==1. or observation[10]==1.)
     return (seek,bool(mask_base[4]),bool(mask_base[5]))
 
 def execute(option,observation,low_model):
