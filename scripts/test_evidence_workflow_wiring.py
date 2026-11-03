@@ -9,7 +9,7 @@ def main():
               "            --restart-log verified-restart.log --output minecraft-experience.json")
     if script.count(expected)!=1:
         raise AssertionError("Reward export CLI has broken continuation or extra arguments")
-    for artifact in ("policy-rejection.json","source-observations.json","source-plans.json",
+    for artifact in ("policy-rejection.json","source-observations.json","source-plans.json","observation-v2.json",
                      "minecraft-experience.json"):
         if f"            {artifact}\n" not in script:
             raise AssertionError("Missing dedicated-server evidence artifact: "+artifact)
@@ -19,6 +19,8 @@ def main():
         raise AssertionError("Missing or duplicated shortage evidence collector")
     if script.count("python3 scripts/report_source_plans.py")!=1:
         raise AssertionError("Missing source-aware planner evidence command")
-    print("PASS 8 real-game evidence workflow wiring checks")
+    if script.count("python3 scripts/report_observation_v2.py")!=1:
+        raise AssertionError("Missing versioned tensor evidence collector")
+    print("PASS 10 real-game evidence workflow wiring checks")
 
 if __name__=="__main__":main()
