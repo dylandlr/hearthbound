@@ -121,7 +121,9 @@ jobs:
           assert b["task_execution_authorized"] is False
           print("VERIFIED_REAL_PERCEPTION_ACCEPTANCE read_only=true transitions=3")
           PY
-          echo "Verifying real Forge citizen-to-citizen reported knowledge"\n          python3 scripts/rcon_social_reports_acceptance.py | tee real-social-reports-rcon.log\n          echo "Verifying citizen NBT survives save and dedicated-server restart"
+          echo "Verifying real Forge citizen-to-citizen reported knowledge"
+          python3 scripts/rcon_social_reports_acceptance.py | tee real-social-reports-rcon.log
+          echo "Verifying citizen NBT survives save and dedicated-server restart"
           python3 scripts/rcon_verify_sable_restart.py checkpoint
           for i in $(seq 1 60); do
             if ! kill -0 "$pid" 2>/dev/null; then break; fi
