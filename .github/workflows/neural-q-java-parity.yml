@@ -5,6 +5,10 @@ on:
       - 'scripts/train_simulated_mill_neural_q.py'
       - 'scripts/export_neural_q_java_parity.py'
       - 'src/test/java/dev/hearthbound/evidence/RealMinecraftNeuralQShadow.java'
+      - 'src/main/java/dev/hearthbound/evidence/NeuralQContextGate.java'
+      - 'src/test/java/dev/hearthbound/evidence/NeuralQContextGateTest.java'
+      - 'scripts/report_mill_context_coverage.py'
+      - 'scripts/test_report_mill_context_coverage.py'
       - 'scripts/test_real_neural_q_shadow_fixture.py'
       - 'scripts/report_real_neural_q_shadow.py'
       - 'scripts/test_report_real_neural_q_shadow.py'
@@ -44,10 +48,15 @@ jobs:
             simulated-neural-q-java-weights.txt simulated-neural-q-java-fixtures.txt
       - name: Validate Java shadow engine against SYNTHETIC RCON-format fixtures
         run: |
+          python scripts/test_report_mill_context_coverage.py
           python scripts/test_report_real_neural_q_shadow.py
           python scripts/test_real_neural_q_shadow_fixture.py synthetic-source-states.log
           javac --release 17 -d /tmp/hb-neural-parity \
-            src/test/java/dev/hearthbound/evidence/RealMinecraftNeuralQShadow.java
+            src/test/java/dev/hearthbound/evidence/RealMinecraftNeuralQShadow.java \
+            src/main/java/dev/hearthbound/evidence/NeuralQContextGate.java \
+            src/test/java/dev/hearthbound/evidence/NeuralQContextGateTest.java \
+            src/test/java/dev/hearthbound/evidence/RealMinecraftNeuralQContextReplay.java
+          java -cp /tmp/hb-neural-parity dev.hearthbound.evidence.NeuralQContextGateTest
           java -cp /tmp/hb-neural-parity dev.hearthbound.evidence.RealMinecraftNeuralQShadow \
             simulated-neural-q-java-weights.txt synthetic-source-states.log SCRIPTED | tee synthetic-shadow-scripted.log
           java -cp /tmp/hb-neural-parity dev.hearthbound.evidence.RealMinecraftNeuralQShadow \
