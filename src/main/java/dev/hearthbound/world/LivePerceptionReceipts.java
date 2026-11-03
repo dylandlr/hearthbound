@@ -65,6 +65,15 @@ public final class LivePerceptionReceipts {
             +" mode=READ_ONLY";
     }
 
+    /** Exactly one latest receipt per RCON reply; no ambiguity from multi-line chat. */
+    public static String latest(ServerLevel level) {
+        if(level==null) throw new IllegalArgumentException("Missing level");
+        Monitor m=monitor(level);
+        return m.receipts.isEmpty()
+            ? "PERCEPTION_LATEST ABSTAIN reason=NO_OBSERVATIONS mode=READ_ONLY"
+            : m.receipts.peekLast();
+    }
+
     public static List<String> receipts(ServerLevel level) {
         if(level==null) throw new IllegalArgumentException("Missing level");
         return List.copyOf(monitor(level).receipts);
