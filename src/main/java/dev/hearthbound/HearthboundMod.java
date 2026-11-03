@@ -4,6 +4,7 @@ import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -37,6 +38,27 @@ public final class HearthboundMod {
                                             () -> Component.literal(result), false);
                                         return 1;
                                     })))
+                    .then(Commands.literal("policy_shadow")
+                            .then(Commands.argument("mill", BlockPosArgument.blockPos())
+                                .then(Commands.argument("mode", StringArgumentType.word())
+                                    .executes(ctx -> {
+                                        String name = StringArgumentType.getString(ctx, "mode");
+                                        dev.hearthbound.evidence.MillPolicyShadow.Mode mode;
+                                        try {
+                                            mode = dev.hearthbound.evidence.MillPolicyShadow.Mode.valueOf(
+                                                name.toUpperCase(java.util.Locale.ROOT));
+                                        } catch (IllegalArgumentException invalid) {
+                                            ctx.getSource().sendFailure(
+                                                Component.literal("Invalid mode: use SCRIPTED or TRAINED_MLP"));
+                                            return 0;
+                                        }
+                                        var pos = BlockPosArgument.getLoadedBlockPos(ctx, "mill");
+                                        String result = dev.hearthbound.world.LivePolicyProbe.inspect(
+                                            ctx.getSource().getLevel(), pos, mode);
+                                        ctx.getSource().sendSuccess(
+                                            () -> Component.literal(result), false);
+                                        return 1;
+                                    }))))
                     .then(Commands.literal("research_status")
                             .executes(ctx -> {
                                 ctx.getSource().sendSuccess(
