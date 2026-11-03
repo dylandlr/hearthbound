@@ -272,6 +272,16 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
         raise AssertionError("Policy dispatch mill never became powered")
     # Controlled shortage: no wheat exists in the source chest. This MUST be
     # rejected by the real server without a new hauling assignment or credit.
+    observed_empty = checked("hearthbound policy_source 8 100 1",
+                             "real partial observation of empty source")
+    if "state=EMPTY" not in observed_empty or "wheat=0" not in observed_empty or "EXECUTION_DISABLED" not in observed_empty:
+        raise AssertionError("Source observer could not distinguish known empty wheat chest: " + observed_empty)
+    observed_unknown = checked("hearthbound policy_source 7 101 1",
+                               "real partial observation of unsupported source")
+    if "state=UNKNOWN" not in observed_unknown or "reason=NO_BLOCK_ENTITY" not in observed_unknown:
+        raise AssertionError("Source observer fabricated knowledge of missing inventory: " + observed_unknown)
+    print("REAL_SOURCE_OBSERVATION stage=empty state=EMPTY wheat=0")
+    print("REAL_SOURCE_OBSERVATION stage=unknown state=UNKNOWN wheat=0")
     shortage = checked("hearthbound policy_trial 8 100 1 9 100 3 " + TRIAL_MODE,
                        "real source shortage rejection")
     if "Source inventory has no real wheat" not in shortage:
@@ -286,6 +296,12 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
           + " credit=0 existing_job_unchanged=true")
     checked('setblock 8 100 1 minecraft:chest{Items:[{Slot:0b,id:"minecraft:wheat",Count:1b}]} replace',
             "restored trial source wheat", "changed the block")
+
+    observed_available = checked("hearthbound policy_source 8 100 1",
+                                 "real partial observation after restoring wheat")
+    if "state=AVAILABLE" not in observed_available or "wheat=1" not in observed_available or "EXECUTION_DISABLED" not in observed_available:
+        raise AssertionError("Source observer did not recognize actual wheat: " + observed_available)
+    print("REAL_SOURCE_OBSERVATION stage=available state=AVAILABLE wheat=1")
 
     before_time = checked("time query gametime", "trial start server game time")
     start_time_values = re.findall(r"\d+", before_time)
