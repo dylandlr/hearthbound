@@ -30,3 +30,24 @@ Recommended experiment when capture exists: small CNN-based encoders from scratc
 This PR adds a **Python simulator and a manifest validation contract**, not a Forge runtime bus, camera capture service, gameplay messages, or neural deployment. No additional LLMs, pretrained world knowledge or actual Minecraft agent decisions are introduced. The latest v0.10.9 Forge, dedicated-server and Java checks passed; they do not prove the new asymmetric communication model works inside Minecraft.
 
 Next implementation phase: add read-only Forge event receipts with source version, server tick, receiver visibility, job correlation IDs and chunk lifecycle boundaries. For real social systems, allow local scouts to share observations and test lost/out-of-order messages, uncertainty and cooperation with multiple independent worker objectives.
+
+## Completed first CI results — November 3, 2026
+
+The standalone [run 41728495628](https://github.com/dylandlr/hearthbound/actions/runs/41728495628) passed permissions, revision ordering, stale-message rejection, source-authoritative task checks, frame-manifest validation and the four-seed simulated comparison.
+
+Every run uses 150 abstract ticks and **exactly 30 synthetic production events**, with three local scouts and six remote workers. Under the deliberately restrictive baseline, remote workers cannot inspect any stock and receive no messages.
+
+| Synthetic transport | No-message remote hauls | Shared-message remote hauls | Delivered messages per run | Denied stale haul attempts per run |
+|---|---:|---:|---:|---:|
+| Ideal, no delay | 0 | 30 | 2,700 | 30 |
+| Two-step delay | 0 | 30 | 2,664 | 150 |
+| Seeded lossy delivery | 0 | 30 | 2,007–2,047 | 93–101 |
+| Three-step delay + loss | 0 | 30 | 1,747–1,771 | 213–221 |
+
+**Interpretation:** In this toy environment, information exchange lets workers successfully act on remote sources they cannot inspect. That result follows partly from the artificial no-message restriction, so it cannot establish a causal advantage against a realistic colony without alternative exploration, navigation or autonomous source inspection. Delayed messages substantially increase stale, rejected proposals; the authoritative stock/revision check prevents them from executing. The system broadcasts scout facts every tick to every worker (up to 2,700 delivered messages), making this an **intentionally inefficient communication baseline**. The next test should compare source-change-only messaging, subscriptions, on-demand requests, aggregation and worker coordination rather than assume frequent broadcasts are desirable.
+
+Machine vision remains a **validated data-contract proposal only**: the test uses placeholder bytes solely to exercise frame-record validation; no real Minecraft frames were captured and no visual model was trained.
+
+### New next milestone
+
+Implement a read-only Forge receipt emitter for inventory/job changes, with source revisions and server ticks, and a client/agent observation adapter that consumes events without modifying the task-authority layer. Compare the emitted Minecraft event traces against ground-truth inventory snapshots. Separately capture synchronized client RGB frames on actual gameplay runs, with whole-world layout holdouts before training any CNN.
