@@ -153,6 +153,8 @@ jobs:
             smoke-rcon.log
             live-shadow-report.json
             policy-trial-result.json
+            policy-rejection.json
+            source-observations.json
             verified-restart.log
             minecraft-experience.json
           if-no-files-found: warn
