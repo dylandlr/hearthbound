@@ -55,6 +55,7 @@ jobs:
             exit 1
           fi
           echo "Hearthbound mod initialization confirmed"
+          python3 scripts/test_rcon_frames.py
           python3 scripts/rcon_smoke.py
           echo "Verifying citizen NBT survives save and dedicated-server restart"
           python3 scripts/rcon_verify_sable_restart.py checkpoint
