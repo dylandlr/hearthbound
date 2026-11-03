@@ -1,0 +1,54 @@
+name: Asymmetric colony messages and vision metadata
+on:
+  pull_request:
+    paths:
+      - 'scripts/simulate_asymmetric_colony_knowledge.py'
+      - 'scripts/test_simulate_asymmetric_colony_knowledge.py'
+      - 'scripts/vision_frame_manifest_contract.py'
+      - 'scripts/test_vision_frame_manifest_contract.py'
+      - '.github/workflows/asymmetric-colony-knowledge.yml'
+  workflow_dispatch:
+jobs:
+  asymmetric-knowledge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify scoped message delivery and real frame provenance contract
+        run: |
+          python3 -m py_compile scripts/simulate_asymmetric_colony_knowledge.py scripts/test_simulate_asymmetric_colony_knowledge.py scripts/vision_frame_manifest_contract.py scripts/test_vision_frame_manifest_contract.py
+          python3 scripts/test_simulate_asymmetric_colony_knowledge.py
+          python3 scripts/test_vision_frame_manifest_contract.py
+      - name: Four-seed asymmetric knowledge experiment with transport faults
+        run: |
+          python3 scripts/simulate_asymmetric_colony_knowledge.py \
+            --output asymmetric-knowledge.json
+      - name: Check result provenance and conservation of authority
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("asymmetric-knowledge.json").read_text())
+          assert r["schema"]=="hearthbound.asymmetric-colony-knowledge.v1"
+          assert r["origin"]=="SIMULATED_ONLY"
+          assert r["minecraft_worlds"]==0
+          assert r["minecraft_task_dispatch_authorized"] is False
+          assert r["camera_frames_captured"]==0 and r["vision_models_trained"]==0
+          assert len(r["results"])==16
+          assert {row["profile"] for row in r["results"]}==set(r["profiles"])
+          for row in r["results"]:
+              no=row["no_messages"]; shared=row["peer_messages"]
+              assert no["scout_local_inspections"]==shared["scout_local_inspections"]
+              assert no["worker_remote_inspections"]==shared["worker_remote_inspections"]==0
+              assert no["successfully_committed_hauls"]==0
+              assert shared["messages_sent"]>0
+          print("PASS 4 seeds x 4 transport regimes, bounded messages and no real-world authority")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: asymmetric-colony-knowledge-simulated
+          path: asymmetric-knowledge.json
+          if-no-files-found: error
