@@ -7,6 +7,7 @@ import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.event.RegisterCommandsEvent;
+import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.apache.logging.log4j.LogManager;
@@ -25,9 +26,47 @@ public final class HearthboundMod {
     @Mod.EventBusSubscriber(modid = MOD_ID)
     public static final class CommandsHandler {
         @SubscribeEvent
+        public static void onLevelTick(TickEvent.LevelTickEvent event) {
+            if(event.phase==TickEvent.Phase.END
+                    && event.level instanceof net.minecraft.server.level.ServerLevel level) {
+                dev.hearthbound.world.LivePerceptionReceipts.sample(level);
+            }
+        }
+        @SubscribeEvent
         public static void onCommands(RegisterCommandsEvent event) {
             CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
             dispatcher.register(Commands.literal("hearthbound")
+                    .then(Commands.literal("perception_watch")
+                            .requires(source -> source.hasPermission(2))
+                            .then(Commands.argument("source", BlockPosArgument.blockPos())
+                                .executes(ctx -> {
+                                    var pos=BlockPosArgument.getBlockPos(ctx,"source");
+                                    String result=dev.hearthbound.world.LivePerceptionReceipts.watch(
+                                        ctx.getSource().getLevel(),pos);
+                                    ctx.getSource().sendSuccess(() -> Component.literal(result),false);
+                                    return 1;
+                                })))
+                    .then(Commands.literal("perception_unwatch")
+                            .requires(source -> source.hasPermission(2))
+                            .then(Commands.argument("source", BlockPosArgument.blockPos())
+                                .executes(ctx -> {
+                                    var pos=BlockPosArgument.getBlockPos(ctx,"source");
+                                    String result=dev.hearthbound.world.LivePerceptionReceipts.unwatch(
+                                        ctx.getSource().getLevel(),pos);
+                                    ctx.getSource().sendSuccess(() -> Component.literal(result),false);
+                                    return 1;
+                                })))
+                    .then(Commands.literal("perception_receipts")
+                            .requires(source -> source.hasPermission(2))
+                            .executes(ctx -> {
+                                var level=ctx.getSource().getLevel();
+                                ctx.getSource().sendSuccess(
+                                    () -> Component.literal(
+                                        dev.hearthbound.world.LivePerceptionReceipts.status(level)),false);
+                                for(String receipt:dev.hearthbound.world.LivePerceptionReceipts.receipts(level))
+                                    ctx.getSource().sendSuccess(() -> Component.literal(receipt),false);
+                                return 1;
+                            }))
                     .then(Commands.literal("policy_probe")
                             .then(Commands.argument("mill", BlockPosArgument.blockPos())
                                     .executes(ctx -> {
