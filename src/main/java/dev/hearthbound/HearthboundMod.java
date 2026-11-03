@@ -87,7 +87,7 @@ public final class HearthboundMod {
                                                 ctx.getSource().sendFailure(Component.literal(failure.getMessage()));
                                                 return 0;
                                             }
-                                        }))))
+                                        })))))
                     .then(Commands.literal("research_status")
                             .executes(ctx -> {
                                 ctx.getSource().sendSuccess(
