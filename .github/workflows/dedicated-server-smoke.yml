@@ -24,6 +24,7 @@ jobs:
           gradle-version: '8.8'
       - name: Validate evidence parser and RCON framing
         run: |
+          python3 scripts/test_report_observation_v2.py
           python3 scripts/test_report_source_plans.py
           python3 scripts/test_report_source_observations.py
           python3 scripts/test_report_policy_rejection.py
@@ -104,6 +105,7 @@ jobs:
           python3 scripts/report_policy_rejection.py smoke-rcon.log --expected-mode "$HEARTHBOUND_TRIAL_MODE" --output policy-rejection.json
           python3 scripts/report_source_observations.py smoke-rcon.log --output source-observations.json
           python3 scripts/report_source_plans.py smoke-rcon.log --output source-plans.json
+          python3 scripts/report_observation_v2.py smoke-rcon.log --output observation-v2.json
           echo "Verifying citizen NBT survives save and dedicated-server restart"
           python3 scripts/rcon_verify_sable_restart.py checkpoint
           for i in $(seq 1 60); do
@@ -158,6 +160,7 @@ jobs:
             policy-rejection.json
             source-observations.json
             source-plans.json
+            observation-v2.json
             verified-restart.log
             minecraft-experience.json
           if-no-files-found: warn
