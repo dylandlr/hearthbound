@@ -83,6 +83,40 @@ public final class HearthboundMod {
                                     ctx.getSource().sendSuccess(() -> Component.literal(result),false);
                                     return 1;
                                 })))
+                    .then(Commands.literal("citizen_observe")
+                            .requires(source -> source.hasPermission(2))
+                            .then(Commands.argument("source", BlockPosArgument.blockPos())
+                                .then(Commands.argument("observer", EntityArgument.entity())
+                                    .executes(ctx -> {
+                                        var target=EntityArgument.getEntity(ctx,"observer");
+                                        if (!(target instanceof net.minecraft.world.entity.npc.Villager citizen)) {
+                                            ctx.getSource().sendFailure(Component.literal("Observer must be a villager"));
+                                            return 0;
+                                        }
+                                        var level=ctx.getSource().getLevel();
+                                        var pos=BlockPosArgument.getBlockPos(ctx,"source");
+                                        String result=dev.hearthbound.world.CitizenDirectPerception.observe(
+                                            level,pos,citizen);
+                                        ctx.getSource().sendSuccess(() -> Component.literal(result),false);
+                                        return 1;
+                                    }))))
+                    .then(Commands.literal("citizen_memory")
+                            .requires(source -> source.hasPermission(2))
+                            .then(Commands.argument("source", BlockPosArgument.blockPos())
+                                .then(Commands.argument("citizen", EntityArgument.entity())
+                                    .executes(ctx -> {
+                                        var target=EntityArgument.getEntity(ctx,"citizen");
+                                        if (!(target instanceof net.minecraft.world.entity.npc.Villager citizen)) {
+                                            ctx.getSource().sendFailure(Component.literal("Target must be a villager"));
+                                            return 0;
+                                        }
+                                        var level=ctx.getSource().getLevel();
+                                        var pos=BlockPosArgument.getBlockPos(ctx,"source");
+                                        String result=dev.hearthbound.world.CitizenSourceKnowledge.inspect(
+                                            level,pos,citizen);
+                                        ctx.getSource().sendSuccess(() -> Component.literal(result),false);
+                                        return 1;
+                                    }))))
                     .then(Commands.literal("knowledge_share")
                             .requires(source -> source.hasPermission(2))
                             .then(Commands.argument("source", BlockPosArgument.blockPos())
