@@ -1,0 +1,49 @@
+name: Simulated hierarchical goal memory
+on:
+  pull_request:
+    paths:
+      - 'scripts/evaluate_goal_memory_options.py'
+      - 'scripts/test_evaluate_goal_memory_options.py'
+      - '.github/workflows/goal-memory-options.yml'
+  workflow_dispatch:
+jobs:
+  memory-benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify option termination, task resumption, and frozen policy baseline
+        run: |
+          python3 -m py_compile scripts/evaluate_goal_memory_options.py scripts/test_evaluate_goal_memory_options.py
+          python3 scripts/test_evaluate_goal_memory_options.py
+      - name: Compare option-memory overlay to identical frozen neural and scripted controls
+        run: |
+          python3 scripts/evaluate_goal_memory_options.py \
+            --training-episodes 350 --heldout 40 --output goal-memory-options.json
+      - name: Check complete heldout matrix and simulator provenance
+        run: |
+          python3 - <<'PY'
+          import json
+          r=json.load(open("goal-memory-options.json"))
+          assert r["minecraft_worlds"]==0
+          assert r["recurrent_network_trained"] is False
+          assert r["new_neural_weights_trained"] is False
+          assert r["minecraft_task_dispatch_authorized"] is False
+          assert len(r["results"])==3
+          for result in r["results"]:
+              assert result["frozen"] and len(result["scenarios"])==6
+              for case in result["scenarios"].values():
+                  for policy in ("neural_goal_bonus","hierarchical_memory","scripted"):
+                      assert case[policy]["episodes"]==40
+                      assert case[policy]["invalid_requests"]==0
+                  assert case["trace"]["events"]
+          print("PASS goal-option memory full matrix, exact controls and provenance")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: simulated-goal-memory-options
+          path: goal-memory-options.json
+          if-no-files-found: error
