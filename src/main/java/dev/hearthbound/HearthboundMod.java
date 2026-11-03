@@ -88,6 +88,16 @@ public final class HearthboundMod {
                                                 return 0;
                                             }
                                         })))))
+                    .then(Commands.literal("policy_source")
+                            .requires(source -> source.hasPermission(2))
+                            .then(Commands.argument("source", BlockPosArgument.blockPos())
+                                .executes(ctx -> {
+                                    var from = BlockPosArgument.getBlockPos(ctx, "source");
+                                    String result = dev.hearthbound.world.SourceWheatObservation
+                                        .inspectNearbySable(ctx.getSource().getLevel(), from);
+                                    ctx.getSource().sendSuccess(() -> Component.literal(result), false);
+                                    return 1;
+                                })))
                     .then(Commands.literal("research_status")
                             .executes(ctx -> {
                                 ctx.getSource().sendSuccess(
