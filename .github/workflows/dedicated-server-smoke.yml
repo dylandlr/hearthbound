@@ -8,7 +8,7 @@ on:
 jobs:
   boot-server:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -27,6 +27,24 @@ jobs:
           python3 scripts/test_report_policy_trial.py
           python3 scripts/test_report_live_shadow.py
           python3 scripts/test_rcon_frames.py
+      - name: Resolve and compile Forge dependencies before startup clock
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            echo "FORGE_PREFLIGHT attempt=$attempt"
+            if gradle --no-daemon classes > forge-preflight.log 2>&1; then
+              echo "FORGE_PREFLIGHT_SUCCESS"
+              break
+            fi
+            echo "FORGE_PREFLIGHT_ATTEMPT_FAILED attempt=$attempt"
+            tail -n 65 forge-preflight.log
+            if [ "$attempt" -eq 3 ]; then
+              echo "FORGE_DEPENDENCY_OR_COMPILATION_FAILURE"
+              exit 1
+            fi
+            sleep 25
+          done
       - name: Start a disposable Forge dedicated server
         shell: bash
         env:
@@ -113,6 +131,7 @@ jobs:
           name: minecraft-policy-trial-${{ matrix.policy }}
           path: |
             server-smoke.log
+            forge-preflight.log
             server-before-restart.log
             server-after-restart.log
             run/logs/latest.log
