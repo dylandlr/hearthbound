@@ -1,0 +1,32 @@
+name: Live Forge perception receipt contract
+on:
+  pull_request:
+    paths:
+      - 'src/main/java/dev/hearthbound/world/LivePerceptionReceipts.java'
+      - 'src/main/java/dev/hearthbound/HearthboundMod.java'
+      - 'scripts/validate_live_perception_receipts.py'
+      - 'scripts/test_validate_live_perception_receipts.py'
+      - '.github/workflows/live-perception-receipts.yml'
+  workflow_dispatch:
+jobs:
+  receipts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate receipt parsing and fail-closed contracts
+        run: |
+          python3 -m py_compile scripts/validate_live_perception_receipts.py scripts/test_validate_live_perception_receipts.py
+          python3 scripts/test_validate_live_perception_receipts.py
+      - name: Do not misrepresent synthetic fixtures as a live Minecraft run
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          source=Path("scripts/validate_live_perception_receipts.py").read_text()
+          assert "task_execution_authorized" in source
+          assert "REAL_FORGE_SOURCE_OBSERVATION" in source
+          print("PASS receipt contract tests only; actual Forge evidence requires server command capture")
+          PY
