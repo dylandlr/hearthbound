@@ -51,7 +51,9 @@ public final class CitizenSourceKnowledge {
             CompoundTag old = entries.getCompound(i);
             if (identity.equals(old.getString("source"))) {
                 // A personal knowledge revision is independent of receipt revisions.
-                revision = old.getInt("revision") + 1;
+                revision = old.getInt("revision");
+                if (!old.getString("state").equals(snapshot.state().name())
+                    || old.getInt("wheat") != snapshot.wheat()) revision++;
             } else {
                 updated.add(old.copy());
             }
@@ -69,6 +71,28 @@ public final class CitizenSourceKnowledge {
         root.putString("schema", SCHEMA);
         root.put(ENTRIES, updated);
         observer.getPersistentData().put(ROOT, root);
+    }
+
+    /**
+     * Returns only the caller's recorded direct evidence. Never returns
+     * hearsay or resamples Minecraft inventory; callers must also enforce
+     * their own physical communication constraints.
+     */
+    static CompoundTag directEvidence(ServerLevel level, BlockPos source, Villager citizen) {
+        if (level == null || source == null || citizen == null ||
+            !(citizen.getPersistentData().getBoolean("hearthbound.sable") ||
+              citizen.getPersistentData().getBoolean("hearthbound.citizen")) ||
+            citizen.level() != level)
+            return null;
+        ListTag entries = citizen.getPersistentData().getCompound(ROOT)
+            .getList(ENTRIES, Tag.TAG_COMPOUND);
+        for (int i = 0; i < entries.size(); i++) {
+            CompoundTag entry = entries.getCompound(i);
+            if (key(level, source).equals(entry.getString("source")) &&
+                "DIRECT_FORGE_OBSERVATION".equals(entry.getString("origin")))
+                return entry.copy();
+        }
+        return null;
     }
 
     /** Explicit citizen-scoped operator read. Does not resample or force chunks. */
