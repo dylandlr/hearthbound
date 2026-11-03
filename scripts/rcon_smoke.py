@@ -155,9 +155,24 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
     verified = checked("sable mill-inspect 9 100 3", "powered millstone exists")
     if "MILL OBSERVED" not in verified or "block=create:millstone" not in verified:
         raise AssertionError("Powered fixture lost its Create millstone: " + verified)
-    probe = checked("hearthbound policy_probe 9 100 3", "powered empty mill policy probe")
-    if "action=REQUEST_WHEAT_HAUL" not in probe or "EXECUTION_DISABLED" not in probe:
-        raise AssertionError("Live empty-mill policy probe did not request hauling: " + probe)
+    # Forge/Create kinetic state is updated on subsequent server ticks, not
+    # synchronously by the RCON block placement command. Never fake readiness.
+    import re
+    power_ready = False
+    for attempt in range(45):
+        probe = checked("hearthbound policy_probe 9 100 3",
+                        f"live empty mill power readiness {attempt}")
+        if "EXECUTION_DISABLED" not in probe:
+            raise AssertionError("Policy probe unexpectedly attempted execution: " + probe)
+        if "action=REQUEST_WHEAT_HAUL" in probe and "powered=true" in probe:
+            power_ready = True
+            print("LIVE_CREATE_POWER_CONFIRMED " + probe)
+            break
+        if "action=INSPECT_UNPOWERED" not in probe or "powered=false" not in probe:
+            raise AssertionError("Unexpected pre-production policy state: " + probe)
+        time.sleep(1)
+    if not power_ready:
+        raise AssertionError("CREATE_POWER_NOT_READY: millstone remained unpowered after 45s")
     checked("summon minecraft:item 9.5 101.2 3.5 {Item:{id:\"minecraft:wheat\",Count:1b},PickupDelay:32767s}",
             "wheat dropped onto real millstone", "summoned")
     flour_observed = False
