@@ -294,6 +294,11 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
     print("REAL_POLICY_TRIAL_REJECTION mode=" + TRIAL_MODE
           + " reason=SOURCE_NO_WHEAT dispatched=false"
           + " credit=0 existing_job_unchanged=true")
+    # Minecraft may return "Could not set the block" when an existing
+    # chest is replaced with the same block state even if NBT differs.
+    # Clear first, then place a genuinely new one-item source chest.
+    checked("setblock 8 100 1 minecraft:air replace",
+            "clear empty trial source", "changed the block")
     checked('setblock 8 100 1 minecraft:chest{Items:[{Slot:0b,id:"minecraft:wheat",Count:1b}]} replace',
             "restored trial source wheat", "changed the block")
 
