@@ -1,0 +1,53 @@
+name: Sensor-failure outer holdout and refresh budget
+on:
+  pull_request:
+    paths:
+      - 'scripts/evaluate_sensor_fault_outer_holdout.py'
+      - 'scripts/test_evaluate_sensor_fault_outer_holdout.py'
+      - '.github/workflows/sensor-fault-outer-holdout.yml'
+  workflow_dispatch:
+jobs:
+  outer-holdout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify sensor failure, budget, drift and baseline contracts
+        run: |
+          python3 -m py_compile scripts/evaluate_sensor_fault_outer_holdout.py scripts/test_evaluate_sensor_fault_outer_holdout.py
+          python3 scripts/test_evaluate_sensor_fault_outer_holdout.py
+      - name: Evaluate frozen controllers on novel held-out faults
+        run: |
+          python3 scripts/evaluate_sensor_fault_outer_holdout.py \
+            --low-episodes 350 --old-episodes 480 --age-episodes 520 \
+            --heldout 24 --output sensor-fault-outer-holdout.json
+      - name: Validate full evidence matrix and forbid unsupported Minecraft claims
+        run: |
+          python3 - <<'PY'
+          import json
+          x=json.load(open("sensor-fault-outer-holdout.json"))
+          assert x["schema"]=="hearthbound.sensor-fault-outer-holdout.v1"
+          assert x["minecraft_worlds"]==0
+          assert x["minecraft_task_authorized"] is False
+          assert x["outer_profiles_unseen_in_training"] is True
+          assert len(x["results"])==3 and len(x["fault_profiles"])==4
+          for seed in x["results"]:
+              assert seed["frozen_checkpoints"]
+              for profile_name,scenes in seed["profiles"].items():
+                  assert len(scenes)==5
+                  for scene in scenes.values():
+                      for policy in x["policy_arms"]:
+                          row=scene[policy]
+                          assert row["episodes"]==24
+                          assert row["executed_invalid_requests"]==0
+                      assert scene["age_aware_budgeted"]["refresh_executed"]<=24*x["fault_profiles"][profile_name]["budget"]
+          print("PASS 3 seeds x 4 unseen profiles x 5 resource regimes x 24 heldout SIMULATED episodes per policy")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sensor-fault-outer-holdout-results
+          path: sensor-fault-outer-holdout.json
+          if-no-files-found: error
