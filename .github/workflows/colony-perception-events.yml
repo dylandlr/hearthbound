@@ -1,0 +1,48 @@
+name: Event-driven colony perception research
+on:
+  pull_request:
+    paths:
+      - 'scripts/simulate_colony_perception_bus.py'
+      - 'scripts/test_simulate_colony_perception_bus.py'
+      - '.github/workflows/colony-perception-events.yml'
+  workflow_dispatch:
+jobs:
+  event-perception:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check versioned events, scoped beliefs and authority safety
+        run: |
+          python3 -m py_compile scripts/simulate_colony_perception_bus.py scripts/test_simulate_colony_perception_bus.py
+          python3 scripts/test_simulate_colony_perception_bus.py
+      - name: Compare synthetic polling to subscriptions and sharing
+        run: |
+          python3 scripts/simulate_colony_perception_bus.py \
+            --output colony-perception-events.json
+      - name: Verify origins, complete cells and authoritative read count
+        run: |
+          python3 - <<'PY'
+          import json
+          r=json.load(open("colony-perception-events.json"))
+          assert r["schema"]=="hearthbound.colony-perception-benchmark.v1"
+          assert r["origin"]=="SIMULATED_ONLY"
+          assert r["minecraft_worlds"]==0
+          assert r["minecraft_action_authorized"] is False
+          assert r["image_model_trained"] is False
+          assert len(r["rows"])==4
+          for row in r["rows"]:
+              assert set(row)=={"poll_every_tick","event_subscriptions","event_plus_shared"}
+              assert row["poll_every_tick"]["authoritative_inspections"]==140*12*3
+              assert row["event_subscriptions"]["authoritative_inspections"]==0
+              assert row["event_plus_shared"]["authoritative_inspections"]==0
+          print("PASS four-seed event/poll benchmark with no gameplay authority")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: simulated-colony-perception-events
+          path: colony-perception-events.json
+          if-no-files-found: error
