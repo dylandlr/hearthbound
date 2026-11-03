@@ -36,6 +36,9 @@ with socket.create_connection((HOST,PORT),timeout=15) as sock:
     if mode=="checkpoint":
         output=run(sock,2,'data get entity @e[type=minecraft:villager,name=Sable,limit=1] ForgeData."hearthbound.verifiedMillExperience.v1".observedVerifiedProcesses')
         if "1L" not in output: raise AssertionError("Sable's verified mill experience absent before save")
+        memory=run(sock,5,"hearthbound knowledge_source 6 100 2")
+        if "status=KNOWN" not in memory or "state=EMPTY" not in memory or "wheat=0" not in memory:
+            raise AssertionError("Sable's live knowledge missing before save")
         output=run(sock,3,"save-all flush")
         if "Saved the game" not in output and "Saving" not in output: raise AssertionError("save-all flush did not confirm save")
         run(sock,4,"stop")
@@ -45,5 +48,11 @@ with socket.create_connection((HOST,PORT),timeout=15) as sock:
         if "Test passed" not in output:raise AssertionError("Sable missing after restart")
         output=run(sock,4,'data get entity @e[type=minecraft:villager,name=Sable,limit=1] ForgeData."hearthbound.verifiedMillExperience.v1".observedVerifiedProcesses')
         if "1L" not in output:raise AssertionError("Sable's verified experience did not persist")
+        memory=run(sock,5,"hearthbound knowledge_source 6 100 2")
+        if "status=KNOWN" not in memory or "state=EMPTY" not in memory or "wheat=0" not in memory:
+            raise AssertionError("Sable's source knowledge did not survive restart")
+        if "action_authorized=false" not in memory:
+            raise AssertionError("Remembering source unexpectedly authorized an action")
+        print("SABLE_SOURCE_KNOWLEDGE_SURVIVED_REAL_SERVER_RESTART",flush=True)
         print("SABLE_VERIFIED_EXPERIENCE_SURVIVED_REAL_SERVER_RESTART",flush=True)
     else:raise ValueError("expected checkpoint or verify")
