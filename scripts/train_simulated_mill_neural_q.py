@@ -8,6 +8,7 @@ No pretrained scripted labels, LLM calls, or inherited Minecraft recipes.
 """
 import argparse
 import copy
+import hashlib
 import json
 import math
 import random
@@ -162,7 +163,63 @@ def train(seed=11,episodes=2400):
             if done:break
     return model,updates
 
-def benchmark(seed=11,episodes=2400,heldout=400):
+def model_payload(model,seed,episodes):
+    return {
+        "schema":"hearthbound.simulated-mill-neural-q-checkpoint.v1",
+        "observation_schema":SCHEMA,
+        "feature_names":list(FEATURES),"actions":list(ACTIONS),
+        "input_width":WIDTH,"hidden_width":HIDDEN,"output_width":len(ACTIONS),
+        "training_data_origin":"SIMULATED_ONLY",
+        "seed":seed,"episodes":episodes,
+        "weights":{"w1":model.w1,"b1":model.b1,"w2":model.w2,"b2":model.b2},
+        "minecraft_deployment_authorized":False,
+    }
+
+def canonical(data):
+    return json.dumps(data,sort_keys=True,separators=(",",":"),allow_nan=False)
+
+def checkpoint(model,seed,episodes):
+    payload=model_payload(model,seed,episodes)
+    return {"payload":payload,
+            "sha256":hashlib.sha256(canonical(payload).encode()).hexdigest()}
+
+def load_checkpoint(record):
+    payload=record.get("payload")
+    digest=record.get("sha256")
+    if not isinstance(payload,dict) or not isinstance(digest,str):
+        raise ValueError("Invalid checkpoint")
+    if hashlib.sha256(canonical(payload).encode()).hexdigest()!=digest:
+        raise ValueError("Checkpoint checksum mismatch")
+    if (payload.get("schema")!="hearthbound.simulated-mill-neural-q-checkpoint.v1"
+            or payload.get("observation_schema")!=SCHEMA
+            or payload.get("feature_names")!=list(FEATURES)
+            or payload.get("actions")!=list(ACTIONS)
+            or payload.get("input_width")!=WIDTH
+            or payload.get("hidden_width")!=HIDDEN
+            or payload.get("output_width")!=len(ACTIONS)
+            or payload.get("training_data_origin")!="SIMULATED_ONLY"
+            or payload.get("minecraft_deployment_authorized") is not False):
+        raise ValueError("Wrong checkpoint model contract")
+    w=payload.get("weights")
+    if not isinstance(w,dict):
+        raise ValueError("Missing checkpoint weights")
+    sizes={"w1":(HIDDEN,WIDTH),"b1":(HIDDEN,None),
+           "w2":(len(ACTIONS),HIDDEN),"b2":(len(ACTIONS),None)}
+    for name,(rows,cols) in sizes.items():
+        value=w.get(name)
+        if not isinstance(value,list) or len(value)!=rows:
+            raise ValueError("Unexpected checkpoint "+name+" size")
+        if cols is not None and any(not isinstance(row,list) or len(row)!=cols for row in value):
+            raise ValueError("Unexpected checkpoint matrix width")
+        flat=(n for row in value for n in row) if cols is not None else iter(value)
+        if any(type(n) not in (int,float) or not math.isfinite(n) for n in flat):
+            raise ValueError("Invalid checkpoint weight")
+    model=NeuralQ(int(payload["seed"]))
+    model.w1=copy.deepcopy(w["w1"]);model.b1=list(w["b1"])
+    model.w2=copy.deepcopy(w["w2"]);model.b2=list(w["b2"])
+    return model
+
+def benchmark(seed=11,episodes=2400,heldout=400,return_model=False):
     if episodes<1 or heldout<1:raise ValueError("Need positive episodes and evaluation count")
     model,updates=train(seed,episodes)
     # All evaluation seeds are disjoint from simulator training seeds.
@@ -172,7 +229,7 @@ def benchmark(seed=11,episodes=2400,heldout=400):
     random_policy_rng=random.Random(seed+700)
     untrained=NeuralQ(seed+900)
     random_baseline=evaluate(lambda x:best(untrained.values(x)[2]),seeds)
-    return {
+    report={
       "schema":"hearthbound.simulated-mill-neural-q.v1",
       "observation_schema":SCHEMA,
       "feature_names":list(FEATURES),
@@ -189,6 +246,7 @@ def benchmark(seed=11,episodes=2400,heldout=400):
                 "not tested for generalization in Minecraft",
                 "fixed policy and reward metrics from synthetic environment"]
     }
+    return (report,model) if return_model else report
 
 def main():
     p=argparse.ArgumentParser()
@@ -196,8 +254,13 @@ def main():
     p.add_argument("--episodes",type=int,default=2400)
     p.add_argument("--heldout",type=int,default=400)
     p.add_argument("--output",type=Path,default=Path("simulated-neural-q-results.json"))
+    p.add_argument("--checkpoint",type=Path,default=None)
     a=p.parse_args()
-    result=benchmark(a.seed,a.episodes,a.heldout)
+    result,model=benchmark(a.seed,a.episodes,a.heldout,return_model=True)
     a.output.write_text(json.dumps(result,sort_keys=True,indent=2)+"\n")
+    if a.checkpoint is not None:
+        frozen=checkpoint(model,a.seed,a.episodes)
+        a.checkpoint.write_text(json.dumps(frozen,sort_keys=True,indent=2)+"\n")
+        print("SIMULATED_ONLY_MODEL_CHECKPOINT_SHA256",frozen["sha256"])
     print(json.dumps(result,indent=2,sort_keys=True))
 if __name__=="__main__":main()
