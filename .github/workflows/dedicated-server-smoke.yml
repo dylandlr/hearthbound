@@ -24,6 +24,7 @@ jobs:
           gradle-version: '8.8'
       - name: Validate evidence parser and RCON framing
         run: |
+          python3 scripts/test_report_source_observations.py
           python3 scripts/test_report_policy_rejection.py
           python3 scripts/test_build_minecraft_experience.py
           python3 scripts/test_compare_real_policy_trials.py
@@ -100,6 +101,7 @@ jobs:
           python3 scripts/report_live_shadow.py smoke-rcon.log --output live-shadow-report.json
           python3 scripts/report_policy_trial.py smoke-rcon.log --expected-mode "$HEARTHBOUND_TRIAL_MODE" --output policy-trial-result.json
           python3 scripts/report_policy_rejection.py smoke-rcon.log --expected-mode "$HEARTHBOUND_TRIAL_MODE" --output policy-rejection.json
+          python3 scripts/report_source_observations.py smoke-rcon.log --output source-observations.json
           echo "Verifying citizen NBT survives save and dedicated-server restart"
           python3 scripts/rcon_verify_sable_restart.py checkpoint
           for i in $(seq 1 60); do
@@ -134,8 +136,7 @@ jobs:
           fi
           python3 scripts/rcon_verify_sable_restart.py verify | tee verified-restart.log
           python3 scripts/build_minecraft_experience.py \
-            policy-trial-result.json
-            policy-rejection.json live-shadow-report.json \
+            policy-trial-result.json live-shadow-report.json \
             --restart-log verified-restart.log --output minecraft-experience.json
           grep -E 'Hearthbound bootstrap loaded|Done \(' server-smoke.log || true
       - name: Upload startup logs
@@ -152,6 +153,8 @@ jobs:
             smoke-rcon.log
             live-shadow-report.json
             policy-trial-result.json
+            policy-rejection.json
+            source-observations.json
             verified-restart.log
             minecraft-experience.json
           if-no-files-found: warn
