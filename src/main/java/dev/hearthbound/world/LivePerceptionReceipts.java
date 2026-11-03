@@ -98,7 +98,7 @@ public final class LivePerceptionReceipts {
                 watch.revision++;
                 String receipt="PERCEPTION_RECEIPT schema="+SCHEMA
                     +" dimension="+level.dimension().location()
-                    +" source="+source.toShortString()
+                    +" source="+source.getX()+","+source.getY()+","+source.getZ()
                     +" revision="+watch.revision
                     +" tick="+sampled.tick()
                     +" state="+sampled.state()
