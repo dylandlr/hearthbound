@@ -4,6 +4,7 @@ import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
+import net.minecraft.commands.arguments.EntityArgument;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.event.RegisterCommandsEvent;
@@ -82,6 +83,47 @@ public final class HearthboundMod {
                                     ctx.getSource().sendSuccess(() -> Component.literal(result),false);
                                     return 1;
                                 })))
+                    .then(Commands.literal("knowledge_share")
+                            .requires(source -> source.hasPermission(2))
+                            .then(Commands.argument("source", BlockPosArgument.blockPos())
+                                .then(Commands.argument("recipient", EntityArgument.entity())
+                                    .executes(ctx -> {
+                                        var level=ctx.getSource().getLevel();
+                                        var source=BlockPosArgument.getBlockPos(ctx,"source");
+                                        var target=EntityArgument.getEntity(ctx,"recipient");
+                                        if (!(target instanceof net.minecraft.world.entity.npc.Villager recipient)) {
+                                            ctx.getSource().sendFailure(Component.literal("Recipient must be a villager"));
+                                            return 0;
+                                        }
+                                        var senders=level.getEntitiesOfClass(
+                                            net.minecraft.world.entity.npc.Villager.class,
+                                            new net.minecraft.world.phys.AABB(source).inflate(16),
+                                            citizen -> "Sable".equals(citizen.getName().getString())
+                                                && citizen.getPersistentData().getBoolean("hearthbound.sable"));
+                                        String result=senders.size()==1
+                                            ? dev.hearthbound.world.CitizenKnowledgeExchange.share(
+                                                level,source,senders.get(0),recipient)
+                                            : "KNOWLEDGE_SHARE ABSTAIN reason=REQUIRES_ONE_MARKED_SABLE action_authorized=false";
+                                        ctx.getSource().sendSuccess(() -> Component.literal(result),false);
+                                        return 1;
+                                    }))))
+                    .then(Commands.literal("knowledge_report")
+                            .requires(source -> source.hasPermission(2))
+                            .then(Commands.argument("source", BlockPosArgument.blockPos())
+                                .then(Commands.argument("recipient", EntityArgument.entity())
+                                    .executes(ctx -> {
+                                        var target=EntityArgument.getEntity(ctx,"recipient");
+                                        if (!(target instanceof net.minecraft.world.entity.npc.Villager recipient)) {
+                                            ctx.getSource().sendFailure(Component.literal("Recipient must be a villager"));
+                                            return 0;
+                                        }
+                                        var level=ctx.getSource().getLevel();
+                                        var source=BlockPosArgument.getBlockPos(ctx,"source");
+                                        String result=dev.hearthbound.world.CitizenKnowledgeExchange.inspect(
+                                            level,source,recipient);
+                                        ctx.getSource().sendSuccess(() -> Component.literal(result),false);
+                                        return 1;
+                                    }))))
                     .then(Commands.literal("perception_receipts")
                             .requires(source -> source.hasPermission(2))
                             .executes(ctx -> {
