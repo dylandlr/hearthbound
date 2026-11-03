@@ -1,0 +1,52 @@
+name: Simulated colony reward ablations
+on:
+  pull_request:
+    paths:
+      - 'scripts/ablate_resource_task_rewards.py'
+      - 'scripts/test_ablate_resource_task_rewards.py'
+      - 'scripts/train_resource_task_switch.py'
+      - '.github/workflows/resource-reward-ablation.yml'
+  workflow_dispatch:
+jobs:
+  reward-ablation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check exact v0.10.1 model and reward-contract parity
+        run: |
+          python3 -m py_compile scripts/ablate_resource_task_rewards.py scripts/test_ablate_resource_task_rewards.py
+          python3 scripts/test_ablate_resource_task_rewards.py
+      - name: Compare preregistered rewards on matched held-out simulated worlds
+        run: |
+          python3 scripts/ablate_resource_task_rewards.py \
+            --train-episodes 350 --heldout 40 \
+            --output simulated-task-reward-ablation.json
+      - name: Audit evidence and control hashes
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path("simulated-task-reward-ablation.json").read_text())
+          assert data["schema"]=="hearthbound.simulated-task-reward-ablation.v1"
+          assert data["evaluation_reward_contract"]=="UNMODIFIED_V0_10_1"
+          assert data["world_origin"]=="SIMULATED_ONLY" and data["minecraft_worlds"]==0
+          assert data["neural_execution_authorized"] is False
+          assert len(data["results"])==3 and len(data["modes"])==4
+          for row in data["results"]:
+              assert len(row["scenarios"])==6
+              assert all(v["frozen_after_training"] for v in row["models"].values())
+              for scene in row["scenarios"].values():
+                  for mode in data["modes"]:
+                      assert scene[mode]["episodes"]==40
+                      assert len(scene[mode]["per_episode"])==40
+          print("PASS 4 reward strategies x 3 seeds x 6 scenes x 40 heldout simulated episodes")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: task-switch-reward-ablation
+          path: simulated-task-reward-ablation.json
+          if-no-files-found: error
