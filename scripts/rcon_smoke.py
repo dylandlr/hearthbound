@@ -197,6 +197,32 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
         next_id += 1
         return output
 
+    def record_context(stage, expected, output):
+        import re
+        found=re.search(r"\btensor_v2=([0-9.,]+)",output)
+        if not found:
+            raise AssertionError("Missing real v2 context tensor: "+output)
+        values=[float(v) for v in found.group(1).split(",")]
+        if len(values)!=10 or not all(0<=v<=1 for v in values):
+            raise AssertionError("Invalid real context tensor: "+output)
+        if stage=="unpowered" and values[0]!=0.:
+            raise AssertionError("Unpowered mill was not observed: "+output)
+        if stage=="output_ready" and values[2]!=1.:
+            raise AssertionError("Physical Create flour output was not observed: "+output)
+        print("REAL_MILL_CONTEXT stage="+stage+" reference="+expected
+              +" tensor="+found.group(1)+" read_only=true")
+
+    # New OOD coverage: real millstone without kinetic power. The 3-output
+    # simulator model has no INSPECT_UNPOWERED action and must abstain.
+    unpowered_context = checked("hearthbound policy_source_plan 8 100 1 9 100 3",
+                                "real unpowered mill context")
+    if ("action=INSPECT_UNPOWERED" not in unpowered_context
+            or "mill_powered=false" not in unpowered_context
+            or "observation_schema=hearthbound.mill-observation.v2" not in unpowered_context
+            or "EXECUTION_DISABLED" not in unpowered_context):
+        raise AssertionError("Unpowered real-world planning context not observed: " + unpowered_context)
+    record_context("unpowered", "INSPECT_UNPOWERED", unpowered_context)
+
     checked("setblock 9 98 3 create:creative_motor[facing=up] replace",
             "creative motor", "changed the block")
     checked("setblock 9 99 3 create:shaft[axis=y] replace",
@@ -247,6 +273,14 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
     if "mlp_action=COLLECT_OUTPUT" not in probe or "ML_INFERENCE_READ_ONLY" not in probe:
         raise AssertionError("Trained MLP failed to recognize finished output: " + probe)
     compare_shadow("output_ready", "COLLECT_OUTPUT")
+    output_context = checked("hearthbound policy_source_plan 8 100 1 9 100 3",
+                             "real output-ready mill context")
+    if ("action=COLLECT_OUTPUT" not in output_context
+            or "mill_flour=true" not in output_context
+            or "observation_schema=hearthbound.mill-observation.v2" not in output_context
+            or "EXECUTION_DISABLED" not in output_context):
+        raise AssertionError("Create flour present but source planner did not recognize output: " + output_context)
+    record_context("output_ready", "COLLECT_OUTPUT", output_context)
 
 
 
