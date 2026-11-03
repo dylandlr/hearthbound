@@ -32,3 +32,36 @@ This is not a Minecraft trial, not evidence of biological or social task-switch 
 ## Next phase
 
 If any reward variant consistently improves primary task success without sacrificing safety, test additional training budgets/horizons before a new real-world read-only evaluation. Otherwise shift to recurrent memory, explicit task-option termination and scheduling, and collect real multi-source observations before choosing architecture.
+
+## First completed CI results (November 3, 2026)
+
+GitHub Actions reward ablation workflow `41688818522` **completed successfully**, including exact original-model checkpoint reproduction and isolated training-reward checks. There are three training seeds, six evaluation scenarios and 40 held-out simulated worlds per seed and scenario: **720 evaluation episodes per strategy**, plus the separate scripted reference episodes.
+
+These are unweighted means across all 18 (three-seed × six-scenario) cells:
+
+| Evaluation policy | Mean simulated flour success |
+|---|---:|
+| Scripted reference | **83.89%** |
+| Original v0.10.1 neural (reproduced) | 53.89% |
+| +1.0 flour completion training bonus | **67.50%** |
+| -0.5 secondary job training discount | 59.03% |
+| Known-source potential shaping | 57.50% |
+
+The goal bonus improved the mean by **13.61 percentage points** relative to the preserved original neural control, but still trailed the scripted reference by **16.39 points**. Improvements varied by seed, and no reward variant won consistently in every scenario.
+
+Mean simulated flour-success rates for `goal_bonus` by scenario (scripted reference in parentheses):
+
+- Standard: **65.83%** (84.17%)
+- Primary empty / alternate stocked: **100%** (100%)
+- Both initially empty: **22.50%** (50.83%)
+- Alternate empty: **45.83%** (75%)
+- No secondary job: **70.83%** (93.33%)
+- Supply shift: **100%** (100%)
+
+Important: both-empty worlds can succeed after an exogenous restock in the simulator, but the learned model's outcomes remain less consistent than the scripted policy. Seed-specific overall averages for goal bonus were **55.00%, 70.42%, and 77.08%** (seeds 11, 13, 17); this variability is too large to infer robust superiority.
+
+No model was updated based on held-out results; the benchmark used only the preregistered training rewards. Source artifacts include full action counts, alternate-job outcomes, separate personal and colony rewards, timeouts and matched episode identifiers. The best apparent variant is a **candidate for follow-up**, not a deployed or accepted Minecraft policy.
+
+### Decision
+
+Keep the original and all reward variants frozen. A useful next experiment is an independent, larger outer holdout across new supply distributions and longer job sequences, plus event-timeline inspection of **secondary job → source reinspection → flour**. Do not treat scalar reward tuning as the only explanation: temporal credit assignment, history-dependent observations and goal-conditioned scheduling may matter more. Real Minecraft development remains under the upstream Create Maven certificate blocker.
