@@ -47,6 +47,20 @@ def main():
     initial=q.values(x)[2][1]
     q.train_one(x,1,initial+2.,lr=.01)
     assert q.values(x)[2][1]>initial
+    frozen=m.checkpoint(q,seed=5,episodes=1)
+    thawed=m.load_checkpoint(frozen)
+    assert thawed.values(x)[2]==q.values(x)[2]
+    bad=dict(frozen)
+    bad["sha256"]="0"*64
+    try:m.load_checkpoint(bad)
+    except ValueError:pass
+    else:raise AssertionError("Corrupt weight checksum accepted")
+    bad_weights=m.checkpoint(q,seed=5,episodes=1)
+    bad_weights["payload"]["weights"]["w1"][0].pop()
+    bad_weights["sha256"]=m.hashlib.sha256(m.canonical(bad_weights["payload"]).encode()).hexdigest()
+    try:m.load_checkpoint(bad_weights)
+    except ValueError:pass
+    else:raise AssertionError("Wrong architecture checkpoint accepted")
     report=m.benchmark(seed=13,episodes=80,heldout=20)
     assert report["training_data_origin"]=="SIMULATED_ONLY"
     assert report["minecraft_learning_claimed"] is False
