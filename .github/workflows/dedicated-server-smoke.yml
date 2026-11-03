@@ -55,6 +55,7 @@ jobs:
             exit 1
           fi
           echo "Hearthbound mod initialization confirmed"
+          python3 scripts/test_report_live_shadow.py
           python3 scripts/test_rcon_frames.py
           python3 scripts/rcon_smoke.py | tee smoke-rcon.log
           python3 scripts/report_live_shadow.py smoke-rcon.log --output live-shadow-report.json
