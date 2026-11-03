@@ -94,12 +94,14 @@ def main():
             raise AssertionError(f"Timed out awaiting live {expected_state}/{expected_wheat} receipt")
 
         empty=receive("EMPTY",0)
-        resp=command('setblock 6 100 2 minecraft:chest{Items:[{Slot:0b,id:"minecraft:wheat",Count:4b}]} replace')
-        if "changed" not in resp.lower():
+        # Same-block setblock can fail as a no-op even when its NBT differs.
+        # data merge mutates the EXISTING real chest inventory in place.
+        resp=command('data merge block 6 100 2 {Items:[{Slot:0b,id:"minecraft:wheat",Count:4b}]}')
+        if "modified" not in resp.lower():
             raise AssertionError("Could not add wheat to source: "+resp)
         stocked=receive("AVAILABLE",4,empty["revision"])
-        resp=command("setblock 6 100 2 minecraft:chest replace")
-        if "changed" not in resp.lower():
+        resp=command("data merge block 6 100 2 {Items:[]}")
+        if "modified" not in resp.lower():
             raise AssertionError("Could not empty source: "+resp)
         emptied=receive("EMPTY",0,stocked["revision"])
         assert [x["revision"] for x in (empty,stocked,emptied)]==[
