@@ -118,7 +118,10 @@ public final class LivePerceptionReceipts {
                 if(m.receipts.size()>=MAX_RECEIPTS_PER_LEVEL) m.receipts.removeFirst();
                 m.receipts.addLast(receipt);
             }
-            // Persist a private, evidence-backed memory even when the sampled\n            // quantity is unchanged; repeated observation refreshes freshness.\n            CitizenSourceKnowledge.remember(level,source,citizens.get(0),sampled);\n            watch.previous=sampled;
+            // Persist evidence-backed memory even when the quantity is unchanged.
+            // Repeated observation refreshes the last-seen timestamp.
+            CitizenSourceKnowledge.remember(level,source,citizens.get(0),sampled);
+            watch.previous=sampled;
         }
     }
 
