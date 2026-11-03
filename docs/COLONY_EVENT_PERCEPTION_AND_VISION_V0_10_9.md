@@ -41,3 +41,19 @@ Capture paired camera frames and authoritative *training-only* labels at the sam
 Add a read-only Forge source-event bridge producing `hearthbound.colony-perception-event.v1` receipts, explicit subscriber ACL and per-citizen cache, plus source-side sequence numbers and total-order handling after chunk unload/reload. Instrument actual inspection counts and event latencies, compare against polling, and collect camera frame/event alignment metadata. Keep strict limits on receiver visibility and preserve independent authority for every physical task.
 
 Current PR is only a Python reference simulator and test suite. No new gameplay, vision inference, model deployment or Minecraft world was executed by this benchmark.
+
+## Completed standalone CI findings — November 3, 2026
+
+[GitHub Actions run 41722852327](https://github.com/dylandlr/hearthbound/actions/runs/41722852327) passed version/TTL/visibility and simulated task-authority tests plus the four-seed comparison. Each run simulated 12 citizens, 3 inventory sources and 140 world steps:
+
+| Arm | Synthetic source inspections per run | Event deliveries per run | Simulated successful hauls, seeds 11/13/17/19 |
+|---|---:|---:|---|
+| Poll every source, every citizen, every tick | **5,040** | 0 | 16 / 16 / 16 / 16 |
+| Event subscriptions | **0** | 408–420 | 15 / 16 / 15 / 15 |
+| Event subscriptions + shared facts | **0** | 408–420 | 15 / 16 / 15 / 15 |
+
+The results confirm the reference implementation behaves as designed. They **do not establish actual CPU reductions**, because the abstract bus models reliable zero-latency delivery and has no measured Forge inventory cost. Nor do they demonstrate improved colony knowledge from citizen communication: all subscribers already receive the same trusted events, so sharing redundant facts adds nothing. A practical next experiment must introduce uneven local visibility, delivery delay/drops, and structured citizen messaging to establish incremental value.
+
+The 15-versus-16 simulated-haul difference in some seeds further cautions against describing event delivery as automatically better for productivity. All real physical job control remains outside this experimental event bus.
+
+The vision path remains a documented design proposal only: no frames collected, CNN trained or visual-only agents tested in this milestone.
