@@ -80,5 +80,28 @@ with socket.create_connection(("127.0.0.1",25575),timeout=15) as sock:
     duplicate=run("hearthbound knowledge_share 6 100 2 "+recipient)
     if "status=DUPLICATE" not in duplicate:
         raise AssertionError("Duplicate report was not replay protected: "+duplicate)
+    # Second citizen independently observes a different real chest, not
+    # a shared global source cache or an incoming hearsay message.
+    run("setblock 9 100 2 minecraft:chest replace")
+    stocked=run('data merge block 9 100 2 {Items:[{Slot:0b,id:"minecraft:wheat",Count:3b}]}')
+    if "modified" not in stocked.lower():
+        raise AssertionError("Could not construct second physical source: "+stocked)
+    sable="@e[type=minecraft:villager,name=Sable,limit=1]"
+    sable_before=run("hearthbound citizen_memory 9 100 2 "+sable)
+    receiver_before=run("hearthbound citizen_memory 9 100 2 "+recipient)
+    if "status=UNKNOWN" not in sable_before or "status=UNKNOWN" not in receiver_before:
+        raise AssertionError("Second source was known before direct citizen observation")
+    observation=run("hearthbound citizen_observe 9 100 2 "+recipient)
+    if "status=OBSERVED" not in observation or "wheat=3" not in observation or "action_authorized=false" not in observation:
+        raise AssertionError("Recipient did not independently observe real chest: "+observation)
+    receiver_after=run("hearthbound citizen_memory 9 100 2 "+recipient)
+    sable_after=run("hearthbound citizen_memory 9 100 2 "+sable)
+    if "status=KNOWN" not in receiver_after or "wheat=3" not in receiver_after or "origin=DIRECT_FORGE_OBSERVATION" not in receiver_after:
+        raise AssertionError("Independent recipient memory not retained: "+receiver_after)
+    if "status=UNKNOWN" not in sable_after:
+        raise AssertionError("Sable learned recipient private observation without communication: "+sable_after)
+    hearsay_only=run("hearthbound citizen_memory 6 100 2 "+recipient)
+    if "status=UNKNOWN" not in hearsay_only:
+        raise AssertionError("Incoming report improperly promoted to direct memory: "+hearsay_only)
     run("hearthbound perception_unwatch 6 100 2")
     print("REAL_FORGE_SOCIAL_REPORT_ACCEPTANCE_PASS",flush=True)
