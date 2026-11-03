@@ -30,3 +30,26 @@ Output metrics include actual simulated flour outcomes, separate colony and pers
 A passing workflow proves only contract consistency and deterministic execution. Favor interventions and success jointly; an unbudgeted policy that obtains good results by refreshing every few ticks may be operationally impractical. Failure under novel refresh errors would argue for improved temporal memory, uncertainty and learnable termination, not automatic live deployment.
 
 This is **SIMULATED_ONLY** and adds no Minecraft controls, LLM integration, new biological/social agents or real sensor-reading capability. The previously working Forge/Create dedicated-server smoke remains the authoritative separate game integration gate.
+
+## Initial completed outer-holdout results — 2026-11-03
+
+[GitHub Actions run 41716635498](https://github.com/dylandlr/hearthbound/actions/runs/41716635498) completed successfully after the contract test surfaced and we corrected a key task-safety bug: source-observation masks alone do not establish that wheat remains in the inventory at execution time. The independent supervisor now checks actual available source quantities (without disclosing them to the neural policy) before allowing a proposed haul. This was a **real defect in the simulation execution preflight exposed by synthetic inventory drift**, not evidence of an actual Minecraft exploit.
+
+Each profile contains 360 synthetic held-out episodes **per policy** (3 train seeds × 5 source regimes × 24 episode seeds). Outcomes:
+
+| Novel synthetic fault profile | Unrestricted age-aware success | Budget-limited age-aware success | Frozen legacy success | Unrestricted rejections | Budgeted rejections | Legacy rejections | Unrestricted refreshes | Budgeted refreshes |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Failed refreshes | 94.44% | 70.00% | 88.89% | 292 | 371 | 1,410 | 1,990 | 991 |
+| Hard refresh limit | 97.22% | 68.06% | 85.00% | 0 | 68 | 1,624 | 1,274 | 528 |
+| Inventory drift | 96.39% | 68.89% | 74.44% | 259 | 308 | 2,129 | 1,480 | 800 |
+| Combined faults | 90.28% | 41.94% | 78.33% | 440 | 465 | 2,334 | 2,958 | 862 |
+
+Interpretation: **unrestricted age-aware sensing is robust in this model, but the same neural network with externally capped refreshes is substantially worse**. The budgeted variant was not retrained to optimize its observation budget: it repeatedly requests refreshes that the executor denies. Consequently the comparison does not establish that an optimally trained budget-conscious policy would perform poorly. It instead shows the existing age-aware model is *not* a good policy under constrained sensing.
+
+Unrestricted refresh counts total **7,702** across the four profiles; this frequency is probably impractical if each refresh translates to a real Minecraft sensor/network operation. Safety rejections also persist (991 for unrestricted age-aware over the nonzero-rejection profiles), so stale-action protection remains necessary. Zero executed invalid tasks depends on the engineered supervisor's current-world preflight, which was tightened after the initial failing CI test.
+
+### Next research decision
+
+Freeze the v0.10.7 outcome and train an explicitly **budget-conditioned** high-level controller. Its observation should include remaining refresh budget, recent refresh success/failure and age of its last *successful* sensor read. Training should include a per-refresh cost and occasional refresh failures, then use a new outer test family with different delay/failure distributions. Evaluate completed primary goals jointly with total refresh cost, rejected proposals, worker latency and colony/personal returns. Do not remove execution-time source validation when later porting decisions to Forge.
+
+This is a negative generalization result for the current age-aware policy under resource constraints, **not a Minecraft gameplay result**.
