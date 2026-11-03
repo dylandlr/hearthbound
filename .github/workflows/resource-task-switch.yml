@@ -1,0 +1,50 @@
+name: Simulated resource seeking and task switching
+on:
+  pull_request:
+    paths:
+      - 'scripts/train_resource_task_switch.py'
+      - 'scripts/test_train_resource_task_switch.py'
+      - '.github/workflows/resource-task-switch.yml'
+  workflow_dispatch:
+jobs:
+  task-switch-learning:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify simulator learning and partial-observation contracts
+        run: |
+          python3 -m py_compile scripts/train_resource_task_switch.py scripts/test_train_resource_task_switch.py
+          python3 scripts/test_train_resource_task_switch.py
+      - name: Train neural baseline, preserve controls, evaluate held-out regimes
+        run: |
+          python3 scripts/train_resource_task_switch.py \
+            --episodes 350 --heldout 40 --output resource-task-switch.json
+      - name: Verify simulator-only provenance, independent seeds and policy evaluation
+        run: |
+          python3 - <<'PY'
+          import json
+          r=json.load(open("resource-task-switch.json"))
+          assert r["schema"]=="hearthbound.simulated-resource-task-switch.v1"
+          assert r["minecraft_worlds"]==0
+          assert r["minecraft_deployment_authorized"] is False
+          assert r["training_origin"]==r["evaluation_origin"]=="SIMULATED_ONLY"
+          assert r["model_architecture"]=="15-24-6"
+          assert len(r["results"])==3
+          for result in r["results"]:
+              assert result["weights_frozen"] is True
+              assert result["gradient_updates"]>0
+              assert len(result["scenarios"])==6
+              for case in result["scenarios"].values():
+                  assert all(case[name]["episodes"]==40
+                             for name in ("neural_q","scripted","untrained"))
+          print("PASS 3 seeds x 6 scenarios x 40 held-out SIMULATED episodes per policy")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: simulated-resource-task-switch-results
+          path: resource-task-switch.json
+          if-no-files-found: error
