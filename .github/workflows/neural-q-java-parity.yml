@@ -4,6 +4,10 @@ on:
     paths:
       - 'scripts/train_simulated_mill_neural_q.py'
       - 'scripts/export_neural_q_java_parity.py'
+      - 'src/test/java/dev/hearthbound/evidence/RealMinecraftNeuralQShadow.java'
+      - 'scripts/test_real_neural_q_shadow_fixture.py'
+      - 'scripts/report_real_neural_q_shadow.py'
+      - 'scripts/test_report_real_neural_q_shadow.py'
       - 'src/test/java/dev/hearthbound/evidence/SimulatedNeuralQParity.java'
       - '.github/workflows/neural-q-java-parity.yml'
   workflow_dispatch:
@@ -38,6 +42,19 @@ jobs:
             src/test/java/dev/hearthbound/evidence/SimulatedNeuralQParity.java
           java -cp /tmp/hb-neural-parity dev.hearthbound.evidence.SimulatedNeuralQParity \
             simulated-neural-q-java-weights.txt simulated-neural-q-java-fixtures.txt
+      - name: Validate Java shadow engine against SYNTHETIC RCON-format fixtures
+        run: |
+          python scripts/test_report_real_neural_q_shadow.py
+          python scripts/test_real_neural_q_shadow_fixture.py synthetic-source-states.log
+          javac --release 17 -d /tmp/hb-neural-parity \
+            src/test/java/dev/hearthbound/evidence/RealMinecraftNeuralQShadow.java
+          java -cp /tmp/hb-neural-parity dev.hearthbound.evidence.RealMinecraftNeuralQShadow \
+            simulated-neural-q-java-weights.txt synthetic-source-states.log SCRIPTED | tee synthetic-shadow-scripted.log
+          java -cp /tmp/hb-neural-parity dev.hearthbound.evidence.RealMinecraftNeuralQShadow \
+            simulated-neural-q-java-weights.txt synthetic-source-states.log TRAINED_MLP | tee synthetic-shadow-trained.log
+          python scripts/report_real_neural_q_shadow.py \
+            synthetic-shadow-scripted.log synthetic-shadow-trained.log \
+            --output synthetic-neural-shadow-check.json
       - uses: actions/upload-artifact@v4
         with:
           name: simulator-neural-q-java-parity
@@ -46,4 +63,5 @@ jobs:
             simulated-neural-q-checkpoint.json
             simulated-neural-q-java-weights.txt
             simulated-neural-q-java-fixtures.txt
+            synthetic-neural-shadow-check.json
           if-no-files-found: error

@@ -176,6 +176,10 @@ jobs:
           pattern: minecraft-policy-trial-*
           path: policy-trials
           merge-multiple: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
       - name: Verify both live Minecraft trial records before comparison
         run: |
           python3 scripts/test_compare_real_policy_trials.py
@@ -187,10 +191,40 @@ jobs:
             policy-trials/minecraft-policy-trial-SCRIPTED/minecraft-experience.json \
             policy-trials/minecraft-policy-trial-TRAINED_MLP/minecraft-experience.json \
             --output minecraft-experience-dataset.json
+      - name: Run frozen simulator-trained neural Q against archived real Minecraft states (READ ONLY)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/test_report_real_neural_q_shadow.py
+          python3 scripts/train_simulated_mill_neural_q.py \
+            --seed 11 --episodes 300 --heldout 80 \
+            --output simulated-shadow-training.json \
+            --checkpoint simulated-shadow-checkpoint.json
+          python3 scripts/export_neural_q_java_parity.py \
+            simulated-shadow-checkpoint.json \
+            --weights simulated-shadow-java-weights.txt \
+            --fixtures simulated-shadow-python-fixtures.txt
+          mkdir -p /tmp/hb-neural-q
+          javac --release 17 -d /tmp/hb-neural-q \
+            src/test/java/dev/hearthbound/evidence/SimulatedNeuralQParity.java \
+            src/test/java/dev/hearthbound/evidence/RealMinecraftNeuralQShadow.java
+          java -cp /tmp/hb-neural-q dev.hearthbound.evidence.SimulatedNeuralQParity \
+            simulated-shadow-java-weights.txt simulated-shadow-python-fixtures.txt
+          java -cp /tmp/hb-neural-q dev.hearthbound.evidence.RealMinecraftNeuralQShadow \
+            simulated-shadow-java-weights.txt \
+            policy-trials/minecraft-policy-trial-SCRIPTED/smoke-rcon.log SCRIPTED | tee neural-shadow-scripted.log
+          java -cp /tmp/hb-neural-q dev.hearthbound.evidence.RealMinecraftNeuralQShadow \
+            simulated-shadow-java-weights.txt \
+            policy-trials/minecraft-policy-trial-TRAINED_MLP/smoke-rcon.log TRAINED_MLP | tee neural-shadow-trained.log
+          python3 scripts/report_real_neural_q_shadow.py \
+            neural-shadow-scripted.log neural-shadow-trained.log \
+            --output real-neural-q-shadow.json
       - uses: actions/upload-artifact@v4
         with:
           name: minecraft-policy-comparison
           path: |
             policy-comparison.json
             minecraft-experience-dataset.json
+            real-neural-q-shadow.json
+            simulated-shadow-checkpoint.json
           if-no-files-found: error
