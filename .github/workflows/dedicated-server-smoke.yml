@@ -9,6 +9,10 @@ jobs:
   boot-server:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        policy: [SCRIPTED, TRAINED_MLP]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -26,6 +30,7 @@ jobs:
         shell: bash
         env:
           HEARTHBOUND_RCON_PASSWORD: ci-local-disposable-password
+          HEARTHBOUND_TRIAL_MODE: ${{ matrix.policy }}
         run: |
           set -euo pipefail
           mkdir -p run
@@ -61,6 +66,7 @@ jobs:
           echo "Hearthbound mod initialization confirmed"
           python3 scripts/rcon_smoke.py | tee smoke-rcon.log
           python3 scripts/report_live_shadow.py smoke-rcon.log --output live-shadow-report.json
+          python3 scripts/report_policy_trial.py smoke-rcon.log --expected-mode "$HEARTHBOUND_TRIAL_MODE" --output policy-trial-result.json
           echo "Verifying citizen NBT survives save and dedicated-server restart"
           python3 scripts/rcon_verify_sable_restart.py checkpoint
           for i in $(seq 1 60); do
@@ -99,7 +105,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: minecraft-dedicated-server-smoke-logs
+          name: minecraft-policy-trial-${{ matrix.policy }}
           path: |
             server-smoke.log
             server-before-restart.log
@@ -107,5 +113,6 @@ jobs:
             run/logs/latest.log
             smoke-rcon.log
             live-shadow-report.json
+            policy-trial-result.json
           if-no-files-found: warn
           retention-days: 14
