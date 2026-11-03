@@ -31,6 +31,7 @@ public final class HearthboundMod {
             if(event.phase==TickEvent.Phase.END
                     && event.level instanceof net.minecraft.server.level.ServerLevel level) {
                 dev.hearthbound.world.LivePerceptionReceipts.sample(level);
+                dev.hearthbound.world.CitizenWatchRegistry.sample(level);
             }
         }
         @SubscribeEvent
@@ -83,6 +84,57 @@ public final class HearthboundMod {
                                     ctx.getSource().sendSuccess(() -> Component.literal(result),false);
                                     return 1;
                                 })))
+                    .then(Commands.literal("citizen_watch")
+                            .requires(source -> source.hasPermission(2))
+                            .then(Commands.argument("source", BlockPosArgument.blockPos())
+                                .then(Commands.argument("citizen", EntityArgument.entity())
+                                    .executes(ctx -> {
+                                        var target=EntityArgument.getEntity(ctx,"citizen");
+                                        if (!(target instanceof net.minecraft.world.entity.npc.Villager citizen)) {
+                                            ctx.getSource().sendFailure(Component.literal("Target must be a villager"));
+                                            return 0;
+                                        }
+                                        var level=ctx.getSource().getLevel();
+                                        var pos=BlockPosArgument.getBlockPos(ctx,"source");
+                                        String result=dev.hearthbound.world.CitizenWatchRegistry.watch(
+                                            level,pos,citizen);
+                                        ctx.getSource().sendSuccess(() -> Component.literal(result),false);
+                                        return 1;
+                                    }))))
+                    .then(Commands.literal("citizen_unwatch")
+                            .requires(source -> source.hasPermission(2))
+                            .then(Commands.argument("source", BlockPosArgument.blockPos())
+                                .then(Commands.argument("citizen", EntityArgument.entity())
+                                    .executes(ctx -> {
+                                        var target=EntityArgument.getEntity(ctx,"citizen");
+                                        if (!(target instanceof net.minecraft.world.entity.npc.Villager citizen)) {
+                                            ctx.getSource().sendFailure(Component.literal("Target must be a villager"));
+                                            return 0;
+                                        }
+                                        var level=ctx.getSource().getLevel();
+                                        var pos=BlockPosArgument.getBlockPos(ctx,"source");
+                                        String result=dev.hearthbound.world.CitizenWatchRegistry.unwatch(
+                                            level,pos,citizen);
+                                        ctx.getSource().sendSuccess(() -> Component.literal(result),false);
+                                        return 1;
+                                    }))))
+                    .then(Commands.literal("citizen_watch_latest")
+                            .requires(source -> source.hasPermission(2))
+                            .then(Commands.argument("source", BlockPosArgument.blockPos())
+                                .then(Commands.argument("citizen", EntityArgument.entity())
+                                    .executes(ctx -> {
+                                        var target=EntityArgument.getEntity(ctx,"citizen");
+                                        if (!(target instanceof net.minecraft.world.entity.npc.Villager citizen)) {
+                                            ctx.getSource().sendFailure(Component.literal("Target must be a villager"));
+                                            return 0;
+                                        }
+                                        var level=ctx.getSource().getLevel();
+                                        var pos=BlockPosArgument.getBlockPos(ctx,"source");
+                                        String result=dev.hearthbound.world.CitizenWatchRegistry.latest(
+                                            level,pos,citizen);
+                                        ctx.getSource().sendSuccess(() -> Component.literal(result),false);
+                                        return 1;
+                                    }))))
                     .then(Commands.literal("citizen_observe")
                             .requires(source -> source.hasPermission(2))
                             .then(Commands.argument("source", BlockPosArgument.blockPos())

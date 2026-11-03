@@ -103,5 +103,43 @@ with socket.create_connection(("127.0.0.1",25575),timeout=15) as sock:
     hearsay_only=run("hearthbound citizen_memory 6 100 2 "+recipient)
     if "status=UNKNOWN" not in hearsay_only:
         raise AssertionError("Incoming report improperly promoted to direct memory: "+hearsay_only)
+    # Continuous Forge ticks must update only a specifically subscribed citizen.
+    subscribed=run("hearthbound citizen_watch 9 100 2 "+recipient)
+    if "status=REGISTERED" not in subscribed:
+        raise AssertionError("Cannot subscribe citizen B: "+subscribed)
+    first=None
+    for _ in range(45):
+        receipt=run("hearthbound citizen_watch_latest 9 100 2 "+recipient)
+        if "CITIZEN_WATCH_RECEIPT" in receipt and "wheat=3" in receipt:
+            first=receipt
+            break
+        time.sleep(.2)
+    if first is None: raise AssertionError("No first per-citizen Forge tick receipt")
+    unregistered=run("hearthbound citizen_watch_latest 9 100 2 "+sable)
+    if "status=UNKNOWN" not in unregistered:
+        raise AssertionError("Unsubscribed Sable saw recipient receipt")
+    changed=run('data merge block 9 100 2 {Items:[{Slot:0b,id:"minecraft:wheat",Count:2b}]}')
+    if "modified" not in changed.lower(): raise AssertionError("Watch fixture mutation failed")
+    second=None
+    for _ in range(45):
+        receipt=run("hearthbound citizen_watch_latest 9 100 2 "+recipient)
+        if "CITIZEN_WATCH_RECEIPT" in receipt and "wheat=2" in receipt:
+            second=receipt
+            break
+        time.sleep(.2)
+    if second is None: raise AssertionError("No second per-citizen Forge tick receipt")
+    updated=run("hearthbound citizen_memory 9 100 2 "+recipient)
+    if "wheat=2" not in updated: raise AssertionError("Recipient memory not refreshed")
+    removed=run("hearthbound citizen_unwatch 9 100 2 "+recipient)
+    if "removed=true" not in removed: raise AssertionError("Citizen watch not removed")
+    # Restore the expected restart fixture and directly observe the new state.
+    restored=run('data merge block 9 100 2 {Items:[{Slot:0b,id:"minecraft:wheat",Count:3b}]}')
+    if "modified" not in restored.lower(): raise AssertionError("Restore fixture failed")
+    restored_read=run("hearthbound citizen_observe 9 100 2 "+recipient)
+    if "wheat=3" not in restored_read or "status=OBSERVED" not in restored_read:
+        raise AssertionError("Recipient failed to observe restored state")
+    sable_still_unknown=run("hearthbound citizen_memory 9 100 2 "+sable)
+    if "status=UNKNOWN" not in sable_still_unknown:
+        raise AssertionError("Sable acquired unrelated private memory")
     run("hearthbound perception_unwatch 6 100 2")
     print("REAL_FORGE_SOCIAL_REPORT_ACCEPTANCE_PASS",flush=True)
