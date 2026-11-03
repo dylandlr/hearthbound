@@ -175,6 +175,15 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
             power_ready = True
             if "mlp_action=REQUEST_WHEAT_HAUL" not in probe or "ML_INFERENCE_READ_ONLY" not in probe:
                 raise AssertionError("Trained MLP disagrees with empty powered mill: " + probe)
+            scripted_shadow=checked("hearthbound policy_shadow 9 100 3 SCRIPTED",
+                                    "scripted live shadow")
+            learned_shadow=checked("hearthbound policy_shadow 9 100 3 TRAINED_MLP",
+                                   "trained live shadow")
+            for result,mode in ((scripted_shadow,"SCRIPTED"),(learned_shadow,"TRAINED_MLP")):
+                if "shadow_mode="+mode not in result or "selected_action=REQUEST_WHEAT_HAUL" not in result:
+                    raise AssertionError("Shadow mode live disagreement: " + result)
+                if "EXECUTION_DISABLED" not in result:
+                    raise AssertionError("Shadow test was not read-only: " + result)
             print("LIVE_CREATE_POWER_CONFIRMED " + probe)
             break
         if "action=INSPECT_UNPOWERED" not in probe or "powered=false" not in probe:
