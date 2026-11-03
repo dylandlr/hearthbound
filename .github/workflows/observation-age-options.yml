@@ -1,0 +1,54 @@
+name: Observation-age-aware learned option controller
+on:
+  pull_request:
+    paths:
+      - 'scripts/train_age_aware_option_controller.py'
+      - 'scripts/test_train_age_aware_option_controller.py'
+      - '.github/workflows/observation-age-options.yml'
+  workflow_dispatch:
+jobs:
+  age-aware:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify sensor-age timing, costly refresh, TD training and safety
+        run: |
+          python3 -m py_compile scripts/train_age_aware_option_controller.py scripts/test_train_age_aware_option_controller.py
+          python3 scripts/test_train_age_aware_option_controller.py
+      - name: Train and evaluate heldout age-aware policy against frozen predecessor
+        run: |
+          python3 scripts/train_age_aware_option_controller.py \
+            --low-episodes 350 --old-episodes 480 --age-episodes 520 \
+            --heldout 30 --output age-aware-options.json
+      - name: Verify evidence, safety and immutable checkpoints
+        run: |
+          python3 - <<'PY'
+          import json
+          r=json.load(open("age-aware-options.json"))
+          assert r["schema"]=="hearthbound.age-aware-options.v1"
+          assert r["model_training"]==r["evaluation_data"]=="SIMULATED_ONLY"
+          assert r["minecraft_worlds"]==0
+          assert r["minecraft_execution_authorized"] is False
+          assert r["supervisor_current_state_only_for_safety"] is True
+          assert len(r["results"])==3
+          for row in r["results"]:
+              assert row["models_frozen"]
+              assert row["age_updates"]>0
+              assert len(row["profiles"])==5
+              for scenarios in row["profiles"].values():
+                  assert len(scenarios)==5
+                  for trial in scenarios.values():
+                      assert trial["age_aware"]["episodes"]==30
+                      assert trial["frozen_legacy"]["episodes"]==30
+                      assert trial["age_aware"]["invalid_requests"]==0
+          print("PASS 3 training seeds × 5 profiles × 5 scenarios × 30 heldout simulated worlds per policy")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: age-aware-option-generalization
+          path: age-aware-options.json
+          if-no-files-found: error
