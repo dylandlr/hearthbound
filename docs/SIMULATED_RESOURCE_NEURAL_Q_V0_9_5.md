@@ -31,6 +31,12 @@ The CLI explicitly emits:
 
 CI runs deterministic safety and reproducibility tests, trains a bounded short benchmark, and uploads \`simulated-mill-neural-q-results.json\`. It must not be mixed into the audited \`minecraft-experience-dataset.json\`.
 
+## Frozen experimental checkpoint
+
+The simulation training workflow also saves `simulated-mill-neural-q-checkpoint.json` as a versioned 10→20→3 neural weight artifact. A deterministic SHA-256 covers the canonical payload, including feature order, action labels, architecture, weights and training provenance. Loading it requires matching the complete contract and finite weights. Unit tests verify exact round-trip Q-value parity and reject tampered checksums and wrong-sized matrices.
+
+The checkpoint explicitly sets `minecraft_deployment_authorized=false` and `training_data_origin=SIMULATED_ONLY`. No checksum alone makes a simulator-trained model safe to run in Minecraft.
+
 ## Interpretation / next integration
 
 Even if neural Q achieves high success in its toy environment, **that is not evidence of improved Minecraft intelligence**. The input sensor has been grounded in Minecraft; the simplified transition/reward process has not. Before any world-changing neural control:
