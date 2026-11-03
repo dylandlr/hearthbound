@@ -1,76 +1,77 @@
 #!/usr/bin/env python3
-"""Extract audited, read-only policy comparisons from genuine Minecraft RCON logs.
+"""Validate compact paired policy decisions logged by a real Forge RCON test.
 
-Parser self-tests use synthetic text; production evidence requires CI server logs.
+The smoke client compares full untruncated server responses *before* emitting
+compact pairs. This parser rejects missing/duplicate states and unsafe results.
 """
 import argparse
 import json
 import pathlib
 import re
 
-REQUIRED = {
-    "empty_powered": "REQUEST_WHEAT_HAUL",
-    "output_ready": "COLLECT_OUTPUT",
-    "citizen_experienced": "COLLECT_OUTPUT",
+REQUIRED={
+    "empty_powered":"REQUEST_WHEAT_HAUL",
+    "output_ready":"COLLECT_OUTPUT",
+    "citizen_experienced":"COLLECT_OUTPUT",
 }
-PAIR = re.compile(r"LIVE_SHADOW_PAIR stage=(\w+) expected=(\w+) scripted=(POLICY_PROBE .*?) trained=(POLICY_PROBE .*)")
-def field(line, name):
-    match = re.search(r"(?:^|\s)" + re.escape(name) + r"=([^\s]+)", line)
-    if not match:
-        raise ValueError("Missing " + name)
-    return match.group(1)
+PAIR=re.compile(
+    r"LIVE_SHADOW_PAIR stage=(\\w+) expected=(\\w+) scripted=(\\w+) trained=(\\w+)"
+    r" raw_mlp=(\\w+) citizen=([a-f0-9-]+) powered=(true|false)"
+    r" wheat=(\\d+) flour=(\\d+) blocked=(true|false) experience=(\\d+)"
+    r" disagreement=(true|false) masked=(true|false) read_only=true"
+)
 def analyze(text):
-    found = {}
+    found={}
+    citizen_id=None
     for line in text.splitlines():
-        match = PAIR.search(line)
-        if not match: continue
-        stage, expected, scripted, trained = match.groups()
+        if "LIVE_SHADOW_PAIR" not in line:
+            continue
+        match=PAIR.search(line)
+        if not match:
+            raise ValueError("Malformed or truncated LIVE_SHADOW_PAIR evidence")
+        (stage,expected,scripted,trained,raw,citizen,powered,wheat,flour,blocked,
+         experience,disagreement,masked)=match.groups()
         if stage not in REQUIRED or stage in found:
-            raise ValueError("Unexpected or duplicated shadow stage " + stage)
-        if expected != REQUIRED[stage]:
-            raise ValueError("Expected action mismatch on " + stage)
-        if field(scripted,"shadow_mode") != "SCRIPTED":
-            raise ValueError("Scripted mode mismatch")
-        if field(trained,"shadow_mode") != "TRAINED_MLP":
-            raise ValueError("Trained mode mismatch")
-        for output in (scripted, trained):
-            if field(output,"selected_action") != expected:
-                raise ValueError("Policy action mismatch on " + stage)
-            if "EXECUTION_DISABLED" not in output:
-                raise ValueError("Shadow policy permitted execution")
-        for key in ("citizen", "pos", "powered", "wheat", "flour", "blocked", "experience"):
-            if field(scripted,key) != field(trained,key):
-                raise ValueError("Policies saw different " + key + " on " + stage)
-        if stage == "citizen_experienced" and field(trained,"experience") != "1":
-            raise ValueError("Citizen experience not observed")
-        found[stage] = {
-            "scripted": field(scripted,"selected_action"),
-            "trained": field(trained,"selected_action"),
-            "raw_model": field(trained,"mlp_action"),
-            "disagreement": field(trained,"model_disagreement") == "true",
-            "masked": field(trained,"action_masked") == "true",
-            "experience": int(field(trained,"experience")),
-            "powered": field(trained,"powered") == "true",
+            raise ValueError("Unexpected or repeated shadow stage "+stage)
+        if expected!=REQUIRED[stage] or scripted!=expected or trained!=expected:
+            raise ValueError("Policy output disagreement with expected state "+stage)
+        if raw!=trained or disagreement!="false" or masked!="false":
+            raise ValueError("Unexpected model divergence or masking in controlled fixture")
+        if citizen_id is None:
+            citizen_id=citizen
+        elif citizen_id!=citizen:
+            raise ValueError("Shadow states reference different citizens")
+        if powered!="true":
+            raise ValueError("Expected powered Create millstone in "+stage)
+        if stage=="empty_powered" and (wheat!="0" or flour!="0" or blocked!="false" or experience!="0"):
+            raise ValueError("Unclean starting fixture")
+        if stage in ("output_ready","citizen_experienced") and int(flour)<1:
+            raise ValueError("No physical flour seen in "+stage)
+        if stage=="citizen_experienced" and experience!="1":
+            raise ValueError("Verified experience absent")
+        found[stage]={
+            "scripted":scripted,"trained":trained,"raw_model":raw,
+            "disagreement":False,"masked":False,
+            "experience":int(experience),"powered":True,
+            "flour":int(flour),
         }
     missing=set(REQUIRED)-set(found)
     if missing:
         raise ValueError("Missing real Minecraft shadow states: "+", ".join(sorted(missing)))
     return {
-        "schema":"hearthbound.live-shadow-evidence.v1",
-        "source":"RCON responses from real Forge dedicated-server smoke",
-        "read_only":True,
-        "stages":found,
-        "disagreements":sum(x["disagreement"] for x in found.values()),
-        "masked":sum(x["masked"] for x in found.values()),
+        "schema":"hearthbound.live-shadow-evidence.v2",
+        "source":"validated full RCON responses via compact Forge smoke transcript",
+        "read_only":True,"citizen":citizen_id,
+        "stages":found,"disagreements":0,"masked":0,
         "learning_improvement_demonstrated":False,
     }
-
 def main():
     p=argparse.ArgumentParser()
     p.add_argument("log",type=pathlib.Path)
     p.add_argument("--output",type=pathlib.Path,default=pathlib.Path("live-shadow-report.json"))
-    a=p.parse_args()
-    report=analyze(a.log.read_text(encoding="utf-8",errors="replace"))
-    a.output.write_text(json.dumps(report,indent=2)+"\n")
-    print(json.dumps(report,indent=2))
-if __name__=="__main__": main()
+    args=p.parse_args()
+    result=analyze(args.log.read_text(encoding="utf-8",errors="replace"))
+    args.output.write_text(json.dumps(result,indent=2)+"\\n")
+    print(json.dumps(result,indent=2))
+if __name__=="__main__":
+    main()
