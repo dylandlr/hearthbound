@@ -56,7 +56,8 @@ jobs:
           fi
           echo "Hearthbound mod initialization confirmed"
           python3 scripts/test_rcon_frames.py
-          python3 scripts/rcon_smoke.py
+          python3 scripts/rcon_smoke.py | tee smoke-rcon.log
+          python3 scripts/report_live_shadow.py smoke-rcon.log --output live-shadow-report.json
           echo "Verifying citizen NBT survives save and dedicated-server restart"
           python3 scripts/rcon_verify_sable_restart.py checkpoint
           for i in $(seq 1 60); do
@@ -101,5 +102,7 @@ jobs:
             server-before-restart.log
             server-after-restart.log
             run/logs/latest.log
+            smoke-rcon.log
+            live-shadow-report.json
           if-no-files-found: warn
           retention-days: 14
