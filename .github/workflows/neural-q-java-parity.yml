@@ -64,6 +64,13 @@ jobs:
           python scripts/report_real_neural_q_shadow.py \
             synthetic-shadow-scripted.log synthetic-shadow-trained.log \
             --output synthetic-neural-shadow-check.json
+          java -cp /tmp/hb-neural-parity dev.hearthbound.evidence.RealMinecraftNeuralQContextReplay \
+            simulated-neural-q-java-weights.txt synthetic-source-states.log SCRIPTED | tee synthetic-context-scripted.log
+          java -cp /tmp/hb-neural-parity dev.hearthbound.evidence.RealMinecraftNeuralQContextReplay \
+            simulated-neural-q-java-weights.txt synthetic-source-states.log TRAINED_MLP | tee synthetic-context-trained.log
+          python scripts/report_mill_context_coverage.py \
+            synthetic-context-scripted.log synthetic-context-trained.log \
+            --output synthetic-mill-context-check.json
       - uses: actions/upload-artifact@v4
         with:
           name: simulator-neural-q-java-parity
@@ -73,4 +80,5 @@ jobs:
             simulated-neural-q-java-weights.txt
             simulated-neural-q-java-fixtures.txt
             synthetic-neural-shadow-check.json
+            synthetic-mill-context-check.json
           if-no-files-found: error
