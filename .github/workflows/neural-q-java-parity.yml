@@ -1,0 +1,49 @@
+name: Simulator neural Q Python Java parity
+on:
+  pull_request:
+    paths:
+      - 'scripts/train_simulated_mill_neural_q.py'
+      - 'scripts/export_neural_q_java_parity.py'
+      - 'src/test/java/dev/hearthbound/evidence/SimulatedNeuralQParity.java'
+      - '.github/workflows/neural-q-java-parity.yml'
+  workflow_dispatch:
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Train simulator-only neural Q and export Python vectors
+        run: |
+          python scripts/test_train_simulated_mill_neural_q.py
+          python scripts/train_simulated_mill_neural_q.py \
+            --seed 11 --episodes 300 --heldout 80 \
+            --output simulated-neural-q-results.json \
+            --checkpoint simulated-neural-q-checkpoint.json
+          python scripts/export_neural_q_java_parity.py \
+            simulated-neural-q-checkpoint.json \
+            --weights simulated-neural-q-java-weights.txt \
+            --fixtures simulated-neural-q-java-fixtures.txt
+      - name: Check independent Java 17 Q-value and action parity
+        run: |
+          mkdir -p /tmp/hb-neural-parity
+          javac --release 17 -d /tmp/hb-neural-parity \
+            src/test/java/dev/hearthbound/evidence/SimulatedNeuralQParity.java
+          java -cp /tmp/hb-neural-parity dev.hearthbound.evidence.SimulatedNeuralQParity \
+            simulated-neural-q-java-weights.txt simulated-neural-q-java-fixtures.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: simulator-neural-q-java-parity
+          path: |
+            simulated-neural-q-results.json
+            simulated-neural-q-checkpoint.json
+            simulated-neural-q-java-weights.txt
+            simulated-neural-q-java-fixtures.txt
+          if-no-files-found: error
