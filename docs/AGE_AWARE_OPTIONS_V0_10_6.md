@@ -30,3 +30,23 @@ The principal acceptance check is whether the age-aware policy **reduces unsafe 
 The sensory transport delay and resource dynamics remain abstract and may not correspond to real Minecraft chunk updates. A separate supervisor is still present, and independent action authorization would require real observation freshness, inventory confirmation, claim ownership and gameplay rollback testing. No LLMs are involved. A network with one explicit age feature is not a recurrent network.
 
 The v0.10.5 PR succeeded in simulator stress tests; its Forge integration is a separate check. This experiment changes none of the live game-controller code.
+
+## Initial completed CI results — November 3, 2026
+
+GitHub Actions [run 41714141895](https://github.com/dylandlr/hearthbound/actions/runs/41714141895) completed successfully, including sensor-age contract tests and the full benchmark. Each stress profile contains **450 synthetic held-out episodes per policy** (3 training seeds × 5 source scenarios × 30 held-out seeds). The trained new model and frozen legacy share evaluation seeds, not necessarily identical downstream random draws after different actions.
+
+| Synthetic profile | Age-aware flour success | Frozen legacy flour success | Age-aware supervisor rejections | Frozen legacy rejections | Age-aware refresh requests |
+|---|---:|---:|---:|---:|---:|
+| Clean long | 94.22% | 94.67% | 0 | 0 | 443 |
+| Two-step sensor delay | 90.22% | 86.45% | **0** | 563 | 1,154 |
+| Four-step sensor delay | 94.00% | 82.67% | **0** | 1,353 | 1,555 |
+| Regular interruptions | 92.44% | 93.11% | 0 | 0 | 278 |
+| Delayed + interrupted | 98.00% | 96.44% | **0** | 919 | 1,401 |
+
+**Critical caveats:** This new age-aware model was explicitly trained on the same five *types* of simulated delay/interruption profiles used in evaluation, though evaluation uses disjoint seeds. This is not out-of-distribution transfer to unseen delay types. The refresh primitive is a synthetic one-step sensor synchronization action with an idealized guarantee of fresh data at the next decision; Minecraft inventory/chunk checks may be unreliable or expensive. A zero rejection count is not proof of independent safety because the supervisor remains installed and this simplified simulator may not model complex conflicting jobs.
+
+The high refresh counts matter: the new policy trades decision steps for freshness. Its zero rejections must be assessed jointly with the rate of attempted physical work, throughput, energy/latency cost and completed tasks; no performance increase can be called free. In clean-long and interrupt-only cases the new controller is slightly worse than legacy, so this is not an unqualified improvement.
+
+### Decision
+
+Keep both networks frozen as controls. Next run a preregistered outer stress test using **novel delays, sensor-refresh failures and nonstationary inventory**, plus a refresh budget and throughput objective. Do not port `REFRESH_SENSORS` into the Minecraft command surface until real-world read-only freshness/tick semantics can be observed and replay-verified.
