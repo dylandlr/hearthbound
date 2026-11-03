@@ -34,3 +34,26 @@ All trained options and execution remain **SIMULATED_ONLY**. The game mod's ten-
 ## Next phase
 
 If the learned controller proves limited, investigate learned temporally extended options (semi-Markov updates/option-critic termination), longer recurrent memory, and goal-conditioned policy training. Larger genuinely held-out real Minecraft scenarios, delayed task completion, and multiple citizens remain necessary for claims about colony-wide planning.
+
+## First completed CI results — November 3, 2026
+
+Standalone learned-option CI [run 41710612846](https://github.com/dylandlr/hearthbound/actions/runs/41710612846) passed, including genuine TD gradient checks, the observed-event/previous-option memory contract, no-masked-action assertions, parity with the frozen comparator, and complete held-out matrix.
+
+All four policy arms were evaluated on the same **720 simulated episodes each** (3 training seeds × 6 scenarios × 40 held-out episode seeds):
+
+| Policy | Mean simulated flour success |
+|---|---:|
+| Frozen low-level neural only | 67.50% |
+| Engineered v0.10.3 goal-memory overlay | 83.89% |
+| Scripted reference | 83.89% |
+| **Learned high-level option Q controller** | **84.86%** |
+
+The learned meta-controller improved flour success by **17.36 percentage points** against the frozen primitive neural control, but by just **0.97 points** against the engineered/scripted scheduling controls. This exploratory difference is too small and training-seed-dependent to claim statistical superiority. It generated **1,899 option switches** across the evaluation matrix; option switches themselves are not evidence of progress and may signal over-switching in longer sequences.
+
+Representative per-seed differences reveal why we must not treat the 84.86% aggregate as a victory. In the `both_empty` scenario, learned option success was 45%, 52.5%, 62.5% across the three training seeds versus 50%, 50%, 52.5% scripted; in `alternate_empty` it was 70%, 82.5%, 82.5% versus 72.5%, 80%, 72.5%. The learned controller did not uniformly beat the rules.
+
+The neural upper-level option choice and switching are **genuinely reward-trained**, using a separate 19→24→3 Q network. However, lower-level option executors and action masks are still engineered, memory is short explicit state rather than trained recurrence, and all transitions are synthetic. No new policy was installed in Minecraft. The scientific result is proof that a learned upper-level scheduler can *approach* the hand-designed baseline in this constrained simulator.
+
+### Decision
+
+Preserve v0.10.4 network IDs and full reward/event traces. Next, evaluate option-selection stability under longer horizons, observation delays, spontaneous interruptions and unseen supply distributions. Introduce an explicit learned option-termination objective or recurrent state representation if these tests show short-memory failure, without changing evaluation rewards or selecting on the held-out test set.
