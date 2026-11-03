@@ -29,3 +29,22 @@ Metrics separately track flour success, alternate hauling, other occupation jobs
 - No LLMs, no live neural control, no model promotion, and no Minecraft-reward learning are claimed.
 
 Next, assess errors in the held-out results and design a multi-citizen job board with observations based on bounded local knowledge, plus actual operational resource seeking in a fresh verified server once the upstream Maven TLS chain is healthy.
+
+## First CI evaluation — negative result
+
+The `Simulated resource seeking and task switching` GitHub Actions workflow passed its reproducibility, training and evidence checks. Its 3 independent training seeds x 6 scenarios x 40 held-out simulated episodes produced the following average flour-success rates (mean of three seed-specific rates; **not** Minecraft or a confidence interval):
+
+| Synthetic scenario | Trained neural | Scripted |
+|---|---:|---:|
+| Standard | 60.0% | 84.2% |
+| Primary empty; alternate stocked | 93.3% | 100% |
+| Both initially empty | 0% | 50.8% |
+| Alternate empty | 25.8% | 75.0% |
+| No secondary job | 52.5% | 93.3% |
+| Resource shift | 91.7% | 100% |
+
+This is a **clear negative result** for the present neural policy against the reference. The model does discover and complete alternate jobs (typically 28–36 of 40 episodes for seeds with a secondary job), but flour production often fails afterward. Completing an alternate job yields a separate simulated reward; that may make it locally attractive even when flour production should remain the colony's priority. No claim of reward hacking is established without ablations and trajectory attribution.
+
+The next learning experiment should preserve this checkpoint and compare: (a) unchanged original reward, (b) explicit primary-goal completion bonus, (c) potential-based shaping or task-progress rewards, and (d) longer-horizon or recurrent policies. These must use **identical matched held-out seeds**, inspect the raw decisions and avoid training on test scenarios. If all variants fail, the limitation may be state representation or action scheduling rather than scalar reward tuning.
+
+The new 15-feature schema remains simulator-only, and the real Minecraft Forge tests are separately unresolved due to the upstream Create Maven TLS certificate incident. Success in the fast tests cannot be promoted to autonomous Minecraft behavior.
