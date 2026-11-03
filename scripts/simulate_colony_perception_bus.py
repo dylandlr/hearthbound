@@ -110,7 +110,7 @@ class Knowledge:
         return True
 
     def event(self,event,now,provenance="LOCAL"):
-        if event.tick>now:
+        if event.actor!="server" or provenance!="LOCAL" or event.tick>now:
             self.rejected+=1;return False
         b=Belief(event.source,event.value,event.version,event.tick,now,provenance,event.actor)
         return self.observe(b,now)
@@ -145,6 +145,8 @@ class Bus:
             self.subscribers[source].append(knowledge)
 
     def publish(self,event,now):
+        if event.actor!="server":
+            raise PermissionError("Only authoritative server events may be published")
         self.published+=1
         for receiver in self.subscribers.get(event.source,()):
             if receiver.event(event,now):
