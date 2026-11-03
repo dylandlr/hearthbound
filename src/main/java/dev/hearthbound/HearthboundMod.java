@@ -98,6 +98,19 @@ public final class HearthboundMod {
                                     ctx.getSource().sendSuccess(() -> Component.literal(result), false);
                                     return 1;
                                 })))
+                    .then(Commands.literal("policy_source_plan")
+                            .requires(source -> source.hasPermission(2))
+                            .then(Commands.argument("source", BlockPosArgument.blockPos())
+                                .then(Commands.argument("mill", BlockPosArgument.blockPos())
+                                    .executes(ctx -> {
+                                        var from = BlockPosArgument.getBlockPos(ctx, "source");
+                                        var mill = BlockPosArgument.getBlockPos(ctx, "mill");
+                                        String result = dev.hearthbound.world.SourceAwareMillProbe
+                                            .inspect(ctx.getSource().getLevel(), from, mill);
+                                        ctx.getSource().sendSuccess(
+                                            () -> Component.literal(result), false);
+                                        return 1;
+                                    }))))
                     .then(Commands.literal("research_status")
                             .executes(ctx -> {
                                 ctx.getSource().sendSuccess(
