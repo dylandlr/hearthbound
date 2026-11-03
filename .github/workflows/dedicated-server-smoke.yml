@@ -175,7 +175,8 @@ jobs:
             real-perception-rcon.log
             real-perception-receipts.txt
             real-perception-acceptance.json
-            real-perception-validated.json\n            real-social-reports-rcon.log
+            real-perception-validated.json
+            real-social-reports-rcon.log
             live-shadow-report.json
             policy-trial-result.json
             policy-rejection.json
