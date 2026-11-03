@@ -11,7 +11,7 @@ import net.minecraft.resources.ResourceLocation;
 
 /**
  * Read-only, server-authoritative decision probe. No policy action is executed.
- * This is the scripted *reference* policy: an MLP is not deployed here.
+ * Compares scripted reference and bundled trained MLP; no actions are executed.
  */
 public final class LivePolicyProbe {
     private static final ResourceLocation FLOUR = new ResourceLocation("create", "wheat_flour");
@@ -60,11 +60,21 @@ public final class LivePolicyProbe {
         Snapshot snapshot=new Snapshot(true, CitizenMillMemory.observedProcesses(citizen),
             mill.getSpeed()!=0, wheat, flour, blocked);
         Intent action=scripted(snapshot);
+        dev.hearthbound.evidence.MillMlpInference.Action predicted;
+        try {
+            predicted = dev.hearthbound.evidence.MillMlpInference.loadBundled().predict(
+                snapshot.powered(), snapshot.wheat()>0, snapshot.flour()>0,
+                snapshot.blocked(), snapshot.experience());
+        } catch (RuntimeException invalidModel) {
+            return "POLICY_PROBE ABSTAIN reason=MLP_UNAVAILABLE type="
+                + invalidModel.getClass().getSimpleName() + " EXECUTION_DISABLED";
+        }
         return "POLICY_PROBE policy=scripted_reference action=" + action
             + " citizen=" + citizen.getUUID() + " pos=" + millPos
             + " powered=" + snapshot.powered()
             + " wheat=" + wheat + " flour=" + flour
             + " blocked=" + blocked + " experience=" + snapshot.experience()
-            + " EXECUTION_DISABLED NO_ML_INFERENCE";
+            + " mlp_action=" + predicted + " model=mill-mlp-v1"
+            + " EXECUTION_DISABLED ML_INFERENCE_READ_ONLY";
     }
 }

@@ -1,0 +1,26 @@
+name: Trained mill MLP Java parity
+on:
+  pull_request:
+    paths:
+      - 'src/main/java/dev/hearthbound/evidence/MillMlpInference.java'
+      - 'src/test/java/dev/hearthbound/evidence/MillMlpInferenceTest.java'
+      - 'src/main/resources/hearthbound/policy/**'
+      - '.github/workflows/trained-mill-mlp.yml'
+  workflow_dispatch:
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Compile and run bundled model parity checks
+        run: |
+          mkdir -p /tmp/hb-mlp
+          javac --release 17 -d /tmp/hb-mlp \
+            src/main/java/dev/hearthbound/evidence/MillMlpInference.java \
+            src/test/java/dev/hearthbound/evidence/MillMlpInferenceTest.java
+          java -cp /tmp/hb-mlp:src/main/resources \
+            dev.hearthbound.evidence.MillMlpInferenceTest
