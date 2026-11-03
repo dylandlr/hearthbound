@@ -4,6 +4,8 @@ on:
     paths:
       - 'src/main/java/dev/hearthbound/evidence/MillMlpInference.java'
       - 'src/main/java/dev/hearthbound/evidence/MillPolicyShadow.java'
+      - 'src/main/java/dev/hearthbound/evidence/MillObservationV2.java'
+      - 'src/test/java/dev/hearthbound/evidence/MillObservationV2Test.java'
       - 'src/main/java/dev/hearthbound/evidence/SourceAwareMillPlanner.java'
       - 'src/test/java/dev/hearthbound/evidence/SourceAwareMillPlannerTest.java'
       - 'src/test/java/dev/hearthbound/evidence/MillPolicyShadowTest.java'
@@ -26,13 +28,17 @@ jobs:
           javac --release 17 -d /tmp/hb-mlp \
             src/main/java/dev/hearthbound/evidence/MillMlpInference.java \
             src/main/java/dev/hearthbound/evidence/MillPolicyShadow.java \
+            src/main/java/dev/hearthbound/evidence/MillObservationV2.java \
             src/main/java/dev/hearthbound/evidence/SourceAwareMillPlanner.java \
             src/test/java/dev/hearthbound/evidence/MillMlpInferenceTest.java \
             src/test/java/dev/hearthbound/evidence/MillPolicyShadowTest.java \
-            src/test/java/dev/hearthbound/evidence/SourceAwareMillPlannerTest.java
+            src/test/java/dev/hearthbound/evidence/SourceAwareMillPlannerTest.java \
+            src/test/java/dev/hearthbound/evidence/MillObservationV2Test.java
           java -cp /tmp/hb-mlp:src/main/resources \
             dev.hearthbound.evidence.MillMlpInferenceTest
           java -cp /tmp/hb-mlp:src/main/resources \
             dev.hearthbound.evidence.MillPolicyShadowTest
           java -cp /tmp/hb-mlp:src/main/resources \
             dev.hearthbound.evidence.SourceAwareMillPlannerTest
+          java -cp /tmp/hb-mlp:src/main/resources \
+            dev.hearthbound.evidence.MillObservationV2Test
