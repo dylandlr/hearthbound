@@ -15,9 +15,9 @@ REQUIRED={
     "citizen_experienced":"COLLECT_OUTPUT",
 }
 PAIR=re.compile(
-    r"LIVE_SHADOW_PAIR stage=(\\w+) expected=(\\w+) scripted=(\\w+) trained=(\\w+)"
-    r" raw_mlp=(\\w+) citizen=([a-f0-9-]+) powered=(true|false)"
-    r" wheat=(\\d+) flour=(\\d+) blocked=(true|false) experience=(\\d+)"
+    r"LIVE_SHADOW_PAIR stage=(\w+) expected=(\w+) scripted=(\w+) trained=(\w+)"
+    r" raw_mlp=(\w+) citizen=([a-f0-9-]+) powered=(true|false)"
+    r" wheat=(\d+) flour=(\d+) blocked=(true|false) experience=(\d+)"
     r" disagreement=(true|false) masked=(true|false) read_only=true"
 )
 def analyze(text):
@@ -71,7 +71,7 @@ def main():
     p.add_argument("--output",type=pathlib.Path,default=pathlib.Path("live-shadow-report.json"))
     args=p.parse_args()
     result=analyze(args.log.read_text(encoding="utf-8",errors="replace"))
-    args.output.write_text(json.dumps(result,indent=2)+"\\n")
+    args.output.write_text(json.dumps(result,indent=2)+"\n")
     print(json.dumps(result,indent=2))
 if __name__=="__main__":
     main()
