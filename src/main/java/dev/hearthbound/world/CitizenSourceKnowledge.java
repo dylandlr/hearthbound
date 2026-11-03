@@ -51,7 +51,9 @@ public final class CitizenSourceKnowledge {
             CompoundTag old = entries.getCompound(i);
             if (identity.equals(old.getString("source"))) {
                 // A personal knowledge revision is independent of receipt revisions.
-                revision = old.getInt("revision") + 1;
+                revision = old.getInt("revision");
+                if (!old.getString("state").equals(snapshot.state().name())
+                    || old.getInt("wheat") != snapshot.wheat()) revision++;
             } else {
                 updated.add(old.copy());
             }
