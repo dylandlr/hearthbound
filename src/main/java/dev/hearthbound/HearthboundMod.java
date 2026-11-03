@@ -56,6 +56,14 @@ public final class HearthboundMod {
                                     ctx.getSource().sendSuccess(() -> Component.literal(result),false);
                                     return 1;
                                 })))
+                    .then(Commands.literal("perception_latest")
+                            .requires(source -> source.hasPermission(2))
+                            .executes(ctx -> {
+                                String result=dev.hearthbound.world.LivePerceptionReceipts.latest(
+                                    ctx.getSource().getLevel());
+                                ctx.getSource().sendSuccess(() -> Component.literal(result),false);
+                                return 1;
+                            }))
                     .then(Commands.literal("perception_receipts")
                             .requires(source -> source.hasPermission(2))
                             .executes(ctx -> {
