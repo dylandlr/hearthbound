@@ -36,7 +36,11 @@ public final class CitizenSourceKnowledge {
         if (snapshot.state() == SourceWheatObservation.State.UNKNOWN ||
                 snapshot.tick() != level.getGameTime() ||
                 !observer.level().dimension().equals(level.dimension()) ||
-                !observer.getPersistentData().getBoolean("hearthbound.sable"))
+                !observer.getPersistentData().getBoolean("hearthbound.sable") ||
+                !"OBSERVED".equals(snapshot.reason()) ||
+                !level.hasChunkAt(source) ||
+                observer.distanceToSqr(source.getX() + 0.5, source.getY() + 0.5,
+                    source.getZ() + 0.5) > 16.0 * 16.0)
             throw new IllegalArgumentException("not a verified local citizen observation");
         CompoundTag root = observer.getPersistentData().getCompound(ROOT);
         ListTag entries = root.getList(ENTRIES, Tag.TAG_COMPOUND);
