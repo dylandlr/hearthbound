@@ -39,6 +39,11 @@ with socket.create_connection((HOST,PORT),timeout=15) as sock:
         memory=run(sock,5,"hearthbound knowledge_source 6 100 2")
         if "status=KNOWN" not in memory or "state=EMPTY" not in memory or "wheat=0" not in memory:
             raise AssertionError("Sable's live knowledge missing before save")
+        # Independently observed citizen B source, not shared with Sable.
+        recipient='@e[type=minecraft:villager,tag=hb_report_recipient,limit=1]'
+        other=run(sock,6,"hearthbound citizen_memory 9 100 2 "+recipient)
+        if "status=KNOWN" not in other or "wheat=3" not in other:
+            raise AssertionError("Recipient direct-source knowledge missing before restart")
         output=run(sock,3,"save-all flush")
         if "Saved the game" not in output and "Saving" not in output: raise AssertionError("save-all flush did not confirm save")
         run(sock,4,"stop")
@@ -53,6 +58,14 @@ with socket.create_connection((HOST,PORT),timeout=15) as sock:
             raise AssertionError("Sable's source knowledge did not survive restart")
         if "action_authorized=false" not in memory:
             raise AssertionError("Remembering source unexpectedly authorized an action")
+        recipient='@e[type=minecraft:villager,tag=hb_report_recipient,limit=1]'
+        other=run(sock,6,"hearthbound citizen_memory 9 100 2 "+recipient)
+        if "status=KNOWN" not in other or "wheat=3" not in other:
+            raise AssertionError("Second citizen lost its own direct knowledge on server restart")
+        sable=run(sock,7,'hearthbound citizen_memory 9 100 2 @e[type=minecraft:villager,name=Sable,limit=1]')
+        if "status=UNKNOWN" not in sable:
+            raise AssertionError("Second citizen source leaked into Sable memory after restart")
+        print("MULTI_CITIZEN_DIRECT_KNOWLEDGE_SURVIVED_RESTART",flush=True)
         print("SABLE_SOURCE_KNOWLEDGE_SURVIVED_REAL_SERVER_RESTART",flush=True)
         print("SABLE_VERIFIED_EXPERIENCE_SURVIVED_REAL_SERVER_RESTART",flush=True)
     else:raise ValueError("expected checkpoint or verify")
