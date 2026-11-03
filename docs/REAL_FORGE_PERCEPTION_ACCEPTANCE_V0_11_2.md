@@ -28,3 +28,9 @@ One receipt per RCON response is returned through the new `/hearthbound percepti
 ## Next milestone
 
 If the live RCON acceptance passes, expand to measuring latency and sampling cost in ticks, proving chunk-unload and restart semantics, then connect the read-only receipt stream to a **separate, permission-scoped personal knowledge cache**. In parallel design a real client RGB capture with camera/tick alignment; avoid calling rendered camera data authoritative inventory evidence.
+
+## First live CI failure and correction
+
+Initial dedicated-server run [41731498598](https://github.com/dylandlr/hearthbound/actions/runs/41731498598) **failed both policies** after the first EMPTY receipt had been observed. The fault was in the acceptance fixture: Minecraft rejected `setblock ... minecraft:chest{Items:[...]}` when an unchanged chest block was already in that position. This was not evidence that the source monitor failed to see a changed inventory, because the test never successfully changed the inventory.
+
+The acceptance script was corrected to use `data merge block` to mutate the already-installed chest's actual inventory NBT to four wheat and then an empty item list. The resulting revision and tick evidence must still be established by a subsequent full dedicated-server CI run. This failure remains documented rather than erased.
