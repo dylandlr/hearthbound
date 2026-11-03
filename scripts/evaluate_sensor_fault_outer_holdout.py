@@ -62,6 +62,25 @@ class FaultWorld(age.DelayedWorld):
                 self.refresh_budget_denials+=1
                 choice=2  # WAIT, no free sensor capture
         rejected_before=self.rejections
+        # Execution-time preflight has authority to read current inventory,
+        # unlike the neural policy. The observation mask alone cannot know
+        # that hidden stock changed since the last sensor update.
+        proposed=None
+        interrupted=(self.interrupt_every and step%self.interrupt_every==0)
+        if not interrupted:
+            if choice==0:
+                proposed=legacy.execute(0,observation,low)
+            elif choice==1:
+                proposed=4
+        stale_hazard=(proposed==2 and self.world.supply["primary"]<1 or
+                      proposed==3 and self.world.supply["alternate"]<1 or
+                      proposed==4 and (not self.world.other_available or
+                                       self.world.other_done))
+        if stale_hazard:
+            self.rejections+=1
+            # Trusted gate substitutes WAIT, but does not rewrite the policy's
+            # remembered intent or magically correct stale observation flags.
+            choice=2
         _,done,info=super().act(choice,low,observation,elapsed,record=False)
         actual_refresh=(choice==3 and not
                         (self.interrupt_every and step%self.interrupt_every==0))
