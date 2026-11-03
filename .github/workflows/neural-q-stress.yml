@@ -1,0 +1,51 @@
+name: Frozen neural Q multi-seed OOD stress
+on:
+  pull_request:
+    paths:
+      - 'scripts/evaluate_neural_q_stress.py'
+      - 'scripts/test_evaluate_neural_q_stress.py'
+      - 'scripts/train_simulated_mill_neural_q.py'
+      - '.github/workflows/neural-q-stress.yml'
+  workflow_dispatch:
+jobs:
+  stress:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify source-independent multi-seed OOD experiment
+        run: |
+          python3 -m py_compile scripts/evaluate_neural_q_stress.py scripts/test_evaluate_neural_q_stress.py
+          python3 scripts/test_evaluate_neural_q_stress.py
+      - name: Evaluate 3 frozen neural models on disjoint heldout simulator worlds
+        run: |
+          python3 scripts/evaluate_neural_q_stress.py \
+            --train-episodes 300 \
+            --eval-episodes 80 \
+            --output simulated-neural-q-stress.json
+      - name: Strictly assert provenance and evaluation coverage
+        run: |
+          python3 - <<'PY'
+          import json
+          x=json.load(open("simulated-neural-q-stress.json"))
+          assert x["schema"]=="hearthbound.simulated-neural-q-stress.v1"
+          assert x["evaluation_data_origin"]=="SIMULATED_ONLY"
+          assert x["actual_minecraft_worlds"]==0
+          assert x["neural_task_execution_authorized"] is False
+          assert len(x["results"])==3 and x["scenario_count"]==5
+          for row in x["results"]:
+              assert len(row["scenarios"])==5
+              assert row["checkpoint_unchanged"] is True
+              assert all(v["gate"]=="ABSTAIN" for v in row["ood_machine_states"].values())
+              assert all(v["episodes"]==80 for test in row["scenarios"].values()
+                         for k,v in test.items() if k in ("neural_q","scripted_reference","untrained_network"))
+          print("PASS 3 x 5 x 80 simulated heldout trials with six unsupported machine contexts per model")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frozen-neural-q-multiseed-ood-evidence
+          path: simulated-neural-q-stress.json
+          if-no-files-found: error
