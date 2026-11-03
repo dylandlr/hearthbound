@@ -13,7 +13,7 @@ def main():
     # Exact original-policy reproduction is an acceptance gate, not a guess.
     old,old_updates=m.base.train(seed,episodes)
     reproduced,updates=m.train("original",seed,episodes)
-    assert old_updates==updates
+    assert old_updates["updates"]==updates
     assert m.base.model_digest(old)==m.base.model_digest(reproduced)
     assert old.values(m.base.Colony(1).vector())==reproduced.values(m.base.Colony(1).vector())
 
