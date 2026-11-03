@@ -33,6 +33,12 @@ public final class LivePolicyProbe {
     }
 
     public static String inspect(ServerLevel level, BlockPos millPos) {
+        return inspect(level,millPos,dev.hearthbound.evidence.MillPolicyShadow.Mode.SCRIPTED);
+    }
+
+    public static String inspect(ServerLevel level, BlockPos millPos,
+            dev.hearthbound.evidence.MillPolicyShadow.Mode mode) {
+        if (mode == null) throw new IllegalArgumentException("missing shadow policy mode");
         if (!level.hasChunkAt(millPos) || !MillReservations.isMill(level, millPos)
                 || !(level.getBlockEntity(millPos) instanceof MillstoneBlockEntity mill))
             return "POLICY_PROBE ABSTAIN reason=NOT_LOADED_CREATE_MILLSTONE pos=" + millPos;
@@ -60,11 +66,13 @@ public final class LivePolicyProbe {
         Snapshot snapshot=new Snapshot(true, CitizenMillMemory.observedProcesses(citizen),
             mill.getSpeed()!=0, wheat, flour, blocked);
         Intent action=scripted(snapshot);
-        dev.hearthbound.evidence.MillMlpInference.Action predicted;
+        dev.hearthbound.evidence.MillPolicyShadow.Decision shadow;
         try {
-            predicted = dev.hearthbound.evidence.MillMlpInference.loadBundled().predict(
-                snapshot.powered(), snapshot.wheat()>0, snapshot.flour()>0,
-                snapshot.blocked(), snapshot.experience());
+            var model = dev.hearthbound.evidence.MillMlpInference.loadBundled();
+            var obs = new dev.hearthbound.evidence.MillPolicyShadow.Observation(
+                snapshot.powered(),snapshot.wheat()>0,snapshot.flour()>0,
+                snapshot.blocked(),snapshot.experience());
+            shadow = dev.hearthbound.evidence.MillPolicyShadow.decide(mode,obs,model);
         } catch (RuntimeException invalidModel) {
             return "POLICY_PROBE ABSTAIN reason=MLP_UNAVAILABLE type="
                 + invalidModel.getClass().getSimpleName() + " EXECUTION_DISABLED";
@@ -74,7 +82,11 @@ public final class LivePolicyProbe {
             + " powered=" + snapshot.powered()
             + " wheat=" + wheat + " flour=" + flour
             + " blocked=" + blocked + " experience=" + snapshot.experience()
-            + " mlp_action=" + predicted + " model=mill-mlp-v1"
+            + " mlp_action=" + shadow.rawMlp() + " model=mill-mlp-v1"
+            + " shadow_mode=" + shadow.mode()
+            + " selected_action=" + shadow.selected()
+            + " model_disagreement=" + shadow.disagreement()
+            + " action_masked=" + shadow.masked()
             + " EXECUTION_DISABLED ML_INFERENCE_READ_ONLY";
     }
 }
