@@ -22,21 +22,28 @@ def recv_exact(sock, count):
         data += part
     return data
 
-def response(sock):
-    size = struct.unpack("<i", recv_exact(sock, 4))[0]
-    if size < 10 or size > 1000000:
-        raise ValueError(f"Unexpected RCON length: {size}")
-    body = recv_exact(sock, size)
-    req_id, packet_type = struct.unpack("<ii", body[:8])
-    return req_id, packet_type, body[8:-2].decode(errors="replace")
+def response(sock, allow_empty=False):
+    # Minecraft's RCON can emit trailing/empty RESPONSE_VALUE frames. A
+    # one-frame-per-command assumption can misattribute an empty frame from
+    # command N to command N+1. Skip blanks for commands, never for auth.
+    for _ in range(24):
+        size = struct.unpack("<i", recv_exact(sock, 4))[0]
+        if size < 10 or size > 1000000:
+            raise ValueError(f"Unexpected RCON length: {size}")
+        body = recv_exact(sock, size)
+        req_id, packet_type = struct.unpack("<ii", body[:8])
+        output = body[8:-2].decode(errors="replace")
+        if output.strip() or allow_empty:
+            return req_id, packet_type, output
+    raise RuntimeError("RCON returned 24 consecutive empty response frames")
 
 with socket.create_connection((HOST, PORT), timeout=15) as sock:
     sock.settimeout(15)
     sock.sendall(packet(1, 3, PASSWORD))
-    auth_id, _, _ = response(sock)
+    auth_id, _, _ = response(sock, allow_empty=True)
     if auth_id != 1:
         # Some servers send an intermediate empty response before authentication.
-        auth_id, _, _ = response(sock)
+        auth_id, _, _ = response(sock, allow_empty=True)
     if auth_id != 1:
         raise RuntimeError("RCON authentication failed")
     for request_id, command, expected in (
