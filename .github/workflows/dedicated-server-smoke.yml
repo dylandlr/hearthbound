@@ -24,6 +24,7 @@ jobs:
           gradle-version: '8.8'
       - name: Validate evidence parser and RCON framing
         run: |
+          python3 scripts/test_compare_real_policy_trials.py
           python3 scripts/test_report_policy_trial.py
           python3 scripts/test_report_live_shadow.py
           python3 scripts/test_rcon_frames.py
@@ -146,3 +147,26 @@ jobs:
             policy-trial-result.json
           if-no-files-found: warn
           retention-days: 14
+
+  compare-policy-arms:
+    needs: boot-server
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: minecraft-policy-trial-*
+          path: policy-trials
+          merge-multiple: false
+      - name: Verify both live Minecraft trial records before comparison
+        run: |
+          python3 scripts/test_compare_real_policy_trials.py
+          python3 scripts/compare_real_policy_trials.py \
+            policy-trials/minecraft-policy-trial-SCRIPTED/policy-trial-result.json \
+            policy-trials/minecraft-policy-trial-TRAINED_MLP/policy-trial-result.json \
+            --output policy-comparison.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: minecraft-policy-comparison
+          path: policy-comparison.json
+          if-no-files-found: error
