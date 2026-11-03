@@ -57,6 +57,35 @@ jobs:
           Path("dependency-tls-raw.json").write_text(json.dumps(out,indent=2))
           PY
           python3 scripts/report_create_maven_tls.py dependency-tls-raw.json --output create-maven-diagnostic.json
+      - name: Probe alternate HTTPS Maven locations without changing dependencies
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, subprocess
+          from pathlib import Path
+          artifacts={
+            "create":"com/simibubi/create/create-1.20.1/6.0.8-289/create-1.20.1-6.0.8-289.pom",
+            "flywheel":"dev/engine-room/flywheel/flywheel-forge-1.20.1/1.0.5/flywheel-forge-1.20.1-1.0.5.pom",
+            "ponder":"net/createmod/ponder/Ponder-Forge-1.20.1/1.0.91/Ponder-Forge-1.20.1-1.0.91.pom",
+          }
+          bases=["https://mvn.devos.one/releases",
+                 "https://maven.ithundxr.dev/mirror"]
+          checks={}
+          for base in bases:
+              for name,resource in artifacts.items():
+                  url=base+"/"+resource
+                  result=subprocess.run(["curl","--silent","--show-error","--fail",
+                                         "--location","--head","--max-time","12",
+                                         "--output","/dev/null","--write-out","%{http_code}",url],
+                                         text=True,capture_output=True,timeout=16)
+                  checks[base+"|"+name]={"status":result.returncode==0,
+                      "http_code":result.stdout[-3:],"curl_exit":result.returncode}
+                  print(base,name,"HTTPS_CA_VERIFIED_AND_HTTP_OK=",result.returncode==0,
+                        "http",result.stdout[-3:])
+          Path("candidate-mirrors.json").write_text(json.dumps(checks,indent=2))
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -65,4 +94,5 @@ jobs:
             dependency-endpoints.json
             dependency-tls-raw.json
             create-maven-diagnostic.json
+            candidate-mirrors.json
           if-no-files-found: warn
