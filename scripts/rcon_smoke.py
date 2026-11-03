@@ -280,6 +280,16 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
                                "real partial observation of unsupported source")
     if "state=UNKNOWN" not in observed_unknown or "reason=NO_BLOCK_ENTITY" not in observed_unknown:
         raise AssertionError("Source observer fabricated knowledge of missing inventory: " + observed_unknown)
+    empty_plan = checked("hearthbound policy_source_plan 8 100 1 9 100 3",
+                         "live source-aware empty planner")
+    if "source=EMPTY" not in empty_plan or "action=WAIT_FOR_SUPPLY" not in empty_plan or "EXECUTION_DISABLED" not in empty_plan:
+        raise AssertionError("Source-aware planner did not defer hauling on known shortage: " + empty_plan)
+    unknown_plan = checked("hearthbound policy_source_plan 7 101 1 9 100 3",
+                           "live source-aware unknown planner")
+    if "source=UNKNOWN" not in unknown_plan or "action=INSPECT_SOURCE" not in unknown_plan or "EXECUTION_DISABLED" not in unknown_plan:
+        raise AssertionError("Source-aware planner fabricated availability: " + unknown_plan)
+    print("REAL_SOURCE_PLAN stage=empty action=WAIT_FOR_SUPPLY source=EMPTY read_only=true")
+    print("REAL_SOURCE_PLAN stage=unknown action=INSPECT_SOURCE source=UNKNOWN read_only=true")
     print("REAL_SOURCE_OBSERVATION stage=empty state=EMPTY wheat=0")
     print("REAL_SOURCE_OBSERVATION stage=unknown state=UNKNOWN wheat=0")
     shortage = checked("hearthbound policy_trial 8 100 1 9 100 3 " + TRIAL_MODE,
@@ -306,6 +316,11 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
                                  "real partial observation after restoring wheat")
     if "state=AVAILABLE" not in observed_available or "wheat=1" not in observed_available or "EXECUTION_DISABLED" not in observed_available:
         raise AssertionError("Source observer did not recognize actual wheat: " + observed_available)
+    available_plan = checked("hearthbound policy_source_plan 8 100 1 9 100 3",
+                             "live source-aware available planner")
+    if "source=AVAILABLE" not in available_plan or "action=REQUEST_WHEAT_HAUL" not in available_plan or "EXECUTION_DISABLED" not in available_plan:
+        raise AssertionError("Source-aware planner failed to identify real wheat: " + available_plan)
+    print("REAL_SOURCE_PLAN stage=available action=REQUEST_WHEAT_HAUL source=AVAILABLE read_only=true")
     print("REAL_SOURCE_OBSERVATION stage=available state=AVAILABLE wheat=1")
 
     before_time = checked("time query gametime", "trial start server game time")
