@@ -23,9 +23,12 @@ jobs:
         run: |
           python scripts/train_simulated_mill_neural_q.py \
             --seed 11 --episodes 300 --heldout 80 \
-            --output simulated-mill-neural-q-results.json
+            --output simulated-mill-neural-q-results.json \
+            --checkpoint simulated-mill-neural-q-checkpoint.json
       - uses: actions/upload-artifact@v4
         with:
           name: simulated-mill-neural-q-results
-          path: simulated-mill-neural-q-results.json
+          path: |
+            simulated-mill-neural-q-results.json
+            simulated-mill-neural-q-checkpoint.json
           if-no-files-found: error
