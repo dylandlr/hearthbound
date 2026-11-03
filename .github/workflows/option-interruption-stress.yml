@@ -1,0 +1,50 @@
+name: Learned option interruption and observation-delay stress
+on:
+  pull_request:
+    paths:
+      - 'scripts/evaluate_option_interruption_stress.py'
+      - 'scripts/test_evaluate_option_interruption_stress.py'
+      - '.github/workflows/option-interruption-stress.yml'
+  workflow_dispatch:
+jobs:
+  stress:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify clean baseline parity, interruption semantics and safety
+        run: |
+          python3 -m py_compile scripts/evaluate_option_interruption_stress.py scripts/test_evaluate_option_interruption_stress.py
+          python3 scripts/test_evaluate_option_interruption_stress.py
+      - name: Frozen four-policy multi-regime stress evaluation
+        run: |
+          python3 scripts/evaluate_option_interruption_stress.py \
+            --low-episodes 350 --meta-episodes 480 --heldout 30 \
+            --output option-interruption-stress.json
+      - name: Check provenance, matrix completeness and no unsafe tasks
+        run: |
+          python3 - <<'PY'
+          import json
+          r=json.load(open("option-interruption-stress.json"))
+          assert r["schema"]=="hearthbound.option-interruption-stress.v1"
+          assert r["minecraft_worlds_executed"]==0
+          assert r["minecraft_action_authorized"] is False
+          assert len(r["result"])==3 and len(r["stress_profiles"])==5
+          assert len(r["scenarios"])==5
+          for model in r["result"]:
+              assert model["frozen"]
+              for profile in model["profiles"].values():
+                  for scene in profile.values():
+                      for policy in r["policy_arms"]:
+                          assert scene[policy]["episodes"]==30
+                          assert scene[policy]["invalid_requests"]==0
+          print("PASS four-arm x five-profile x five-scenario x three-seed heldout stress contract")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: learned-option-interruption-stress
+          path: option-interruption-stress.json
+          if-no-files-found: error
