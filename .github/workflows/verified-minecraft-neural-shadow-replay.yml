@@ -1,0 +1,127 @@
+name: Replay frozen neural Q on verified real Minecraft evidence
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/verified-minecraft-neural-shadow-replay.yml'
+      - 'src/test/java/dev/hearthbound/evidence/RealMinecraftNeuralQShadow.java'
+      - 'src/test/java/dev/hearthbound/evidence/SimulatedNeuralQParity.java'
+      - 'scripts/report_real_neural_q_shadow.py'
+      - 'scripts/train_simulated_mill_neural_q.py'
+      - 'scripts/export_neural_q_java_parity.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  replay-verified-world-observations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Verify immutable selection of successful source run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api repos/dylandlr/hearthbound/actions/runs/41588317216 \
+            --jq '{head_sha, conclusion, status}' > source-run.json
+          python3 - <<'PY'
+          import json
+          data=json.load(open("source-run.json"))
+          assert data["head_sha"]=="c1bad2309172ea8ce3196a9cccee67a743d3e058",data
+          assert data["status"]=="completed" and data["conclusion"]=="success",data
+          print("VERIFIED_SOURCE_RUN 41588317216",data)
+          PY
+
+      # Real dedicated Forge/Create server logs from a successful past run.
+      # This is not another Minecraft execution.
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 41588317216
+          github-token: ${{ github.token }}
+          pattern: minecraft-policy-trial-*
+          path: verified-world-artifacts
+          merge-multiple: false
+
+      - name: Independently validate archived actual Minecraft observations
+        run: |
+          set -euo pipefail
+          for mode in SCRIPTED TRAINED_MLP; do
+            log="verified-world-artifacts/minecraft-policy-trial-$mode/smoke-rcon.log"
+            test -s "$log"
+            python3 scripts/report_observation_v2.py "$log" --output "source-observation-$mode.json"
+            python3 scripts/report_source_plans.py "$log" --output "source-reference-$mode.json"
+            python3 scripts/report_policy_trial.py "$log" --expected-mode "$mode" --output "source-trial-$mode.json"
+          done
+
+      - name: Export frozen SIMULATED_ONLY model and validate independent Java parity
+        run: |
+          set -euo pipefail
+          python3 scripts/test_train_simulated_mill_neural_q.py
+          python3 scripts/test_report_real_neural_q_shadow.py
+          python3 scripts/train_simulated_mill_neural_q.py \
+            --seed 11 --episodes 300 --heldout 80 \
+            --output replay-simulator-benchmark.json \
+            --checkpoint replay-simulator-checkpoint.json
+          python3 scripts/export_neural_q_java_parity.py \
+            replay-simulator-checkpoint.json \
+            --weights replay-model.txt \
+            --fixtures replay-parity-fixtures.txt
+          mkdir -p /tmp/hb-shadow
+          javac --release 17 -d /tmp/hb-shadow \
+            src/test/java/dev/hearthbound/evidence/SimulatedNeuralQParity.java \
+            src/test/java/dev/hearthbound/evidence/RealMinecraftNeuralQShadow.java
+          java -cp /tmp/hb-shadow dev.hearthbound.evidence.SimulatedNeuralQParity \
+            replay-model.txt replay-parity-fixtures.txt
+
+      - name: Replay neural Q on two genuine recorded Minecraft worlds
+        run: |
+          set -euo pipefail
+          java -cp /tmp/hb-shadow dev.hearthbound.evidence.RealMinecraftNeuralQShadow \
+            replay-model.txt \
+            verified-world-artifacts/minecraft-policy-trial-SCRIPTED/smoke-rcon.log \
+            SCRIPTED | tee replay-shadow-scripted.log
+          java -cp /tmp/hb-shadow dev.hearthbound.evidence.RealMinecraftNeuralQShadow \
+            replay-model.txt \
+            verified-world-artifacts/minecraft-policy-trial-TRAINED_MLP/smoke-rcon.log \
+            TRAINED_MLP | tee replay-shadow-trained.log
+          python3 scripts/report_real_neural_q_shadow.py \
+            replay-shadow-scripted.log replay-shadow-trained.log \
+            --output replay-real-minecraft-shadow.json
+          python3 - <<'PY'
+          import json
+          data=json.load(open("replay-real-minecraft-shadow.json"))
+          assert data["read_only"] is True
+          assert data["game_actions_authorized"] is False
+          assert data["model_training_origin"]=="SIMULATED_ONLY"
+          data["replayed_from_successful_run_id"]=41588317216
+          data["replayed_from_head_sha"]="c1bad2309172ea8ce3196a9cccee67a743d3e058"
+          data["evaluation_mode"]="OFFLINE_REPLAY_OF_PREVIOUS_REAL_MINECRAFT_OBSERVATIONS"
+          with open("replay-real-minecraft-shadow.json","w") as out:
+              json.dump(data,out,indent=2,sort_keys=True)
+              out.write("\n")
+          print("VERIFIED_PINNED_MINECRAFT_SHADOW_REPLAY",
+                json.dumps({"matches_per_arm":data["matches_per_arm"],
+                            "evaluation_mode":data["evaluation_mode"]}))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: verified-minecraft-neural-q-offline-replay
+          path: |
+            source-run.json
+            replay-real-minecraft-shadow.json
+            replay-simulator-checkpoint.json
+            source-observation-*.json
+            source-reference-*.json
+            source-trial-*.json
+          if-no-files-found: error
