@@ -246,7 +246,7 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
     else:
         raise AssertionError("Policy dispatch mill never became powered")
     before_time = checked("time query gametime", "trial start server game time")
-    start_time_values = re.findall(r"\\d+", before_time)
+    start_time_values = re.findall(r"\d+", before_time)
     if not start_time_values:
         raise AssertionError("No authoritative Minecraft start game time: " + before_time)
     trial_start_tick = int(start_time_values[-1])
@@ -276,7 +276,7 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
             if "experience=1" not in probe or "policy=scripted_reference" not in probe:
                 raise AssertionError("Live policy probe cannot observe verified Sable experience: " + probe)
             end_time = checked("time query gametime", "trial completed server game time")
-            end_time_values = re.findall(r"\\d+", end_time)
+            end_time_values = re.findall(r"\d+", end_time)
             if not end_time_values:
                 raise AssertionError("No authoritative Minecraft completion game time: " + end_time)
             elapsed = int(end_time_values[-1]) - trial_start_tick
