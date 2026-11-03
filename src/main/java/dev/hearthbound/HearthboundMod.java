@@ -3,6 +3,7 @@ package dev.hearthbound;
 import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -26,6 +27,16 @@ public final class HearthboundMod {
         public static void onCommands(RegisterCommandsEvent event) {
             CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
             dispatcher.register(Commands.literal("hearthbound")
+                    .then(Commands.literal("policy_probe")
+                            .then(Commands.argument("mill", BlockPosArgument.blockPos())
+                                    .executes(ctx -> {
+                                        var pos = BlockPosArgument.getLoadedBlockPos(ctx, "mill");
+                                        String result = dev.hearthbound.world.LivePolicyProbe.inspect(
+                                            ctx.getSource().getLevel(), pos);
+                                        ctx.getSource().sendSuccess(
+                                            () -> Component.literal(result), false);
+                                        return 1;
+                                    })))
                     .then(Commands.literal("research_status")
                             .executes(ctx -> {
                                 ctx.getSource().sendSuccess(

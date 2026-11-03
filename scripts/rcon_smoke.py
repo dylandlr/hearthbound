@@ -155,6 +155,9 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
     verified = checked("sable mill-inspect 9 100 3", "powered millstone exists")
     if "MILL OBSERVED" not in verified or "block=create:millstone" not in verified:
         raise AssertionError("Powered fixture lost its Create millstone: " + verified)
+    probe = checked("hearthbound policy_probe 9 100 3", "powered empty mill policy probe")
+    if "action=REQUEST_WHEAT_HAUL" not in probe or "EXECUTION_DISABLED" not in probe:
+        raise AssertionError("Live empty-mill policy probe did not request hauling: " + probe)
     checked("summon minecraft:item 9.5 101.2 3.5 {Item:{id:\"minecraft:wheat\",Count:1b},PickupDelay:32767s}",
             "wheat dropped onto real millstone", "summoned")
     flour_observed = False
@@ -169,6 +172,10 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
             break
     if not flour_observed:
         raise AssertionError("NO_REAL_CREATE_PRODUCTION: did not observe flour in 180s")
+    probe = checked("hearthbound policy_probe 9 100 3", "finished mill policy probe")
+    if "action=COLLECT_OUTPUT" not in probe:
+        raise AssertionError("Live policy probe did not recognize finished Create product: " + probe)
+
 
 
     # Separate trial: actual citizen delivery to a clean, reserved Create millstone.
@@ -198,6 +205,11 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
             f"citizen experiment memory {i}")
         if re.search(r"\bflour=[1-9]\d*", mill) and re.search(r"\b1L\b", memory):
             print("REAL_CITIZEN_EXPERIENCE_OBSERVED", audit, mill, memory)
+            probe = checked("hearthbound policy_probe 9 100 3",
+                            "live trained-policy input probe after verified citizen experiment")
+            if "experience=1" not in probe or "policy=scripted_reference" not in probe:
+                raise AssertionError("Live policy probe cannot observe verified Sable experience: " + probe)
+
             matched = True
             break
     if not matched:
