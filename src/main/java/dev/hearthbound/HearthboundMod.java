@@ -59,6 +59,35 @@ public final class HearthboundMod {
                                             () -> Component.literal(result), false);
                                         return 1;
                                     }))))
+                    .then(Commands.literal("policy_trial")
+                            .requires(source -> source.hasPermission(2))
+                            .then(Commands.argument("source", BlockPosArgument.blockPos())
+                                .then(Commands.argument("mill", BlockPosArgument.blockPos())
+                                    .then(Commands.argument("mode", StringArgumentType.word())
+                                        .executes(ctx -> {
+                                            String label = StringArgumentType.getString(ctx, "mode");
+                                            dev.hearthbound.evidence.MillPolicyShadow.Mode mode;
+                                            try {
+                                                mode = dev.hearthbound.evidence.MillPolicyShadow.Mode.valueOf(
+                                                    label.toUpperCase(java.util.Locale.ROOT));
+                                            } catch (IllegalArgumentException invalid) {
+                                                ctx.getSource().sendFailure(
+                                                    Component.literal("Expected SCRIPTED or TRAINED_MLP"));
+                                                return 0;
+                                            }
+                                            try {
+                                                var from = BlockPosArgument.getLoadedBlockPos(ctx,"source");
+                                                var to = BlockPosArgument.getLoadedBlockPos(ctx,"mill");
+                                                var message = dev.hearthbound.world.MillPolicyTrial.assignOne(
+                                                    ctx.getSource().getLevel(),from,to,mode);
+                                                ctx.getSource().sendSuccess(
+                                                    () -> Component.literal(message),true);
+                                                return 1;
+                                            } catch (IllegalArgumentException | IllegalStateException failure) {
+                                                ctx.getSource().sendFailure(Component.literal(failure.getMessage()));
+                                                return 0;
+                                            }
+                                        }))))
                     .then(Commands.literal("research_status")
                             .executes(ctx -> {
                                 ctx.getSource().sendSuccess(
