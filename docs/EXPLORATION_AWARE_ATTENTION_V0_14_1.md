@@ -34,3 +34,7 @@ The separate CI workflow `exploration-aware-attention.yml` runs deterministic ca
 ## Decision gate after CI
 
 Report mean per-regime discovery deltas and visit diversity for all three seeds; inspect trade-offs rather than selecting the highest aggregate score. Only propose a new freeze-and-export process if the exploration-aware candidate demonstrates stable held-out behavior across multiple seeds, and only evaluate a new model on real Forge after the rapid four-source control challenge is fully validated. Before live deployment we still need production Python/Java parity, pre-registered admission thresholds and an independent real Minecraft A/B evaluation.
+
+## Worst-regime evidence audit (added after initial draft)
+
+`scripts/report_exploration_attention_tradeoffs.py` independently validates the SHA-256 and every cell of the full three-training-seed × four-regime × three-update-rate matrix. It requires the recorded neural-minus-scripted difference to match reported directly observed discovery counts, and rejects missing/duplicate seed-regime-rate cells or inconsistent better/worse/tied episode counts. The summary reports per-regime average and *worst seed-rate result*, plus the number of negative cases for each learned policy. This makes any specialization/regression trade-off explicit. The workflow archives the verified `exploration-tradeoffs.json` alongside the raw experiment matrix. This audit cannot promote or deploy a neural model, regardless of results.
