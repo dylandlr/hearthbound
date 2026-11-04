@@ -12,6 +12,18 @@
 
 The same geometry and scheduled resource fixture is used in every world, so this does not establish broad generalization, and its observation coverage metric cannot distinguish policies at 100%.
 
+## Preliminary measurement from already verified Forge artifacts
+
+I separately inspected the archived `verified-intervention-observation-coverage.json` files in the successful nine-server GitHub Actions run [41782456193](https://github.com/dylandlr/hearthbound/actions/runs/41782456193). The following is a **manual reproducible calculation** from the existing finalized reports, not a fabricated result from the new automated v0.13.8 comparison (which still awaits CI).
+
+| Seed | Scripted first-witness delay (ticks per intervention) | Neural delay | Scripted mean | Neural mean |
+|---|---|---|---:|---:|
+| A | 4, 1, 8, 5, 2, 9 | 5, 12, 9, 11, 8, 10 | 4.8333 | 9.1667 |
+| B | 4, 1, 8, 4, 1, 8 | 3, 10, 7, 9, 6, 3 | 4.3333 | 6.3333 |
+| C | 4, 1, 8, 5, 2, 9 | 5, 12, 9, 6, 2, 4 | 4.8333 | 6.3333 |
+
+Each entry is `first_matching_observation_tick - mutation_tick_after` from one observed intervention. All 36 real intervention records were witnessed in their respective arms; no missing-event delays needed imputation. The **unweighted across-seed mean** delay was 4.6667 scripted vs 7.2778 neural ticks, a descriptive neural-minus-scripted difference of +2.6111 ticks. All three pairs had lower scripted first-witness delay in this narrow fixture, but their separate server clocks and the tiny, shared-geometry sample **do not justify a causal treatment or model-generalization claim**. The scripted comparator rotates between just two registered chests, which may be a near-optimal strategy for this fixed scenario.
+
 ## More sensitive—but still observational—measure
 
 The existing finalized real Forge observation-coverage records include the server tick immediately after each RCON resource mutation and the first subsequent matching **directly observed selected-source** state. Each intervention's first-witness delay is
