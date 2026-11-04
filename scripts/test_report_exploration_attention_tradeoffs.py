@@ -32,7 +32,7 @@ def main():
     bad["cases"][0]["differences"]["exploration_aware"]["mean_neural_minus_scripted_discoveries"]=9
     reject(resign(bad))
     bad=copy.deepcopy(x)
-    bad["cases"][0]["training_seed"]=bad["cases"][1]["training_seed"]
+    bad["cases"][0]["training_seed"]=bad["cases"][12]["training_seed"]
     reject(resign(bad))
     bad=copy.deepcopy(x)
     bad["cases"][0]["differences"]["exploration_aware"]["episodes_better_than_scripted"]+=1
