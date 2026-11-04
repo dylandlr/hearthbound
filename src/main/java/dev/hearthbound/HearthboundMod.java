@@ -135,6 +135,30 @@ public final class HearthboundMod {
                                         ctx.getSource().sendSuccess(() -> Component.literal(result),false);
                                         return 1;
                                     }))))
+                    .then(Commands.literal("citizen_neural_enable")
+                            .requires(source -> source.hasPermission(2))
+                            .executes(ctx -> {
+                                String result=dev.hearthbound.world.CitizenWatchRegistry.enableNeural(
+                                    ctx.getSource().getLevel());
+                                ctx.getSource().sendSuccess(() -> Component.literal(result),false);
+                                return 1;
+                            }))
+                    .then(Commands.literal("citizen_neural_disable")
+                            .requires(source -> source.hasPermission(2))
+                            .executes(ctx -> {
+                                String result=dev.hearthbound.world.CitizenWatchRegistry.disableNeural(
+                                    ctx.getSource().getLevel());
+                                ctx.getSource().sendSuccess(() -> Component.literal(result),false);
+                                return 1;
+                            }))
+                    .then(Commands.literal("citizen_neural_status")
+                            .requires(source -> source.hasPermission(2))
+                            .executes(ctx -> {
+                                String result=dev.hearthbound.world.CitizenWatchRegistry.neuralStatus(
+                                    ctx.getSource().getLevel());
+                                ctx.getSource().sendSuccess(() -> Component.literal(result),false);
+                                return 1;
+                            }))
                     .then(Commands.literal("citizen_log_start")
                             .requires(source -> source.hasPermission(2))
                             .executes(ctx -> {
