@@ -21,6 +21,8 @@ def audit(execution,journal,manifest):
     records=[json.loads(line) for line in Path(journal).read_text().splitlines()]
     source_events=[]
     observed_policies=set()
+    start_tick=execution["executions"][0]["tick_before"]
+    stop_tick=execution["measurement_stop_tick"]
     for record in records:
         encoded=record["payload_b64"]
         decoded=base64.urlsafe_b64decode(encoded+"="*((-len(encoded))%4)).decode()
@@ -28,6 +30,10 @@ def audit(execution,journal,manifest):
         event=pair(before,after)
         opp=event["opportunity"]
         out=event["outcome"]
+        # Startup registration and post-cutoff cleanup are not part of the
+        # four-choice contention treatment.
+        if not start_tick<opp["tick"]<stop_tick:
+            continue
         if len(opp["candidates"])!=4 or set(opp["candidates"])!=set(
             source.replace(" ",",") for source in SOURCES):
             raise ValueError("Challenge did not present exactly four registered sources")
@@ -39,6 +45,8 @@ def audit(execution,journal,manifest):
     expected=execution["policy"]
     if expected not in ("LEAST_RECENTLY_SAMPLED","NEURAL_CAUSAL_MLP_OPT_IN"):
         raise ValueError("unknown actual choice policy")
+    if not source_events:
+        raise ValueError("No real citizen attention decisions during the rapid experiment")
     if observed_policies!={expected}:
         raise ValueError("real selected-source journal was not exclusively assigned to intended policy")
     previous=-1
