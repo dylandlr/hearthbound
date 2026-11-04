@@ -59,6 +59,17 @@ jobs:
             schedule: seeded-v1
             attention: neural
             artifact_name: minecraft-attention-trial-NEURAL-seeded-C
+          - policy: SCRIPTED
+            seed: hearthbound-rapid-four-D
+            schedule: baseline
+            challenge: rapid-four-v1
+            artifact_name: minecraft-attention-challenge-SCRIPTED-D
+          - policy: TRAINED_MLP
+            seed: hearthbound-rapid-four-D
+            schedule: baseline
+            attention: neural
+            challenge: rapid-four-v1
+            artifact_name: minecraft-attention-challenge-NEURAL-D
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -82,6 +93,9 @@ jobs:
           python3 scripts/test_validate_live_perception_receipts.py
           python3 scripts/test_replay_real_forge_chronology.py
           python3 scripts/test_validate_forge_attention_opportunity.py
+          python3 scripts/test_rapid_four_source_schedule.py
+          python3 scripts/test_audit_rapid_four_attention.py
+          python3 scripts/test_report_rapid_four_attention.py
           python3 scripts/test_validate_forge_attention_pair.py
           python3 scripts/test_validate_forge_attention_journal.py
           python3 scripts/test_validate_forge_attention_manifest.py
@@ -132,6 +146,7 @@ jobs:
           HEARTHBOUND_WORLD_SEED: ${{ matrix.schedule == 'seeded-v1' && (inputs.world_seed || matrix.seed) || matrix.seed }}
           HEARTHBOUND_RESOURCE_SCHEDULE: ${{ matrix.schedule }}
           HEARTHBOUND_ATTENTION_MODE: ${{ matrix.attention || 'scripted' }}
+          HEARTHBOUND_ATTENTION_CHALLENGE: ${{ matrix.challenge || 'none' }}
         run: |
           set -euo pipefail
           mkdir -p run
@@ -208,7 +223,8 @@ jobs:
           PY
           echo "Verifying real Forge citizen-to-citizen reported knowledge"
           python3 scripts/rcon_social_reports_acceptance.py | tee real-social-reports-rcon.log
-          if [ "$HEARTHBOUND_ATTENTION_MODE" = "neural" ]; then
+          if [ "$HEARTHBOUND_ATTENTION_MODE" = "neural" ] &&
+             [ "$HEARTHBOUND_ATTENTION_CHALLENGE" = "none" ]; then
             test -f real-neural-attention-intervention-receipt.json
           fi
           if [ "$HEARTHBOUND_RESOURCE_SCHEDULE" = "seeded-v1" ]; then
@@ -240,7 +256,7 @@ jobs:
           fi
           python3 scripts/export_verified_citizen_experience.py "${journal_files[0]}" "$sealed_manifest" \
             --min-records 2 --output citizen-experience-before-restart.json
-          if [ "$HEARTHBOUND_ATTENTION_MODE" = "neural" ]; then
+          if [ "$HEARTHBOUND_ATTENTION_MODE" = "neural" ] && [ "$HEARTHBOUND_RESOURCE_SCHEDULE" = "seeded-v1" ]; then
             python3 scripts/validate_live_neural_attention_intervention.py \
               citizen-experience-before-restart.json real-resource-schedule.json \
               --output verified-live-neural-intervention.json
@@ -293,6 +309,25 @@ jobs:
           fi
           cmp citizen-experience-before-restart.json citizen-experience-after-restart.json
           cmp verified-attention-run-before-restart.json verified-attention-run-after-restart.json
+          if [ "$HEARTHBOUND_ATTENTION_CHALLENGE" = "rapid-four-v1" ]; then
+            echo "Run separate high-contention four-source attention challenge against real Forge"
+            python3 scripts/rcon_rapid_four_source_acceptance.py | tee rapid-four-rcon.log
+            challenge_files=()
+            while IFS= read -r path; do
+              if [ "$path" != "${journal_files[0]}" ]; then challenge_files+=("$path"); fi
+            done < <(find run -type f -path '*/hearthbound-attention/attention-*.jsonl')
+            if [ "${#challenge_files[@]}" -ne 1 ]; then
+              echo "Expected exactly one new four-source journal after baseline restart"
+              exit 1
+            fi
+            challenge_manifest="${challenge_files[0]%.jsonl}.manifest.json"
+            python3 scripts/validate_forge_attention_manifest.py \
+              "${challenge_files[0]}" "$challenge_manifest" --min-records 1 \
+              --output rapid-four-journal-verified.json
+            python3 scripts/audit_rapid_four_attention.py \
+              rapid-four-execution.json "${challenge_files[0]}" "$challenge_manifest" \
+              --output rapid-four-observation-coverage.json
+          fi
           if [ "$HEARTHBOUND_RESOURCE_SCHEDULE" = "seeded-v1" ] && \
              [ "$HEARTHBOUND_TRIAL_MODE" = "TRAINED_MLP" ] && \
              [ "$HEARTHBOUND_ATTENTION_MODE" = "scripted" ]; then
@@ -355,6 +390,11 @@ jobs:
             real-neural-attention-canary.json
             verified-neural-attention-run.json
             neural-attention-experience.json
+            rapid-four-rcon.log
+            rapid-four-execution.json
+            rapid-four-verified.json
+            rapid-four-journal-verified.json
+            rapid-four-observation-coverage.json
             real-neural-attention-intervention-receipt.json
             verified-live-neural-intervention.json
             real-resource-schedule.json
@@ -373,6 +413,34 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  compare-rapid-four-attention:
+    needs: boot-server
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: minecraft-attention-challenge-SCRIPTED-D
+          path: rapid-four-scripted
+      - uses: actions/download-artifact@v4
+        with:
+          name: minecraft-attention-challenge-NEURAL-D
+          path: rapid-four-neural
+      - name: Verify real four-source contention observation evidence
+        run: |
+          set -euo pipefail
+          python3 scripts/test_rapid_four_source_schedule.py
+          python3 scripts/test_report_rapid_four_attention.py
+          python3 scripts/report_rapid_four_attention.py \
+            rapid-four-scripted/rapid-four-observation-coverage.json \
+            rapid-four-neural/rapid-four-observation-coverage.json \
+            --output rapid-four-matched-comparison.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: real-four-source-attention-comparison
+          path: rapid-four-matched-comparison.json
+          if-no-files-found: error
+
   compare-multi-seed-live-attention:
     needs: boot-server
     runs-on: ubuntu-latest
@@ -389,6 +457,8 @@ jobs:
           python3 scripts/test_report_multi_seed_live_attention.py
           python3 scripts/test_report_matched_attention_latency.py
           python3 scripts/test_report_attention_latency_cohort.py
+          python3 scripts/test_rapid_four_source_schedule.py
+          python3 scripts/test_report_rapid_four_attention.py
           python3 scripts/report_matched_live_attention.py \
             multi-seed-trials/minecraft-policy-trial-SCRIPTED-seeded-A/verified-intervention-observation-coverage.json \
             multi-seed-trials/minecraft-attention-trial-NEURAL-seeded-A/verified-intervention-observation-coverage.json \
