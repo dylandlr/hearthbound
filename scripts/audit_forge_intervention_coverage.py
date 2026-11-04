@@ -46,7 +46,11 @@ def audit(schedule, journal_path, manifest_path, world=None):
     rows=[json.loads(line) for line in Path(journal_path).read_text().splitlines()]
     observations=list(matched_events(rows))
     interventions=schedule["executions"]
+    stop_tick=validated["measurement_stop_tick"]
     end=max(x["tick_after"] for x in interventions)
+    # A missing explicit cutoff (legacy logs) cannot justify attributing
+    # post-final-intervention observations to the controlled experiment.
+    final_exclusive=(stop_tick if stop_tick is not None else end+1)
     results=[]
     for i,event in enumerate(interventions):
         # Same-source mutations supersede one another. Evidence exactly at
@@ -54,7 +58,7 @@ def audit(schedule, journal_path, manifest_path, world=None):
         # that Minecraft tick is not proven.
         future=[x["tick_before"] for x in interventions[i+1:]
                 if x["source"]==event["source"]]
-        until=min(future) if future else end+1
+        until=min(future) if future else final_exclusive
         eligible=[o for o in observations if
                   o["source"]==event["source"] and
                   event["tick_after"]<o["tick"]<until and
@@ -83,10 +87,12 @@ def audit(schedule, journal_path, manifest_path, world=None):
         "schedule_sha256":validated["schedule_sha256"],
         "journal_sha256":finalized["journal_sha256"],
         "interventions_verified":validated["verified_interventions"],
+        "measurement_stop_tick":stop_tick,
+        "explicit_measurement_window":stop_tick is not None,
         "interventions_with_matching_direct_observation":count,
         "interventions_without_matching_direct_observation":len(results)-count,
         "observational_coverage_rate":round(count/len(results),6),
-        "timing_boundary":"STRICTLY_AFTER_RECORDED_MUTATION_TICK_BEFORE_NEXT_SAME_SOURCE_MUTATION",
+        "timing_boundary":"STRICTLY_AFTER_MUTATION_BEFORE_NEXT_SAME_SOURCE_MUTATION_OR_EXPLICIT_MEASUREMENT_STOP",
         "observed_matching_value_is_not_causal_proof":True,
         "counterfactual_outcomes_inferred":False,
         "learning_or_policy_superiority_claimed":False,
