@@ -17,3 +17,9 @@ Unit contracts reject missing/duplicate server properties, incorrect expected se
 ## Subsequent experiment
 
 Add an explicit opt-in multi-seed dedicated-server research workflow with fresh world directories, reproducible source-change schedules, verified fixture identifiers and grouped run-level evaluation. Separate full-world train, validation, and test splits, then evaluate the impact of world/fixture diversity. Never treat individual decisions within one run as independent samples.
+
+## Manual reproducible world-seed runs
+
+The dedicated-server smoke workflow now exposes `workflow_dispatch.world_seed`. The default is the frozen historic `hearthbound-policy-v0-8-10` seed. A manual run can supply another configured world seed; both SCRIPTED and TRAINED_MLP acceptance arms receive the same selected seed, preserving within-seed comparability. The seed is written into disposable server.properties, checked against the recorded provenance, and archived per policy. Automatic PR checks keep the unchanged default.
+
+Example experimental cohort design (not yet completed): dispatch three separate runs using `hearthbound-provenance-A`, `hearthbound-provenance-B`, and `hearthbound-provenance-C`. Download the verified experiment artifacts for each, validate their run IDs and provenance, and only then consider grouped analysis. Identical hard-coded source-chest fixtures across seeds still limit environmental diversity. Do not report these as independent-world **learning results** without stronger world-condition variation and valid held-out evaluation.
