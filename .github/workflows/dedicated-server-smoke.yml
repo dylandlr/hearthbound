@@ -268,6 +268,16 @@ jobs:
             policy-trials/minecraft-policy-trial-SCRIPTED/minecraft-experience.json \
             policy-trials/minecraft-policy-trial-TRAINED_MLP/minecraft-experience.json \
             --output minecraft-experience-dataset.json
+      - name: Aggregate real attention shadow by finalized run
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/test_aggregate_real_attention_runs.py
+          python3 scripts/aggregate_real_attention_runs.py \
+            policy-trials/minecraft-policy-trial-SCRIPTED/real-attention-shadow-after-restart.json \
+            policy-trials/minecraft-policy-trial-TRAINED_MLP/real-attention-shadow-after-restart.json \
+            --output real-attention-run-level-analysis.json
+          python3 -c 'import json; x=json.load(open("real-attention-run-level-analysis.json")); assert x["distinct_run_ids"]==2 and not x["independence_verified"] and not x["reward_comparison_performed"]'
       - name: Run frozen simulator-trained neural Q against archived real Minecraft states (READ ONLY)
         shell: bash
         run: |
@@ -315,6 +325,7 @@ jobs:
           name: minecraft-policy-comparison
           path: |
             policy-comparison.json
+            real-attention-run-level-analysis.json
             minecraft-experience-dataset.json
             real-neural-q-shadow.json
             real-mill-context-coverage.json
