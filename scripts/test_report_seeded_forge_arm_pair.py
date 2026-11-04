@@ -17,6 +17,8 @@ def arm(policy,run_id,seed="seed-A",schedule="a"*64,count=2):
             "configured_world_seed":seed,
             "run_id":run_id,"schedule_sha256":schedule,
             "interventions_verified":6,
+            "explicit_measurement_window":True,
+            "measurement_stop_tick":360,
             "interventions_with_matching_direct_observation":count,
             "interventions_without_matching_direct_observation":6-count,
             "observational_coverage_rate":round(count/6,6),
@@ -48,6 +50,9 @@ def main():
     denied([scripted,arm("TRAINED_MLP","33333333-3333-4333-8333-333333333333",schedule="z"*64)])
     forged=json.loads(json.dumps(trained))
     forged[1]["interventions_with_matching_direct_observation"]=5
+    denied([scripted,forged])
+    forged=json.loads(json.dumps(trained))
+    forged[1]["explicit_measurement_window"]=False
     denied([scripted,forged])
     forged=json.loads(json.dumps(trained))
     forged[0]["independent_world_sample_claimed"]=True
