@@ -288,10 +288,10 @@ public final class CitizenWatchRegistry {
             String policy="LEAST_RECENTLY_SAMPLED";
             if(r.neural!=null) {
                 var neuralOptions=new ArrayList<>(options);
-                neuralOptions.sort(Comparator
-                    .comparingInt((Map.Entry<Key,Watch> x) -> x.getKey().source().getX())
-                    .thenComparingInt(x -> x.getKey().source().getY())
-                    .thenComparingInt(x -> x.getKey().source().getZ()));
+                // Keep tensor slot order identical to the recorded candidate
+                // ordering, which is lexicographic by serialized coordinates.
+                neuralOptions.sort(Comparator.comparing(
+                    (Map.Entry<Key,Watch> x) -> coordinates(x.getKey().source())));
                 try {
                     selected=neuralOptions.get(r.neural.select(causalFeatures(neuralOptions,tick),
                         neuralOptions.size()));
