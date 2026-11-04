@@ -54,6 +54,9 @@ def main():
         enabled=run("hearthbound citizen_neural_enable")
         if "status=ACTIVE" not in enabled or "sha256=" not in enabled:
             raise AssertionError("Could not enable frozen model: "+enabled)
+        started=run("hearthbound citizen_log_start")
+        if "status=STARTED" not in started:
+            raise AssertionError("Could not start separate neural canary journal: "+started)
         citizen="@e[type=minecraft:villager,name=Sable,limit=1]"
         moved=run("tp "+citizen+" 9 100 3")
         if "teleported" not in moved.lower():
@@ -89,6 +92,8 @@ def main():
             if "removed=true" not in result:
                 raise AssertionError("Canary cleanup failed: "+result)
         stopped=run("hearthbound citizen_log_stop")
+        if "manifest=FINALIZED" not in stopped:
+            raise AssertionError("Failed to seal real neural canary evidence: "+stopped)
         # This canary starts a fresh durable journal separately from the
         # baseline, so any existing journal from prior server runs is distinct.
         disabled_again=run("hearthbound citizen_neural_disable")
