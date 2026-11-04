@@ -6,6 +6,9 @@ requires explicit local communication, is recipient-owned, and never authorizes
 Minecraft work. Uses actual source observation already collected by the server.
 """
 import os
+import json
+import re
+from real_forge_resource_schedule import plan,command as schedule_command,validate_log
 import socket
 import struct
 import time
@@ -208,6 +211,45 @@ with socket.create_connection(("127.0.0.1",25575),timeout=15) as sock:
         time.sleep(.2)
     if len(seen)!=2:
         raise AssertionError("Fair selective attention did not sample both subscriptions: "+str(seen))
+    # Optional research-only intervention schedule, after the frozen
+    # two-source acceptance has passed and before recording is stopped.
+    # These are OPERATOR RCON mutations, not citizen actions.
+    schedule_variant=os.environ.get("HEARTHBOUND_RESOURCE_SCHEDULE","baseline")
+    if schedule_variant=="seeded-v1":
+        configured_seed=os.environ["HEARTHBOUND_WORLD_SEED"]
+        planned=plan(configured_seed)
+        executions=[]
+        for step in planned["steps"]:
+            before=run("time query gametime")
+            hits=re.findall(r"\\d+",before)
+            if not hits:
+                raise AssertionError("Minecraft game tick not returned: "+before)
+            tick_before=int(hits[-1])
+            response=run(schedule_command(step))
+            if "modified" not in response.lower():
+                raise AssertionError("Real chest mutation failed: "+response)
+            after=run("time query gametime")
+            hits=re.findall(r"\\d+",after)
+            if not hits:
+                raise AssertionError("Minecraft post-mutation tick missing: "+after)
+            tick_after=int(hits[-1])
+            executions.append({
+                "index":step["index"],"source":step["source"],"wheat":step["wheat"],
+                "tick_before":tick_before,"tick_after":tick_after,
+                "status":"RCON_MODIFIED"})
+            time.sleep(step["delay_seconds"])
+        actual={
+            "schema":planned["schema"],"origin":"REAL_FORGE_RCON",
+            "configured_world_seed":configured_seed,
+            "schedule_sha256":planned["sha256"],
+            "executions":executions,
+            "counterfactual_outcomes_inferred":False}
+        verified=validate_log(actual)
+        Path("real-resource-schedule.json").write_text(json.dumps(actual,sort_keys=True,indent=2)+"\\n")
+        Path("verified-resource-schedule.json").write_text(json.dumps(verified,sort_keys=True,indent=2)+"\\n")
+        print("REAL_FORGE_RESOURCE_SCHEDULE_PASS steps="+str(len(executions)),flush=True)
+    elif schedule_variant!="baseline":
+        raise AssertionError("Unsupported resource intervention schedule variant")
     other_unknown=run("hearthbound citizen_memory 10 100 2 "+sable)
     if "status=UNKNOWN" not in other_unknown:
         raise AssertionError("Attention sampling leaked evidence to Sable")
