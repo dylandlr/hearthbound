@@ -138,6 +138,39 @@ with socket.create_connection(("127.0.0.1",25575),timeout=15) as sock:
     restored_read=run("hearthbound citizen_observe 9 100 2 "+recipient)
     if "wheat=3" not in restored_read or "status=OBSERVED" not in restored_read:
         raise AssertionError("Recipient failed to observe restored state")
+    # Attention budget: two subscriptions for one citizen, but only one
+    # source may be inspected per five-tick interval. Fair scheduling must
+    # eventually provide separate real Forge receipts for both sources.
+    installed=run("setblock 10 100 2 minecraft:chest replace")
+    if "changed" not in installed.lower():
+        raise AssertionError("Could not install attention comparison source")
+    extra=run('data merge block 10 100 2 {Items:[{Slot:0b,id:"minecraft:wheat",Count:1b}]}')
+    if "modified" not in extra.lower():
+        raise AssertionError("Could not stock attention comparison source")
+    for pos in ("9 100 2", "10 100 2"):
+        response=run("hearthbound citizen_watch "+pos+" "+recipient)
+        if "status=REGISTERED" not in response:
+            raise AssertionError("Attention subscription failed: "+response)
+    budget=run("hearthbound citizen_attention "+recipient)
+    if "subscriptions=2" not in budget or "budget=1" not in budget or "interval_ticks=5" not in budget:
+        raise AssertionError("Citizen attention limits absent: "+budget)
+    seen=set()
+    for _ in range(60):
+        for pos,expected in (("9 100 2","wheat=3"),("10 100 2","wheat=1")):
+            result=run("hearthbound citizen_watch_latest "+pos+" "+recipient)
+            if "CITIZEN_WATCH_RECEIPT" in result and expected in result:
+                seen.add(pos)
+        if len(seen)==2: break
+        time.sleep(.2)
+    if len(seen)!=2:
+        raise AssertionError("Fair selective attention did not sample both subscriptions: "+str(seen))
+    other_unknown=run("hearthbound citizen_memory 10 100 2 "+sable)
+    if "status=UNKNOWN" not in other_unknown:
+        raise AssertionError("Attention sampling leaked evidence to Sable")
+    for pos in ("9 100 2","10 100 2"):
+        result=run("hearthbound citizen_unwatch "+pos+" "+recipient)
+        if "removed=true" not in result:
+            raise AssertionError("Failed to remove attention watch: "+result)
     sable_still_unknown=run("hearthbound citizen_memory 9 100 2 "+sable)
     if "status=UNKNOWN" not in sable_still_unknown:
         raise AssertionError("Sable acquired unrelated private memory")

@@ -135,6 +135,20 @@ public final class HearthboundMod {
                                         ctx.getSource().sendSuccess(() -> Component.literal(result),false);
                                         return 1;
                                     }))))
+                    .then(Commands.literal("citizen_attention")
+                            .requires(source -> source.hasPermission(2))
+                            .then(Commands.argument("citizen", EntityArgument.entity())
+                                .executes(ctx -> {
+                                    var target=EntityArgument.getEntity(ctx,"citizen");
+                                    if (!(target instanceof net.minecraft.world.entity.npc.Villager citizen)) {
+                                        ctx.getSource().sendFailure(Component.literal("Target must be a villager"));
+                                        return 0;
+                                    }
+                                    String result=dev.hearthbound.world.CitizenWatchRegistry.attention(
+                                        ctx.getSource().getLevel(),citizen);
+                                    ctx.getSource().sendSuccess(() -> Component.literal(result),false);
+                                    return 1;
+                                })))
                     .then(Commands.literal("citizen_observe")
                             .requires(source -> source.hasPermission(2))
                             .then(Commands.argument("source", BlockPosArgument.blockPos())

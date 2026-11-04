@@ -1,6 +1,10 @@
 package dev.hearthbound.world;
 
 import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.Map;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
@@ -17,6 +21,7 @@ public final class CitizenWatchRegistry {
     public static final int MAX_WATCHES_PER_LEVEL = 24;
     public static final int MAX_WATCHES_PER_CITIZEN = 4;
     public static final long SAMPLE_INTERVAL_TICKS = 5;
+    public static final int MAX_INSPECTIONS_PER_CITIZEN_PER_INTERVAL = 1;
     private static final Map<ServerLevel, Registry> REGISTRIES = new java.util.WeakHashMap<>();
 
     private record Key(UUID citizen, BlockPos source) {}
@@ -24,6 +29,7 @@ public final class CitizenWatchRegistry {
         private SourceWheatObservation.State previousState;
         private int previousWheat;
         private long revision;
+        private long lastAttemptTick = Long.MIN_VALUE;
         private String latest = "";
     }
     private static final class Registry {
@@ -79,6 +85,20 @@ public final class CitizenWatchRegistry {
         return watch.latest;
     }
 
+    /** Operator-only diagnostic: subscriptions are not observation permission for other citizens. */
+    public static String attention(ServerLevel level, Villager citizen) {
+        if(level==null || citizen==null) throw new IllegalArgumentException("missing query arguments");
+        if(citizen.level()!=level || !CitizenSourceKnowledge.isCitizen(citizen))
+            return "CITIZEN_ATTENTION status=ABSTAIN reason=INVALID_CITIZEN action_authorized=false";
+        Registry r=registry(level);
+        long count=r.watches.keySet().stream().filter(k -> k.citizen().equals(citizen.getUUID())).count();
+        return "CITIZEN_ATTENTION schema=hearthbound.citizen-attention.v1 citizen="+citizen.getUUID()
+            +" subscriptions="+count
+            +" budget="+MAX_INSPECTIONS_PER_CITIZEN_PER_INTERVAL
+            +" interval_ticks="+SAMPLE_INTERVAL_TICKS
+            +" policy=LEAST_RECENTLY_SAMPLED action_authorized=false";
+    }
+
     /** Called only on Forge main-thread level tick. Does not force source chunk loads. */
     public static void sample(ServerLevel level) {
         if (level==null) return;
@@ -87,9 +107,22 @@ public final class CitizenWatchRegistry {
         long tick=level.getGameTime();
         if(tick==r.lastTick || tick%SAMPLE_INTERVAL_TICKS!=0) return;
         r.lastTick=tick;
-        for(var entry:r.watches.entrySet()) {
+        // The baseline scripted attention policy spends only one source inspection
+        // per citizen per sampling interval. Ordering is deterministic and fair:
+        // least recently attempted first, then coordinates to break ties.
+        var ordered=new ArrayList<>(r.watches.entrySet());
+        ordered.sort(Comparator
+            .comparing((Map.Entry<Key,Watch> e) -> e.getKey().citizen().toString())
+            .thenComparingLong(e -> e.getValue().lastAttemptTick)
+            .thenComparingInt(e -> e.getKey().source().getX())
+            .thenComparingInt(e -> e.getKey().source().getY())
+            .thenComparingInt(e -> e.getKey().source().getZ()));
+        Set<UUID> spent=new HashSet<>();
+        for(var entry:ordered) {
             Key key=entry.getKey();
             Watch watch=entry.getValue();
+            if(!spent.add(key.citizen())) continue;
+            watch.lastAttemptTick=tick;
             if(!level.hasChunkAt(key.source())) continue;
             var entity=level.getEntity(key.citizen());
             if(!(entity instanceof Villager citizen) || !citizen.isAlive()
