@@ -27,13 +27,13 @@ public final class CitizenAttentionJournal {
     private static final Map<ServerLevel, Session> SESSIONS=new WeakHashMap<>();
 
     private static final class Session {
-        final String runId=UUID.randomUUID().toString();
+        final String runId;
         final Path file;
         long sequence;
         String previousHash="GENESIS";
         boolean active=true;
         String lastError="NONE";
-        Session(Path file) { this.file=file; }
+        Session(String runId,Path file) { this.runId=runId; this.file=file; }
     }
     private CitizenAttentionJournal() {}
 
@@ -49,7 +49,7 @@ public final class CitizenAttentionJournal {
         try {
             Files.createDirectories(root);
             Files.createFile(file); // refuse overwrite, even on UUID collision
-            Session session=new Session(file);
+            Session session=new Session(id,file);
             SESSIONS.put(level,session);
             return "ATTENTION_JOURNAL status=STARTED run_id="+session.runId
                 +" max_records="+MAX_RECORDS+" action_authorized=false";
