@@ -4,6 +4,8 @@ on:
     paths:
       - 'scripts/train_simulated_attention_mlp.py'
       - 'scripts/test_train_simulated_attention_mlp.py'
+      - 'scripts/evaluate_simulated_attention_robustness.py'
+      - 'scripts/test_evaluate_simulated_attention_robustness.py'
       - '.github/workflows/simulated-attention-benchmark.yml'
   workflow_dispatch:
 jobs:
@@ -32,8 +34,27 @@ jobs:
           assert result["evaluation"]["scripted_least_recent"]["episodes"]==120
           print("SIMULATED_ATTENTION_CI_PASS")
           PY
+      - name: Verify paired robustness experiment contracts
+        run: python3 scripts/test_evaluate_simulated_attention_robustness.py
+      - name: Evaluate multiple seeds and distribution shifts
+        run: |
+          python3 scripts/evaluate_simulated_attention_robustness.py \
+            --seeds 11 17 23 --train-episodes 500 --heldout 100 --bootstrap 500 \
+            --output simulated-attention-robustness.json
+          python3 - <<'PY'
+          import json
+          result=json.load(open("simulated-attention-robustness.json"))
+          assert result["origin"]=="SIMULATED_ONLY"
+          assert not result["minecraft_policy_deployed"]
+          assert not result["citizen_actions_authorized"]
+          assert len(result["results"])==12
+          assert len(result["regimes"])==4
+          print("PAIRED_ATTENTION_ROBUSTNESS_CI_PASS")
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: simulated-attention-benchmark
-          path: simulated-attention-benchmark.json
+          path: |
+            simulated-attention-benchmark.json
+            simulated-attention-robustness.json
           if-no-files-found: error
