@@ -27,7 +27,23 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        policy: [SCRIPTED, TRAINED_MLP]
+        include:
+          - policy: SCRIPTED
+            seed: hearthbound-policy-v0-8-10
+            schedule: baseline
+            artifact_name: minecraft-policy-trial-SCRIPTED
+          - policy: TRAINED_MLP
+            seed: hearthbound-policy-v0-8-10
+            schedule: baseline
+            artifact_name: minecraft-policy-trial-TRAINED_MLP
+          - policy: SCRIPTED
+            seed: hearthbound-resource-probe-A
+            schedule: seeded-v1
+            artifact_name: minecraft-policy-trial-SCRIPTED-seeded-A
+          - policy: TRAINED_MLP
+            seed: hearthbound-resource-probe-A
+            schedule: seeded-v1
+            artifact_name: minecraft-policy-trial-TRAINED_MLP-seeded-A
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -85,8 +101,8 @@ jobs:
         env:
           HEARTHBOUND_RCON_PASSWORD: ci-local-disposable-password
           HEARTHBOUND_TRIAL_MODE: ${{ matrix.policy }}
-          HEARTHBOUND_WORLD_SEED: ${{ inputs.world_seed || 'hearthbound-policy-v0-8-10' }}
-          HEARTHBOUND_RESOURCE_SCHEDULE: ${{ inputs.resource_schedule || 'baseline' }}
+          HEARTHBOUND_WORLD_SEED: ${{ inputs.world_seed || matrix.seed }}
+          HEARTHBOUND_RESOURCE_SCHEDULE: ${{ inputs.resource_schedule || matrix.schedule }}
         run: |
           set -euo pipefail
           mkdir -p run
@@ -239,7 +255,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: minecraft-policy-trial-${{ matrix.policy }}
+          name: ${{ matrix.artifact_name }}
           path: |
             server-smoke.log
             forge-preflight.log
