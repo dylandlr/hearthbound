@@ -41,9 +41,11 @@ def replay(data):
             raise ValueError("Inconsistent inventory state")
         key=(event["observer"],event["dimension"],event["source"])
         old_rev=last_revision.get(key)
-        if old_rev is not None and event["revision"]<=old_rev:
-            raise ValueError("Non-increasing source revision")
+        if old_rev is not None and event["revision"]!=old_rev+1:
+            raise ValueError("Missing or non-increasing source revision")
         before=history.get(key)
+        if before is not None and before["state"]==event["state"] and before["wheat"]==event["wheat"]:
+            raise ValueError("Change-only receipt repeated unchanged source")
         # before captures *only* observations from earlier rows in the
         # recorded timeline. No future or other-citizen observations.
         prior=({"status":"UNKNOWN","known_wheat":None,"age_ticks":None,
