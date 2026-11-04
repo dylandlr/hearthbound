@@ -255,7 +255,7 @@ jobs:
           fi
           python3 scripts/export_verified_citizen_experience.py "${journal_files[0]}" "$sealed_manifest" \
             --min-records 2 --output citizen-experience-before-restart.json
-          if [ "$HEARTHBOUND_ATTENTION_MODE" = "neural" ]; then
+          if [ "$HEARTHBOUND_ATTENTION_MODE" = "neural" ] && [ "$HEARTHBOUND_RESOURCE_SCHEDULE" = "seeded-v1" ]; then
             python3 scripts/validate_live_neural_attention_intervention.py \
               citizen-experience-before-restart.json real-resource-schedule.json \
               --output verified-live-neural-intervention.json
