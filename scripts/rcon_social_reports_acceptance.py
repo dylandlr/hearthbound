@@ -10,6 +10,7 @@ import socket
 import struct
 import time
 from pathlib import Path
+from validate_forge_attention_pair import pair
 
 def pkt(request_id, kind, value):
     body=struct.pack("<ii",request_id,kind)+value.encode()+b"\0\0"
@@ -174,7 +175,26 @@ with socket.create_connection(("127.0.0.1",25575),timeout=15) as sock:
         raise AssertionError("Opportunity contract missing original attention baseline")
     if "wheat=" in opportunity or "state=" in opportunity:
         raise AssertionError("Source state leaked into decision-opportunity log")
+    # The latest two independently queried records may race the next server
+    # tick, so require exact observer/source/tick attribution before saving.
+    matched=None
+    for _ in range(70):
+        proposed=run("hearthbound citizen_opportunity_latest")
+        observed=run("hearthbound citizen_outcome_latest")
+        try:
+            candidate=pair(proposed,observed)
+        except ValueError:
+            time.sleep(.1)
+            continue
+        if len(candidate["opportunity"]["candidates"])==2:
+            matched=(proposed,observed)
+            break
+        time.sleep(.1)
+    if matched is None:
+        raise AssertionError("Could not capture an attributed choice/outcome pair")
+    opportunity,outcome=matched
     Path("real-attention-opportunity.txt").write_text(opportunity+"\n")
+    Path("real-attention-outcome.txt").write_text(outcome+"\n")
     seen=set()
     for _ in range(60):
         for pos,expected in (("9 100 2","wheat=3"),("10 100 2","wheat=1")):

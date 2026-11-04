@@ -36,6 +36,7 @@ jobs:
           python3 scripts/test_validate_live_perception_receipts.py
           python3 scripts/test_replay_real_forge_chronology.py
           python3 scripts/test_validate_forge_attention_opportunity.py
+          python3 scripts/test_validate_forge_attention_pair.py
       - name: Resolve and compile Forge dependencies before startup clock
         shell: bash
         run: |
@@ -130,6 +131,9 @@ jobs:
           python3 scripts/rcon_social_reports_acceptance.py | tee real-social-reports-rcon.log
           python3 scripts/validate_forge_attention_opportunity.py \
             real-attention-opportunity.txt --output real-attention-opportunity.json
+          python3 scripts/validate_forge_attention_pair.py \
+            real-attention-opportunity.txt real-attention-outcome.txt \
+            --output real-attention-paired-evidence.json
           echo "Verifying citizen NBT survives save and dedicated-server restart"
           python3 scripts/rcon_verify_sable_restart.py checkpoint
           for i in $(seq 1 60); do
@@ -187,6 +191,8 @@ jobs:
             real-social-reports-rcon.log
             real-attention-opportunity.txt
             real-attention-opportunity.json
+            real-attention-outcome.txt
+            real-attention-paired-evidence.json
             live-shadow-report.json
             policy-trial-result.json
             policy-rejection.json
