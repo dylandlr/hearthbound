@@ -35,6 +35,7 @@ jobs:
           python3 scripts/test_rcon_frames.py
           python3 scripts/test_validate_live_perception_receipts.py
           python3 scripts/test_replay_real_forge_chronology.py
+          python3 scripts/test_validate_forge_attention_opportunity.py
       - name: Resolve and compile Forge dependencies before startup clock
         shell: bash
         run: |
@@ -127,6 +128,8 @@ jobs:
           PY
           echo "Verifying real Forge citizen-to-citizen reported knowledge"
           python3 scripts/rcon_social_reports_acceptance.py | tee real-social-reports-rcon.log
+          python3 scripts/validate_forge_attention_opportunity.py \
+            real-attention-opportunity.txt --output real-attention-opportunity.json
           echo "Verifying citizen NBT survives save and dedicated-server restart"
           python3 scripts/rcon_verify_sable_restart.py checkpoint
           for i in $(seq 1 60); do
@@ -182,6 +185,8 @@ jobs:
             real-perception-validated.json
             real-forge-shadow-timeline.json
             real-social-reports-rcon.log
+            real-attention-opportunity.txt
+            real-attention-opportunity.json
             live-shadow-report.json
             policy-trial-result.json
             policy-rejection.json
