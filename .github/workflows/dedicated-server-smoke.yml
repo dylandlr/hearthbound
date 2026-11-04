@@ -92,9 +92,13 @@ jobs:
           mkdir -p run
           printf 'eula=true\n' > run/eula.txt
           printf 'online-mode=false\nlevel-name=smoke-world\nlevel-seed=%s\nmax-players=2\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' "$HEARTHBOUND_WORLD_SEED" "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties
+          HEARTHBOUND_FIXTURE_ID=chest-two-source-v1
+          if [ "$HEARTHBOUND_RESOURCE_SCHEDULE" = "seeded-v1" ]; then
+            HEARTHBOUND_FIXTURE_ID=chest-two-source-seeded-v1
+          fi
           python3 scripts/capture_real_forge_world_provenance.py \
             run/server.properties --policy "$HEARTHBOUND_TRIAL_MODE" \
-            --fixture "chest-two-source-${HEARTHBOUND_RESOURCE_SCHEDULE}" --expected-seed "$HEARTHBOUND_WORLD_SEED" \
+            --fixture "$HEARTHBOUND_FIXTURE_ID" --expected-seed "$HEARTHBOUND_WORLD_SEED" \
             --output real-world-provenance.json
           gradle --no-daemon runServer > server-smoke.log 2>&1 &
           pid=$!
