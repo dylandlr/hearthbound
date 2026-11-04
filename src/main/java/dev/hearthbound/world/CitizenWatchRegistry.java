@@ -114,6 +114,14 @@ public final class CitizenWatchRegistry {
         return List.copyOf(registry(level).opportunities);
     }
 
+    public static String latestOpportunity(ServerLevel level) {
+        if(level==null) throw new IllegalArgumentException("missing level");
+        Deque<String> items=registry(level).opportunities;
+        return items.isEmpty()
+            ? "ATTENTION_OPPORTUNITY status=UNKNOWN action_authorized=false"
+            : items.peekLast();
+    }
+
     private static void recordOpportunity(Registry registry, ServerLevel level, long tick,
                                           UUID citizen, List<Map.Entry<Key, Watch>> candidates,
                                           BlockPos chosen) {
