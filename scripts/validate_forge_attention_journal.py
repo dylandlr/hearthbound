@@ -26,6 +26,7 @@ def verify_text(contents,minimum=1):
     prior_tick=-1
     observed=0
     unobserved=0
+    selected_sources=set()
     for seq,line in enumerate(lines,1):
         try: row=json.loads(line)
         except json.JSONDecodeError as error: raise ValueError("invalid JSONL row") from error
@@ -53,6 +54,7 @@ def verify_text(contents,minimum=1):
         result=pair(*parts)
         opportunity=result["opportunity"]
         outcome=result["outcome"]
+        selected_sources.add((opportunity["observer"],opportunity["dimension"],opportunity["selected"]))
         if opportunity["tick"]<prior_tick:raise ValueError("journal tick regression")
         prior_tick=opportunity["tick"]
         if outcome["status"]=="OBSERVED":observed+=1
@@ -62,6 +64,7 @@ def verify_text(contents,minimum=1):
             "origin":"REAL_FORGE_SERVER_FILE",
             "run_id":run_id,"records":len(lines),
             "observed":observed,"unobserved":unobserved,
+            "distinct_observer_sources_selected":len(selected_sources),
             "final_hash":previous,"hash_chain_valid":True,
             "counterfactual_reward_available":False,
             "minecraft_actions_authorized":False,
