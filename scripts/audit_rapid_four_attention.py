@@ -21,6 +21,7 @@ def audit(execution,journal,manifest):
     records=[json.loads(line) for line in Path(journal).read_text().splitlines()]
     source_events=[]
     observed_policies=set()
+    observers=set()
     start_tick=execution["executions"][0]["tick_before"]
     stop_tick=execution["measurement_stop_tick"]
     for record in records:
@@ -38,6 +39,7 @@ def audit(execution,journal,manifest):
             source.replace(" ",",") for source in SOURCES):
             raise ValueError("Challenge did not present exactly four registered sources")
         observed_policies.add(opp["policy"])
+        observers.add(opp["observer"])
         source_events.append({"tick":opp["tick"],
             "source":opp["selected"].replace(","," "),
             "policy":opp["policy"],
@@ -49,9 +51,12 @@ def audit(execution,journal,manifest):
         raise ValueError("No real citizen attention decisions during the rapid experiment")
     if observed_policies!={expected}:
         raise ValueError("real selected-source journal was not exclusively assigned to intended policy")
+    if len(observers)!=1:
+        raise ValueError("four-source challenge must have exactly one observed citizen")
     previous=-1
     for item in source_events:
-        if item["tick"]<previous:raise ValueError("non-chronological real observations")
+        if item["tick"]-previous<5:
+            raise ValueError("real citizen exceeded one source inspection per five ticks")
         previous=item["tick"]
     results=[]
     mutations=execution["executions"]
