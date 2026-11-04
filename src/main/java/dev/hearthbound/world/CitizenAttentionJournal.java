@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -64,8 +65,33 @@ public final class CitizenAttentionJournal {
         if(session==null)
             return "ATTENTION_JOURNAL status=INACTIVE action_authorized=false";
         session.active=false;
-        return "ATTENTION_JOURNAL status=STOPPED run_id="+session.runId
-            +" records="+session.sequence+" action_authorized=false";
+        // Seal the exact file bytes and journal tip. A manifest is written only
+        // on explicit clean stop. Interrupted or capped runs remain unfinalized.
+        if(!"NONE".equals(session.lastError))
+            return "ATTENTION_JOURNAL status=UNFINALIZED reason="+session.lastError
+                +" run_id="+session.runId+" action_authorized=false";
+        Path manifest=session.file.resolveSibling("attention-"+session.runId+".manifest.json");
+        Path temporary=session.file.resolveSibling("attention-"+session.runId+".manifest.tmp");
+        JsonObject seal=new JsonObject();
+        seal.addProperty("schema","hearthbound.attention-run-manifest.v1");
+        seal.addProperty("run_id",session.runId);
+        seal.addProperty("journal_file",session.file.getFileName().toString());
+        seal.addProperty("records",session.sequence);
+        seal.addProperty("final_hash",session.previousHash);
+        seal.addProperty("finalized",true);
+        seal.addProperty("action_authorized",false);
+        try {
+            seal.addProperty("journal_sha256",hashBytes(session.file));
+            Files.writeString(temporary,seal.toString()+"\\n",StandardCharsets.UTF_8,
+                StandardOpenOption.CREATE_NEW,StandardOpenOption.WRITE);
+            Files.move(temporary,manifest,StandardCopyOption.ATOMIC_MOVE);
+            return "ATTENTION_JOURNAL status=STOPPED run_id="+session.runId
+                +" records="+session.sequence+" manifest=FINALIZED action_authorized=false";
+        } catch(IOException | java.io.UncheckedIOException error) {
+            session.lastError="MANIFEST_IO_FAILURE";
+            return "ATTENTION_JOURNAL status=UNFINALIZED reason=MANIFEST_IO_FAILURE"
+                +" run_id="+session.runId+" action_authorized=false";
+        }
     }
 
     public static String status(ServerLevel level) {
@@ -87,6 +113,25 @@ public final class CitizenAttentionJournal {
             return value.toString();
         } catch(NoSuchAlgorithmException unavailable) {
             throw new IllegalStateException("SHA-256 unavailable",unavailable);
+        }
+    }
+
+    private static String hashBytes(Path file) {
+        try {
+            return hashFile(Files.readAllBytes(file));
+        } catch(IOException error) {
+            throw new java.io.UncheckedIOException(error);
+        }
+    }
+
+    private static String hashFile(byte[] raw) {
+        try {
+            byte[] digest=MessageDigest.getInstance("SHA-256").digest(raw);
+            StringBuilder value=new StringBuilder();
+            for(byte piece:digest) value.append(String.format("%02x",piece&255));
+            return value.toString();
+        } catch(NoSuchAlgorithmException error) {
+            throw new IllegalStateException("SHA-256 unavailable",error);
         }
     }
 
