@@ -221,7 +221,7 @@ with socket.create_connection(("127.0.0.1",25575),timeout=15) as sock:
         executions=[]
         for step in planned["steps"]:
             before=run("time query gametime")
-            hits=re.findall(r"\\d+",before)
+            hits=re.findall(r"\d+",before)
             if not hits:
                 raise AssertionError("Minecraft game tick not returned: "+before)
             tick_before=int(hits[-1])
@@ -229,7 +229,7 @@ with socket.create_connection(("127.0.0.1",25575),timeout=15) as sock:
             if "modified" not in response.lower():
                 raise AssertionError("Real chest mutation failed: "+response)
             after=run("time query gametime")
-            hits=re.findall(r"\\d+",after)
+            hits=re.findall(r"\d+",after)
             if not hits:
                 raise AssertionError("Minecraft post-mutation tick missing: "+after)
             tick_after=int(hits[-1])
@@ -245,8 +245,8 @@ with socket.create_connection(("127.0.0.1",25575),timeout=15) as sock:
             "executions":executions,
             "counterfactual_outcomes_inferred":False}
         verified=validate_log(actual)
-        Path("real-resource-schedule.json").write_text(json.dumps(actual,sort_keys=True,indent=2)+"\\n")
-        Path("verified-resource-schedule.json").write_text(json.dumps(verified,sort_keys=True,indent=2)+"\\n")
+        Path("real-resource-schedule.json").write_text(json.dumps(actual,sort_keys=True,indent=2)+"\n")
+        Path("verified-resource-schedule.json").write_text(json.dumps(verified,sort_keys=True,indent=2)+"\n")
         print("REAL_FORGE_RESOURCE_SCHEDULE_PASS steps="+str(len(executions)),flush=True)
     elif schedule_variant!="baseline":
         raise AssertionError("Unsupported resource intervention schedule variant")
