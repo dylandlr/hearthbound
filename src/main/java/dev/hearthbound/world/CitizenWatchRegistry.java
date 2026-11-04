@@ -41,6 +41,7 @@ public final class CitizenWatchRegistry {
         private final Map<Key, Watch> watches = new HashMap<>();
         private final Deque<String> opportunities = new ArrayDeque<>();
         private final Deque<String> outcomes = new ArrayDeque<>();
+        private final Map<UUID,String> pendingOpportunities = new HashMap<>();
         private long lastTick = Long.MIN_VALUE;
     }
 
@@ -145,6 +146,7 @@ public final class CitizenWatchRegistry {
         if(registry.opportunities.size()>=MAX_OPPORTUNITIES_PER_LEVEL)
             registry.opportunities.removeFirst();
         registry.opportunities.addLast(line);
+        registry.pendingOpportunities.put(citizen,line);
     }
 
     /** Outcome records are append-only within a bounded server-session ring. */
@@ -179,6 +181,8 @@ public final class CitizenWatchRegistry {
         if(registry.outcomes.size()>=MAX_OUTCOMES_PER_LEVEL)
             registry.outcomes.removeFirst();
         registry.outcomes.addLast(line);
+        String choice=registry.pendingOpportunities.remove(observer);
+        if(choice!=null) CitizenAttentionJournal.append(level,choice,line);
     }
 
     /** Called only on Forge main-thread level tick. Does not force source chunk loads. */
