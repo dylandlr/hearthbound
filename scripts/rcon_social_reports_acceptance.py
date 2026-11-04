@@ -216,8 +216,12 @@ with socket.create_connection(("127.0.0.1",25575),timeout=15) as sock:
     # These are OPERATOR RCON mutations, not citizen actions.
     if os.environ.get("HEARTHBOUND_ATTENTION_MODE","scripted") not in ("scripted","neural"):
         raise AssertionError("Invalid attention experimental mode")
-    if os.environ.get("HEARTHBOUND_ATTENTION_MODE","scripted")=="neural" and os.environ.get("HEARTHBOUND_RESOURCE_SCHEDULE","baseline")!="seeded-v1":
-        raise AssertionError("Neural test must use controlled resource schedule")
+    # A separate post-restart rapid-four-source challenge begins with the
+    # original scripted acceptance and explicitly enables neural later.
+    if (os.environ.get("HEARTHBOUND_ATTENTION_MODE","scripted")=="neural"
+        and os.environ.get("HEARTHBOUND_RESOURCE_SCHEDULE","baseline")!="seeded-v1"
+        and os.environ.get("HEARTHBOUND_ATTENTION_CHALLENGE","none")!="rapid-four-v1"):
+        raise AssertionError("Neural selection requires a controlled experiment")
     schedule_variant=os.environ.get("HEARTHBOUND_RESOURCE_SCHEDULE","baseline")
     if schedule_variant=="seeded-v1":
         configured_seed=os.environ["HEARTHBOUND_WORLD_SEED"]
