@@ -1,0 +1,30 @@
+name: Rapid attention curriculum (simulator only)
+on:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  evaluate-rapid-curriculum:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate causal-history simulator controls
+        run: |
+          set -euo pipefail
+          python3 scripts/test_benchmark_rapid_attention_curriculum.py
+      - name: Compare held-out simulator regimes (no live model promotion)
+        run: |
+          set -euo pipefail
+          python3 scripts/benchmark_rapid_attention_curriculum.py \
+            --seed 11 --episodes 240 --heldout 40 \
+            --output rapid-attention-curriculum.json
+          python3 -c 'import json; x=json.load(open("rapid-attention-curriculum.json")); assert x["origin"]=="SIMULATED_ONLY" and x["minecraft_policy_deployed"] is False and x["model_replacement_authorized"] is False and len(x["results"])==12'
+      - name: Archive simulator-only curriculum result
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapid-attention-curriculum-simulation
+          path: rapid-attention-curriculum.json
+          if-no-files-found: error
