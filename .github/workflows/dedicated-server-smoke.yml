@@ -355,6 +355,34 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  compare-live-attention-arms:
+    needs: boot-server
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: minecraft-policy-trial-SCRIPTED-seeded-A
+          path: scripted-live-attention
+      - uses: actions/download-artifact@v4
+        with:
+          name: minecraft-attention-trial-NEURAL-seeded-A
+          path: neural-live-attention
+      - name: Compare real selected-source coverage under identical seeded intervention plan
+        run: |
+          set -euo pipefail
+          python3 scripts/test_validate_live_neural_attention_intervention.py
+          python3 scripts/report_matched_live_attention.py \
+            scripted-live-attention/verified-intervention-observation-coverage.json \
+            neural-live-attention/verified-intervention-observation-coverage.json \
+            neural-live-attention/verified-live-neural-intervention.json \
+            --output matched-live-attention-comparison.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: matched-real-neural-attention-comparison
+          path: matched-live-attention-comparison.json
+          if-no-files-found: error
+
   compare-seeded-resource-arms:
     needs: boot-server
     runs-on: ubuntu-latest
@@ -369,6 +397,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/test_report_seeded_forge_arm_pair.py
+          python3 scripts/test_validate_live_neural_attention_intervention.py
           python3 scripts/report_seeded_forge_arm_pair.py \
             seeded-trials/minecraft-policy-trial-SCRIPTED-seeded-A/real-world-provenance.json \
             seeded-trials/minecraft-policy-trial-SCRIPTED-seeded-A/verified-intervention-observation-coverage.json \
