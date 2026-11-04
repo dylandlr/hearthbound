@@ -135,6 +135,18 @@ public final class HearthboundMod {
                                         ctx.getSource().sendSuccess(() -> Component.literal(result),false);
                                         return 1;
                                     }))))
+                    .then(Commands.literal("citizen_opportunities")
+                            .requires(source -> source.hasPermission(2))
+                            .executes(ctx -> {
+                                var items=dev.hearthbound.world.CitizenWatchRegistry.opportunities(
+                                    ctx.getSource().getLevel());
+                                ctx.getSource().sendSuccess(
+                                    () -> Component.literal("ATTENTION_OPPORTUNITY_STATUS count="+items.size()
+                                        +" mode=READ_ONLY action_authorized=false"),false);
+                                for(String item:items)
+                                    ctx.getSource().sendSuccess(() -> Component.literal(item),false);
+                                return 1;
+                            }))
                     .then(Commands.literal("citizen_attention")
                             .requires(source -> source.hasPermission(2))
                             .then(Commands.argument("citizen", EntityArgument.entity())
