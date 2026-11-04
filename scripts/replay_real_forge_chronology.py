@@ -33,7 +33,7 @@ def replay(data):
         if event["schema"]!="hearthbound.live-perception-receipt.v1" or event["evidence"]!="REAL_FORGE_SOURCE_OBSERVATION":
             raise ValueError("Wrong evidence")
         tick=event["tick"]
-        if type(tick)!=int or tick<last_global:
+        if type(tick)!=int or tick<0 or tick<last_global:
             raise ValueError("Future-to-past receipt order or invalid tick")
         if type(event["revision"])!=int or event["revision"]<1 or type(event["wheat"])!=int:
             raise ValueError("Invalid revision or inventory quantity")
