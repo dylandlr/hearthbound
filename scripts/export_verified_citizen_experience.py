@@ -63,7 +63,7 @@ def export(journal:Path, manifest:Path, minimum=1):
             "decision_tick":tick,
             "observer":citizen,
             "dimension":dimension,
-            "policy":"LEAST_RECENTLY_SAMPLED",
+            "policy":choice["policy"],
             "candidate_history_before_choice":before,
             "selected":selected,
             "selected_outcome":{

@@ -32,7 +32,7 @@ def parse(line):
         raise ValueError("invalid evidence boundary")
     if not UUID.fullmatch(fields["observer"]) or not DIM.fullmatch(fields["dimension"]):
         raise ValueError("invalid observer or dimension")
-    if not fields["tick"].isdigit() or fields["policy"]!="LEAST_RECENTLY_SAMPLED":
+    if not fields["tick"].isdigit() or fields["policy"] not in ("LEAST_RECENTLY_SAMPLED","NEURAL_CAUSAL_MLP_OPT_IN"):
         raise ValueError("invalid time or policy")
     if fields["budget"]!="1" or not fields["candidate_count"].isdigit():
         raise ValueError("invalid budget or candidate count")
@@ -46,6 +46,7 @@ def parse(line):
     return {"schema":SCHEMA,"tick":int(fields["tick"]),
             "observer":fields["observer"],"dimension":fields["dimension"],
             "candidates":candidates,"selected":fields["selected"],
+            "policy":fields["policy"],
             "budget":1,"inventory_read":False,"action_authorized":False,
             "counterfactual_outcomes_available":False}
 
