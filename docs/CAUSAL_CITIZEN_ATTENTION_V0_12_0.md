@@ -33,3 +33,17 @@ Develop a chronological offline replay contract for `CITIZEN_WATCH_RECEIPT` and 
 - Include only events with server timestamps no later than the replay decision tick. Do not reconstruct features using future observations.
 - Avoid counterfactual reward claims unless the server actually observed the alternative outcome; use abstention or clearly marked simulator-only counterfactual evaluation.
 - Replay without issuing watch commands, changing world state, or granting new Minecraft execution authority.
+
+## Initial measured simulator results (CI run 41753054446)
+
+The new causal-history benchmark completed and `CAUSAL_ATTENTION_HISTORY_TESTS_PASS` was observed. Each cell is the **mean trained-minus-scripted discovered changes per 32-observation synthetic episode** across 100 held-out worlds; three independently trained models are shown separately.
+
+| Training seed | Normal | High volatility | Low volatility | Unequal volatility |
+|---|---:|---:|---:|---:|
+| 11 | -2.15 | -0.26 | -0.64 | +3.95 |
+| 17 | -0.40 | +1.16 | -0.71 | +2.41 |
+| 23 | -2.12 | +1.56 | -1.42 | -4.51 |
+
+Training-seed sensitivity is severe for the unequal-volatility regime: the third MLP loses 4.51 discoveries per episode despite the first two gaining. The original v0.11.9 privileged-volatility model had positive gains for all three seeds in this regime. Thus the previous advantage **does not survive removal of hidden volatility consistently**. Also note the causal model was retrained and cannot be directly interpreted as a strict fixed-weights feature ablation. The benchmark is not a claim of improved Minecraft behavior.
+
+Research priority: improve the observation-history representation (account for elapsed time between readings, uncertainty/inspection count, and partial observability) and compare against stronger simple causal baselines before trying larger networks. Preserve seed 11/17/23 as previously measured reference results; make new model-selection decisions using separate validation seeds.
