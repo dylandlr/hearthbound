@@ -64,6 +64,15 @@ jobs:
           python3 scripts/test_validate_forge_attention_manifest.py
           python3 scripts/test_export_verified_citizen_experience.py
           python3 scripts/test_evaluate_real_attention_shadow.py
+          python3 scripts/export_causal_attention_java_parity.py \
+            --seed 11 --episodes 500 \
+            --weights causal-attention-java-weights.txt \
+            --fixtures causal-attention-java-fixtures.txt
+          mkdir -p /tmp/hb-attention-parity
+          javac --release 17 -d /tmp/hb-attention-parity \
+            src/test/java/dev/hearthbound/evidence/CausalAttentionMlpParity.java
+          java -cp /tmp/hb-attention-parity dev.hearthbound.evidence.CausalAttentionMlpParity \
+            causal-attention-java-weights.txt causal-attention-java-fixtures.txt
       - name: Resolve and compile Forge dependencies before startup clock
         shell: bash
         run: |
@@ -273,6 +282,8 @@ jobs:
             real-attention-shadow-before-restart.json
             real-attention-shadow-after-restart.json
             real-world-provenance.json
+            causal-attention-java-weights.txt
+            causal-attention-java-fixtures.txt
             real-resource-schedule.json
             verified-resource-schedule.json
             verified-intervention-observation-coverage.json
