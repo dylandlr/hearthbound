@@ -26,6 +26,7 @@ public final class CitizenWatchRegistry {
     public static final long SAMPLE_INTERVAL_TICKS = 5;
     public static final int MAX_INSPECTIONS_PER_CITIZEN_PER_INTERVAL = 1;
     public static final int MAX_OPPORTUNITIES_PER_LEVEL = 128;
+    public static final int MAX_OUTCOMES_PER_LEVEL = 128;
     private static final Map<ServerLevel, Registry> REGISTRIES = new java.util.WeakHashMap<>();
 
     private record Key(UUID citizen, BlockPos source) {}
@@ -39,6 +40,7 @@ public final class CitizenWatchRegistry {
     private static final class Registry {
         private final Map<Key, Watch> watches = new HashMap<>();
         private final Deque<String> opportunities = new ArrayDeque<>();
+        private final Deque<String> outcomes = new ArrayDeque<>();
         private long lastTick = Long.MIN_VALUE;
     }
 
@@ -145,6 +147,40 @@ public final class CitizenWatchRegistry {
         registry.opportunities.addLast(line);
     }
 
+    /** Outcome records are append-only within a bounded server-session ring. */
+    public static List<String> outcomes(ServerLevel level) {
+        if(level==null) throw new IllegalArgumentException("missing level");
+        return List.copyOf(registry(level).outcomes);
+    }
+
+    public static String latestOutcome(ServerLevel level) {
+        if(level==null) throw new IllegalArgumentException("missing level");
+        var items=registry(level).outcomes;
+        return items.isEmpty()
+            ? "ATTENTION_OUTCOME status=UNKNOWN action_authorized=false"
+            : items.peekLast();
+    }
+
+    private static void recordOutcome(Registry registry, ServerLevel level, long tick,
+                                      UUID observer, BlockPos source,
+                                      String status, String reason,
+                                      SourceWheatObservation.Snapshot observed) {
+        String line="ATTENTION_OUTCOME schema=hearthbound.forge-attention-outcome.v1"
+            +" tick="+tick
+            +" observer="+observer
+            +" dimension="+level.dimension().location()
+            +" selected="+coordinates(source)
+            +" status="+status
+            +" reason="+reason
+            +" state="+(observed==null ? "UNKNOWN" : observed.state().name())
+            +" wheat="+(observed==null ? -1 : observed.wheat())
+            +" evidence="+(observed==null ? "NO_VALID_OBSERVATION" : "REAL_FORGE_SOURCE_OBSERVATION")
+            +" action_authorized=false";
+        if(registry.outcomes.size()>=MAX_OUTCOMES_PER_LEVEL)
+            registry.outcomes.removeFirst();
+        registry.outcomes.addLast(line);
+    }
+
     /** Called only on Forge main-thread level tick. Does not force source chunk loads. */
     public static void sample(ServerLevel level) {
         if (level==null) return;
@@ -172,12 +208,26 @@ public final class CitizenWatchRegistry {
                 other.getKey().citizen().equals(key.citizen())).toList();
             recordOpportunity(r,level,tick,key.citizen(),options,key.source());
             watch.lastAttemptTick=tick;
-            if(!level.hasChunkAt(key.source())) continue;
+            if(!level.hasChunkAt(key.source())) {
+                recordOutcome(r,level,tick,key.citizen(),key.source(),
+                    "UNOBSERVED","CHUNK_UNLOADED",null);
+                continue;
+            }
             var entity=level.getEntity(key.citizen());
             if(!(entity instanceof Villager citizen) || !citizen.isAlive()
-                || !CitizenSourceKnowledge.isCitizen(citizen)) continue;
+                || !CitizenSourceKnowledge.isCitizen(citizen)) {
+                recordOutcome(r,level,tick,key.citizen(),key.source(),
+                    "UNOBSERVED","OBSERVER_UNAVAILABLE",null);
+                continue;
+            }
             var snapshot=SourceWheatObservation.inspect(level,key.source(),citizen);
-            if(snapshot.state()==SourceWheatObservation.State.UNKNOWN) continue;
+            if(snapshot.state()==SourceWheatObservation.State.UNKNOWN) {
+                recordOutcome(r,level,tick,key.citizen(),key.source(),
+                    "UNOBSERVED","SENSOR_UNKNOWN",null);
+                continue;
+            }
+            recordOutcome(r,level,tick,key.citizen(),key.source(),
+                "OBSERVED","VERIFIED",snapshot);
             boolean changed=watch.previousState==null
                 || watch.previousState!=snapshot.state()
                 || watch.previousWheat!=snapshot.wheat();
