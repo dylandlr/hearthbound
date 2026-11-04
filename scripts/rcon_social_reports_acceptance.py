@@ -9,6 +9,7 @@ import os
 import socket
 import struct
 import time
+from pathlib import Path
 
 def pkt(request_id, kind, value):
     body=struct.pack("<ii",request_id,kind)+value.encode()+b"\0\0"
@@ -173,6 +174,7 @@ with socket.create_connection(("127.0.0.1",25575),timeout=15) as sock:
         raise AssertionError("Opportunity contract missing original attention baseline")
     if "wheat=" in opportunity or "state=" in opportunity:
         raise AssertionError("Source state leaked into decision-opportunity log")
+    Path("real-attention-opportunity.txt").write_text(opportunity+"\\n")
     seen=set()
     for _ in range(60):
         for pos,expected in (("9 100 2","wheat=3"),("10 100 2","wheat=1")):
