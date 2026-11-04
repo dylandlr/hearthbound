@@ -1,0 +1,39 @@
+name: Simulated selective attention benchmark
+on:
+  pull_request:
+    paths:
+      - 'scripts/train_simulated_attention_mlp.py'
+      - 'scripts/test_train_simulated_attention_mlp.py'
+      - '.github/workflows/simulated-attention-benchmark.yml'
+  workflow_dispatch:
+jobs:
+  attention:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test observation isolation and reproducibility
+        run: python3 scripts/test_train_simulated_attention_mlp.py
+      - name: Train and evaluate simulator-only policies
+        run: |
+          python3 scripts/train_simulated_attention_mlp.py \
+            --seed 11 --episodes 500 --heldout 120 \
+            --output simulated-attention-benchmark.json
+          python3 - <<'PY'
+          import json
+          result=json.load(open("simulated-attention-benchmark.json"))
+          assert result["origin"]=="SIMULATED_ONLY"
+          assert result["minecraft_policy_deployed"] is False
+          assert result["citizen_actions_authorized"] is False
+          assert result["evaluation"]["trained_mlp"]["episodes"]==120
+          assert result["evaluation"]["scripted_least_recent"]["episodes"]==120
+          print("SIMULATED_ATTENTION_CI_PASS")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: simulated-attention-benchmark
+          path: simulated-attention-benchmark.json
+          if-no-files-found: error
