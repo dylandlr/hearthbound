@@ -77,9 +77,10 @@ def main():
     rejected(record,[observed(105,first["source"],first["wheat"]),
                      observed(115,second["source"],second["wheat"],
                               "NEURAL_CAUSAL_MLP_OPT_IN")])
+    malformed=observed(115,second["source"],second["wheat"])
     rejected(record,[observed(105,first["source"],first["wheat"]),
-                     observed(115,second["source"],second["wheat"])[0:1]+
-                     observed(115,second["source"],second["wheat"])[1:]])
+                     (malformed[0].replace("candidate_count=4","candidate_count=3"),
+                      malformed[1])])
     bad=json.loads(json.dumps(record))
     bad["executions"][0]["tick_after"]=280
     rejected(bad,pairs)
