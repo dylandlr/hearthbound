@@ -37,6 +37,7 @@ jobs:
           python3 scripts/test_replay_real_forge_chronology.py
           python3 scripts/test_validate_forge_attention_opportunity.py
           python3 scripts/test_validate_forge_attention_pair.py
+          python3 scripts/test_validate_forge_attention_journal.py
       - name: Resolve and compile Forge dependencies before startup clock
         shell: bash
         run: |
@@ -134,6 +135,16 @@ jobs:
           python3 scripts/validate_forge_attention_pair.py \
             real-attention-opportunity.txt real-attention-outcome.txt \
             --output real-attention-paired-evidence.json
+          echo "Verifying persisted session-scoped Forge attention hash chain"
+          journal_files=()
+          while IFS= read -r path; do journal_files+=("$path"); done < <(find run -type f -path '*/hearthbound-attention/attention-*.jsonl')
+          if [ "${#journal_files[@]}" -ne 1 ]; then
+            echo "Expected exactly one durable Forge attention log, found ${#journal_files[@]}"
+            exit 1
+          fi
+          python3 scripts/validate_forge_attention_journal.py "${journal_files[0]}" \
+            --min-records 2 --output verified-attention-journal.json
+          python3 -c 'import json; x=json.load(open("verified-attention-journal.json")); assert x["distinct_observer_sources_selected"]>=2 and x["hash_chain_valid"]'
           echo "Verifying citizen NBT survives save and dedicated-server restart"
           python3 scripts/rcon_verify_sable_restart.py checkpoint
           for i in $(seq 1 60); do
@@ -193,6 +204,8 @@ jobs:
             real-attention-opportunity.json
             real-attention-outcome.txt
             real-attention-paired-evidence.json
+            verified-attention-journal.json
+            run/**/hearthbound-attention/*.jsonl
             live-shadow-report.json
             policy-trial-result.json
             policy-rejection.json

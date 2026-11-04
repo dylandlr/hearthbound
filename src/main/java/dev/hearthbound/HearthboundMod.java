@@ -135,6 +135,30 @@ public final class HearthboundMod {
                                         ctx.getSource().sendSuccess(() -> Component.literal(result),false);
                                         return 1;
                                     }))))
+                    .then(Commands.literal("citizen_log_start")
+                            .requires(source -> source.hasPermission(2))
+                            .executes(ctx -> {
+                                String result=dev.hearthbound.world.CitizenAttentionJournal.start(
+                                    ctx.getSource().getLevel());
+                                ctx.getSource().sendSuccess(() -> Component.literal(result),false);
+                                return 1;
+                            }))
+                    .then(Commands.literal("citizen_log_stop")
+                            .requires(source -> source.hasPermission(2))
+                            .executes(ctx -> {
+                                String result=dev.hearthbound.world.CitizenAttentionJournal.stop(
+                                    ctx.getSource().getLevel());
+                                ctx.getSource().sendSuccess(() -> Component.literal(result),false);
+                                return 1;
+                            }))
+                    .then(Commands.literal("citizen_log_status")
+                            .requires(source -> source.hasPermission(2))
+                            .executes(ctx -> {
+                                String result=dev.hearthbound.world.CitizenAttentionJournal.status(
+                                    ctx.getSource().getLevel());
+                                ctx.getSource().sendSuccess(() -> Component.literal(result),false);
+                                return 1;
+                            }))
                     .then(Commands.literal("citizen_outcome_latest")
                             .requires(source -> source.hasPermission(2))
                             .executes(ctx -> {
