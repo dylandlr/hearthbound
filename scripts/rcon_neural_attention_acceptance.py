@@ -30,10 +30,14 @@ def frame(sock,id,allow_empty=False):
         length=struct.unpack("<i",exact(sock,4))[0]
         if length<10 or length>1000000:raise ValueError("Invalid RCON frame")
         data=exact(sock,length)
-        number,_=struct.unpack("<ii",data[:8])
+        number,kind=struct.unpack("<ii",data[:8])
         result=data[8:-2].decode(errors="replace")
         if number!=id:raise ValueError("RCON request identity mismatch")
-        if result.strip() or allow_empty:return result
+        if allow_empty:
+            # Minecraft may send an empty type-0 packet before auth type 2.
+            if kind==2:return result
+            continue
+        if result.strip():return result
     raise ValueError("No command response")
 
 def main():
