@@ -117,6 +117,11 @@ jobs:
             run/server.properties --policy "$HEARTHBOUND_TRIAL_MODE" \
             --fixture "$HEARTHBOUND_FIXTURE_ID" --expected-seed "$HEARTHBOUND_WORLD_SEED" \
             --output real-world-provenance.json
+          # A fixed save-world path and an explicit operator command are
+          # required; merely staging model weights never enables neural control.
+          mkdir -p run/smoke-world
+          cp causal-attention-java-weights.txt \
+            run/smoke-world/hearthbound-causal-attention-mlp.txt
           gradle --no-daemon runServer > server-smoke.log 2>&1 &
           pid=$!
           trap 'kill "$pid" 2>/dev/null || true' EXIT
@@ -248,6 +253,27 @@ jobs:
           cmp real-attention-shadow-before-restart.json real-attention-shadow-after-restart.json
           cmp citizen-experience-before-restart.json citizen-experience-after-restart.json
           cmp verified-attention-run-before-restart.json verified-attention-run-after-restart.json
+          if [ "$HEARTHBOUND_RESOURCE_SCHEDULE" = "seeded-v1" ] && \
+             [ "$HEARTHBOUND_TRIAL_MODE" = "TRAINED_MLP" ]; then
+            echo "Real Forge opt-in neural attention canary (after original acceptance)"
+            python3 scripts/rcon_neural_attention_acceptance.py | tee neural-attention-canary-rcon.log
+            canary_files=()
+            while IFS= read -r path; do
+              if [ "$path" != "${journal_files[0]}" ]; then canary_files+=("$path"); fi
+            done < <(find run -type f -path '*/hearthbound-attention/attention-*.jsonl')
+            if [ "${#canary_files[@]}" -ne 1 ]; then
+              echo "Expected one additional real neural attention journal"
+              exit 1
+            fi
+            canary_manifest="${canary_files[0]%.jsonl}.manifest.json"
+            python3 scripts/validate_forge_attention_manifest.py \
+              "${canary_files[0]}" "$canary_manifest" --min-records 1 \
+              --output verified-neural-attention-run.json
+            python3 scripts/export_verified_citizen_experience.py \
+              "${canary_files[0]}" "$canary_manifest" --min-records 1 \
+              --output neural-attention-experience.json
+            python3 -c 'import json; x=json.load(open("neural-attention-experience.json")); assert all(r["policy"]=="NEURAL_CAUSAL_MLP_OPT_IN" for r in x["transitions"]); assert x["records"]>=1 and x["training_labels_inferred"] is False'
+          fi
           python3 scripts/build_minecraft_experience.py \
             policy-trial-result.json live-shadow-report.json \
             --restart-log verified-restart.log --output minecraft-experience.json
@@ -284,6 +310,10 @@ jobs:
             real-world-provenance.json
             causal-attention-java-weights.txt
             causal-attention-java-fixtures.txt
+            neural-attention-canary-rcon.log
+            real-neural-attention-canary.json
+            verified-neural-attention-run.json
+            neural-attention-experience.json
             real-resource-schedule.json
             verified-resource-schedule.json
             verified-intervention-observation-coverage.json
