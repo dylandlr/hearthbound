@@ -23,3 +23,19 @@ The standalone Python test enforces determinism, disjoint training/evaluation se
 - Bootstrap intervals are exploratory and based on a finite seeded synthetic benchmark; broad claims require more independent training runs and held-out world distributions.
 - Use real Forge receipts only for chronological **offline shadow replay** after v0.11.7 passes full dedicated-server acceptance; never use a future observation to choose a past action.
 - No neural control over resource movement, source watch registration, or Create machinery.
+
+## First verified CI experiment — run 41747455123
+
+The simulator-only job completed successfully, including reproducibility/hidden-state contracts and the paired bootstrap evaluation. Report digest: `6efc1194e3f9082787125a679878e7e64f8870ffe85db2f76b4d5650ab4d64dc`.
+
+Paired **mean change in discoveries per 32-inspection episode (trained MLP minus scripted)**:
+
+| Training seed | Normal | High volatility | Low volatility | Unequal volatility |
+|---|---:|---:|---:|---:|
+| 11 | -0.15 | +1.83 | -0.19 | +4.27 |
+| 17 | +0.26 | +2.14 | -0.37 | +5.01 |
+| 23 | -0.55 | +1.94 | -0.61 | +2.03 |
+
+Per-training-seed bootstrap intervals are retained in the generated CI JSON and stdout log; they are not pooled across training seeds. For the high-volatility scenario, all three seed-specific episode-bootstrap 95% intervals excluded zero on the positive side. For the normal scenario, all three intervals included zero. Low-volatility performance was negative for all seeds (two intervals entirely negative).
+
+**Interpretation**: the trained model adapts favorably in the simulated rapidly changing and heterogeneous regimes but does not reliably dominate least-recently-inspected rotation. The hypothetical volatility input directly informs its decision and could be a substantial source of advantage; it is NOT yet a learned real-world estimate. Follow-up must ablate this privileged input, replace it with causal observation-history estimates, and compare performance on independent test seeds before any stronger generalization claims.
