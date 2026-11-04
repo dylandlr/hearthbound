@@ -94,6 +94,7 @@ jobs:
           python3 scripts/test_replay_real_forge_chronology.py
           python3 scripts/test_validate_forge_attention_opportunity.py
           python3 scripts/test_rapid_four_source_schedule.py
+          python3 scripts/test_audit_rapid_four_attention.py
           python3 scripts/test_report_rapid_four_attention.py
           python3 scripts/test_validate_forge_attention_pair.py
           python3 scripts/test_validate_forge_attention_journal.py
