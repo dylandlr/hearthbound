@@ -82,7 +82,7 @@ public final class CitizenAttentionJournal {
         seal.addProperty("action_authorized",false);
         try {
             seal.addProperty("journal_sha256",hashBytes(session.file));
-            Files.writeString(temporary,seal.toString()+"\\n",StandardCharsets.UTF_8,
+            Files.writeString(temporary,seal.toString()+"\n",StandardCharsets.UTF_8,
                 StandardOpenOption.CREATE_NEW,StandardOpenOption.WRITE);
             Files.move(temporary,manifest,StandardCopyOption.ATOMIC_MOVE);
             return "ATTENTION_JOURNAL status=STOPPED run_id="+session.runId
