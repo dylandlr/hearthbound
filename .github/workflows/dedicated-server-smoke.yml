@@ -12,6 +12,14 @@ on:
         required: true
         type: string
         default: 'hearthbound-policy-v0-8-10'
+      resource_schedule:
+        description: 'Baseline acceptance or seeded source inventory interventions'
+        required: true
+        type: choice
+        options:
+          - baseline
+          - seeded-v1
+        default: baseline
 jobs:
   boot-server:
     runs-on: ubuntu-latest
@@ -78,6 +86,7 @@ jobs:
           HEARTHBOUND_RCON_PASSWORD: ci-local-disposable-password
           HEARTHBOUND_TRIAL_MODE: ${{ matrix.policy }}
           HEARTHBOUND_WORLD_SEED: ${{ inputs.world_seed || 'hearthbound-policy-v0-8-10' }}
+          HEARTHBOUND_RESOURCE_SCHEDULE: ${{ inputs.resource_schedule || 'baseline' }}
         run: |
           set -euo pipefail
           mkdir -p run
@@ -85,7 +94,7 @@ jobs:
           printf 'online-mode=false\nlevel-name=smoke-world\nlevel-seed=%s\nmax-players=2\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' "$HEARTHBOUND_WORLD_SEED" "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties
           python3 scripts/capture_real_forge_world_provenance.py \
             run/server.properties --policy "$HEARTHBOUND_TRIAL_MODE" \
-            --fixture chest-two-source-v1 --expected-seed "$HEARTHBOUND_WORLD_SEED" \
+            --fixture "chest-two-source-${HEARTHBOUND_RESOURCE_SCHEDULE}" --expected-seed "$HEARTHBOUND_WORLD_SEED" \
             --output real-world-provenance.json
           gradle --no-daemon runServer > server-smoke.log 2>&1 &
           pid=$!
@@ -145,6 +154,9 @@ jobs:
           PY
           echo "Verifying real Forge citizen-to-citizen reported knowledge"
           python3 scripts/rcon_social_reports_acceptance.py | tee real-social-reports-rcon.log
+          if [ "$HEARTHBOUND_RESOURCE_SCHEDULE" = "seeded-v1" ]; then
+            python3 -c 'import json; from scripts.real_forge_resource_schedule import validate_log; x=json.load(open("real-resource-schedule.json")); assert validate_log(x)["verified_interventions"]==6'
+          fi
           python3 scripts/validate_forge_attention_opportunity.py \
             real-attention-opportunity.txt --output real-attention-opportunity.json
           python3 scripts/validate_forge_attention_pair.py \
@@ -243,6 +255,8 @@ jobs:
             real-attention-shadow-before-restart.json
             real-attention-shadow-after-restart.json
             real-world-provenance.json
+            real-resource-schedule.json
+            verified-resource-schedule.json
             run/**/hearthbound-attention/*.manifest.json
             run/**/hearthbound-attention/*.jsonl
             live-shadow-report.json
@@ -288,6 +302,7 @@ jobs:
           python3 scripts/test_aggregate_real_attention_runs.py
           python3 scripts/test_capture_real_forge_world_provenance.py
           python3 scripts/test_validate_real_forge_run_cohort.py
+          python3 scripts/test_real_forge_resource_schedule.py
           python3 scripts/validate_real_forge_run_cohort.py \
             policy-trials/minecraft-policy-trial-SCRIPTED/real-world-provenance.json \
             policy-trials/minecraft-policy-trial-TRAINED_MLP/real-world-provenance.json \
