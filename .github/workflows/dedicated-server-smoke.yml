@@ -179,6 +179,12 @@ jobs:
           sealed_manifest="${journal_files[0]%.jsonl}.manifest.json"
           python3 scripts/validate_forge_attention_manifest.py "${journal_files[0]}" "$sealed_manifest" \
             --min-records 2 --output verified-attention-run-before-restart.json
+          if [ "$HEARTHBOUND_RESOURCE_SCHEDULE" = "seeded-v1" ]; then
+            python3 scripts/audit_forge_intervention_coverage.py \
+              real-resource-schedule.json "${journal_files[0]}" "$sealed_manifest" \
+              --world-provenance real-world-provenance.json \
+              --output verified-intervention-observation-coverage.json
+          fi
           python3 scripts/export_verified_citizen_experience.py "${journal_files[0]}" "$sealed_manifest" \
             --min-records 2 --output citizen-experience-before-restart.json
           python3 scripts/evaluate_real_attention_shadow.py citizen-experience-before-restart.json \
@@ -261,6 +267,7 @@ jobs:
             real-world-provenance.json
             real-resource-schedule.json
             verified-resource-schedule.json
+            verified-intervention-observation-coverage.json
             run/**/hearthbound-attention/*.manifest.json
             run/**/hearthbound-attention/*.jsonl
             live-shadow-report.json
@@ -307,6 +314,7 @@ jobs:
           python3 scripts/test_capture_real_forge_world_provenance.py
           python3 scripts/test_validate_real_forge_run_cohort.py
           python3 scripts/test_real_forge_resource_schedule.py
+          python3 scripts/test_audit_forge_intervention_coverage.py
           python3 scripts/validate_real_forge_run_cohort.py \
             policy-trials/minecraft-policy-trial-SCRIPTED/real-world-provenance.json \
             policy-trials/minecraft-policy-trial-TRAINED_MLP/real-world-provenance.json \
