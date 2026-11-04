@@ -15,6 +15,11 @@ def rejected(raw):
 
 def main():
     result=v.parse(GOOD)
+    neural=v.parse(GOOD.replace(
+        "policy=LEAST_RECENTLY_SAMPLED","policy=NEURAL_CAUSAL_MLP_OPT_IN"))
+    assert neural["policy"]=="NEURAL_CAUSAL_MLP_OPT_IN"
+    assert neural["inventory_read"] is False
+    assert neural["action_authorized"] is False
     assert result["selected"] in result["candidates"]
     assert result["inventory_read"] is False
     assert result["counterfactual_outcomes_available"] is False
