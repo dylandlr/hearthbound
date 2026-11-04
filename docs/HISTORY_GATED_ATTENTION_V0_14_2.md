@@ -38,3 +38,11 @@ The study is synthetic only, in a separate lightweight GitHub Actions workflow. 
 Any later real deployment requires frozen candidate weights, production Java parity, explicit operator opt-in, a fully verified Forge source-choice journal, matched run-level evaluation with the scripted and original frozen neural controls, and held-out environment replication.
 
 No LLMs are introduced.
+
+## Completed initial held-out simulator results (GitHub Actions run 41909143256)
+
+The three-training-seed 36-case simulation passed. Mean **gated minus scripted** directly observed discoveries per 32-decision episode were: in-distribution −0.46944, low-volatility −0.58056, unequal-volatility +1.17500, and high-volatility +0.05000. The corresponding **always-neural minus scripted** means were −1.67778, −2.12778, +2.57500, and −0.26944. Pooled across all 36 seed/regime/rate cells, gated was +0.04375 while always-neural was −0.37500. These are descriptive simulated-only differences; none prove a generalizable gain in Minecraft.
+
+The gated mean was +0.17500 for training seed 11, +0.02708 for seed 17, and **−0.07083 for seed 23**. This is not consistently positive across independent training seeds. The new `report_history_gate_admission.py` explicitly requires nonnegative average performance in **every** training seed and no worse than −0.25 mean in **every** volatility regime, while still never authorizing deployment. The initial results do **not** satisfy those conservative seed/regime conditions. The new CI admission artifact is computed independently from the canonical source report and must pass evidence-integrity tests.
+
+**Current decision:** Keep the frozen Forge MLP and the scripted baseline unchanged. Do not promote the history-gated candidate into Minecraft. The next research step is improving the causal observation-history training objective and validating it on additional independent regimes and source-change schedules, rather than treating this slight pooled gain as a winner.
