@@ -70,8 +70,12 @@ jobs:
             --fixtures causal-attention-java-fixtures.txt
           mkdir -p /tmp/hb-attention-parity
           javac --release 17 -d /tmp/hb-attention-parity \
+            src/main/java/dev/hearthbound/world/CausalAttentionModel.java \
+            src/test/java/dev/hearthbound/evidence/RealForgeAttentionModelParity.java \
             src/test/java/dev/hearthbound/evidence/CausalAttentionMlpParity.java
           java -cp /tmp/hb-attention-parity dev.hearthbound.evidence.CausalAttentionMlpParity \
+            causal-attention-java-weights.txt causal-attention-java-fixtures.txt
+          java -cp /tmp/hb-attention-parity dev.hearthbound.evidence.RealForgeAttentionModelParity \
             causal-attention-java-weights.txt causal-attention-java-fixtures.txt
       - name: Resolve and compile Forge dependencies before startup clock
         shell: bash
