@@ -1,0 +1,37 @@
+name: Frozen attention timeline comparison
+on:
+  pull_request:
+    paths:
+      - 'scripts/benchmark_frozen_attention_timelines.py'
+      - 'scripts/test_benchmark_frozen_attention_timelines.py'
+      - 'scripts/test_frozen_timeline_legacy_equivalence.py'
+      - 'scripts/benchmark_observed_uncertainty_objective.py'
+      - 'scripts/benchmark_exploration_aware_attention.py'
+      - '.github/workflows/frozen-attention-timelines.yml'
+  workflow_dispatch:
+jobs:
+  evaluate-frozen-timelines:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate policy-independent trajectories and private observations
+        run: |
+          set -euo pipefail
+          python3 scripts/test_benchmark_frozen_attention_timelines.py
+          python3 scripts/test_frozen_timeline_legacy_equivalence.py
+      - name: Run matched frozen-world comparison
+        run: |
+          set -euo pipefail
+          python3 scripts/benchmark_frozen_attention_timelines.py \
+            --seeds 11 17 23 --episodes 240 --heldout 40 \
+            --output frozen-attention-timelines.json
+          python3 -c 'import json; x=json.load(open("frozen-attention-timelines.json")); assert x["all_arms_share_identical_latent_trajectories"] is True and x["resource_timeline_visible_to_policy"] is False and x["model_promotion_authorized"] is False and len(x["cases"])==36'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fixed-latent-attention-three-seed-comparison
+          path: frozen-attention-timelines.json
+          if-no-files-found: error
