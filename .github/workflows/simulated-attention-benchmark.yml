@@ -6,6 +6,8 @@ on:
       - 'scripts/test_train_simulated_attention_mlp.py'
       - 'scripts/evaluate_simulated_attention_robustness.py'
       - 'scripts/test_evaluate_simulated_attention_robustness.py'
+      - 'scripts/evaluate_causal_attention_history.py'
+      - 'scripts/test_evaluate_causal_attention_history.py'
       - '.github/workflows/simulated-attention-benchmark.yml'
   workflow_dispatch:
 jobs:
@@ -51,10 +53,29 @@ jobs:
           assert len(result["regimes"])==4
           print("PAIRED_ATTENTION_ROBUSTNESS_CI_PASS")
           PY
+      - name: Verify no privileged volatility or latent source truth
+        run: python3 scripts/test_evaluate_causal_attention_history.py
+      - name: Evaluate history-estimated attention on disjoint worlds
+        run: |
+          python3 scripts/evaluate_causal_attention_history.py \
+            --seeds 11 17 23 --train-episodes 500 --heldout 100 --bootstrap 300 \
+            --output causal-attention-history.json
+          python3 - <<'PY'
+          import json
+          data=json.load(open("causal-attention-history.json"))
+          assert data["origin"]=="SIMULATED_ONLY"
+          assert data["privileged_volatility_feature"] is False
+          assert data["true_source_availability_visible_to_policy"] is False
+          assert data["minecraft_policy_deployed"] is False
+          assert data["citizen_actions_authorized"] is False
+          assert len(data["results"])==12
+          print("CAUSAL_ATTENTION_HISTORY_CI_PASS")
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: simulated-attention-benchmark
           path: |
             simulated-attention-benchmark.json
             simulated-attention-robustness.json
+            causal-attention-history.json
           if-no-files-found: error
