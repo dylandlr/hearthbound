@@ -66,7 +66,7 @@ def main():
         if "status=DISABLED" not in initial:
             raise AssertionError("Challenge must begin with scripted default")
         citizen="@e[type=minecraft:villager,name=Sable,limit=1]"
-        if "teleported" not in run("tp "+citizen+" 8 100 3").lower():
+        if "teleported" not in run("tp "+citizen+" 10 100 3").lower():
             raise AssertionError("Citizen absent from real Forge")
         for source,wheat in zip(SOURCES,INITIAL):
             # Clear any preexisting baseline chest block entities first.
