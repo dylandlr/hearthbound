@@ -2,7 +2,7 @@
 
 ## Problem
 
-Previous synthetic comparisons generated hidden world changes inside the policy's per-step inspection routine. When policies make different inspection choices, their random-number sequences and intervening truth histories can diverge. Matching the initial random seed alone does not guarantee matched hidden trajectories. This makes direct differences less interpretable.
+Previous synthetic comparisons generated hidden world changes inside the per-step inspection routine. That design deserved an explicit equivalence test: in general, sharing only an initial random seed need not produce shared trajectories if action paths consume random draws differently. **In Hearthbound's actual earlier `RapidWorld` implementation, however, all four sources already consumed random draws in the same order regardless of action.** The new frozen replay makes this existing independence explicit, reproducible and resistant to accidental future regressions. We do not claim to have corrected a previously observed bias.
 
 The real four-source Forge experiment from PR #160 remains a separate fact: a single matched configured-seed pair witnessed **8 of 16** resource changes under scripted attention and **5 of 16** under the frozen neural policy, at 10 selected-source inspections each. This does not establish a population-level causal superiority result. Nothing in the new study modifies that result or the real Forge engine.
 
@@ -23,7 +23,7 @@ Train neural candidates from scratch for each training seed (11,17,23), then eva
 
 ## What this improves
 
-Matched simulated world histories eliminate policy-dependent *environment randomness* from the comparison. Policy choices still affect each citizen's own observation history and future decisions—this is intentional. Unlike the previous benchmark, this design supports paired comparisons against identical latent state trajectories in synthetic worlds.
+Matched simulated world histories enforce policy-independent *environment randomness* as a visible, hashed contract. Policy choices still affect each citizen's own observation history and future decisions—this is intentional. **The prior benchmark already had this property in practice**; the frozen replay verifies it rather than changing evaluation outcomes. `test_frozen_timeline_legacy_equivalence.py` directly compares old and frozen replay across three initial seeds, four regimes, three dynamics rates, and rotating/focused/irregular action sequences. It must yield identical source histories, sensor features and selected-source outcomes.
 
 **It still does not prove Minecraft generalization or statistical significance**. The transition model is synthetic, candidate hyperparameters are exploratory, world geometry is absent, and these evaluation regimes are limited. Future work should add held-out model classes, more seeds, paired confidence intervals, and controlled real Forge comparisons before any deployment decision.
 
