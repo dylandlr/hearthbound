@@ -41,6 +41,24 @@ jobs:
             schedule: seeded-v1
             attention: neural
             artifact_name: minecraft-attention-trial-NEURAL-seeded-A
+          - policy: SCRIPTED
+            seed: hearthbound-resource-probe-B
+            schedule: seeded-v1
+            artifact_name: minecraft-policy-trial-SCRIPTED-seeded-B
+          - policy: TRAINED_MLP
+            seed: hearthbound-resource-probe-B
+            schedule: seeded-v1
+            attention: neural
+            artifact_name: minecraft-attention-trial-NEURAL-seeded-B
+          - policy: SCRIPTED
+            seed: hearthbound-resource-probe-C
+            schedule: seeded-v1
+            artifact_name: minecraft-policy-trial-SCRIPTED-seeded-C
+          - policy: TRAINED_MLP
+            seed: hearthbound-resource-probe-C
+            schedule: seeded-v1
+            attention: neural
+            artifact_name: minecraft-attention-trial-NEURAL-seeded-C
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -354,6 +372,49 @@ jobs:
             minecraft-experience.json
           if-no-files-found: warn
           retention-days: 14
+
+  compare-multi-seed-live-attention:
+    needs: boot-server
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: minecraft-*-seeded-*
+          path: multi-seed-trials
+          merge-multiple: false
+      - name: Verify real neural and scripted resource observation comparisons per configured seed
+        run: |
+          set -euo pipefail
+          python3 scripts/test_report_multi_seed_live_attention.py
+          python3 scripts/report_matched_live_attention.py \
+            multi-seed-trials/minecraft-policy-trial-SCRIPTED-seeded-A/verified-intervention-observation-coverage.json \
+            multi-seed-trials/minecraft-attention-trial-NEURAL-seeded-A/verified-intervention-observation-coverage.json \
+            multi-seed-trials/minecraft-attention-trial-NEURAL-seeded-A/verified-live-neural-intervention.json \
+            --output paired-attention-seed-A.json
+          python3 scripts/report_matched_live_attention.py \
+            multi-seed-trials/minecraft-policy-trial-SCRIPTED-seeded-B/verified-intervention-observation-coverage.json \
+            multi-seed-trials/minecraft-attention-trial-NEURAL-seeded-B/verified-intervention-observation-coverage.json \
+            multi-seed-trials/minecraft-attention-trial-NEURAL-seeded-B/verified-live-neural-intervention.json \
+            --output paired-attention-seed-B.json
+          python3 scripts/report_matched_live_attention.py \
+            multi-seed-trials/minecraft-policy-trial-SCRIPTED-seeded-C/verified-intervention-observation-coverage.json \
+            multi-seed-trials/minecraft-attention-trial-NEURAL-seeded-C/verified-intervention-observation-coverage.json \
+            multi-seed-trials/minecraft-attention-trial-NEURAL-seeded-C/verified-live-neural-intervention.json \
+            --output paired-attention-seed-C.json
+          python3 scripts/report_multi_seed_live_attention.py \
+            paired-attention-seed-A.json paired-attention-seed-B.json paired-attention-seed-C.json \
+            --output multi-seed-live-attention-summary.json
+          python3 -c 'import json; x=json.load(open("multi-seed-live-attention-summary.json")); assert x["configured_seed_pairs"]==3 and x["total_real_server_runs"]==6 and x["generalization_claim_allowed"] is False'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: multi-seed-live-neural-attention-comparison
+          path: |
+            paired-attention-seed-A.json
+            paired-attention-seed-B.json
+            paired-attention-seed-C.json
+            multi-seed-live-attention-summary.json
+          if-no-files-found: error
 
   compare-live-attention-arms:
     needs: boot-server
