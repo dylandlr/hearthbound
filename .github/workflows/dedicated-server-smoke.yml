@@ -40,6 +40,7 @@ jobs:
           python3 scripts/test_validate_forge_attention_journal.py
           python3 scripts/test_validate_forge_attention_manifest.py
           python3 scripts/test_export_verified_citizen_experience.py
+          python3 scripts/test_evaluate_real_attention_shadow.py
       - name: Resolve and compile Forge dependencies before startup clock
         shell: bash
         run: |
@@ -152,6 +153,8 @@ jobs:
             --min-records 2 --output verified-attention-run-before-restart.json
           python3 scripts/export_verified_citizen_experience.py "${journal_files[0]}" "$sealed_manifest" \
             --min-records 2 --output citizen-experience-before-restart.json
+          python3 scripts/evaluate_real_attention_shadow.py citizen-experience-before-restart.json \
+            --output real-attention-shadow-before-restart.json
           echo "Verifying citizen NBT survives save and dedicated-server restart"
           python3 scripts/rcon_verify_sable_restart.py checkpoint
           for i in $(seq 1 60); do
@@ -189,6 +192,9 @@ jobs:
             --min-records 2 --output verified-attention-run-after-restart.json
           python3 scripts/export_verified_citizen_experience.py "${journal_files[0]}" "$sealed_manifest" \
             --min-records 2 --output citizen-experience-after-restart.json
+          python3 scripts/evaluate_real_attention_shadow.py citizen-experience-after-restart.json \
+            --output real-attention-shadow-after-restart.json
+          cmp real-attention-shadow-before-restart.json real-attention-shadow-after-restart.json
           cmp citizen-experience-before-restart.json citizen-experience-after-restart.json
           cmp verified-attention-run-before-restart.json verified-attention-run-after-restart.json
           python3 scripts/build_minecraft_experience.py \
@@ -222,6 +228,8 @@ jobs:
             verified-attention-run-after-restart.json
             citizen-experience-before-restart.json
             citizen-experience-after-restart.json
+            real-attention-shadow-before-restart.json
+            real-attention-shadow-after-restart.json
             run/**/hearthbound-attention/*.manifest.json
             run/**/hearthbound-attention/*.jsonl
             live-shadow-report.json
