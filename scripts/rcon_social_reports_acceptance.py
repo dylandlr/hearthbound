@@ -149,6 +149,9 @@ with socket.create_connection(("127.0.0.1",25575),timeout=15) as sock:
     extra=run('data merge block 10 100 2 {Items:[{Slot:0b,id:"minecraft:wheat",Count:1b}]}')
     if "modified" not in extra.lower():
         raise AssertionError("Could not stock attention comparison source")
+    started=run("hearthbound citizen_log_start")
+    if "status=STARTED" not in started:
+        raise AssertionError("Could not enable durable Forge attention journal: "+started)
     for pos in ("9 100 2", "10 100 2"):
         response=run("hearthbound citizen_watch "+pos+" "+recipient)
         if "status=REGISTERED" not in response:
@@ -212,6 +215,12 @@ with socket.create_connection(("127.0.0.1",25575),timeout=15) as sock:
         result=run("hearthbound citizen_unwatch "+pos+" "+recipient)
         if "removed=true" not in result:
             raise AssertionError("Failed to remove attention watch: "+result)
+    stopped=run("hearthbound citizen_log_stop")
+    if "status=STOPPED" not in stopped or "records=" not in stopped:
+        raise AssertionError("Durable experiment log did not stop cleanly: "+stopped)
+    status=run("hearthbound citizen_log_status")
+    if "last_error=NONE" not in status:
+        raise AssertionError("Durable experiment log failed to append: "+status)
     sable_still_unknown=run("hearthbound citizen_memory 9 100 2 "+sable)
     if "status=UNKNOWN" not in sable_still_unknown:
         raise AssertionError("Sable acquired unrelated private memory")
