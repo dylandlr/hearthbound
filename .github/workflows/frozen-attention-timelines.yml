@@ -4,6 +4,7 @@ on:
     paths:
       - 'scripts/benchmark_frozen_attention_timelines.py'
       - 'scripts/test_benchmark_frozen_attention_timelines.py'
+      - 'scripts/test_frozen_timeline_legacy_equivalence.py'
       - 'scripts/benchmark_observed_uncertainty_objective.py'
       - 'scripts/benchmark_exploration_aware_attention.py'
       - '.github/workflows/frozen-attention-timelines.yml'
@@ -21,6 +22,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/test_benchmark_frozen_attention_timelines.py
+          python3 scripts/test_frozen_timeline_legacy_equivalence.py
       - name: Run matched frozen-world comparison
         run: |
           set -euo pipefail
