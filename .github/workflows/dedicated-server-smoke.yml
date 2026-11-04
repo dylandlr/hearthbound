@@ -36,6 +36,11 @@ jobs:
             seed: hearthbound-resource-probe-A
             schedule: seeded-v1
             artifact_name: minecraft-policy-trial-TRAINED_MLP-seeded-A
+          - policy: TRAINED_MLP
+            seed: hearthbound-resource-probe-A
+            schedule: seeded-v1
+            attention: neural
+            artifact_name: minecraft-attention-trial-NEURAL-seeded-A
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -108,6 +113,7 @@ jobs:
           HEARTHBOUND_TRIAL_MODE: ${{ matrix.policy }}
           HEARTHBOUND_WORLD_SEED: ${{ matrix.schedule == 'seeded-v1' && (inputs.world_seed || matrix.seed) || matrix.seed }}
           HEARTHBOUND_RESOURCE_SCHEDULE: ${{ matrix.schedule }}
+          HEARTHBOUND_ATTENTION_MODE: ${{ matrix.attention || 'scripted' }}
         run: |
           set -euo pipefail
           mkdir -p run
@@ -184,6 +190,9 @@ jobs:
           PY
           echo "Verifying real Forge citizen-to-citizen reported knowledge"
           python3 scripts/rcon_social_reports_acceptance.py | tee real-social-reports-rcon.log
+          if [ "$HEARTHBOUND_ATTENTION_MODE" = "neural" ]; then
+            test -f real-neural-attention-intervention-receipt.json
+          fi
           if [ "$HEARTHBOUND_RESOURCE_SCHEDULE" = "seeded-v1" ]; then
             python3 -c 'import json; from scripts.real_forge_resource_schedule import validate_log; x=json.load(open("real-resource-schedule.json")); assert validate_log(x)["verified_interventions"]==6'
           fi
@@ -213,8 +222,15 @@ jobs:
           fi
           python3 scripts/export_verified_citizen_experience.py "${journal_files[0]}" "$sealed_manifest" \
             --min-records 2 --output citizen-experience-before-restart.json
-          python3 scripts/evaluate_real_attention_shadow.py citizen-experience-before-restart.json \
-            --output real-attention-shadow-before-restart.json
+          if [ "$HEARTHBOUND_ATTENTION_MODE" = "neural" ]; then
+            python3 scripts/validate_live_neural_attention_intervention.py \
+              citizen-experience-before-restart.json real-resource-schedule.json \
+              --output verified-live-neural-intervention.json
+          fi
+          if [ "$HEARTHBOUND_ATTENTION_MODE" = "scripted" ]; then
+            python3 scripts/evaluate_real_attention_shadow.py citizen-experience-before-restart.json \
+              --output real-attention-shadow-before-restart.json
+          fi
           echo "Verifying citizen NBT survives save and dedicated-server restart"
           python3 scripts/rcon_verify_sable_restart.py checkpoint
           for i in $(seq 1 60); do
@@ -252,13 +268,16 @@ jobs:
             --min-records 2 --output verified-attention-run-after-restart.json
           python3 scripts/export_verified_citizen_experience.py "${journal_files[0]}" "$sealed_manifest" \
             --min-records 2 --output citizen-experience-after-restart.json
-          python3 scripts/evaluate_real_attention_shadow.py citizen-experience-after-restart.json \
-            --output real-attention-shadow-after-restart.json
-          cmp real-attention-shadow-before-restart.json real-attention-shadow-after-restart.json
+          if [ "$HEARTHBOUND_ATTENTION_MODE" = "scripted" ]; then
+            python3 scripts/evaluate_real_attention_shadow.py citizen-experience-after-restart.json \
+              --output real-attention-shadow-after-restart.json
+            cmp real-attention-shadow-before-restart.json real-attention-shadow-after-restart.json
+          fi
           cmp citizen-experience-before-restart.json citizen-experience-after-restart.json
           cmp verified-attention-run-before-restart.json verified-attention-run-after-restart.json
           if [ "$HEARTHBOUND_RESOURCE_SCHEDULE" = "seeded-v1" ] && \
-             [ "$HEARTHBOUND_TRIAL_MODE" = "TRAINED_MLP" ]; then
+             [ "$HEARTHBOUND_TRIAL_MODE" = "TRAINED_MLP" ] && \
+             [ "$HEARTHBOUND_ATTENTION_MODE" = "scripted" ]; then
             echo "Real Forge opt-in neural attention canary (after original acceptance)"
             python3 scripts/rcon_neural_attention_acceptance.py | tee neural-attention-canary-rcon.log
             canary_files=()
@@ -318,6 +337,8 @@ jobs:
             real-neural-attention-canary.json
             verified-neural-attention-run.json
             neural-attention-experience.json
+            real-neural-attention-intervention-receipt.json
+            verified-live-neural-intervention.json
             real-resource-schedule.json
             verified-resource-schedule.json
             verified-intervention-observation-coverage.json
@@ -334,6 +355,35 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  compare-live-attention-arms:
+    needs: boot-server
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: minecraft-policy-trial-SCRIPTED-seeded-A
+          path: scripted-live-attention
+      - uses: actions/download-artifact@v4
+        with:
+          name: minecraft-attention-trial-NEURAL-seeded-A
+          path: neural-live-attention
+      - name: Compare real selected-source coverage under identical seeded intervention plan
+        run: |
+          set -euo pipefail
+          python3 scripts/test_validate_live_neural_attention_intervention.py
+          python3 scripts/test_report_matched_live_attention.py
+          python3 scripts/report_matched_live_attention.py \
+            scripted-live-attention/verified-intervention-observation-coverage.json \
+            neural-live-attention/verified-intervention-observation-coverage.json \
+            neural-live-attention/verified-live-neural-intervention.json \
+            --output matched-live-attention-comparison.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: matched-real-neural-attention-comparison
+          path: matched-live-attention-comparison.json
+          if-no-files-found: error
+
   compare-seeded-resource-arms:
     needs: boot-server
     runs-on: ubuntu-latest
@@ -348,6 +398,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/test_report_seeded_forge_arm_pair.py
+          python3 scripts/test_validate_live_neural_attention_intervention.py
           python3 scripts/report_seeded_forge_arm_pair.py \
             seeded-trials/minecraft-policy-trial-SCRIPTED-seeded-A/real-world-provenance.json \
             seeded-trials/minecraft-policy-trial-SCRIPTED-seeded-A/verified-intervention-observation-coverage.json \
