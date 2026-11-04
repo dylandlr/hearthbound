@@ -387,6 +387,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/test_report_multi_seed_live_attention.py
+          python3 scripts/test_report_matched_attention_latency.py
+          python3 scripts/test_report_attention_latency_cohort.py
           python3 scripts/report_matched_live_attention.py \
             multi-seed-trials/minecraft-policy-trial-SCRIPTED-seeded-A/verified-intervention-observation-coverage.json \
             multi-seed-trials/minecraft-attention-trial-NEURAL-seeded-A/verified-intervention-observation-coverage.json \
@@ -405,6 +407,21 @@ jobs:
           python3 scripts/report_multi_seed_live_attention.py \
             paired-attention-seed-A.json paired-attention-seed-B.json paired-attention-seed-C.json \
             --output multi-seed-live-attention-summary.json
+          python3 scripts/report_matched_attention_latency.py \
+            multi-seed-trials/minecraft-policy-trial-SCRIPTED-seeded-A/verified-intervention-observation-coverage.json \
+            multi-seed-trials/minecraft-attention-trial-NEURAL-seeded-A/verified-intervention-observation-coverage.json \
+            --output latency-seed-A.json
+          python3 scripts/report_matched_attention_latency.py \
+            multi-seed-trials/minecraft-policy-trial-SCRIPTED-seeded-B/verified-intervention-observation-coverage.json \
+            multi-seed-trials/minecraft-attention-trial-NEURAL-seeded-B/verified-intervention-observation-coverage.json \
+            --output latency-seed-B.json
+          python3 scripts/report_matched_attention_latency.py \
+            multi-seed-trials/minecraft-policy-trial-SCRIPTED-seeded-C/verified-intervention-observation-coverage.json \
+            multi-seed-trials/minecraft-attention-trial-NEURAL-seeded-C/verified-intervention-observation-coverage.json \
+            --output latency-seed-C.json
+          python3 scripts/report_attention_latency_cohort.py \
+            latency-seed-A.json latency-seed-B.json latency-seed-C.json \
+            --output forge-attention-latency-cohort.json
           python3 -c 'import json; x=json.load(open("multi-seed-live-attention-summary.json")); assert x["configured_seed_pairs"]==3 and x["total_real_server_runs"]==6 and x["generalization_claim_allowed"] is False'
       - uses: actions/upload-artifact@v4
         with:
@@ -414,6 +431,10 @@ jobs:
             paired-attention-seed-B.json
             paired-attention-seed-C.json
             multi-seed-live-attention-summary.json
+            latency-seed-A.json
+            latency-seed-B.json
+            latency-seed-C.json
+            forge-attention-latency-cohort.json
           if-no-files-found: error
 
   compare-live-attention-arms:
