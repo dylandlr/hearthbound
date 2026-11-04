@@ -37,6 +37,11 @@ def main():
                 "executions":events,"counterfactual_outcomes_inferred":False}
     observed=report()
     assert validate_log(observed)["verified_interventions"]==MAX_STEPS
+    observed=report()
+    observed["measurement_stop_tick"]=observed["executions"][-1]["tick_after"]+15
+    assert validate_log(observed)["measurement_stop_tick"]==observed["measurement_stop_tick"]
+    observed["measurement_stop_tick"]=observed["executions"][-1]["tick_after"]
+    reject(lambda:validate_log(observed))
     observed["executions"][1]["tick_before"]=-1
     reject(lambda:validate_log(observed))
     observed=report()
