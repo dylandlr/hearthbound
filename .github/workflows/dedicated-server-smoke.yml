@@ -113,8 +113,7 @@ jobs:
           python3 scripts/validate_live_perception_receipts.py             real-perception-receipts.txt --output real-perception-validated.json
           echo "Verifying chronology-safe offline replay of actual Forge evidence"
           python3 scripts/replay_real_forge_chronology.py \
-            real-perception-validated.json
-            real-forge-shadow-timeline.json --output real-forge-shadow-timeline.json
+            real-perception-validated.json --output real-forge-shadow-timeline.json
           python3 - <<'PY'
           import json
           a=json.load(open("real-perception-acceptance.json"))
@@ -181,6 +180,7 @@ jobs:
             real-perception-receipts.txt
             real-perception-acceptance.json
             real-perception-validated.json
+            real-forge-shadow-timeline.json
             real-social-reports-rcon.log
             live-shadow-report.json
             policy-trial-result.json
