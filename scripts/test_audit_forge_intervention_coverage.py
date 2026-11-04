@@ -73,6 +73,24 @@ def main():
         journal,manifest=setup(root,[selected_pair(first["tick_after"],first["source"],first["wheat"])])
         same_tick=audit(schedule,journal,manifest)
         assert same_tick["interventions_with_matching_direct_observation"]==0
+    # Explicit cutoff permits witnessing the last intervention, but never
+    # events that happen afterward during restart-fixture cleanup.
+    schedule=fixture()
+    last=schedule["executions"][-1]
+    schedule["measurement_stop_tick"]=last["tick_after"]+15
+    with tempfile.TemporaryDirectory() as temp:
+        root=Path(temp)
+        timely=selected_pair(last["tick_after"]+5,last["source"],last["wheat"])
+        too_late=selected_pair(last["tick_after"]+20,last["source"],last["wheat"])
+        journal,manifest=setup(root,[timely,too_late])
+        report=audit(schedule,journal,manifest)
+        assert report["explicit_measurement_window"] is True
+        assert report["measurement_stop_tick"]==last["tick_after"]+15
+        assert report["interventions"][-1]["witnessed_expected_state"] is True
+        assert report["interventions"][-1]["direct_selected_observations_in_window"]==1
+        corrupted=json.loads(json.dumps(schedule))
+        corrupted["measurement_stop_tick"]=last["tick_after"]
+        denied(corrupted,journal,manifest)
     print("FORGE_INTERVENTION_OBSERVATION_COVERAGE_TESTS_PASS")
 
 if __name__=="__main__":
