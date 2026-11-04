@@ -30,3 +30,11 @@ These are matched initial synthetic world seeds, not guarantees that two policie
 - `model_promotion_authorized=false` regardless of performance. Any future model must pass multi-seed robustness gates and an opt-in real Forge A/B evaluation under a new held-out intervention plan.
 
 No LLMs, Minecraft online learning, hauling, crafting, movement, or new task-execution powers are introduced.
+
+## Actual held-out simulator results (GitHub Actions run 41911964690)
+
+The initial 3-training-seed, 36-cell simulator run passed. The archived synthetic report shows uncertainty-aware MLP vs scripted rotation by volatility regime, averaged over seeds and update rates: in-distribution **−0.72778**, low volatility **−0.61111**, unequal volatility **+0.59167**, and high volatility **−0.04167** discoveries per 32-decision episode. The corresponding history-gated candidate from PR #163 achieved **−0.46944**, **−0.58056**, **+1.17500**, and **+0.05000**. The uncertainty-aware objective's pooled mean was **−0.19722**.
+
+Training-seed means for uncertainty-aware were **+0.43750** (seed 11), **−0.19583** (seed 17), and **−0.83333** (seed 23). This is **not** robust across training seeds or ordinary source dynamics. The objective does not merit deployment.
+
+An independent `report_observed_uncertainty_admission.py` now validates the signed 36-cell source report and its direct-observation counts before reporting robustness per seed and per regime. Its conservative rejection thresholds are nonnegative discovery difference for **each** training seed and no worse than −0.25 for **each** volatility regime. The current results fail both gates. Even passing these gates would never authorize Minecraft deployment; production Java parity, a held-out Forge challenge and new independent server-run evaluation remain prerequisites.
