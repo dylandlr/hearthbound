@@ -278,8 +278,9 @@ public final class CitizenWatchRegistry {
             Key key=entry.getKey();
             Watch watch=entry.getValue();
             if(!spent.add(key.citizen())) continue;
+            UUID citizenId=key.citizen();
             var options=ordered.stream().filter(other ->
-                other.getKey().citizen().equals(key.citizen())).toList();
+                other.getKey().citizen().equals(citizenId)).toList();
             // The frozen neural policy only changes WHICH already registered
             // source is read. It never changes the fixed one-read budget.
             // Use deterministic coordinate order to align model source indices.
