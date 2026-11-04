@@ -388,6 +388,7 @@ jobs:
           set -euo pipefail
           python3 scripts/test_report_multi_seed_live_attention.py
           python3 scripts/test_report_matched_attention_latency.py
+          python3 scripts/test_report_attention_latency_cohort.py
           python3 scripts/report_matched_live_attention.py \
             multi-seed-trials/minecraft-policy-trial-SCRIPTED-seeded-A/verified-intervention-observation-coverage.json \
             multi-seed-trials/minecraft-attention-trial-NEURAL-seeded-A/verified-intervention-observation-coverage.json \
