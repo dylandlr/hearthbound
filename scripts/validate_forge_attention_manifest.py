@@ -15,7 +15,7 @@ def verify(journal:Path, manifest:Path, minimum=1):
     raw=journal.read_bytes()
     data=verify_text(raw.decode("utf-8"),minimum=minimum)
     try: meta=json.loads(manifest.read_text())
-    except (ValueError,UnicodeError) as error:
+    except (ValueError,UnicodeError,OSError) as error:
         raise ValueError("invalid run manifest") from error
     if not isinstance(meta,dict) or set(meta)!={
         "schema","run_id","journal_file","records","final_hash",
