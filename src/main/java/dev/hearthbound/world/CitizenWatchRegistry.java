@@ -124,9 +124,6 @@ public final class CitizenWatchRegistry {
             if(!spent.add(key.citizen())) continue;
             watch.lastAttemptTick=tick;
             if(!level.hasChunkAt(key.source())) continue;
-            Key key=entry.getKey();
-            Watch watch=entry.getValue();
-            if(!level.hasChunkAt(key.source())) continue;
             var entity=level.getEntity(key.citizen());
             if(!(entity instanceof Villager citizen) || !citizen.isAlive()
                 || !CitizenSourceKnowledge.isCitizen(citizen)) continue;
