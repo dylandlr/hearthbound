@@ -238,10 +238,22 @@ with socket.create_connection(("127.0.0.1",25575),timeout=15) as sock:
                 "tick_before":tick_before,"tick_after":tick_after,
                 "status":"RCON_MODIFIED"})
             time.sleep(step["delay_seconds"])
+        # End the measurement interval before the cleanup mutations below.
+        # Give the scripted sampler a full observation cycle after the last
+        # intervention, then capture the server's authoritative clock.
+        time.sleep(1.1)
+        stop_clock=run("time query gametime")
+        stop_hits=re.findall(r"\d+",stop_clock)
+        if not stop_hits:
+            raise AssertionError("Minecraft measurement stop tick missing: "+stop_clock)
+        measurement_stop_tick=int(stop_hits[-1])
+        if measurement_stop_tick<=executions[-1]["tick_after"]:
+            raise AssertionError("No post-final-intervention measurement window")
         actual={
             "schema":planned["schema"],"origin":"REAL_FORGE_RCON",
             "configured_world_seed":configured_seed,
             "schedule_sha256":planned["sha256"],
+            "measurement_stop_tick":measurement_stop_tick,
             "executions":executions,
             "counterfactual_outcomes_inferred":False}
         verified=validate_log(actual)
