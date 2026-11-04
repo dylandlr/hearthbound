@@ -9,7 +9,7 @@ import hashlib
 import json
 
 SCHEMA="hearthbound.rapid-four-resource-plan.v1"
-SOURCES=("7 100 2","8 100 2","9 100 2","10 100 2")
+SOURCES=("7 100 2","9 100 2","11 100 2","13 100 2")
 INITIAL=(1,2,3,4)
 STEPS=16
 
