@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 
 from evaluate_causal_attention_history import train as train_synthetic
-from train_simulated_attention_mlp import SOURCES, WIDTH, best
+from train_simulated_attention_mlp import SOURCES, WIDTH
 
 SCHEMA="hearthbound.real-attention-shadow-comparison.v1"
 
