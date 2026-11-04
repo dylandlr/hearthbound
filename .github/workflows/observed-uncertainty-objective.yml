@@ -4,6 +4,8 @@ on:
     paths:
       - 'scripts/benchmark_observed_uncertainty_objective.py'
       - 'scripts/test_benchmark_observed_uncertainty_objective.py'
+      - 'scripts/report_observed_uncertainty_admission.py'
+      - 'scripts/test_report_observed_uncertainty_admission.py'
       - 'scripts/benchmark_history_gated_attention.py'
       - 'scripts/benchmark_exploration_aware_attention.py'
       - 'scripts/benchmark_rapid_attention_curriculum.py'
@@ -22,6 +24,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/test_benchmark_observed_uncertainty_objective.py
+          python3 scripts/test_report_observed_uncertainty_admission.py
       - name: Held-out controlled study
         run: |
           set -euo pipefail
@@ -29,8 +32,13 @@ jobs:
             --seeds 11 17 23 --episodes 240 --heldout 40 \
             --output observed-uncertainty-objective.json
           python3 -c 'import json; r=json.load(open("observed-uncertainty-objective.json")); assert r["origin"]=="SIMULATED_ONLY" and r["evaluation_case_count"]==36 and r["model_promotion_authorized"] is False'
+          python3 scripts/report_observed_uncertainty_admission.py \
+            observed-uncertainty-objective.json --output observed-uncertainty-admission.json
+          python3 -c 'import json; r=json.load(open("observed-uncertainty-admission.json")); assert r["minecraft_model_promotion_authorized"] is False and len(r["seed_results"])==3'
       - uses: actions/upload-artifact@v4
         with:
           name: observed-uncertainty-attention-three-seed-simulation
-          path: observed-uncertainty-objective.json
+          path: |
+            observed-uncertainty-objective.json
+            observed-uncertainty-admission.json
           if-no-files-found: error
