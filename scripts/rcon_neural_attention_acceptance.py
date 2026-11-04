@@ -85,6 +85,12 @@ def main():
                 pass
             time.sleep(.15)
         if found is None:raise AssertionError("No real neural-selected Forge observation")
+        if found["opportunity"]["policy"]!="NEURAL_CAUSAL_MLP_OPT_IN":
+            raise AssertionError("Actual verified policy attribution is not neural")
+        if found["opportunity"]["inventory_read"] is not False:
+            raise AssertionError("Neural policy had pre-inspection inventory access")
+        if found["opportunity"]["action_authorized"] is not False:
+            raise AssertionError("Neural selector gained task authority")
         if found["opportunity"]["budget"]!=1:
             raise AssertionError("Neural selector exceeded source budget")
         if found["opportunity"]["selected"] not in found["opportunity"]["candidates"]:
