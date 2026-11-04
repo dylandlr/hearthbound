@@ -372,6 +372,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/test_validate_live_neural_attention_intervention.py
+          python3 scripts/test_report_matched_live_attention.py
           python3 scripts/report_matched_live_attention.py \
             scripted-live-attention/verified-intervention-observation-coverage.json \
             neural-live-attention/verified-intervention-observation-coverage.json \
