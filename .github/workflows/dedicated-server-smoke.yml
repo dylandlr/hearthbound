@@ -34,6 +34,7 @@ jobs:
           python3 scripts/test_report_live_shadow.py
           python3 scripts/test_rcon_frames.py
           python3 scripts/test_validate_live_perception_receipts.py
+          python3 scripts/test_replay_real_forge_chronology.py
       - name: Resolve and compile Forge dependencies before startup clock
         shell: bash
         run: |
@@ -110,6 +111,10 @@ jobs:
           echo "Verifying actual read-only Forge source receipt transitions by RCON"
           python3 scripts/rcon_perception_acceptance.py | tee real-perception-rcon.log
           python3 scripts/validate_live_perception_receipts.py             real-perception-receipts.txt --output real-perception-validated.json
+          echo "Verifying chronology-safe offline replay of actual Forge evidence"
+          python3 scripts/replay_real_forge_chronology.py \
+            real-perception-validated.json
+            real-forge-shadow-timeline.json --output real-forge-shadow-timeline.json
           python3 - <<'PY'
           import json
           a=json.load(open("real-perception-acceptance.json"))
