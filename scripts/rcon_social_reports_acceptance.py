@@ -214,9 +214,18 @@ with socket.create_connection(("127.0.0.1",25575),timeout=15) as sock:
     # Optional research-only intervention schedule, after the frozen
     # two-source acceptance has passed and before recording is stopped.
     # These are OPERATOR RCON mutations, not citizen actions.
+    if os.environ.get("HEARTHBOUND_ATTENTION_MODE","scripted") not in ("scripted","neural"):
+        raise AssertionError("Invalid attention experimental mode")
+    if os.environ.get("HEARTHBOUND_ATTENTION_MODE","scripted")=="neural" and os.environ.get("HEARTHBOUND_RESOURCE_SCHEDULE","baseline")!="seeded-v1":
+        raise AssertionError("Neural test must use controlled resource schedule")
     schedule_variant=os.environ.get("HEARTHBOUND_RESOURCE_SCHEDULE","baseline")
     if schedule_variant=="seeded-v1":
         configured_seed=os.environ["HEARTHBOUND_WORLD_SEED"]
+        neural=os.environ.get("HEARTHBOUND_ATTENTION_MODE","scripted")=="neural"
+        if neural:
+            activated=run("hearthbound citizen_neural_enable")
+            if "status=ACTIVE" not in activated or "policy=NEURAL_CAUSAL_MLP_OPT_IN" not in activated:
+                raise AssertionError("Did not enable actual neural attention before schedule: "+activated)
         planned=plan(configured_seed)
         executions=[]
         for step in planned["steps"]:
@@ -249,6 +258,23 @@ with socket.create_connection(("127.0.0.1",25575),timeout=15) as sock:
         measurement_stop_tick=int(stop_hits[-1])
         if measurement_stop_tick<=executions[-1]["tick_after"]:
             raise AssertionError("No post-final-intervention measurement window")
+        if neural:
+            disabled=run("hearthbound citizen_neural_disable")
+            if "status=DISABLED" not in disabled:
+                raise AssertionError("Neural attention not disabled before fixture cleanup")
+            Path("real-neural-attention-intervention-receipt.json").write_text(
+                json.dumps({
+                    "schema":"hearthbound.forge-neural-intervention-receipt.v1",
+                    "origin":"REAL_FORGE_RCON",
+                    "policy":"NEURAL_CAUSAL_MLP_OPT_IN",
+                    "model_sha256":activated.split("sha256=")[1].split()[0],
+                    "configured_world_seed":configured_seed,
+                    "schedule_sha256":planned["sha256"],
+                    "intervention_count":len(executions),
+                    "measurement_stop_tick":measurement_stop_tick,
+                    "selection_authority_only":True,
+                    "counterfactual_rewards_inferred":False
+                },indent=2,sort_keys=True)+"\n")
         actual={
             "schema":planned["schema"],"origin":"REAL_FORGE_RCON",
             "configured_world_seed":configured_seed,
