@@ -193,8 +193,8 @@ with socket.create_connection(("127.0.0.1",25575),timeout=15) as sock:
     if matched is None:
         raise AssertionError("Could not capture an attributed choice/outcome pair")
     opportunity,outcome=matched
-    Path("real-attention-opportunity.txt").write_text(opportunity+"\\n")
-    Path("real-attention-outcome.txt").write_text(outcome+"\\n")
+    Path("real-attention-opportunity.txt").write_text(opportunity+"\n")
+    Path("real-attention-outcome.txt").write_text(outcome+"\n")
     seen=set()
     for _ in range(60):
         for pos,expected in (("9 100 2","wheat=3"),("10 100 2","wheat=1")):
