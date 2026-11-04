@@ -282,6 +282,8 @@ jobs:
             real-attention-shadow-before-restart.json
             real-attention-shadow-after-restart.json
             real-world-provenance.json
+            causal-attention-java-weights.txt
+            causal-attention-java-fixtures.txt
             real-resource-schedule.json
             verified-resource-schedule.json
             verified-intervention-observation-coverage.json
@@ -379,9 +381,7 @@ jobs:
             --output simulated-shadow-training.json \
             --checkpoint simulated-shadow-checkpoint.json
           python3 scripts/export_neural_q_java_parity.py \
-            simulated-shadow-checkpoint.json
-            causal-attention-java-weights.txt
-            causal-attention-java-fixtures.txt \
+            simulated-shadow-checkpoint.json \
             --weights simulated-shadow-java-weights.txt \
             --fixtures simulated-shadow-python-fixtures.txt
           mkdir -p /tmp/hb-neural-q
