@@ -247,6 +247,21 @@ with socket.create_connection(("127.0.0.1",25575),timeout=15) as sock:
         verified=validate_log(actual)
         Path("real-resource-schedule.json").write_text(json.dumps(actual,sort_keys=True,indent=2)+"\n")
         Path("verified-resource-schedule.json").write_text(json.dumps(verified,sort_keys=True,indent=2)+"\n")
+        # Restore the fixed restart/NBT acceptance fixture. This is a separate
+        # operator cleanup intervention, not part of the research schedule.
+        if executions[-2]["source"]!="9 100 2" or executions[-1]["source"]!="10 100 2":
+            raise AssertionError("Unexpected resource intervention ordering")
+        if planned["steps"][-2]["wheat"]!=3:
+            response=run('data merge block 9 100 2 {Items:[{Slot:0b,id:"minecraft:wheat",Count:3b}]}')
+            if "modified" not in response.lower():
+                raise AssertionError("Failed to restore citizen restart fixture: "+response)
+        if planned["steps"][-1]["wheat"]!=1:
+            response=run('data merge block 10 100 2 {Items:[{Slot:0b,id:"minecraft:wheat",Count:1b}]}')
+            if "modified" not in response.lower():
+                raise AssertionError("Failed to restore attention comparison source: "+response)
+        direct=run("hearthbound citizen_observe 9 100 2 "+recipient)
+        if "status=OBSERVED" not in direct or "wheat=3" not in direct:
+            raise AssertionError("Recipient did not directly re-observe restart fixture")
         print("REAL_FORGE_RESOURCE_SCHEDULE_PASS steps="+str(len(executions)),flush=True)
     elif schedule_variant!="baseline":
         raise AssertionError("Unsupported resource intervention schedule variant")
