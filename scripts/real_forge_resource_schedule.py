@@ -76,6 +76,14 @@ def validate_log(document):
             or actual["status"]!="RCON_MODIFIED"):
             raise ValueError("nonmonotonic or unverified server intervention")
         previous_tick=actual["tick_after"]
+    # The explicit measurement cutoff is recorded BEFORE any fixture cleanup.
+    # Absence remains supported for older intervention logs, but gives no
+    # post-final-intervention coverage window.
+    cutoff=document.get("measurement_stop_tick")
+    if cutoff is not None and (
+        type(cutoff)!=int or cutoff<=previous_tick
+    ):
+        raise ValueError("measurement cutoff must follow final mutation")
     if document.get("counterfactual_outcomes_inferred") is not False:
         raise ValueError("unauthorized counterfactual claim")
     return {"schema":"hearthbound.verified-forge-resource-schedule.v1",
@@ -83,6 +91,7 @@ def validate_log(document):
             "configured_world_seed":base["configured_world_seed"],
             "schedule_sha256":base["sha256"],
             "verified_interventions":len(events),
+            "measurement_stop_tick":cutoff,
             "actual_agent_learning_claimed":False,
             "counterfactual_outcomes_inferred":False}
 
