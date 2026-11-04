@@ -93,6 +93,8 @@ jobs:
           python3 scripts/test_validate_live_perception_receipts.py
           python3 scripts/test_replay_real_forge_chronology.py
           python3 scripts/test_validate_forge_attention_opportunity.py
+          python3 scripts/test_rapid_four_source_schedule.py
+          python3 scripts/test_report_rapid_four_attention.py
           python3 scripts/test_validate_forge_attention_pair.py
           python3 scripts/test_validate_forge_attention_journal.py
           python3 scripts/test_validate_forge_attention_manifest.py
@@ -410,6 +412,34 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  compare-rapid-four-attention:
+    needs: boot-server
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: minecraft-attention-challenge-SCRIPTED-D
+          path: rapid-four-scripted
+      - uses: actions/download-artifact@v4
+        with:
+          name: minecraft-attention-challenge-NEURAL-D
+          path: rapid-four-neural
+      - name: Verify real four-source contention observation evidence
+        run: |
+          set -euo pipefail
+          python3 scripts/test_rapid_four_source_schedule.py
+          python3 scripts/test_report_rapid_four_attention.py
+          python3 scripts/report_rapid_four_attention.py \
+            rapid-four-scripted/rapid-four-observation-coverage.json \
+            rapid-four-neural/rapid-four-observation-coverage.json \
+            --output rapid-four-matched-comparison.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: real-four-source-attention-comparison
+          path: rapid-four-matched-comparison.json
+          if-no-files-found: error
+
   compare-multi-seed-live-attention:
     needs: boot-server
     runs-on: ubuntu-latest
@@ -427,6 +457,7 @@ jobs:
           python3 scripts/test_report_matched_attention_latency.py
           python3 scripts/test_report_attention_latency_cohort.py
           python3 scripts/test_rapid_four_source_schedule.py
+          python3 scripts/test_report_rapid_four_attention.py
           python3 scripts/report_matched_live_attention.py \
             multi-seed-trials/minecraft-policy-trial-SCRIPTED-seeded-A/verified-intervention-observation-coverage.json \
             multi-seed-trials/minecraft-attention-trial-NEURAL-seeded-A/verified-intervention-observation-coverage.json \
