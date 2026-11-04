@@ -154,6 +154,25 @@ with socket.create_connection(("127.0.0.1",25575),timeout=15) as sock:
     budget=run("hearthbound citizen_attention "+recipient)
     if "subscriptions=2" not in budget or "budget=1" not in budget or "interval_ticks=5" not in budget:
         raise AssertionError("Citizen attention limits absent: "+budget)
+    # Opportunity records are emitted before the chosen source's inventory is read.
+    # Candidate membership must be drawn from subscriptions, not world truth.
+    opportunity=None
+    for _ in range(45):
+        result=run("hearthbound citizen_opportunity_latest")
+        if ("ATTENTION_OPPORTUNITY schema=hearthbound.forge-attention-opportunity.v1" in result
+                and "candidate_count=2" in result
+                and "9,100,2" in result and "10,100,2" in result):
+            opportunity=result
+            break
+        time.sleep(.2)
+    if opportunity is None:
+        raise AssertionError("Missing real Forge pre-inspection two-source opportunity")
+    if "inventory_read=false" not in opportunity or "action_authorized=false" not in opportunity:
+        raise AssertionError("Opportunity record may not contain world truth or action authority")
+    if "budget=1" not in opportunity or "policy=LEAST_RECENTLY_SAMPLED" not in opportunity:
+        raise AssertionError("Opportunity contract missing original attention baseline")
+    if "wheat=" in opportunity or "state=" in opportunity:
+        raise AssertionError("Source state leaked into decision-opportunity log")
     seen=set()
     for _ in range(60):
         for pos,expected in (("9 100 2","wheat=3"),("10 100 2","wheat=1")):
