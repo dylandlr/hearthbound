@@ -1,0 +1,36 @@
+name: Observed uncertainty attention objective
+on:
+  pull_request:
+    paths:
+      - 'scripts/benchmark_observed_uncertainty_objective.py'
+      - 'scripts/test_benchmark_observed_uncertainty_objective.py'
+      - 'scripts/benchmark_history_gated_attention.py'
+      - 'scripts/benchmark_exploration_aware_attention.py'
+      - 'scripts/benchmark_rapid_attention_curriculum.py'
+      - '.github/workflows/observed-uncertainty-objective.yml'
+  workflow_dispatch:
+jobs:
+  evaluate-observed-uncertainty:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify selected-source-only training contracts
+        run: |
+          set -euo pipefail
+          python3 scripts/test_benchmark_observed_uncertainty_objective.py
+      - name: Held-out controlled study
+        run: |
+          set -euo pipefail
+          python3 scripts/benchmark_observed_uncertainty_objective.py \
+            --seeds 11 17 23 --episodes 240 --heldout 40 \
+            --output observed-uncertainty-objective.json
+          python3 -c 'import json; r=json.load(open("observed-uncertainty-objective.json")); assert r["origin"]=="SIMULATED_ONLY" and r["evaluation_case_count"]==36 and r["model_promotion_authorized"] is False'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: observed-uncertainty-attention-three-seed-simulation
+          path: observed-uncertainty-objective.json
+          if-no-files-found: error
