@@ -12,14 +12,6 @@ on:
         required: true
         type: string
         default: 'hearthbound-policy-v0-8-10'
-      resource_schedule:
-        description: 'Baseline acceptance or seeded source inventory interventions'
-        required: true
-        type: choice
-        options:
-          - baseline
-          - seeded-v1
-        default: baseline
 jobs:
   boot-server:
     runs-on: ubuntu-latest
@@ -101,8 +93,8 @@ jobs:
         env:
           HEARTHBOUND_RCON_PASSWORD: ci-local-disposable-password
           HEARTHBOUND_TRIAL_MODE: ${{ matrix.policy }}
-          HEARTHBOUND_WORLD_SEED: ${{ inputs.world_seed || matrix.seed }}
-          HEARTHBOUND_RESOURCE_SCHEDULE: ${{ inputs.resource_schedule || matrix.schedule }}
+          HEARTHBOUND_WORLD_SEED: ${{ matrix.schedule == 'seeded-v1' && (inputs.world_seed || matrix.seed) || matrix.seed }}
+          HEARTHBOUND_RESOURCE_SCHEDULE: ${{ matrix.schedule }}
         run: |
           set -euo pipefail
           mkdir -p run
