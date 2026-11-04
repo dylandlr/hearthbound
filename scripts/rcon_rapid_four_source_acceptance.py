@@ -69,6 +69,9 @@ def main():
         if "teleported" not in run("tp "+citizen+" 8 100 3").lower():
             raise AssertionError("Citizen absent from real Forge")
         for source,wheat in zip(SOURCES,INITIAL):
+            # Clear any preexisting baseline chest block entities first.
+            # A same-type setblock is not guaranteed to replace the old NBT.
+            run("setblock "+source+" minecraft:air replace")
             result=run("setblock "+source+" minecraft:chest replace")
             if "changed" not in result.lower():
                 raise AssertionError("Could not place real chest: "+result)
