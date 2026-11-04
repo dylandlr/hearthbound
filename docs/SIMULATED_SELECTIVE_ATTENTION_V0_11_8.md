@@ -28,3 +28,15 @@ python3 scripts/train_simulated_attention_mlp.py --seed 11 --episodes 500 --held
 CI must prove determinism, exclusion of hidden world truth from features, valid one-source choices, and no authorized Minecraft actions. The benchmark only establishes a first trainable comparison; it is not evidence of superiority until evaluation results are measured. Comparing to real Forge should initially be OFFLINE shadow replay over server observations with strict chronology, then operator-controlled canary inspection trials only after safety and performance review. Do not use synthetic performance to claim self-directed Minecraft learning.
 
 Subsequent research should replace the exogenous volatility feature with citizen historical uncertainty estimates, add exploration/regret analysis and per-seed uncertainty intervals, then test for distribution shift to unseen source count, resource volatility, and delayed observations.
+
+## First reproducible evaluation (GitHub Actions run 41746864031)
+
+The independent simulated-attention CI job completed successfully and printed `SIMULATED_ATTENTION_TESTS_PASS`. Configuration: seed 11, 500 simulated training episodes, 120 disjoint held-out episodes, 32 inspection decisions per held-out episode.
+
+| Policy | Mean discoveries | Mean reward |
+|---|---:|---:|
+| Scripted least recent | 15.81667 | 14.53667 |
+| Trained MLP | 15.64167 | 14.36167 |
+| Untrained MLP | 9.02500 | 7.74500 |
+
+The trained network exceeded the untrained model but fell short of the scripted baseline by 0.175 discoveries per episode. This **does not** establish statistical significance or evidence of real-Minecraft performance. The immediate next benchmark should use multiple independent training seeds, paired per-seed differences, uncertainty intervals and distribution-shift tests without modifying the original baseline. Do not tune against the held-out set from this run.
