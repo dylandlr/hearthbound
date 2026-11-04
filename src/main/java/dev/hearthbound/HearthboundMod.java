@@ -135,6 +135,26 @@ public final class HearthboundMod {
                                         ctx.getSource().sendSuccess(() -> Component.literal(result),false);
                                         return 1;
                                     }))))
+                    .then(Commands.literal("citizen_outcome_latest")
+                            .requires(source -> source.hasPermission(2))
+                            .executes(ctx -> {
+                                String value=dev.hearthbound.world.CitizenWatchRegistry.latestOutcome(
+                                    ctx.getSource().getLevel());
+                                ctx.getSource().sendSuccess(() -> Component.literal(value),false);
+                                return 1;
+                            }))
+                    .then(Commands.literal("citizen_outcomes")
+                            .requires(source -> source.hasPermission(2))
+                            .executes(ctx -> {
+                                var outcomes=dev.hearthbound.world.CitizenWatchRegistry.outcomes(
+                                    ctx.getSource().getLevel());
+                                ctx.getSource().sendSuccess(
+                                    () -> Component.literal("ATTENTION_OUTCOME_STATUS count="+outcomes.size()
+                                        +" action_authorized=false"),false);
+                                for(String value:outcomes)
+                                    ctx.getSource().sendSuccess(() -> Component.literal(value),false);
+                                return 1;
+                            }))
                     .then(Commands.literal("citizen_opportunity_latest")
                             .requires(source -> source.hasPermission(2))
                             .executes(ctx -> {
