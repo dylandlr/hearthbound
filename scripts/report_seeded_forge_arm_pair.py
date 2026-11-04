@@ -29,6 +29,8 @@ def summarize(items):
         if (coverage.get("schema")!=COVERAGE
             or coverage.get("origin")!="REAL_FORGE_RCON_AND_FINALIZED_JOURNAL"
             or coverage.get("configured_world_seed")!=world["world_seed_configured"]
+            or coverage.get("explicit_measurement_window") is not True
+            or type(coverage.get("measurement_stop_tick"))!=int
             or coverage.get("interventions_verified")!=6
             or coverage.get("counterfactual_outcomes_inferred") is not False
             or coverage.get("learning_or_policy_superiority_claimed") is not False
