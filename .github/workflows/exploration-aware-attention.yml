@@ -1,0 +1,37 @@
+name: Exploration-aware attention simulation
+on:
+  pull_request:
+    paths:
+      - 'scripts/benchmark_exploration_aware_attention.py'
+      - 'scripts/test_benchmark_exploration_aware_attention.py'
+      - 'scripts/benchmark_rapid_attention_curriculum.py'
+      - 'scripts/evaluate_causal_attention_history.py'
+      - 'scripts/train_simulated_attention_mlp.py'
+      - '.github/workflows/exploration-aware-attention.yml'
+  workflow_dispatch:
+jobs:
+  compare-training-curricula:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check causal-history and evaluation invariants
+        run: |
+          set -euo pipefail
+          python3 scripts/test_benchmark_rapid_attention_curriculum.py
+          python3 scripts/test_benchmark_exploration_aware_attention.py
+      - name: Train three-seed exploration-aware candidates and evaluate heldout regimes
+        run: |
+          set -euo pipefail
+          python3 scripts/benchmark_exploration_aware_attention.py \
+            --seeds 11 17 23 --episodes 240 --heldout 40 \
+            --output exploration-aware-attention.json
+          python3 -c 'import json; x=json.load(open("exploration-aware-attention.json")); assert x["origin"]=="SIMULATED_ONLY" and x["model_promotion_authorized"] is False and x["real_minecraft_journals_used_for_training"] is False and len(x["cases"])==36'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exploration-aware-mlp-three-seed-simulation
+          path: exploration-aware-attention.json
+          if-no-files-found: error
