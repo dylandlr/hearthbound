@@ -1,0 +1,35 @@
+name: History-gated attention research
+on:
+  pull_request:
+    paths:
+      - 'scripts/benchmark_history_gated_attention.py'
+      - 'scripts/test_benchmark_history_gated_attention.py'
+      - 'scripts/benchmark_exploration_aware_attention.py'
+      - 'scripts/benchmark_rapid_attention_curriculum.py'
+      - '.github/workflows/history-gated-attention.yml'
+  workflow_dispatch:
+jobs:
+  evaluate-history-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Enforce citizen-only observation and fallback tests
+        run: |
+          set -euo pipefail
+          python3 scripts/test_benchmark_history_gated_attention.py
+      - name: Evaluate preregistered conservative gate in held-out simulations
+        run: |
+          set -euo pipefail
+          python3 scripts/benchmark_history_gated_attention.py \
+            --seeds 11 17 23 --episodes 240 --heldout 40 \
+            --output history-gated-attention.json
+          python3 -c 'import json; x=json.load(open("history-gated-attention.json")); assert x["origin"]=="SIMULATED_ONLY" and x["minecraft_policy_deployed"] is False and x["model_promotion_authorized"] is False and len(x["cases"])==36'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: history-gated-attention-three-seed-evaluation
+          path: history-gated-attention.json
+          if-no-files-found: error
