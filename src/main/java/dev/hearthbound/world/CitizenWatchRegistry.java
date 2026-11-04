@@ -1,6 +1,9 @@
 package dev.hearthbound.world;
 
 import java.util.HashMap;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.List;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -22,6 +25,7 @@ public final class CitizenWatchRegistry {
     public static final int MAX_WATCHES_PER_CITIZEN = 4;
     public static final long SAMPLE_INTERVAL_TICKS = 5;
     public static final int MAX_INSPECTIONS_PER_CITIZEN_PER_INTERVAL = 1;
+    public static final int MAX_OPPORTUNITIES_PER_LEVEL = 128;
     private static final Map<ServerLevel, Registry> REGISTRIES = new java.util.WeakHashMap<>();
 
     private record Key(UUID citizen, BlockPos source) {}
@@ -34,6 +38,7 @@ public final class CitizenWatchRegistry {
     }
     private static final class Registry {
         private final Map<Key, Watch> watches = new HashMap<>();
+        private final Deque<String> opportunities = new ArrayDeque<>();
         private long lastTick = Long.MIN_VALUE;
     }
 
@@ -99,6 +104,39 @@ public final class CitizenWatchRegistry {
             +" policy=LEAST_RECENTLY_SAMPLED action_authorized=false";
     }
 
+    private static String coordinates(BlockPos pos) {
+        return pos.getX()+","+pos.getY()+","+pos.getZ();
+    }
+
+    /** Operator-only read of pre-inspection choice records; no source inventory reads. */
+    public static List<String> opportunities(ServerLevel level) {
+        if(level==null) throw new IllegalArgumentException("missing level");
+        return List.copyOf(registry(level).opportunities);
+    }
+
+    private static void recordOpportunity(Registry registry, ServerLevel level, long tick,
+                                          UUID citizen, List<Map.Entry<Key, Watch>> candidates,
+                                          BlockPos chosen) {
+        // Candidate list comes ONLY from previously registered subscriptions,
+        // never queried inventory contents or future observation outcomes.
+        String options=candidates.stream()
+            .map(entry -> coordinates(entry.getKey().source()))
+            .sorted()
+            .collect(java.util.stream.Collectors.joining(";"));
+        String line="ATTENTION_OPPORTUNITY schema=hearthbound.forge-attention-opportunity.v1"
+            +" tick="+tick
+            +" observer="+citizen
+            +" dimension="+level.dimension().location()
+            +" candidates="+options
+            +" candidate_count="+candidates.size()
+            +" selected="+coordinates(chosen)
+            +" budget=1 policy=LEAST_RECENTLY_SAMPLED"
+            +" inventory_read=false action_authorized=false";
+        if(registry.opportunities.size()>=MAX_OPPORTUNITIES_PER_LEVEL)
+            registry.opportunities.removeFirst();
+        registry.opportunities.addLast(line);
+    }
+
     /** Called only on Forge main-thread level tick. Does not force source chunk loads. */
     public static void sample(ServerLevel level) {
         if (level==null) return;
@@ -122,6 +160,9 @@ public final class CitizenWatchRegistry {
             Key key=entry.getKey();
             Watch watch=entry.getValue();
             if(!spent.add(key.citizen())) continue;
+            var options=ordered.stream().filter(other ->
+                other.getKey().citizen().equals(key.citizen())).toList();
+            recordOpportunity(r,level,tick,key.citizen(),options,key.source());
             watch.lastAttemptTick=tick;
             if(!level.hasChunkAt(key.source())) continue;
             var entity=level.getEntity(key.citizen());
