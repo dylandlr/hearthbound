@@ -86,7 +86,7 @@ def analyze_events(timeline,observations):
                    if step<=v["step"]<next_change]
             is_baselined=bool(before)
             first_valid=(after[0] if after else None)
-            witnessed=bool(is_baselined and first_valid)
+            witnessed=bool(is_baselined and first_valid and first_valid["direct_disagreement"])
             latency=(first_valid["step"]-step if witnessed else None)
             events.append({
                 "source":source,"transition_step":step,
