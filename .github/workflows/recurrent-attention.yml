@@ -1,0 +1,43 @@
+name: Recurrent attention frozen-timeline research
+on:
+  pull_request:
+    paths:
+      - 'scripts/benchmark_recurrent_causal_attention.py'
+      - 'scripts/test_benchmark_recurrent_causal_attention.py'
+      - 'scripts/report_recurrent_attention_admission.py'
+      - 'scripts/test_report_recurrent_attention_admission.py'
+      - '.github/workflows/recurrent-attention.yml'
+  workflow_dispatch:
+jobs:
+  evaluate-gru:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install numeric dependency
+        run: python3 -m pip install 'numpy>=1.26,<3'
+      - name: Check GRU gates, gradients and private selected observations
+        run: |
+          set -euo pipefail
+          python3 scripts/test_benchmark_recurrent_causal_attention.py
+          python3 scripts/test_report_recurrent_attention_admission.py
+      - name: Three training seeds and 36 held-out fixed-trajectory cases
+        run: |
+          set -euo pipefail
+          python3 scripts/benchmark_recurrent_causal_attention.py \
+            --seeds 11 17 23 --episodes 180 --heldout 30 \
+            --output recurrent-causal-attention.json
+          python3 -c 'import json; x=json.load(open("recurrent-causal-attention.json")); assert x["origin"]=="SIMULATED_ONLY" and x["matched_hidden_trajectories_per_episode"] and not x["minecraft_model_promotion_authorized"] and len(x["cases"])==36'
+          python3 scripts/report_recurrent_attention_admission.py recurrent-causal-attention.json \
+            --output recurrent-attention-admission.json
+          python3 -c 'import json; x=json.load(open("recurrent-attention-admission.json")); assert not x["model_promotion_authorized"] and x["heldout_case_count"]==36'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: recurrent-gru-frozen-attention-three-seed
+          path: |
+            recurrent-causal-attention.json
+            recurrent-attention-admission.json
+          if-no-files-found: error
