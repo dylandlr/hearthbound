@@ -23,3 +23,13 @@ The tests verify equality of buffered gradients to the sum of eight independent 
 Evaluate three training seeds × four held-out source regimes × three update rates × 30 episodes with 32 inspections per episode. Report mean directly observed discoveries and minimum source-visit diversity relative to scripted rotation, using signed shared latent-trajectory manifests. **No Forge model weights are changed or deployed.**
 
 This is a control for optimizer update **count and nominal learning rate**, not a comprehensive isolation of temporal credit. Effective gradients and selected training trajectories still differ. Follow-up work should use common behavior-policy training data, explicitly measure prediction calibration, and test genuine delayed-dependency tasks before making broad claims about recurrent memory. Passing simulator thresholds never authorizes model promotion or Minecraft task powers. No LLMs.
+
+## Matched-control results (GitHub Actions 41976348325)
+
+The initial benchmark CI passed and archived the actual three-seed, 36-cell comparison. Buffered one-step GRU averaged **−1.51852** directly witnessed discoveries versus scripted; eight-step BPTT averaged **−1.43889** per 32-decision episode. The resulting BPTT minus buffered one-step difference was **+0.07963**, a small descriptive improvement.
+
+Per-regime BPTT minus buffered result: in-distribution **−0.14815**, low volatility **+0.25555**, unequal volatility **+0.11852**, and high volatility **+0.09259**. Per-training-seed differences were approximately **+0.08611** (11), **−0.38333** (17), and **+0.53611** (23). BPTT is **not consistently superior across training seeds** and both equal-update neural arms are substantially worse than scripted overall.
+
+This changes interpretation of the previous v0.14.6 result: matching the optimizer-update cadence largely removes BPTT's earlier apparent disadvantage relative to one-step gradients, but does **not** establish a valuable recurrent attention policy or justify deploying weights in Minecraft.
+
+The independent signed `report_gru_matched_admission.py` now explicitly checks that BPTT beats buffered one-step on every seed **and** is not worse than scripted on every seed; the current candidate fails. CI always sets `minecraft_model_promotion_authorized=false`.
