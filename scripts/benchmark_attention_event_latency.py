@@ -100,8 +100,18 @@ def analyze_events(timeline,observations):
                     if e["directly_witnessed_before_next_change"]]
     verified_events=sum(e["directly_witnessed_before_next_change"] for e in events)
     eligible=sum(e["direct_baseline_known_before_change"] for e in events)
+    # Censor missing events at the remaining evaluation horizon. All
+    # policies share the same event times, so this supports paired comparison
+    # without rewarding selective detection of easy events.
+    censored_delays=[
+        (e["detection_delay_steps"] if e["directly_witnessed_before_next_change"]
+         else len(states)-e["transition_step"])
+        for e in events]
     return {
         "latent_transition_count":len(events),
+        "mean_censored_event_delay_steps":(
+            None if not events else statistics.mean(censored_delays)),
+        "total_censored_event_delay_steps":sum(censored_delays),
         "baseline_eligible_transitions":eligible,
         "transitions_witnessed_before_next_change":verified_events,
         "transitions_not_witnessed":len(events)-verified_events,
@@ -151,7 +161,11 @@ def benchmark(seeds=(11,17,23),episodes=180,heldout=24):
                 delays=[v["total_detection_delay_steps"] for v in parts]
                 useful=[v["direct_reinspection_disagreements"] for v in parts]
                 wasted=[v["unproductive_reinspections"] for v in parts]
+                censored=[v["total_censored_event_delay_steps"] for v in parts]
+                totals_events=[v["latent_transition_count"] for v in parts]
                 rows[arm]={
+                    "mean_latent_transition_count":round(statistics.mean(totals_events),6),
+                    "mean_total_censored_event_delay":round(statistics.mean(censored),6),
                     "mean_witnessed_latent_events":round(statistics.mean(witnessed),6),
                     "mean_total_detection_delay":round(statistics.mean(delays),6),
                     "mean_direct_reinspection_disagreements":round(
@@ -163,6 +177,10 @@ def benchmark(seeds=(11,17,23),episodes=180,heldout=24):
                     "witnessed_event_differences":[
                         a["transitions_witnessed_before_next_change"]
                         -b["transitions_witnessed_before_next_change"]
+                        for a,b in zip(totals[arm],totals["scripted"])],
+                    "censored_event_delay_differences":[
+                        a["total_censored_event_delay_steps"]
+                        -b["total_censored_event_delay_steps"]
                         for a,b in zip(totals[arm],totals["scripted"])],
                     "direct_reinspection_difference":[
                         a["direct_reinspection_disagreements"]
@@ -184,6 +202,7 @@ def benchmark(seeds=(11,17,23),episodes=180,heldout=24):
         "schedules":list(SCHEDULES),
         "model_hashes":hashes,
         "event_match":"DIRECT_POST_TRANSITION_REINSPECTION_BEFORE_NEXT_SAME_SOURCE_CHANGE_WITH_PRETRANSITION_BASELINE",
+        "missed_event_censoring":"REMAINING_HORIZON_STEPS_FROM_TRANSITION",
         "models_frozen_across_policies":True,
         "latent_world_sequences_identical_per_episode":True,
         "agent_can_read_hidden_transition_log":False,
