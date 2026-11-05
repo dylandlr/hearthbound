@@ -124,11 +124,11 @@ def train(seed,episodes=180):
 
 def forecast_policy(world,probabilities):
     # Minimum exploration is a pre-declared policy constraint. No hidden truth.
-    if min(world.observed_count)<2:
-        return scripted(world)
     if len(probabilities)!=SOURCES or not all(
         math.isfinite(p) and 0<=p<=1 for p in probabilities):
         raise ValueError("invalid predictions")
+    if min(world.observed_count)<2:
+        return scripted(world)
     return max(range(SOURCES),key=lambda i:(probabilities[i],world.ages[i],-i))
 
 def probe_forecasts(timeline,model,seed):
