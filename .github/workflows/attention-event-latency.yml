@@ -1,0 +1,36 @@
+name: Attention event-latency attribution
+on:
+  pull_request:
+    paths:
+      - 'scripts/benchmark_attention_event_latency.py'
+      - 'scripts/test_benchmark_attention_event_latency.py'
+      - 'scripts/benchmark_forecast_policy_stress.py'
+      - '.github/workflows/attention-event-latency.yml'
+  workflow_dispatch:
+jobs:
+  audit-event-timing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install numerical dependencies
+        run: python3 -m pip install 'numpy>=1.26,<3'
+      - name: Check real event attribution and direct observation privacy
+        run: |
+          set -euo pipefail
+          python3 scripts/test_benchmark_attention_event_latency.py
+      - name: Evaluate latent event detection timing on OOD schedules
+        run: |
+          set -euo pipefail
+          python3 scripts/benchmark_attention_event_latency.py \
+            --seeds 11 17 23 --episodes 180 --heldout 24 \
+            --output attention-event-latency.json
+          python3 -c 'import json; d=json.load(open("attention-event-latency.json")); assert d["origin"]=="SIMULATOR_ONLY_EVENT_JOURNAL_AUDIT" and len(d["cells"])==9 and d["agent_can_read_hidden_transition_log"] is False and d["model_promotion_authorized"] is False'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: attention-event-latency-ood-audit
+          path: attention-event-latency.json
+          if-no-files-found: error
