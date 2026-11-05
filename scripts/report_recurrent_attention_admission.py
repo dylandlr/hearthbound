@@ -37,7 +37,7 @@ def audit(report):
     for cell in cells:
         s=cell.get("train_seed")
         r=cell.get("regime")
-        rate=cell.get("world_updates_per_inspection")
+        rate=cell.get("updates_per_inspection")
         k=(s,r,rate)
         if (s not in by_seed or r not in by_regime or rate not in RATES
             or k in seen or cell.get("heldout_episodes")!=report.get("heldout_episodes_per_cell")):
