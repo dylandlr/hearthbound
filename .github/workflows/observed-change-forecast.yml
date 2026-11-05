@@ -1,0 +1,43 @@
+name: Selected-source GRU change forecasting
+on:
+  pull_request:
+    paths:
+      - 'scripts/benchmark_observed_change_forecast.py'
+      - 'scripts/test_benchmark_observed_change_forecast.py'
+      - 'scripts/report_observed_change_admission.py'
+      - 'scripts/test_report_observed_change_admission.py'
+      - '.github/workflows/observed-change-forecast.yml'
+  workflow_dispatch:
+jobs:
+  forecast-and-attention:
+    runs-on: ubuntu-latest
+    timeout-minutes: 24
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install numerical dependency
+        run: python3 -m pip install 'numpy>=1.26,<3'
+      - name: Verify recurrent BCE gradient, masks and private sensor history
+        run: |
+          set -euo pipefail
+          python3 scripts/test_benchmark_observed_change_forecast.py
+          python3 scripts/test_report_observed_change_admission.py
+      - name: Independently measure prediction calibration and attention utility
+        run: |
+          set -euo pipefail
+          python3 scripts/benchmark_observed_change_forecast.py \
+            --seeds 11 17 23 --episodes 180 --heldout 24 \
+            --output observed-change-forecast.json
+          python3 -c 'import json; r=json.load(open("observed-change-forecast.json")); assert r["origin"]=="SIMULATED_ONLY" and len(r["cases"])==36 and r["first_inspections_masked_from_training_and_forecast_metrics"] and not r["unselected_rewards_or_labels_used"] and not r["minecraft_model_promotion_authorized"]'
+          python3 scripts/report_observed_change_admission.py observed-change-forecast.json \
+            --output observed-change-admission.json
+          python3 -c 'import json; a=json.load(open("observed-change-admission.json")); assert a["cases_checked"]==36 and a["minecraft_model_promotion_authorized"] is False'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: observed-change-forecast-calibration-and-attention
+          path: |
+            observed-change-forecast.json
+            observed-change-admission.json
+          if-no-files-found: error
