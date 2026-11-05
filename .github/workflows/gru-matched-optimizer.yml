@@ -4,6 +4,8 @@ on:
     paths:
       - 'scripts/benchmark_gru_matched_optimizer.py'
       - 'scripts/test_benchmark_gru_matched_optimizer.py'
+      - 'scripts/report_gru_matched_admission.py'
+      - 'scripts/test_report_gru_matched_admission.py'
       - '.github/workflows/gru-matched-optimizer.yml'
   workflow_dispatch:
 jobs:
@@ -21,6 +23,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/test_benchmark_gru_matched_optimizer.py
+          python3 scripts/test_report_gru_matched_admission.py
       - name: Evaluate matched training across three seeds and fixed trajectories
         run: |
           set -euo pipefail
@@ -28,8 +31,13 @@ jobs:
             --seeds 11 17 23 --episodes 180 --heldout 30 \
             --output gru-matched-optimizer.json
           python3 -c 'import json; x=json.load(open("gru-matched-optimizer.json")); assert x["origin"]=="SIMULATED_ONLY" and x["same_update_cadence"] and x["same_initial_weights"] and x["heldout_latent_timelines_shared"] and not x["minecraft_model_promotion_authorized"] and len(x["cases"])==36'
+          python3 scripts/report_gru_matched_admission.py gru-matched-optimizer.json \
+            --output gru-matched-admission.json
+          python3 -c 'import json; x=json.load(open("gru-matched-admission.json")); assert x["minecraft_model_promotion_authorized"] is False and x["case_count"]==36'
       - uses: actions/upload-artifact@v4
         with:
           name: gru-matched-optimizer-three-seed-comparison
-          path: gru-matched-optimizer.json
+          path: |
+            gru-matched-optimizer.json
+            gru-matched-admission.json
           if-no-files-found: error
