@@ -4,6 +4,8 @@ on:
     paths:
       - 'scripts/benchmark_forecast_policy_gating.py'
       - 'scripts/test_benchmark_forecast_policy_gating.py'
+      - 'scripts/report_forecast_policy_admission.py'
+      - 'scripts/test_report_forecast_policy_admission.py'
       - '.github/workflows/forecast-policy-gating.yml'
   workflow_dispatch:
 jobs:
@@ -21,6 +23,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/test_benchmark_forecast_policy_gating.py
+          python3 scripts/test_report_forecast_policy_admission.py
       - name: Evaluate inspection rules against common frozen source timelines
         run: |
           set -euo pipefail
@@ -28,8 +31,13 @@ jobs:
             --seeds 11 17 23 --episodes 180 --heldout 24 \
             --output forecast-policy-gating.json
           python3 -c 'import json; d=json.load(open("forecast-policy-gating.json")); assert d["origin"]=="SIMULATED_ONLY" and len(d["cases"])==36 and d["same_frozen_forecaster_for_every_policy_per_seed"] and d["frozen_trajectories_shared_between_policies"] and d["minecraft_model_promotion_authorized"] is False'
+          python3 scripts/report_forecast_policy_admission.py forecast-policy-gating.json \
+            --output forecast-policy-admission.json
+          python3 -c 'import json; d=json.load(open("forecast-policy-admission.json")); assert d["case_count"]==36 and d["minecraft_model_promotion_authorized"] is False'
       - uses: actions/upload-artifact@v4
         with:
           name: frozen-forecast-decision-policy-comparison
-          path: forecast-policy-gating.json
+          path: |
+            forecast-policy-gating.json
+            forecast-policy-admission.json
           if-no-files-found: error
