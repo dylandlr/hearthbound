@@ -23,3 +23,13 @@ This evaluation avoids conflating first-time resource discovery (which may rewar
 ## Boundaries
 
 All data are simulated. The real Forge four-source attention challenge remains a separate experiment in which scripted attention witnessed 8/16 operator mutations and the deployed frozen MLP 5/16. None of those results train this forecaster or adjust decision thresholds. No Minecraft weights, mods, live tasks, LLMs, or RCON authority are modified or deployed. The project still requires independently held-out real Forge evaluations before claiming runtime generalization.
+
+## Verified initial run, and follow-up metric refinement
+
+The initial event-journal benchmark passed in GitHub Actions [run 42108926580](https://github.com/dylandlr/hearthbound/actions/runs/42108926580). Mean directly detected latent transitions per 64-decision episode (scripted, age-blend, greedy): permanent depletion **4.000, 4.000, 1.333**; bursty mutations **8.958, 8.972, 7.389**; long gaps **4.000, 4.000, 1.403**. The coverage guard exactly matched scripted rotation.
+
+For events that were witnessed, mean **total** detection delays per episode (scripted, age-blend) were: depletion **5.556, 6.611**, bursts **9.250, 9.597**, long gaps **5.833, 6.056**. Those conditional totals can misleadingly reward greedy forecasting for ignoring events.
+
+The additional **horizon-censored event delay** metric now counts the actual delay for a detected event and the remaining evaluation horizon from the event time for each undetected event. This allows paired comparison without discarding misses. We retain event detection counts separately; a small score does not authorize a model swap. An independently signed `report_attention_event_admission.py` checks per-episode paired differences and refuses to admit the age-aware rule unless it maintains event coverage AND no worse censored total delay across all stress regimes. Even if these synthetic conditions are met, `model_promotion_authorized=false` remains mandatory.
+
+The separate full Forge CI workflow in PR #172 initially failed on the **scripted seeded-C wheat-hauling smoke test**, which timed out waiting 150 seconds for delivery. The dedicated simulator event attribution workflow passed; this failure is a real, separate regression/test failure requiring investigation or a reproducible rerun—not proof that event-latency code affected live hauling. No runtime Forge mod source was changed in this PR.
