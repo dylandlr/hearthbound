@@ -1,0 +1,35 @@
+name: Forecast-policy out-of-distribution stress
+on:
+  pull_request:
+    paths:
+      - 'scripts/benchmark_forecast_policy_stress.py'
+      - 'scripts/test_benchmark_forecast_policy_stress.py'
+      - '.github/workflows/forecast-policy-stress.yml'
+  workflow_dispatch:
+jobs:
+  stress-frozen-attention:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install numerical dependencies
+        run: python3 -m pip install 'numpy>=1.26,<3'
+      - name: Verify OOD resource schedules and private causal observations
+        run: |
+          set -euo pipefail
+          python3 scripts/test_benchmark_forecast_policy_stress.py
+      - name: Evaluate three seeds and three unseen resource dynamics
+        run: |
+          set -euo pipefail
+          python3 scripts/benchmark_forecast_policy_stress.py \
+            --seeds 11 17 23 --episodes 180 --heldout 24 \
+            --output forecast-policy-stress.json
+          python3 -c 'import json; x=json.load(open("forecast-policy-stress.json")); assert x["origin"]=="SIMULATED_ONLY_OUT_OF_DISTRIBUTION" and len(x["results"])==9 and x["same_hidden_timeline_per_episode_across_all_arms"] and not x["stress_schedules_used_in_training"] and not x["minecraft_model_promotion_authorized"]'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frozen-forecast-out-of-distribution-policy-stress
+          path: forecast-policy-stress.json
+          if-no-files-found: error
