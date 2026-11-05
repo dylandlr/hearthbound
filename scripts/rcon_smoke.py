@@ -126,6 +126,26 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
             transferred = True
             break
     if not transferred:
+        # Failure diagnostics are strictly read-only. Preserve the original
+        # acceptance threshold instead of weakening a real server check.
+        # Capture citizen location, job state and both chest inventories so
+        # we can distinguish stuck pathfinding from inventory/claim failures.
+        print("HAUL_TIMEOUT_DIAGNOSTIC_BEGIN elapsed_seconds=150", flush=True)
+        for diagnostic_id, label, command in (
+            (700, "job", 'execute at @e[type=minecraft:villager,name=Sable,limit=1] run sable haul-audit'),
+            (701, "citizen", 'data get entity @e[type=minecraft:villager,name=Sable,limit=1] Pos'),
+            (702, "source", 'data get block 3 100 1 Items'),
+            (703, "destination", 'data get block 7 100 1 Items'),
+        ):
+            try:
+                sock.sendall(packet(diagnostic_id, 2, command))
+                got_id, _, output = response(sock)
+                print(f"HAUL_TIMEOUT_DIAGNOSTIC label={label} request_id={got_id} "
+                      f"expected_id={diagnostic_id} result={output!r}", flush=True)
+            except (OSError, ConnectionError, RuntimeError, ValueError) as exc:
+                print(f"HAUL_TIMEOUT_DIAGNOSTIC label={label} "
+                      f"read_error={type(exc).__name__}:{exc}", flush=True)
+        print("HAUL_TIMEOUT_DIAGNOSTIC_END acceptance_failed=true", flush=True)
         raise AssertionError("Sable did not deliver wheat within 150 seconds")
     sock.sendall(packet(300, 2,
         'execute if data block 3 100 1 Items[{id:"minecraft:wheat",Count:7b}]'))
