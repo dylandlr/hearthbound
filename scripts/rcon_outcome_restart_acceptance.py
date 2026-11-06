@@ -20,6 +20,9 @@ job = str(uuid.UUID(before["job"]))
 expected = before["receipt"]
 assert "MILL_OUTCOME_PROPOSAL status=PROPOSED" in expected
 assert "reward_authorized=false learning_authorized=false NO_RESEARCH_CREDIT" in expected
+expected_journal = before["journal"]
+assert "CAUSAL_EVIDENCE_JOURNAL state=ADMITTED revalidated=true" in expected_journal
+assert "reward_authorized=false learning_authorized=false NO_RESEARCH_CREDIT" in expected_journal
 
 def packet(seq, kind, command):
     body=struct.pack("<ii",seq,kind)+command.encode()+b"\0\0"
@@ -81,6 +84,13 @@ with Rcon() as r:
     if returned != expected:
         raise AssertionError("Causal outcome differs across true Forge save/restart:\n"
                              "before="+expected+"\nafter="+returned)
+    journal=r.run(f"execute positioned 7 101 1 run sable mill-outcome-journal {job}")
+    if journal != expected_journal:
+        raise AssertionError("Fsynced causal journal did not revalidate to same evidence after reboot:\n"
+                             "before="+expected_journal+"\nafter="+journal)
+    if r.run(f"execute positioned 7 101 1 run sable mill-outcome-journal {job}") != journal:
+        raise AssertionError("Post-restart journal inspection was not idempotent")
+    print("REAL_FORGE_CAUSAL_JOURNAL_RESTART_EXACT_MATCH",flush=True)
     print("REAL_FORGE_OUTCOME_RESTART_EXACT_MATCH",flush=True)
 
     duplicate=r.run(f"execute positioned 7 101 1 run sable mill-outcome-probe {job}")
@@ -100,9 +110,16 @@ with Rcon() as r:
     denied=r.run(f"execute positioned 7 101 1 run sable mill-outcome-probe {job}")
     if "status=DENIED reason=TAINTED_OR_UNHELD_RESERVATION" not in denied:
         raise AssertionError("Released historic evidence was incorrectly credited: "+denied)
+    invalidated=r.run(f"execute positioned 7 101 1 run sable mill-outcome-journal {job}")
+    if "state=REVOKED revalidated=false" not in invalidated or "NO_RESEARCH_CREDIT" not in invalidated:
+        raise AssertionError("Old journal admission remained trusted after release: "+invalidated)
+    if r.run(f"execute positioned 7 101 1 run sable mill-outcome-journal {job}") != invalidated:
+        raise AssertionError("Revoked outcome re-admitted without new process evidence")
     surviving=r.run(f"sable mill-process {job}")
     if "MILL_PROCESS VERIFIED_CALLBACK" not in surviving or "NO_RESEARCH_CREDIT" not in surviving:
         raise AssertionError("Historical callback unexpectedly removed after release")
+    print("REAL_FORGE_CAUSAL_JOURNAL_RESTART_PASS evidence_exact=true "
+          "revalidation_required=true revoked_after_release=true no_payout=true",flush=True)
     print("REAL_FORGE_OUTCOME_RESTART_PASS receipt_exact=true "
           "duplicate_stable=true released_denied=true "
           "reward_authorized=false learning_authorized=false",flush=True)
