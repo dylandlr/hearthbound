@@ -38,8 +38,8 @@ def main():
             " item replace "," data modify "," gamemode "," kill "))
     script=Path(__file__).with_name("rcon_smoke.py").read_text()
     ast.parse(script)
-    assert 'for i in range(POLL_COUNT):' in script
-    assert 'if checkpoint_due(i):' in script
+    assert 'transferred, polls_used=poll_delivery(' in script
+    assert 'def haul_read(request_id, command):' in script
     assert 'if not transferred:' in script
     assert 'raise AssertionError("Sable did not deliver wheat within 150 seconds")' in script
     assert 'execute if data block 7 100 1 Items[{id:"minecraft:wheat",Count:1b}]' in script
