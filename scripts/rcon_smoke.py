@@ -116,16 +116,41 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
 
     # This is a true Minecraft server-side behavior check: inventories must move.
     # It may expose pathfinding or vanilla villager AI interference; failed CI is useful evidence.
-    transferred = False
-    for i in range(75):
-        time.sleep(2)
-        sock.sendall(packet(100+i, 2,
-            'execute if data block 7 100 1 Items[{id:"minecraft:wheat",Count:1b}]'))
-        got_id, _, output = response(sock)
-        if got_id == 100+i and "test passed" in output.lower():
-            transferred = True
-            break
+    # The exact physical-delivery RCON condition is shared by the live smoke
+    # and the deterministic delayed/stalled-transport contract tests.
+    from haul_smoke_diagnostics import (
+        poll_delivery, read_only_commands, acceptance_timeout_seconds)
+
+    def haul_read(request_id, command):
+        sock.sendall(packet(request_id, 2, command))
+        got_id, _, output=response(sock)
+        return got_id, output
+
+    transferred, polls_used=poll_delivery(
+        haul_read, time.sleep, lambda message: print(message, flush=True))
+    print(f"HAUL_POLL_SUMMARY polls={polls_used} transferred={str(transferred).lower()}",
+          flush=True)
     if not transferred:
+        # Failure diagnostics are strictly read-only. Preserve the original
+        # acceptance threshold instead of weakening a real server check.
+        # Capture citizen location, job state and both chest inventories so
+        # we can distinguish stuck pathfinding from inventory/claim failures.
+        print(f"HAUL_TIMEOUT_DIAGNOSTIC_BEGIN nominal_elapsed_seconds={acceptance_timeout_seconds()}", flush=True)
+        for diagnostic_id, label, command in (
+            (700, "job", 'execute at @e[type=minecraft:villager,name=Sable,limit=1] run sable haul-audit'),
+            (701, "citizen", 'data get entity @e[type=minecraft:villager,name=Sable,limit=1] Pos'),
+            (702, "source", 'data get block 3 100 1 Items'),
+            (703, "destination", 'data get block 7 100 1 Items'),
+        ):
+            try:
+                sock.sendall(packet(diagnostic_id, 2, command))
+                got_id, _, output = response(sock)
+                print(f"HAUL_TIMEOUT_DIAGNOSTIC label={label} request_id={got_id} "
+                      f"expected_id={diagnostic_id} result={output!r}", flush=True)
+            except (OSError, ConnectionError, RuntimeError, ValueError) as exc:
+                print(f"HAUL_TIMEOUT_DIAGNOSTIC label={label} "
+                      f"read_error={type(exc).__name__}:{exc}", flush=True)
+        print("HAUL_TIMEOUT_DIAGNOSTIC_END acceptance_failed=true", flush=True)
         raise AssertionError("Sable did not deliver wheat within 150 seconds")
     sock.sendall(packet(300, 2,
         'execute if data block 3 100 1 Items[{id:"minecraft:wheat",Count:7b}]'))
