@@ -116,39 +116,20 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
 
     # This is a true Minecraft server-side behavior check: inventories must move.
     # It may expose pathfinding or vanilla villager AI interference; failed CI is useful evidence.
-    # Read-only checkpoints reveal movement and job/inventory state while
-    # the original 75 × 2s physical-delivery acceptance window stays fixed.
+    # The exact physical-delivery RCON condition is shared by the live smoke
+    # and the deterministic delayed/stalled-transport contract tests.
     from haul_smoke_diagnostics import (
-        POLL_COUNT, POLL_INTERVAL_SECONDS, read_only_commands,
-        checkpoint_due, checkpoint_request_id, acceptance_timeout_seconds)
-    transferred = False
-    for i in range(POLL_COUNT):
-        time.sleep(POLL_INTERVAL_SECONDS)
-        sock.sendall(packet(100+i, 2,
-            'execute if data block 7 100 1 Items[{id:"minecraft:wheat",Count:1b}]'))
-        got_id, _, output = response(sock)
-        if got_id == 100+i and "test passed" in output.lower():
-            transferred = True
-            print(f"HAUL_ACCEPTANCE_TRANSFER_POLL index={i} "
-                  f"nominal_elapsed_seconds={(i+1)*POLL_INTERVAL_SECONDS}", flush=True)
-            break
-        if checkpoint_due(i):
-            for diagnostic_index, (label, command) in enumerate(read_only_commands()):
-                request_id=checkpoint_request_id(i, diagnostic_index)
-                try:
-                    sock.sendall(packet(request_id, 2, command))
-                    response_id, _, observed=response(sock)
-                    if response_id!=request_id:
-                        raise AssertionError(
-                            f"HAUL_CHECKPOINT_REQUEST_MISMATCH expected={request_id} "
-                            f"received={response_id}")
-                    print(f"HAUL_PROGRESS_CHECKPOINT poll={i+1} "
-                          f"nominal_elapsed_seconds={(i+1)*POLL_INTERVAL_SECONDS} "
-                          f"label={label} value={observed!r}", flush=True)
-                except (OSError, ConnectionError, RuntimeError, ValueError) as exc:
-                    print(f"HAUL_PROGRESS_CHECKPOINT poll={i+1} "
-                          f"label={label} read_error={type(exc).__name__}:{exc}",
-                          flush=True)
+        poll_delivery, read_only_commands, acceptance_timeout_seconds)
+
+    def haul_read(request_id, command):
+        sock.sendall(packet(request_id, 2, command))
+        got_id, _, output=response(sock)
+        return got_id, output
+
+    transferred, polls_used=poll_delivery(
+        haul_read, time.sleep, lambda message: print(message, flush=True))
+    print(f"HAUL_POLL_SUMMARY polls={polls_used} transferred={str(transferred).lower()}",
+          flush=True)
     if not transferred:
         # Failure diagnostics are strictly read-only. Preserve the original
         # acceptance threshold instead of weakening a real server check.
