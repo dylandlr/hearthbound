@@ -127,6 +127,24 @@ with Rcon() as r:
         raise AssertionError("No direct Create processing callback receipt: "+receipt)
     if "wheatBefore=1 wheatAfter=0" not in receipt or "NO_RESEARCH_CREDIT" not in receipt:
         raise AssertionError("Invalid process receipt or premature knowledge credit: "+receipt)
+    # v0.15.6: joined proof must be derived from real executor NBT,
+    # the real Create callback, and an active untainted mill lease.
+    proposed=r.run(f"execute at {villager} run sable mill-outcome-probe {job_match.group(1)}")
+    if "MILL_OUTCOME_PROPOSAL status=PROPOSED" not in proposed:
+        raise AssertionError("Verified live mill outcome not joined: "+proposed)
+    for expected in ("decision_origin=ACTUAL_EXECUTOR_ASSIGNMENT", "personal_milli=500",
+                     "colony_milli=0 research_milli=0", "reward_authorized=false",
+                     "learning_authorized=false", "NO_RESEARCH_CREDIT"):
+        if expected not in proposed:
+            raise AssertionError("Wrong reward proposal or authorization boundary: "+proposed)
+    observed_id=re.search(r"physical_evidence_id=(\\S+)",proposed)
+    if not observed_id or job_match.group(1) not in observed_id.group(1):
+        raise AssertionError("Missing receipt-derived process identity: "+proposed)
+    if r.run(f"execute at {villager} run sable mill-outcome-probe {job_match.group(1)}") != proposed:
+        raise AssertionError("Identical real receipt produced a different proposal")
+    absent=r.run(f"execute at {villager} run sable mill-outcome-probe 00000000-0000-4000-8000-000000000001")
+    if "status=DENIED reason=NO_CREATE_CALLBACK" not in absent:
+        raise AssertionError("Nonexistent Create callback was attributed: "+absent)
     # A completed job may NOT be released while flour remains in the machine.
     occupied_release=r.run(f"execute at {villager} run sable mill-release 7 101 1 {job_match.group(1)}")
     if "Collect all millstone output" not in occupied_release:
@@ -138,6 +156,9 @@ with Rcon() as r:
     # millstone even after Sable finished delivering her item.
     r.run('setblock 10 101 1 minecraft:chest{Items:[{Slot:0b,id:"minecraft:wheat",Count:8b}]} replace')
     r.contains("execute positioned 12 101 1 run sable spawn", "Sable spawned")
+    foreign=r.run(f"execute positioned 12 101 1 run sable mill-outcome-probe {job_match.group(1)}")
+    if "status=DENIED reason=CITIZEN_OR_JOB_MISMATCH" not in foreign:
+        raise AssertionError("A different real villager could reuse the first outcome: "+foreign)
     collision=r.run("execute positioned 12 101 1 run sable haul 10 101 1 7 101 1")
     if "millstone reserved" not in collision.lower():
         raise AssertionError("Second citizen assigned conflicting mill haul: "+collision)
@@ -173,6 +194,9 @@ with Rcon() as r:
         after_release=r.run("sable mill-reservation 7 101 1")
         if "MILL_RESERVATION NONE" not in after_release:
             raise AssertionError("Released mill still occupied: "+after_release)
+        expired=r.run(f"execute positioned 2 101 1 run sable mill-outcome-probe {job_match.group(1)}")
+        if "status=DENIED reason=TAINTED_OR_UNHELD_RESERVATION" not in expired:
+            raise AssertionError("Released Create lease retained reward proposal rights: "+expired)
         replay=r.run(f"execute positioned 2 101 1 run sable mill-release 7 101 1 {job_match.group(1)}")
         if "does not match" not in replay:
             raise AssertionError("Duplicate release was not rejected: "+replay)
