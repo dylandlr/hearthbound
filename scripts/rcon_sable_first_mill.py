@@ -224,6 +224,9 @@ with Rcon() as r:
         # its own wheat while we monitor the unauthorized dropped item.
         # Preserve both live reservation and task state; no intervention
         # should be credited to the agent.
+        # Keep the parked actor's chunk loaded so RCON can restore the same
+        # entity for the subsequent post-admission contamination experiment.
+        r.run("forceload add 32 0 47 4")
         parked=r.run("execute positioned 12 101 1 run tp @e[type=minecraft:villager,name=Sable,sort=nearest,limit=1,distance=..4] 45 101 1")
         if "Teleported" not in parked:
             raise AssertionError("Could not isolate assigned citizen: "+parked)
