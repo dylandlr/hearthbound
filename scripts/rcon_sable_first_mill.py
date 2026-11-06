@@ -137,7 +137,7 @@ with Rcon() as r:
                      "learning_authorized=false", "NO_RESEARCH_CREDIT"):
         if expected not in proposed:
             raise AssertionError("Wrong reward proposal or authorization boundary: "+proposed)
-    observed_id=re.search(r"physical_evidence_id=(\\S+)",proposed)
+    observed_id=re.search(r"physical_evidence_id=(\S+)",proposed)
     if not observed_id or job_match.group(1) not in observed_id.group(1):
         raise AssertionError("Missing receipt-derived process identity: "+proposed)
     if r.run(f"execute at {villager} run sable mill-outcome-probe {job_match.group(1)}") != proposed:
