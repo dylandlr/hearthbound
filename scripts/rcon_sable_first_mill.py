@@ -252,9 +252,16 @@ with Rcon() as r:
             probe_state=r.run("sable mill-inspect 7 101 1")
             if not re.search(r"wheat=0(\D|$)",probe_state):
                 raise AssertionError("Dropped outsider wheat entered reserved mill: "+probe_state)
-        remaining_entity=r.run("execute positioned 7 101 1 if entity @e[type=minecraft:item,tag=hearthbound_external_probe,distance=..5] run say external-wheat-preserved")
-        if "external-wheat-preserved" not in remaining_entity:
-            raise AssertionError("Physical outsider wheat was consumed or disappeared: "+remaining_entity)
+        # An item entity can move or be picked up outside this guarded
+        # machine. Entity presence is not a causal ingestion receipt. Require
+        # instead that no process callback happened for this second job and
+        # neither authorized input nor Create output changed.
+        no_callback=r.run(f"sable mill-process {new_lease.split('job=')[1].split()[0]}")
+        if "MILL_PROCESS NONE" not in no_callback:
+            raise AssertionError("External wheat unexpectedly yielded a Create callback: "+no_callback)
+        machine_clean=r.run("sable mill-inspect 7 101 1")
+        if not re.search(r"wheat=0(\\D|$)", machine_clean) or not re.search(r"flour=0(\\D|$)", machine_clean):
+            raise AssertionError("External item modified the reserved mill machine: "+machine_clean)
         r.run("kill @e[type=minecraft:item,tag=hearthbound_external_probe]")
         belt_denied=r.run("sable mill-probe-belt-insert 7 101 1")
         if "BELT_INSERT DENIED" not in belt_denied:
