@@ -5,6 +5,7 @@ on:
       - 'scripts/rcon_smoke.py'
       - 'scripts/haul_smoke_diagnostics.py'
       - 'scripts/test_haul_smoke_diagnostics.py'
+      - 'scripts/test_haul_smoke_simulated_rcon.py'
       - '.github/workflows/haul-smoke-diagnostics.yml'
   workflow_dispatch:
 jobs:
@@ -17,4 +18,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Verify timeout, read-only command boundaries and distinct request IDs
-        run: python3 scripts/test_haul_smoke_diagnostics.py
+        run: |
+          set -euo pipefail
+          python3 scripts/test_haul_smoke_diagnostics.py
+          python3 scripts/test_haul_smoke_simulated_rcon.py
