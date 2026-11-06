@@ -45,3 +45,11 @@ The latest follow-up adds a separately unit-tested `haul_smoke_diagnostics.py` c
 CI now validates the allowed diagnostic commands, fixed acceptance threshold, request-ID uniqueness, parseability and refusal of invalid poll positions. Further real server failure would produce a position/job/inventory timeline useful for distinguishing pathfinding stall from inventory mutation or a lost claim, without any reconciliation or automatic rescue that could hide the failure.
 
 **Important:** new periodic RCON probes incur small additional real-time processing overhead. Their timestamps are nominal based on the sleep/poll budget, not an assertion about exact wall-clock server ticks; the existing 150 seconds is also a nominal polling threshold rather than a hard wall-clock deadline.
+
+## v0.15.1b — Real Forge smoke polling contract exercised without Minecraft timing randomness
+
+The fully green CI run **42259021101** confirmed wheat delivery in the scripted seeded-C test on **the first 2-second poll**, meaning the prior 30/60/90/120-second diagnostic checkpoints were not actually executed in that run. A passing fast haul cannot validate slow-haul diagnostics.
+
+The real RCON acceptance polling is now delegated to a **transport-independent `poll_delivery` helper** in `scripts/haul_smoke_diagnostics.py`. It still checks the same destination chest query, 75 two-second polls and exact fail-closed response IDs. The existing source count and villager destination-proximity assertions remain in the live script. The new `test_haul_smoke_simulated_rcon.py` runs a deterministic mock transport through immediate delivery, delivery on poll 39, all-75-poll timeout, malformed acceptance response ID, malformed checkpoint response ID and a simulated diagnostic read error; it verifies that none of these conditions can fabricate physical delivery or skip the failure.
+
+The mocked tests do not reproduce Minecraft pathfinding or establish the intermittent hauling failure's cause. They **do** now establish that the diagnostic path itself functions when the live-world task is slow. The original 150 seconds remains a nominal polling/sleep budget; diagnostic request processing can add wall-clock time. No run-time colonist AI or neural policy weights change.
