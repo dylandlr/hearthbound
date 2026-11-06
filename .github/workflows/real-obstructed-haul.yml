@@ -1,0 +1,70 @@
+name: Real Forge blocked-route hauling recovery
+on:
+  pull_request:
+    paths:
+      - 'scripts/rcon_obstructed_haul_acceptance.py'
+      - 'scripts/test_rcon_obstructed_haul_acceptance.py'
+      - '.github/workflows/real-obstructed-haul.yml'
+      - 'src/main/java/dev/hearthbound/world/SableController.java'
+      - 'src/main/java/dev/hearthbound/world/SableHauling.java'
+      - 'src/main/java/dev/hearthbound/world/HaulClaims.java'
+  workflow_dispatch:
+jobs:
+  blocked-route-recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 38
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.8'
+      - name: Verify physical route obstruction acceptance contract
+        run: python3 scripts/test_rcon_obstructed_haul_acceptance.py
+      - name: Compile real Forge mod
+        run: gradle --no-daemon classes > real-obstructed-preflight.log 2>&1 || (tail -n 100 real-obstructed-preflight.log; exit 1)
+      - name: Boot real Minecraft and verify blocked haul recovery
+        shell: bash
+        env:
+          HEARTHBOUND_RCON_PASSWORD: ci-two-citizen-acceptance
+        run: |
+          set -euo pipefail
+          mkdir -p run
+          printf 'eula=true\n' > run/eula.txt
+          printf 'online-mode=false\nlevel-name=obstructed-world\nlevel-seed=hearthbound-obstructed-haul-v0-15-4\nmax-players=2\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties
+          gradle --no-daemon runServer > real-obstructed-server.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 360); do
+            if grep -Eq 'Done \([0-9.]+s\)! For help, type "help"' real-obstructed-server.log; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "$pid" 2>/dev/null; then
+              tail -n 100 real-obstructed-server.log
+              exit 1
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            tail -n 100 real-obstructed-server.log
+            echo "REAL_TWO_CITIZEN_FORGE_SERVER_NOT_READY"
+            exit 1
+          fi
+          grep -Fq 'Hearthbound bootstrap loaded.' real-obstructed-server.log
+          python3 scripts/rcon_obstructed_haul_acceptance.py | tee real-obstructed-rcon.log
+          grep -Fq 'REAL_FORGE_OBSTRUCTED_HAUL_PASS' real-obstructed-rcon.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: real-obstructed-haul-evidence
+          path: |
+            real-obstructed-rcon.log
+            real-obstructed-server.log
+            real-obstructed-preflight.log
+            run/logs/latest.log
+          if-no-files-found: warn
