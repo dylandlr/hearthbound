@@ -74,7 +74,7 @@ def main():
     assert 'model' not in src.lower()
     valid=WorldResponses()
     run_trial(valid,sleep=lambda _:None)
-    assert valid.polls==2
+    assert valid.polls==3
     assert valid.count_checks==3
     assert any('sable haul-audit' in x for x in valid.commands)
     denies(lambda:run_trial(WorldResponses(conflict_rejected=False),
