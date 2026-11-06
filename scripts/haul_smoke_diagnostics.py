@@ -33,3 +33,41 @@ def checkpoint_request_id(poll_index, command_index):
 
 def acceptance_timeout_seconds():
     return POLL_COUNT * POLL_INTERVAL_SECONDS
+
+def poll_delivery(command, sleep, emit):
+    """Check real physical chest transfer, with read-only progress snapshots.
+
+    command(request_id, command_text) -> (response_id, response_text).
+    Caller owns the authenticated RCON transport; no world-changing commands
+    are allowed here. Returns (transferred, poll_count). A response-ID
+    mismatch is a hard test failure, not an implicit success or skip.
+    """
+    for i in range(POLL_COUNT):
+        sleep(POLL_INTERVAL_SECONDS)
+        request_id=100+i
+        got_id, output=command(
+            request_id,
+            'execute if data block 7 100 1 Items[{id:"minecraft:wheat",Count:1b}]')
+        if got_id!=request_id:
+            raise AssertionError(
+                f"HAUL_ACCEPTANCE_RESPONSE_MISMATCH expected={request_id} received={got_id}")
+        if "test passed" in output.lower():
+            emit(f"HAUL_ACCEPTANCE_TRANSFER_POLL index={i} "
+                 f"nominal_elapsed_seconds={(i+1)*POLL_INTERVAL_SECONDS}")
+            return True,i+1
+        if checkpoint_due(i):
+            for diagnostic_index,(label,query) in enumerate(read_only_commands()):
+                rid=checkpoint_request_id(i,diagnostic_index)
+                try:
+                    observed_id,observed=command(rid,query)
+                    if observed_id!=rid:
+                        raise AssertionError(
+                            f"HAUL_CHECKPOINT_REQUEST_MISMATCH expected={rid} "
+                            f"received={observed_id}")
+                    emit(f"HAUL_PROGRESS_CHECKPOINT poll={i+1} "
+                         f"nominal_elapsed_seconds={(i+1)*POLL_INTERVAL_SECONDS} "
+                         f"label={label} value={observed!r}")
+                except (OSError, ConnectionError, RuntimeError, ValueError) as exc:
+                    emit(f"HAUL_PROGRESS_CHECKPOINT poll={i+1} "
+                         f"label={label} read_error={type(exc).__name__}:{exc}")
+    return False,POLL_COUNT
