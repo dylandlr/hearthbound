@@ -157,6 +157,15 @@ public final class MillProcessReceipts extends SavedData {
         LOG.info("HEARTHBOUND_PROCESS_RECEIPT job={} citizen={}", job, citizen.getUUID());
     }
 
+    /**
+     * Read-only raw callback record. Presence does not establish valid current
+     * ownership or absence of later taint. Revalidate through exportVerified.
+     */
+    public static Receipt observedCallback(ServerLevel level, UUID job) {
+        if (level == null || job == null) throw new IllegalArgumentException("missing job");
+        return get(level).receipts.get(job);
+    }
+
     /** Read-only raw receipt presence, including subsequently invalidated jobs. */
     public static boolean recorded(ServerLevel level, UUID job) {
         return get(level).receipts.containsKey(job);
