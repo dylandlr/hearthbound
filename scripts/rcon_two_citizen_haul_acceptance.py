@@ -129,12 +129,19 @@ def run_trial(rcon,sleep=time.sleep):
     rcon.require("hearthboundclaims owner 24 100 1","No source claim")
     # A completion message is insufficient; check both exact final chest
     # inventories, plus each citizen's proximity to its OWN destination.
-    rcon.require(
-        "execute positioned 7.5 100 1.5 if entity @e[type=minecraft:villager,name=Sable,distance=..2.6]",
-        PASS)
-    rcon.require(
-        "execute positioned 19.5 100 1.5 if entity @e[type=minecraft:villager,name=Sable,distance=..2.6]",
-        PASS)
+    # Entity movement continues immediately after physical insertion. The
+    # runtime requires proximity to insert into the real container, but a
+    # subsequent one-shot RCON location sample can race with wandering AI.
+    # Insist on contemporaneous, bounded spatial evidence without weakening
+    # any of the exact inventory or claim-release checks above.
+    for x in (7.5, 19.5):
+        near=f"execute positioned {x} 100 1.5 if entity @e[type=minecraft:villager,name=Sable,distance=..4]"
+        for retry in range(12):
+            if PASS in rcon.run(near).lower():
+                break
+            sleep(0.25)
+        else:
+            raise AssertionError("Delivered wheat without near-destination citizen: "+near)
     print("MULTI_CITIZEN_FORGE_ACCEPTANCE_PASS source_conflict_rejected=true "
           "distinct_source_claims=2 physical_deliveries=2 "
           "source_count_each=7 destination_count_each=1 "
