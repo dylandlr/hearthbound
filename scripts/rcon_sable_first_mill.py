@@ -145,6 +145,18 @@ with Rcon() as r:
     absent=r.run(f"execute at {villager} run sable mill-outcome-probe 00000000-0000-4000-8000-000000000001")
     if "status=DENIED reason=NO_CREATE_CALLBACK" not in absent:
         raise AssertionError("Nonexistent Create callback was attributed: "+absent)
+    # v0.15.8: only the operator can archive a server-verified process.
+    # An ADMITTED journal state is a read-only audit result, never reward
+    # authorization. Duplicate inspections must not append another frame.
+    journal_before=r.run(f"execute at {villager} run sable mill-outcome-journal {job_match.group(1)}")
+    for expected_journal in ("CAUSAL_EVIDENCE_JOURNAL state=ADMITTED", "revalidated=true",
+                             "record_count=1", "reward_authorized=false",
+                             "learning_authorized=false", "NO_RESEARCH_CREDIT"):
+        if expected_journal not in journal_before:
+            raise AssertionError("Could not admit physical evidence into audit journal: "+journal_before)
+    repeated_journal=r.run(f"execute at {villager} run sable mill-outcome-journal {job_match.group(1)}")
+    if repeated_journal != journal_before:
+        raise AssertionError("Idempotent journal probe changed the reported record")
     # A completed job may NOT be released while flour remains in the machine.
     occupied_release=r.run(f"execute at {villager} run sable mill-release 7 101 1 {job_match.group(1)}")
     if "Collect all millstone output" not in occupied_release:
@@ -159,6 +171,9 @@ with Rcon() as r:
     foreign=r.run(f"execute positioned 12 101 1 run sable mill-outcome-probe {job_match.group(1)}")
     if "status=DENIED reason=CITIZEN_OR_JOB_MISMATCH" not in foreign:
         raise AssertionError("A different real villager could reuse the first outcome: "+foreign)
+    journal_foreign=r.run(f"execute positioned 12 101 1 run sable mill-outcome-journal {job_match.group(1)}")
+    if "state=DENIED reason=FOREIGN_CITIZEN" not in journal_foreign:
+        raise AssertionError("Different citizen mutated original journal ownership: "+journal_foreign)
     collision=r.run("execute positioned 12 101 1 run sable haul 10 101 1 7 101 1")
     if "millstone reserved" not in collision.lower():
         raise AssertionError("Second citizen assigned conflicting mill haul: "+collision)
@@ -197,6 +212,11 @@ with Rcon() as r:
         expired=r.run(f"execute positioned 2 101 1 run sable mill-outcome-probe {job_match.group(1)}")
         if "status=DENIED reason=TAINTED_OR_UNHELD_RESERVATION" not in expired:
             raise AssertionError("Released Create lease retained reward proposal rights: "+expired)
+        journal_revoked=r.run(f"execute positioned 2 101 1 run sable mill-outcome-journal {job_match.group(1)}")
+        if "state=REVOKED" not in journal_revoked or "revalidated=false" not in journal_revoked:
+            raise AssertionError("Released process remained actively admitted: "+journal_revoked)
+        if r.run(f"execute positioned 2 101 1 run sable mill-outcome-journal {job_match.group(1)}") != journal_revoked:
+            raise AssertionError("Terminal journal revocation was not stable")
         replay=r.run(f"execute positioned 2 101 1 run sable mill-release 7 101 1 {job_match.group(1)}")
         if "does not match" not in replay:
             raise AssertionError("Duplicate release was not rejected: "+replay)
@@ -367,7 +387,8 @@ with Rcon() as r:
             raise AssertionError("No valid mill outcome to use for restart comparison")
         with open("mill-outcome-pre-restart.json", "w", encoding="utf-8") as out:
             json.dump({"schema": "hearthbound.outcome-restart-checkpoint.v1",
-                       "job": job_match.group(1), "receipt": proposed},
+                       "job": job_match.group(1), "receipt": proposed,
+                       "journal": journal_before},
                       out, sort_keys=True, indent=2)
         with open("mill-evidence-job.txt", "w", encoding="utf-8") as out:
             out.write(job_match.group(1) + "\n")
