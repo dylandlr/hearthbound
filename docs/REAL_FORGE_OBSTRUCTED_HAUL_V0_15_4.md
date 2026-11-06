@@ -17,3 +17,14 @@ The algorithm never reads this intervention as input; it has no access to RCON p
 `scripts/test_rcon_obstructed_haul_acceptance.py` validates read-only acceptance checks, held-cargo conditions, physical chest counts and claim ownership fail-closed. `.github/workflows/real-obstructed-haul.yml` compiles Forge, boots a disposable world, runs the real RCON fixture and always uploads logs. Do not declare success until GitHub Actions reports a pass and its transcript shows actual blocked and reopened conditions.
 
 A failure due to geometry or pathfinding remains useful evidence; do not weaken cargo or claim checks merely to make the acceptance pass. This is a single obstruction, not an adaptive navigation policy or a statistically robust colony stress suite.
+
+## Verified real Forge result (GitHub Actions 42283209343)
+
+The dedicated workflow passed against a freshly booted real Forge server and saved full `real-obstructed-rcon.log` plus the server log in artifact `real-obstructed-haul-evidence` (artifact ID 13536202618).
+
+- Both actual villager jobs were assigned, with **two distinct source claims**. Citizen A's first observed hauling audit showed `phase=1 cargo=1xwheat`, source x=11 holding seven wheat, destination x=7 empty, `claim=owned`.
+- Citizen B physically delivered its wheat to x=19 while citizen A remained behind the solid wall. B's source fell to seven, destination held one, and B's claim was released.
+- The evaluator checked that citizen A still held exactly one wheat in its persistent cargo and owned its source, that its destination had **no chest inventory item**, and that x=9 remained `minecraft:stone`. This produced `OBSTRUCTED_HAUL_HOLD_CONFIRMED`.
+- After an explicit operator RCON command replaced nine stone blocks with air, citizen A's real destination chest held one wheat on the **first subsequent 2-second poll**. Both final source inventories were seven, destinations one, owner queries returned no claims and both villagers were near their target chests. The workflow emitted `REAL_FORGE_OBSTRUCTED_HAUL_PASS`.
+
+This is one controlled success, not a reliability rate. Its main experimental attribution is that held cargo and source ownership were preserved through a real-world obstruction and delivery resumed after clearance while a separate citizen completed a job. It does not prove that A was unable to reach destination by any imaginable route under different geometry, nor does it prove this behavior for large settlements, persistent crashes, hostile mobs or high-latency multiplayer.
