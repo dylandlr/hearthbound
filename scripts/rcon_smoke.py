@@ -116,21 +116,45 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
 
     # This is a true Minecraft server-side behavior check: inventories must move.
     # It may expose pathfinding or vanilla villager AI interference; failed CI is useful evidence.
+    # Read-only checkpoints reveal movement and job/inventory state while
+    # the original 75 × 2s physical-delivery acceptance window stays fixed.
+    from haul_smoke_diagnostics import (
+        POLL_COUNT, POLL_INTERVAL_SECONDS, read_only_commands,
+        checkpoint_due, checkpoint_request_id, acceptance_timeout_seconds)
     transferred = False
-    for i in range(75):
-        time.sleep(2)
+    for i in range(POLL_COUNT):
+        time.sleep(POLL_INTERVAL_SECONDS)
         sock.sendall(packet(100+i, 2,
             'execute if data block 7 100 1 Items[{id:"minecraft:wheat",Count:1b}]'))
         got_id, _, output = response(sock)
         if got_id == 100+i and "test passed" in output.lower():
             transferred = True
+            print(f"HAUL_ACCEPTANCE_TRANSFER_POLL index={i} "
+                  f"nominal_elapsed_seconds={(i+1)*POLL_INTERVAL_SECONDS}", flush=True)
             break
+        if checkpoint_due(i):
+            for diagnostic_index, (label, command) in enumerate(read_only_commands()):
+                request_id=checkpoint_request_id(i, diagnostic_index)
+                try:
+                    sock.sendall(packet(request_id, 2, command))
+                    response_id, _, observed=response(sock)
+                    if response_id!=request_id:
+                        raise AssertionError(
+                            f"HAUL_CHECKPOINT_REQUEST_MISMATCH expected={request_id} "
+                            f"received={response_id}")
+                    print(f"HAUL_PROGRESS_CHECKPOINT poll={i+1} "
+                          f"nominal_elapsed_seconds={(i+1)*POLL_INTERVAL_SECONDS} "
+                          f"label={label} value={observed!r}", flush=True)
+                except (OSError, ConnectionError, RuntimeError, ValueError) as exc:
+                    print(f"HAUL_PROGRESS_CHECKPOINT poll={i+1} "
+                          f"label={label} read_error={type(exc).__name__}:{exc}",
+                          flush=True)
     if not transferred:
         # Failure diagnostics are strictly read-only. Preserve the original
         # acceptance threshold instead of weakening a real server check.
         # Capture citizen location, job state and both chest inventories so
         # we can distinguish stuck pathfinding from inventory/claim failures.
-        print("HAUL_TIMEOUT_DIAGNOSTIC_BEGIN elapsed_seconds=150", flush=True)
+        print(f"HAUL_TIMEOUT_DIAGNOSTIC_BEGIN nominal_elapsed_seconds={acceptance_timeout_seconds()}", flush=True)
         for diagnostic_id, label, command in (
             (700, "job", 'execute at @e[type=minecraft:villager,name=Sable,limit=1] run sable haul-audit'),
             (701, "citizen", 'data get entity @e[type=minecraft:villager,name=Sable,limit=1] Pos'),
