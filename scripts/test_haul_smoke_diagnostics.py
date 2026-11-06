@@ -42,7 +42,8 @@ def main():
     assert 'def haul_read(request_id, command):' in script
     assert 'if not transferred:' in script
     assert 'raise AssertionError("Sable did not deliver wheat within 150 seconds")' in script
-    assert 'execute if data block 7 100 1 Items[{id:"minecraft:wheat",Count:1b}]' in script
+    helper=Path(__file__).with_name("haul_smoke_diagnostics.py").read_text()
+    assert 'execute if data block 7 100 1 Items[{id:"minecraft:wheat",Count:1b}]' in helper
     print("FORGE_READ_ONLY_HAUL_TIMELINE_CHECKPOINTS_PASS")
 
 if __name__=="__main__":
