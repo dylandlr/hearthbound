@@ -219,6 +219,17 @@ with Rcon() as r:
         new_lease=r.run("sable mill-reservation 7 101 1")
         if "MILL_RESERVATION HELD" not in new_lease or f"job={job_match.group(1)}" in new_lease:
             raise AssertionError("New job does not own reused mill: "+new_lease)
+        # Isolate the physical ingress challenge. Without this displacement,
+        # the second legitimately assigned villager could arrive and insert
+        # its own wheat while we monitor the unauthorized dropped item.
+        # Preserve both live reservation and task state; no intervention
+        # should be credited to the agent.
+        parked=r.run("execute positioned 12 101 1 run tp @e[type=minecraft:villager,name=Sable,sort=nearest,limit=1,distance=..4] 45 101 1")
+        if "Teleported" not in parked:
+            raise AssertionError("Could not isolate assigned citizen: "+parked)
+        lease_parked=r.run("sable mill-reservation 7 101 1")
+        if f"job={job_match.group(1)}" in lease_parked or "MILL_RESERVATION HELD" not in lease_parked:
+            raise AssertionError("Citizen isolation lost the reserved mill: "+lease_parked)
         # Real Forge capability route must deny insertion from an outside actor
         # without a Sable authorization scope. This must not contaminate inputs.
         # Positive control: same direct-belt API must still insert wheat into
@@ -259,6 +270,11 @@ with Rcon() as r:
         if not second_job:
             raise AssertionError("Fresh mill lease has no job UUID: "+new_lease)
         r.run('data modify block 7 101 1 OutputInventory.Items set value [{Slot:0,id:"create:wheat_flour",Count:1b}]')
+        # Restore the assigned villager only after the adversarial flour
+        # mutation is installed. Its first pickup must encounter a tainted mill.
+        restored=r.run("execute positioned 45 101 1 run tp @e[type=minecraft:villager,name=Sable,sort=nearest,limit=1,distance=..5] 12 101 1")
+        if "Teleported" not in restored:
+            raise AssertionError("Could not resume post-admission taint test: "+restored)
         tainted=False
         for _ in range(12):
             time.sleep(1)
