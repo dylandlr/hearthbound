@@ -260,7 +260,7 @@ with Rcon() as r:
         if "MILL_PROCESS NONE" not in no_callback:
             raise AssertionError("External wheat unexpectedly yielded a Create callback: "+no_callback)
         machine_clean=r.run("sable mill-inspect 7 101 1")
-        if not re.search(r"wheat=0(\\D|$)", machine_clean) or not re.search(r"flour=0(\\D|$)", machine_clean):
+        if not re.search(r"wheat=0(\D|$)", machine_clean) or not re.search(r"flour=0(\D|$)", machine_clean):
             raise AssertionError("External item modified the reserved mill machine: "+machine_clean)
         r.run("kill @e[type=minecraft:item,tag=hearthbound_external_probe]")
         belt_denied=r.run("sable mill-probe-belt-insert 7 101 1")
