@@ -5,12 +5,11 @@ Only the disposable CI operator modifies blocks. Sable uses the unchanged
 scripted server-side hauling code. No neural model can read these interventions.
 """
 import os
-import re
 import socket
 import time
 
 from rcon_two_citizen_haul_acceptance import (
-    Rcon, packet, exact, run_trial as baseline_trial, response, PASS,
+    Rcon, packet, exact, PASS,
     CITIZEN_A, CITIZEN_B, CHECK_DEST_A, CHECK_DEST_B
 )
 
@@ -111,7 +110,6 @@ def run_obstruction(rcon,sleep=time.sleep):
     # mutation except the scripted simulation running on the Forge server.
     sleep(2)
     audit_cargo(rcon,"execute positioned 12 100 1 run ",1)
-    counts(rcon,SOURCE_A,DEST_A,7,0) if False else None
     counts(rcon,SOURCE_A,SOURCE_A,7,7)
     inventory_empty(rcon,DEST_A)
     counts(rcon,SOURCE_B,DEST_B,7,1)
