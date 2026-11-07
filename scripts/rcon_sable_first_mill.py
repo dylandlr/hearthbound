@@ -226,6 +226,13 @@ with Rcon() as r:
         # should be credited to the agent.
         # Keep the parked actor's chunk loaded for later adversarial test restore.
         r.run("forceload add 32 0 47 4")
+        # The original test teleported the citizen outside the prepared
+        # stone floor. A parked agent could fall away or die before restore.
+        # This is an OPERATOR fixture intervention, not agent behavior.
+        r.run("setblock 45 100 1 minecraft:stone replace")
+        frozen=r.run("execute positioned 12 101 1 run data merge entity @e[type=minecraft:villager,name=Sable,sort=nearest,limit=1,distance=..4] {NoAI:1b}")
+        if "Modified entity data" not in frozen:
+            raise AssertionError("Could not safely freeze outsider-ingress test citizen: "+frozen)
         parked=r.run("execute positioned 12 101 1 run tp @e[type=minecraft:villager,name=Sable,sort=nearest,limit=1,distance=..4] 45 101 1")
         if "Teleported" not in parked:
             raise AssertionError("Could not isolate assigned citizen: "+parked)
@@ -284,6 +291,9 @@ with Rcon() as r:
         restored=r.run("execute positioned 45 101 1 run tp @e[type=minecraft:villager,name=Sable,sort=nearest,limit=1,distance=..5] 12 101 1")
         if "Teleported" not in restored:
             raise AssertionError("Could not resume post-admission taint test: "+restored)
+        unfrozen=r.run("execute positioned 12 101 1 run data merge entity @e[type=minecraft:villager,name=Sable,sort=nearest,limit=1,distance=..4] {NoAI:0b}")
+        if "Modified entity data" not in unfrozen:
+            raise AssertionError("Could not resume assigned citizen AI: "+unfrozen)
         tainted=False
         for _ in range(12):
             time.sleep(1)
