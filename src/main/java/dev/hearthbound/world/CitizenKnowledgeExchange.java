@@ -109,18 +109,23 @@ public final class CitizenKnowledgeExchange {
             long observed = r.getLong("observed_tick");
             if (!key(level, source).equals(r.getString("source"))
                     || !"REPORTED_DIRECT_FORGE_OBSERVATION".equals(r.getString("origin"))
-                    || !"AVAILABLE".equals(r.getString("state"))
+                    || (!"AVAILABLE".equals(r.getString("state"))
+                        && !"EMPTY".equals(r.getString("state")))
                     || !r.hasUUID("recipient") || !r.getUUID("recipient").equals(recipient.getUUID())
                     || !r.hasUUID("sender") || r.getUUID("sender").equals(recipient.getUUID())
-                    || r.getInt("wheat") <= 0 || r.getInt("source_revision") < 1
+                    || r.getInt("wheat") < 0 || r.getInt("source_revision") < 1
                     || observed < 0 || observed > delivered
                     || delivered > now || now - delivered > REPORT_TTL_TICKS
                     || delivered - observed > CitizenSourceKnowledge.FRESH_TICKS)
                 continue;
-            if (newest == null || delivered > newest.getLong("delivered_tick"))
+            // Later EMPTY observations supersede older AVAILABLE evidence,
+            // even when the two reports share a Minecraft game tick.
+            if (newest == null || delivered >= newest.getLong("delivered_tick"))
                 newest = r;
         }
-        return newest == null ? null : newest.copy();
+        if (newest == null || !"AVAILABLE".equals(newest.getString("state"))
+                || newest.getInt("wheat") <= 0) return null;
+        return newest.copy();
     }
 
     /** Operator inspection, never pulls current inventory or sender's private data. */
