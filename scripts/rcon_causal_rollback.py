@@ -14,6 +14,7 @@ import os
 import socket
 import struct
 import sys
+import time
 import uuid
 from pathlib import Path
 
@@ -78,6 +79,16 @@ def seed():
         killed=r.run("kill @e[type=minecraft:villager,name=Sable]")
         if "Killed" not in killed:
             raise AssertionError("Could not clear initial operator fixture villager: "+killed)
+        # Entity death/removal is tick-delayed; saving immediately after /kill
+        # can persist a dying marked villager that contaminates the next boot's
+        # unqualified @e[name=Sable,limit=1] selector.
+        deadline=time.monotonic()+15
+        while time.monotonic()<deadline:
+            empty=r.run("execute unless entity @e[type=minecraft:villager,name=Sable]")
+            if "Test passed" in empty: break
+            time.sleep(0.5)
+        else:
+            raise AssertionError("Killed baseline Sable remained selectable before save: "+empty)
         r.require("save-all flush","Saved the game")
         r.run("stop")
         print("ROLLBACK_BASELINE_SAVED_WITH_WORLD_ID_AND_NO_PROCESS",flush=True)
