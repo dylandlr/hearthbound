@@ -80,8 +80,11 @@ with Rcon() as r:
         # an LLM-driven collaborator. A report or proximity alone cannot
         # authorize the executor's assignment.
         spawned=r.run("""summon minecraft:villager 4 101 3 {CustomName:'{"text":"MillWitness"}',Tags:["hb_mill_source_witness"],ForgeData:{"hearthbound.citizen":1b},NoAI:1b}""")
-        if "Summoned new Villager" not in spawned:
+        if "Summoned new" not in spawned:
             raise AssertionError("Could not spawn independent direct observer: "+spawned)
+        present=r.run("execute if entity @e[type=minecraft:villager,tag=hb_mill_source_witness,limit=1]")
+        if "Test passed, count: 1" not in present:
+            raise AssertionError("Marked source witness absent from actual world: "+present)
         missing=r.run(f"execute at {villager} run sable haul-witnessed 3 101 1 7 101 1 {witness_selector}")
         if "status=DENIED reason=NO_FRESH_DIRECT_SOURCE_WITNESS" not in missing:
             raise AssertionError("Hearsay-free, unobserved witness incorrectly authorized a haul: "+missing)
