@@ -45,6 +45,21 @@ jobs:
             --report /tmp/report-choice-reproduced.json
           cmp /tmp/report-choice-frozen-original.txt /tmp/report-choice-reproduced.txt
           test "$expected" = "$(cat /tmp/report-choice-reproduced.sha256)"
+          # Verify original Python trained weights and Java 17 inference
+          # produce the same scores/actions on independent synthetic inputs.
+          python3 scripts/verify_report_choice_mlp_parity.py \
+            --model run/report-choice-mlp-v1.txt \
+            --sha run/report-choice-mlp-v1.sha256 \
+            --out run/report-mlp-parity-v1.tsv
+          mkdir -p /tmp/hearthbound-report-parity-classes
+          javac --release 17 -d /tmp/hearthbound-report-parity-classes \
+            src/main/java/dev/hearthbound/evidence/ReportChoiceMlp.java \
+            src/test/java/dev/hearthbound/evidence/ReportChoiceMlpParity.java
+          java -cp /tmp/hearthbound-report-parity-classes \
+            dev.hearthbound.evidence.ReportChoiceMlpParity \
+            run/report-choice-mlp-v1.txt \
+            run/report-choice-mlp-v1.sha256 \
+            run/report-mlp-parity-v1.tsv
           python3 - <<'PY'
           import json
           from pathlib import Path
@@ -110,6 +125,7 @@ jobs:
             run/report-choice-mlp-v1.sha256
             report-choice-mlp-training.json
             report-choice-mlp-preboot-checksum.txt
+            run/report-mlp-parity-v1.tsv
             real-report-choice-results.json
             real-report-mlp-forge.log
             real-report-mlp-rcon.log
