@@ -127,6 +127,24 @@ with Rcon() as r:
         raise AssertionError("No direct Create processing callback receipt: "+receipt)
     if "wheatBefore=1 wheatAfter=0" not in receipt or "NO_RESEARCH_CREDIT" not in receipt:
         raise AssertionError("Invalid process receipt or premature knowledge credit: "+receipt)
+    # v0.15.6: joined proof must be derived from real executor NBT,
+    # the real Create callback, and an active untainted mill lease.
+    proposed=r.run(f"execute at {villager} run sable mill-outcome-probe {job_match.group(1)}")
+    if "MILL_OUTCOME_PROPOSAL status=PROPOSED" not in proposed:
+        raise AssertionError("Verified live mill outcome not joined: "+proposed)
+    for expected in ("decision_origin=ACTUAL_EXECUTOR_ASSIGNMENT", "personal_milli=500",
+                     "colony_milli=0 research_milli=0", "reward_authorized=false",
+                     "learning_authorized=false", "NO_RESEARCH_CREDIT"):
+        if expected not in proposed:
+            raise AssertionError("Wrong reward proposal or authorization boundary: "+proposed)
+    observed_id=re.search(r"physical_evidence_id=(\S+)",proposed)
+    if not observed_id or job_match.group(1) not in observed_id.group(1):
+        raise AssertionError("Missing receipt-derived process identity: "+proposed)
+    if r.run(f"execute at {villager} run sable mill-outcome-probe {job_match.group(1)}") != proposed:
+        raise AssertionError("Identical real receipt produced a different proposal")
+    absent=r.run(f"execute at {villager} run sable mill-outcome-probe 00000000-0000-4000-8000-000000000001")
+    if "status=DENIED reason=NO_CREATE_CALLBACK" not in absent:
+        raise AssertionError("Nonexistent Create callback was attributed: "+absent)
     # A completed job may NOT be released while flour remains in the machine.
     occupied_release=r.run(f"execute at {villager} run sable mill-release 7 101 1 {job_match.group(1)}")
     if "Collect all millstone output" not in occupied_release:
@@ -138,6 +156,9 @@ with Rcon() as r:
     # millstone even after Sable finished delivering her item.
     r.run('setblock 10 101 1 minecraft:chest{Items:[{Slot:0b,id:"minecraft:wheat",Count:8b}]} replace')
     r.contains("execute positioned 12 101 1 run sable spawn", "Sable spawned")
+    foreign=r.run(f"execute positioned 12 101 1 run sable mill-outcome-probe {job_match.group(1)}")
+    if "status=DENIED reason=CITIZEN_OR_JOB_MISMATCH" not in foreign:
+        raise AssertionError("A different real villager could reuse the first outcome: "+foreign)
     collision=r.run("execute positioned 12 101 1 run sable haul 10 101 1 7 101 1")
     if "millstone reserved" not in collision.lower():
         raise AssertionError("Second citizen assigned conflicting mill haul: "+collision)
@@ -173,6 +194,9 @@ with Rcon() as r:
         after_release=r.run("sable mill-reservation 7 101 1")
         if "MILL_RESERVATION NONE" not in after_release:
             raise AssertionError("Released mill still occupied: "+after_release)
+        expired=r.run(f"execute positioned 2 101 1 run sable mill-outcome-probe {job_match.group(1)}")
+        if "status=DENIED reason=TAINTED_OR_UNHELD_RESERVATION" not in expired:
+            raise AssertionError("Released Create lease retained reward proposal rights: "+expired)
         replay=r.run(f"execute positioned 2 101 1 run sable mill-release 7 101 1 {job_match.group(1)}")
         if "does not match" not in replay:
             raise AssertionError("Duplicate release was not rejected: "+replay)
@@ -195,6 +219,27 @@ with Rcon() as r:
         new_lease=r.run("sable mill-reservation 7 101 1")
         if "MILL_RESERVATION HELD" not in new_lease or f"job={job_match.group(1)}" in new_lease:
             raise AssertionError("New job does not own reused mill: "+new_lease)
+        # Isolate the physical ingress challenge. Without this displacement,
+        # the second legitimately assigned villager could arrive and insert
+        # its own wheat while we monitor the unauthorized dropped item.
+        # Preserve both live reservation and task state; no intervention
+        # should be credited to the agent.
+        # Keep the parked actor's chunk loaded so RCON can restore the same
+        # entity for the subsequent post-admission contamination experiment.
+        r.run("forceload add 32 0 47 4")
+        # The original test teleported the citizen outside the prepared
+        # stone floor. A parked agent could fall away or die before restore.
+        # This is an OPERATOR fixture intervention, not agent behavior.
+        r.run("setblock 45 100 1 minecraft:stone replace")
+        frozen=r.run("execute positioned 12 101 1 run data merge entity @e[type=minecraft:villager,name=Sable,sort=nearest,limit=1,distance=..4] {NoAI:1b}")
+        if "Modified entity data" not in frozen:
+            raise AssertionError("Could not safely freeze outsider-ingress test citizen: "+frozen)
+        parked=r.run("execute positioned 12 101 1 run tp @e[type=minecraft:villager,name=Sable,sort=nearest,limit=1,distance=..4] 45 101 1")
+        if "Teleported" not in parked:
+            raise AssertionError("Could not isolate assigned citizen: "+parked)
+        lease_parked=r.run("sable mill-reservation 7 101 1")
+        if f"job={job_match.group(1)}" in lease_parked or "MILL_RESERVATION HELD" not in lease_parked:
+            raise AssertionError("Citizen isolation lost the reserved mill: "+lease_parked)
         # Real Forge capability route must deny insertion from an outside actor
         # without a Sable authorization scope. This must not contaminate inputs.
         # Positive control: same direct-belt API must still insert wheat into
@@ -215,9 +260,16 @@ with Rcon() as r:
             probe_state=r.run("sable mill-inspect 7 101 1")
             if not re.search(r"wheat=0(\D|$)",probe_state):
                 raise AssertionError("Dropped outsider wheat entered reserved mill: "+probe_state)
-        remaining_entity=r.run("execute positioned 7 101 1 if entity @e[type=minecraft:item,tag=hearthbound_external_probe,distance=..5] run say external-wheat-preserved")
-        if "external-wheat-preserved" not in remaining_entity:
-            raise AssertionError("Physical outsider wheat was consumed or disappeared: "+remaining_entity)
+        # An item entity can move or be picked up outside this guarded
+        # machine. Entity presence is not a causal ingestion receipt. Require
+        # instead that no process callback happened for this second job and
+        # neither authorized input nor Create output changed.
+        no_callback=r.run(f"sable mill-process {new_lease.split('job=')[1].split()[0]}")
+        if "MILL_PROCESS NONE" not in no_callback:
+            raise AssertionError("External wheat unexpectedly yielded a Create callback: "+no_callback)
+        machine_clean=r.run("sable mill-inspect 7 101 1")
+        if not re.search(r"wheat=0(\D|$)", machine_clean) or not re.search(r"flour=0(\D|$)", machine_clean):
+            raise AssertionError("External item modified the reserved mill machine: "+machine_clean)
         r.run("kill @e[type=minecraft:item,tag=hearthbound_external_probe]")
         belt_denied=r.run("sable mill-probe-belt-insert 7 101 1")
         if "BELT_INSERT DENIED" not in belt_denied:
@@ -235,6 +287,14 @@ with Rcon() as r:
         if not second_job:
             raise AssertionError("Fresh mill lease has no job UUID: "+new_lease)
         r.run('data modify block 7 101 1 OutputInventory.Items set value [{Slot:0,id:"create:wheat_flour",Count:1b}]')
+        # Restore the assigned villager only after the adversarial flour
+        # mutation is installed. Its first pickup must encounter a tainted mill.
+        restored=r.run("execute positioned 45 101 1 run tp @e[type=minecraft:villager,name=Sable,sort=nearest,limit=1,distance=..5] 12 101 1")
+        if "Teleported" not in restored:
+            raise AssertionError("Could not resume post-admission taint test: "+restored)
+        unfrozen=r.run("execute positioned 12 101 1 run data merge entity @e[type=minecraft:villager,name=Sable,sort=nearest,limit=1,distance=..4] {NoAI:0b}")
+        if "Modified entity data" not in unfrozen:
+            raise AssertionError("Could not resume assigned citizen AI: "+unfrozen)
         tainted=False
         for _ in range(12):
             time.sleep(1)

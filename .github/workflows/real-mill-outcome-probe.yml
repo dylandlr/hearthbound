@@ -1,0 +1,74 @@
+name: Real Create causal outcome proposal (no payout)
+on:
+  push:
+    branches:
+      - 'feat/real-mill-outcome-probe-v0-15-6'
+  pull_request:
+    paths:
+      - 'src/main/java/dev/hearthbound/world/**'
+      - 'src/main/java/dev/hearthbound/evidence/OutcomeLedger.java'
+      - 'scripts/rcon_sable_first_mill.py'
+      - '.github/workflows/real-mill-outcome-probe.yml'
+jobs:
+  physical-provenance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.8'
+      - name: Boot actual Forge/Create server and inspect physical mill outcome
+        shell: bash
+        env:
+          HEARTHBOUND_RCON_PASSWORD: ci-local-disposable-password
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/rcon_sable_first_mill.py
+          mkdir -p run
+          printf 'eula=true\n' > run/eula.txt
+          printf 'online-mode=false\nlevel-name=real-outcome-proposal-world\nmax-players=2\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties
+          gradle --no-daemon runServer > real-outcome-forge-server.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 360); do
+            if grep -Eq 'Done \([0-9.]+s\)! For help, type "help"' real-outcome-forge-server.log; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "$pid" 2>/dev/null; then
+              tail -n 120 real-outcome-forge-server.log
+              exit 1
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            tail -n 120 real-outcome-forge-server.log
+            exit 1
+          fi
+          python3 scripts/rcon_sable_first_mill.py | tee real-outcome-rcon.log
+          grep -q 'MILL_OUTCOME_PROPOSAL status=PROPOSED' real-outcome-rcon.log
+          grep -q 'status=DENIED reason=NO_CREATE_CALLBACK' real-outcome-rcon.log
+          grep -q 'status=DENIED reason=CITIZEN_OR_JOB_MISMATCH' real-outcome-rcon.log
+          grep -q 'status=DENIED reason=TAINTED_OR_UNHELD_RESERVATION' real-outcome-rcon.log
+          grep -q 'HEARTHBOUND_PROCESS_RECEIPT' real-outcome-forge-server.log
+          grep -q 'HEARTHBOUND_FALLING_ITEM_DENIED' real-outcome-forge-server.log
+          echo "REAL_FORGE_MILL_OUTCOME_PROPOSAL_PASS reward_authorized=false"
+      - name: Upload actual RCON and Forge logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-forge-mill-outcome-evidence
+          path: |
+            real-outcome-rcon.log
+            real-outcome-forge-server.log
+            run/logs/latest.log
+          if-no-files-found: warn
+          retention-days: 14

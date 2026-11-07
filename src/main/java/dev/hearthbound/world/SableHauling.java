@@ -36,6 +36,7 @@ public final class SableHauling {
     private static final int QUARANTINED = 4;
     private static final int INSERTING = 5;
     private static final String JOB_ID = "jobId";
+    private static final String ASSIGNED_TICK = "assignedTick";
     private static final String FAULT = "faultInsertion";
 
     /**
@@ -88,8 +89,35 @@ public final class SableHauling {
         tag.putLong(DESTINATION, destination.asLong());
         tag.putInt(PHASE, TO_SOURCE);
         tag.putUUID(JOB_ID, job);
+        // Actual executor assignment time, not an inferred policy decision.
+        // Persisted on the villager; legacy jobs without it fail closed at the probe.
+        tag.putLong(ASSIGNED_TICK, level.getGameTime());
         citizen.getPersistentData().put(KEY, tag);
         markLive(level.getServer(), job);
+    }
+
+    /** Read-only, villager-NBT-backed assignment evidence for a completed physical haul. */
+    public record Assignment(UUID job, UUID citizen, long assignedTick,
+                             long source, long destination) {}
+
+    public static Assignment completedAssignment(ServerLevel level, Villager citizen,
+                                                  UUID job, BlockPos destination) {
+        if (level == null || citizen == null || job == null || destination == null
+                || citizen.level() != level)
+            throw new IllegalArgumentException("missing or foreign assignment");
+        CompoundTag tag = citizen.getPersistentData().getCompound(KEY);
+        if (!tag.hasUUID(JOB_ID) || !tag.getUUID(JOB_ID).equals(job)
+                || !tag.contains(ASSIGNED_TICK, net.minecraft.nbt.Tag.TAG_LONG)
+                || !tag.contains(SOURCE, net.minecraft.nbt.Tag.TAG_LONG)
+                || !tag.contains(DESTINATION, net.minecraft.nbt.Tag.TAG_LONG)
+                || tag.getLong(DESTINATION) != destination.asLong()
+                || tag.getLong(SOURCE) == tag.getLong(DESTINATION)
+                || tag.getInt(PHASE) != COMPLETE || tag.contains(CARGO)
+                || tag.getLong(ASSIGNED_TICK) < 0
+                || tag.getLong(ASSIGNED_TICK) > level.getGameTime())
+            throw new IllegalStateException("missing verified executor assignment");
+        return new Assignment(job, citizen.getUUID(), tag.getLong(ASSIGNED_TICK),
+            tag.getLong(SOURCE), tag.getLong(DESTINATION));
     }
 
     /** Only a fully completed delivery can be used for audited mill release. */

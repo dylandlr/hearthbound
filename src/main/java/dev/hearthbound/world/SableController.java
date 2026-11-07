@@ -236,6 +236,24 @@ public final class SableController {
                             return 0;
                         }
                     })))
+            .then(Commands.literal("mill-outcome-probe")
+                .then(Commands.argument("jobId", StringArgumentType.word())
+                    .executes(ctx -> {
+                        Villager sable = nearestSable(ctx.getSource());
+                        if (sable == null) {
+                            ctx.getSource().sendFailure(Component.literal("No marked Sable within 16 blocks"));
+                            return 0;
+                        }
+                        try {
+                            UUID job = UUID.fromString(StringArgumentType.getString(ctx, "jobId"));
+                            String proposal = RealMillOutcomeProbe.inspect(ctx.getSource().getLevel(), sable, job);
+                            ctx.getSource().sendSuccess(() -> Component.literal(proposal), false);
+                            return 1;
+                        } catch (IllegalArgumentException ex) {
+                            ctx.getSource().sendFailure(Component.literal("Invalid job UUID"));
+                            return 0;
+                        }
+                    })))
             .then(Commands.literal("mill-evidence")
                 .then(Commands.argument("jobId", StringArgumentType.word())
                     .executes(ctx -> {
