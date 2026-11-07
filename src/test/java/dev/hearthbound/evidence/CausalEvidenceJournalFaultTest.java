@@ -121,16 +121,36 @@ public final class CausalEvidenceJournalFaultTest {
             yes(!journal.reconcile(a.eventId(), evidence -> true).activeForAudit());
         }
 
-        // Corrupt a middle-frame payload, then recompute its CRC: a subsequent
-        // frame's parent hash must still reveal the broken chain.
-        int middle = boundaries.get(1);
+        // Alter only the observed citizen UUID, which is NOT part of the
+        // event/physical ID canonicality check. Recompute the frame CRC to
+        // ensure it is specifically the NEXT frame's SHA-256 parent digest
+        // (not another validation rule) that detects the modification.
         byte[] forged = whole.clone();
-        int length = ByteBuffer.wrap(forged, middle, 4).getInt();
-        forged[middle + 8 + length - 2] ^= 0x01;
-        rewriteCrc(forged, middle);
+        byte[] citizenBytes = citizen.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        int changed = -1;
+        for (int offset = 36; offset + citizenBytes.length <= boundaries.get(1); offset++) {
+            boolean matches = true;
+            for (int i = 0; i < citizenBytes.length; i++) {
+                if (forged[offset + i] != citizenBytes[i]) {
+                    matches = false;
+                    break;
+                }
+            }
+            if (matches) {
+                changed = offset + 5;
+                break;
+            }
+        }
+        if (changed < 0) throw new AssertionError("No citizen ID in observed frame");
+        forged[changed] = (byte) (forged[changed] == 'a' ? 'b' : 'a');
+        rewriteCrc(forged, 28);
         Path bad = folder.resolve("corrupt.bin");
         Files.write(bad, forged);
-        rejects(() -> new CausalEvidenceJournal(bad, world));
+        try (var unexpected = new CausalEvidenceJournal(bad, world)) {
+            throw new AssertionError("Rechecksummed forged record was accepted");
+        } catch (IOException expected) {
+            yes(expected.getMessage().contains("broken hash chain"));
+        }
 
         // A valid header copied from another world must not be accepted.
         rejects(() -> new CausalEvidenceJournal(valid, UUID.randomUUID()));
