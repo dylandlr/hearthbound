@@ -65,6 +65,12 @@ with Rcon() as r:
         time.sleep(.5)
     if speed==0: raise AssertionError("Create millstone not powered")
     r.contains("sable spawn","Sable spawned")
+    # A previous reboot can leave a second marked actor in the fixture.
+    # Never interpret a successful assignment to one Sable while polling a
+    # different @e[limit=1] as a valid negative outcome.
+    marked=r.run("execute if entity @e[type=minecraft:villager,name=Sable]")
+    if "Test passed, count: 1" not in marked:
+        raise AssertionError("First mill test requires exactly one live Sable: "+marked)
     villager="@e[type=minecraft:villager,name=Sable,limit=1]"
     r.run(f"tp {villager} 2 101 1")
     r.contains(f"execute at {villager} run sable haul 3 101 1 7 101 1","Sable assigned wheat haul")
