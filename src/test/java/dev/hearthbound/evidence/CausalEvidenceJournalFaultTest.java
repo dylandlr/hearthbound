@@ -90,10 +90,10 @@ public final class CausalEvidenceJournalFaultTest {
             Files.write(target, Arrays.copyOf(whole, cut));
             if (boundaries.contains(cut)) {
                 try (var journal = new CausalEvidenceJournal(target, world)) {
-                    for (var view : List.of(journal.inspect(a.eventId()),
-                            journal.inspect(b.eventId()))) {
-                        if (view != null) yes(!view.activeForAudit());
-                    }
+                    var first = journal.inspect(a.eventId());
+                    var second = journal.inspect(b.eventId());
+                    if (first != null) yes(!first.activeForAudit());
+                    if (second != null) yes(!second.activeForAudit());
                     yes(journal.size() <= 2);
                 }
             } else {
