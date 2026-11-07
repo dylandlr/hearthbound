@@ -71,6 +71,10 @@ def run():
     receiver="@e[type=minecraft:villager,tag=hb_decision_receiver,limit=1]"
     sable="@e[type=minecraft:villager,name=Sable,limit=1]"
     prefix=f"hearthbound-report-choice {receiver} 3 101 1 7 101 1"
+    mlp_on=os.environ.get("HEARTHBOUND_REPORT_MLP","0")=="1"
+    mlp_prefix=f"hearthbound-report-mlp-choice {receiver} 3 101 1 7 101 1"
+    manifest=(Path("run/report-choice-mlp-v1.sha256").read_text().strip()
+              if mlp_on else "DISABLED")
     facts={}
     with Rcon() as r:
         for cmd in (
@@ -110,6 +114,9 @@ def run():
         withheld0=checks(r.require(prefix+" withheld","status=ABSTAIN"))
         if "reason=REPORT_EXPOSURE_WITHHELD" not in withheld0:
             raise AssertionError("Blind arm did not abstain before communication")
+        if mlp_on:
+            r.require(mlp_prefix+" exposed","status=ABSTAIN")
+            r.require(mlp_prefix+" withheld","status=ABSTAIN")
 
         # True physical memory is created on the sender, not the receiver.
         r.require(f"hearthbound citizen_observe 3 101 1 {sable}","wheat=3")
@@ -126,6 +133,20 @@ def run():
             raise AssertionError("Information-exposed policy ignored higher reported wheat")
         if "selected=NONE" not in arm_withheld:
             raise AssertionError("Withheld policy leaked private report")
+        if mlp_on:
+            neural_withheld=r.require(mlp_prefix+" withheld","status=ABSTAIN")
+            neural_exposed=r.require(mlp_prefix+" exposed","status=CHOOSE")
+            if "selected=NONE" not in neural_withheld:
+                raise AssertionError("Withheld MLP consumed recipient NBT")
+            if "selected=minecraft:overworld|3,101,1" not in neural_exposed:
+                raise AssertionError("Frozen MLP did not select fresh higher stock: "+neural_exposed)
+            for text in (neural_withheld,neural_exposed):
+                if ("inventory_read=false sensor_triggered=false" not in text
+                        or "reward_authorized=false" not in text
+                        or "learning_authorized=false" not in text):
+                    raise AssertionError("Frozen MLP violated no-inventory/read-only boundary: "+text)
+            if "model_sha256="+manifest not in neural_exposed:
+                raise AssertionError("Real Forge model was not SHA-pinned to preboot training")
         after_a=r.require("data get block 3 101 1 Items",'Count: 3b')
         after_b=r.require("data get block 7 101 1 Items",'Count: 1b')
         if before_a!=after_a or before_b!=after_b:
@@ -140,6 +161,10 @@ def run():
         stale=checks(r.require(prefix+" exposed","status=CHOOSE"))
         if "selected=minecraft:overworld|3,101,1" not in stale:
             raise AssertionError("Policy learned operator chest mutation without communication")
+        if mlp_on:
+            neural_stale=r.require(mlp_prefix+" exposed","status=CHOOSE")
+            if "selected=minecraft:overworld|3,101,1" not in neural_stale:
+                raise AssertionError("MLP secretly learned inventory mutation without new report")
         # A new direct EMPTY observation is shared. This must supersede the
         # previous AVAILABLE(3) report, even within the SAME server tick.
         r.require(f"hearthbound citizen_observe 3 101 1 {sable}","wheat=0")
@@ -149,6 +174,14 @@ def run():
             raise AssertionError("New EMPTY report did not invalidate old A source: "+revised)
         if "selected=NONE" not in checks(r.require(prefix+" withheld","status=ABSTAIN")):
             raise AssertionError("Withheld arm learned from other experiment condition")
+        if mlp_on:
+            neural_update=r.require(mlp_prefix+" exposed","status=CHOOSE")
+            if "selected=minecraft:overworld|7,101,1" not in neural_update:
+                raise AssertionError("MLP ignored updated empty A report: "+neural_update)
+            if "selected=NONE" not in r.require(mlp_prefix+" withheld","status=ABSTAIN"):
+                raise AssertionError("Withheld MLP leaked updated report")
+            print("REAL_FORGE_FROZEN_MLP_REPORT_SWITCH_PASS prior=A updated=B "
+                  "withheld=ABSTAIN sha256="+manifest+" rewards=0",flush=True)
         r.require("data get block 3 101 1 Items","has the following block data: []")
         r.require("data get block 7 101 1 Items","Count: 1b")
         facts={
@@ -164,6 +197,11 @@ def run():
             "after_new_empty_report":"CHOOSE_SOURCE_B",
             "physical_haul_executed":False,"reward_authorized":False,
             "neural_learning_performed":False,"research_credit":0,
+            "frozen_mlp_evaluated":mlp_on,
+            "frozen_mlp_model_sha256":manifest,
+            "frozen_mlp_exposed_initial":"CHOOSE_SOURCE_A" if mlp_on else "NOT_RUN",
+            "frozen_mlp_exposed_after_report_update":"CHOOSE_SOURCE_B" if mlp_on else "NOT_RUN",
+            "frozen_mlp_withheld":"ABSTAIN" if mlp_on else "NOT_RUN",
         }
         Path("real-report-choice-results.json").write_text(
             json.dumps(facts,indent=2,sort_keys=True)+"\n",encoding="utf-8")
