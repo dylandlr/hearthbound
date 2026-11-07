@@ -4,7 +4,7 @@
 World-backed behavioral test, not evidence that Sable autonomously discovered a
 recipe. No automatic research credit or teaching occurs.
 """
-import os, re, socket, struct, time
+import json, os, re, socket, struct, time
 
 def packet(req, typ, value):
     body=struct.pack("<ii",req,typ)+value.encode()+b"\0\0"
@@ -224,8 +224,7 @@ with Rcon() as r:
         # its own wheat while we monitor the unauthorized dropped item.
         # Preserve both live reservation and task state; no intervention
         # should be credited to the agent.
-        # Keep the parked actor's chunk loaded so RCON can restore the same
-        # entity for the subsequent post-admission contamination experiment.
+        # Keep the parked actor's chunk loaded for later adversarial test restore.
         r.run("forceload add 32 0 47 4")
         # The original test teleported the citizen outside the prepared
         # stone floor. A parked agent could fall away or die before restore.
@@ -372,6 +371,14 @@ with Rcon() as r:
             raise AssertionError("Unauthorized Create processing consumed tampered input: "+inventory)
         print("PASS: extra wheat inserted after authorized delivery invalidated processing evidence",flush=True)
     if os.environ.get("HEARTHBOUND_RESTART_PROBE") == "1":
+        # A source-independent, operator-side baseline. No in-game agent may
+        # read this file; after reboot the complete receipt must match exactly.
+        if "status=PROPOSED" not in proposed:
+            raise AssertionError("No valid mill outcome to use for restart comparison")
+        with open("mill-outcome-pre-restart.json", "w", encoding="utf-8") as out:
+            json.dump({"schema": "hearthbound.outcome-restart-checkpoint.v1",
+                       "job": job_match.group(1), "receipt": proposed},
+                      out, sort_keys=True, indent=2)
         with open("mill-evidence-job.txt", "w", encoding="utf-8") as out:
             out.write(job_match.group(1) + "\n")
         r.run("save-all flush")

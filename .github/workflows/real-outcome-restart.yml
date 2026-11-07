@@ -1,0 +1,83 @@
+name: Real Forge causal outcome restart acceptance
+on:
+  push:
+    branches:
+      - 'test/real-outcome-restart-v0-15-7'
+  pull_request:
+    paths:
+      - 'scripts/rcon_sable_first_mill.py'
+      - 'scripts/rcon_outcome_restart_acceptance.py'
+      - '.github/workflows/real-outcome-restart.yml'
+      - 'src/main/java/dev/hearthbound/world/**'
+jobs:
+  outcome-restart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.8'
+      - name: Two real Forge/Create server boots with exact causal evidence comparison
+        shell: bash
+        env:
+          HEARTHBOUND_RCON_PASSWORD: ci-local-disposable-password
+          HEARTHBOUND_RESTART_PROBE: '1'
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/rcon_sable_first_mill.py scripts/rcon_outcome_restart_acceptance.py
+          mkdir -p run
+          printf 'eula=true\n' > run/eula.txt
+          printf 'online-mode=false\nlevel-name=real-causal-outcome-restart\nmax-players=2\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties
+          boot() {
+            local output="$1"
+            gradle --no-daemon runServer > "$output" 2>&1 &
+            pid=$!
+            local ready=0
+            for i in $(seq 1 360); do
+              if grep -Eq 'Done \([0-9.]+s\)! For help, type "help"' "$output"; then ready=1; break; fi
+              if ! kill -0 "$pid" 2>/dev/null; then tail -n 120 "$output"; exit 1; fi
+              sleep 2
+            done
+            if [ "$ready" -ne 1 ]; then tail -n 120 "$output"; exit 1; fi
+          }
+          pid=''
+          trap 'if [ -n "$pid" ]; then kill "$pid" 2>/dev/null || true; fi' EXIT
+          boot real-outcome-restart-first.log
+          python3 scripts/rcon_sable_first_mill.py | tee real-outcome-restart-before-rcon.log
+          test -s mill-outcome-pre-restart.json
+          for i in $(seq 1 90); do
+            if ! kill -0 "$pid" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          if kill -0 "$pid" 2>/dev/null; then
+            echo 'First Forge server did not stop after save-all flush / RCON stop' >&2
+            exit 1
+          fi
+          wait "$pid" || true
+          boot real-outcome-restart-second.log
+          python3 scripts/rcon_outcome_restart_acceptance.py | tee real-outcome-restart-after-rcon.log
+          grep -q 'REAL_FORGE_OUTCOME_RESTART_EXACT_MATCH' real-outcome-restart-after-rcon.log
+          grep -q 'REAL_FORGE_OUTCOME_RESTART_PASS' real-outcome-restart-after-rcon.log
+          echo 'REAL_FORGE_CAUSAL_EVIDENCE_PERSISTENCE_PASS no_rewards=true'
+      - name: Archive both worlds' logs and outside-citizen baseline
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-forge-causal-outcome-restart-evidence
+          path: |
+            real-outcome-restart-first.log
+            real-outcome-restart-second.log
+            real-outcome-restart-before-rcon.log
+            real-outcome-restart-after-rcon.log
+            mill-outcome-pre-restart.json
+            mill-evidence-job.txt
+            run/logs/latest.log
+          if-no-files-found: warn
+          retention-days: 14
