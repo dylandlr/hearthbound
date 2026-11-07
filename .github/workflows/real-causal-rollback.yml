@@ -1,0 +1,121 @@
+name: Real Forge causal journal partial rollback (no credits)
+on:
+  push:
+    branches:
+      - 'test/causal-journal-rollback-faults-v0-15-9'
+  pull_request:
+    paths:
+      - 'src/main/java/dev/hearthbound/evidence/CausalEvidenceJournal.java'
+      - 'src/test/java/dev/hearthbound/evidence/CausalEvidenceJournalFaultTest.java'
+      - 'scripts/rcon_causal_rollback.py'
+      - 'scripts/rcon_sable_first_mill.py'
+      - '.github/workflows/real-causal-rollback.yml'
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 48
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.8'
+      - name: Prove missing rolled-back Create callback revokes durable journal
+        shell: bash
+        env:
+          HEARTHBOUND_RCON_PASSWORD: ci-local-disposable-password
+          HEARTHBOUND_RESTART_PROBE: '1'
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/rcon_causal_rollback.py scripts/rcon_sable_first_mill.py
+          mkdir -p run
+          printf 'eula=true\n' > run/eula.txt
+          printf 'online-mode=false\nlevel-name=causal-rollback-world\nmax-players=2\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties
+          pid=''
+          trap 'if [ -n "$pid" ]; then kill "$pid" 2>/dev/null || true; fi' EXIT
+          boot() {
+            local log="$1"
+            gradle --no-daemon runServer > "$log" 2>&1 &
+            pid=$!
+            local ready=0
+            for i in $(seq 1 360); do
+              if grep -Eq 'Done \([0-9.]+s\)! For help, type "help"' "$log"; then ready=1; break; fi
+              if ! kill -0 "$pid" 2>/dev/null; then tail -n 100 "$log"; exit 1; fi
+              sleep 2
+            done
+            if [ "$ready" -ne 1 ]; then tail -n 100 "$log"; exit 1; fi
+          }
+          await_stop() {
+            for i in $(seq 1 90); do
+              if ! kill -0 "$pid" 2>/dev/null; then break; fi
+              sleep 1
+            done
+            if kill -0 "$pid" 2>/dev/null; then
+              echo "Minecraft server did not stop cleanly" >&2
+              exit 1
+            fi
+            wait "$pid" || true
+            pid=''
+          }
+
+          # World UUID is created and persisted before any mill processing.
+          boot rollback-baseline-forge.log
+          python3 scripts/rcon_causal_rollback.py seed | tee rollback-baseline-rcon.log
+          await_stop
+
+          world=run/causal-rollback-world
+          journal="$world/data/hearthbound/causal-outcomes-v1.bin"
+          receipt="$world/data/hearthbound_mill_process_receipts_v1.dat"
+          test -s "$journal"
+          if [ -e "$receipt" ]; then
+            echo "Create process receipt unexpectedly exists before processing" >&2
+            exit 1
+          fi
+
+          # Actual Minecraft villager + powered Create process + audit admission.
+          boot rollback-process-forge.log
+          python3 scripts/rcon_sable_first_mill.py | tee rollback-process-rcon.log
+          await_stop
+          test -s "$journal"
+          test -s "$receipt"
+          test -s mill-outcome-pre-restart.json
+          cp "$journal" preserved-causal-evidence-before-rollback.bin
+          sha256sum "$journal" | tee rollback-audit-journal-sha256.txt
+          cp "$receipt" actual-create-callback-before-rollback.dat
+
+          # Simulated partial Minecraft save rollback. Revert ONLY the Create
+          # SavedData to its baseline state (absent before processing). Keep
+          # the world UUID, citizen NBT and separate durable journal untouched.
+          rm -- "$receipt"
+          test ! -e "$receipt"
+          echo "CAUSAL_FAULT_INJECTION original_create_receipt_removed=true journal_preserved=true"
+
+          boot rollback-reconcile-forge.log
+          python3 scripts/rcon_causal_rollback.py verify | tee rollback-reconcile-rcon.log
+          grep -q "REAL_FORGE_CAUSAL_ROLLBACK_REVOKED" rollback-reconcile-rcon.log
+          test -s "$journal"
+          echo "REAL_CAUSAL_PARTIAL_ROLLBACK_PASS no_payout=true"
+      - name: Archive Forge server logs and fault injection evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-forge-causal-rollback-logs
+          path: |
+            rollback-baseline-forge.log
+            rollback-process-forge.log
+            rollback-reconcile-forge.log
+            rollback-baseline-rcon.log
+            rollback-process-rcon.log
+            rollback-reconcile-rcon.log
+            rollback-audit-journal-sha256.txt
+            preserved-causal-evidence-before-rollback.bin
+            actual-create-callback-before-rollback.dat
+            mill-outcome-pre-restart.json
+            run/logs/latest.log
+          if-no-files-found: warn
+          retention-days: 14
