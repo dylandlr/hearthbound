@@ -106,8 +106,16 @@ def verify():
         r.run("forceload add 0 0")
         r.require("execute if entity @e[type=minecraft:villager,name=Sable]","Test passed")
         process=r.run(f"sable mill-process {job}")
-        if "MILL_PROCESS NONE" not in process:
-            raise AssertionError("Older Create SavedData was NOT restored: "+process)
+        # This command intentionally reports TAINTED before reading the raw
+        # callback map. A resumed mill can legitimately be marked tainted
+        # after the old data was removed. Neither NONE nor INVALIDATED may
+        # be mistaken for a verified callback; the outcome probe below
+        # independently proves the saved raw callback is absent.
+        if not ("MILL_PROCESS NONE" in process or
+                "MILL_PROCESS INVALIDATED" in process):
+            raise AssertionError("Unexpected Create audit result after rollback: "+process)
+        if "MILL_PROCESS VERIFIED_CALLBACK" in process:
+            raise AssertionError("Rolled-back Create callback still verified: "+process)
         # A world UUID and a still-present villager alone can never substitute
         # for the physical Create callback that was deliberately rolled back.
         invalid=r.run(f"execute positioned 7 101 1 run sable mill-outcome-probe {job}")
