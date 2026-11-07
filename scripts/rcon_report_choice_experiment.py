@@ -82,13 +82,25 @@ def run():
             'setblock 7 101 1 minecraft:chest{Items:[{Slot:0b,id:"minecraft:wheat",Count:1b}]} replace',
         ): r.run(cmd)
         r.require("execute positioned 2 101 2 run sable spawn","Sable spawned")
+        # Cross-process Forge tests can race the first entity tick.
+        for _ in range(40):
+            if "Test passed" in r.run(f"execute if entity {sable}"):
+                break
+            time.sleep(0.25)
+        else:
+            raise AssertionError("Sender Sable never became a loaded real entity")
         r.require(f"tp {sable} 4 101 2","Teleported")
         # Freeze the sender after locating it; this fixture tests information
         # exposure, not Sable's pathfinding or follow-player behavior.
         r.require(f"data merge entity {sable} {{NoAI:1b}}","Modified entity data")
         summoned=r.run("""summon minecraft:villager 6 101 2 {CustomName:'{"text":"ReportRecipient"}',Tags:["hb_decision_receiver"],ForgeData:{"hearthbound.citizen":1b},NoAI:1b}""")
         if "Summoned new" not in summoned: raise AssertionError("Real recipient not summoned: "+summoned)
-        r.require(f"execute if entity {receiver}","Test passed")
+        for _ in range(40):
+            if "Test passed" in r.run(f"execute if entity {receiver}"):
+                break
+            time.sleep(0.25)
+        else:
+            raise AssertionError("Marked recipient never became a loaded entity")
 
         # Before delivery, neither exposed nor withheld condition may find a
         # private report. No real inventory is read by this decision function.
