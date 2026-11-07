@@ -181,6 +181,12 @@ with Rcon() as r:
         print("REAL_FORGE_TWO_ROLE_WITNESS_PASS witness_assigned_before_process=true "
               "direct_observation_only=true replay_changed_revision_denied=true "
               "personal_rewards=0 research_rewards=0",flush=True)
+    else:
+        # The existing single-citizen experiment is never retroactively
+        # upgraded to a two-citizen research event by proximity or hearsay.
+        unwitnessed=r.run(f"execute at {villager} run sable mill-witness-probe {job_match.group(1)}")
+        if "status=DENIED reason=NO_WITNESSED_ASSIGNMENT" not in unwitnessed:
+            raise AssertionError("Ordinary real mill result acquired a fabricated witness: "+unwitnessed)
     # v0.15.6: joined proof must be derived from real executor NBT,
     # the real Create callback, and an active untainted mill lease.
     proposed=r.run(f"execute at {villager} run sable mill-outcome-probe {job_match.group(1)}")
