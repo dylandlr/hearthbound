@@ -4,6 +4,7 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import java.util.UUID;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
+import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.core.BlockPos;
 import dev.hearthbound.ai.ActionGate;
 import dev.hearthbound.ai.ColonyPolicy;
@@ -62,6 +63,30 @@ public final class SableController {
                 source.sendSuccess(() -> Component.literal("Sable spawned. She will follow nearby players."), true);
                 return 1;
             }))
+            .then(Commands.literal("haul-witnessed")
+                .then(Commands.argument("source", BlockPosArgument.blockPos())
+                    .then(Commands.argument("destination", BlockPosArgument.blockPos())
+                        .then(Commands.argument("witness", EntityArgument.entity())
+                            .executes(ctx -> {
+                                ServerLevel level = ctx.getSource().getLevel();
+                                Villager executor = nearestSable(ctx.getSource());
+                                if (executor == null) {
+                                    ctx.getSource().sendFailure(Component.literal("No executor Sable within 16 blocks"));
+                                    return 0;
+                                }
+                                net.minecraft.world.entity.Entity candidate =
+                                    EntityArgument.getEntity(ctx, "witness");
+                                if (!(candidate instanceof Villager witness)) {
+                                    ctx.getSource().sendFailure(Component.literal("Witness must be a marked villager"));
+                                    return 0;
+                                }
+                                BlockPos from = BlockPosArgument.getLoadedBlockPos(ctx, "source");
+                                BlockPos to = BlockPosArgument.getLoadedBlockPos(ctx, "destination");
+                                String result = DirectSourceWitnessBridge.assign(
+                                    level, executor, witness, from, to);
+                                ctx.getSource().sendSuccess(() -> Component.literal(result), false);
+                                return result.startsWith("WITNESSED_HAUL_ASSIGNED") ? 1 : 0;
+                            }))))
             .then(Commands.literal("haul")
                 .then(Commands.argument("source", BlockPosArgument.blockPos())
                     .then(Commands.argument("destination", BlockPosArgument.blockPos())
@@ -232,6 +257,25 @@ public final class SableController {
                             ctx.getSource().sendSuccess(() -> Component.literal(receipt), false);
                             return 1;
                         } catch (IllegalArgumentException ex) {
+                            ctx.getSource().sendFailure(Component.literal("Invalid job UUID"));
+                            return 0;
+                        }
+                    })))
+            .then(Commands.literal("mill-witness-probe")
+                .then(Commands.argument("jobId", StringArgumentType.word())
+                    .executes(ctx -> {
+                        Villager executor = nearestSable(ctx.getSource());
+                        if (executor == null) {
+                            ctx.getSource().sendFailure(Component.literal("No executor Sable within 16 blocks"));
+                            return 0;
+                        }
+                        try {
+                            UUID job = UUID.fromString(StringArgumentType.getString(ctx, "jobId"));
+                            String evidence = DirectSourceWitnessBridge.inspect(
+                                ctx.getSource().getLevel(), executor, job);
+                            ctx.getSource().sendSuccess(() -> Component.literal(evidence), false);
+                            return evidence.contains("status=VERIFIED") ? 1 : 0;
+                        } catch (IllegalArgumentException invalid) {
                             ctx.getSource().sendFailure(Component.literal("Invalid job UUID"));
                             return 0;
                         }
