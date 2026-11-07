@@ -86,7 +86,7 @@ public final class SableController {
                                     level, executor, witness, from, to);
                                 ctx.getSource().sendSuccess(() -> Component.literal(result), false);
                                 return result.startsWith("WITNESSED_HAUL_ASSIGNED") ? 1 : 0;
-                            }))))
+                            })))))
             .then(Commands.literal("haul")
                 .then(Commands.argument("source", BlockPosArgument.blockPos())
                     .then(Commands.argument("destination", BlockPosArgument.blockPos())
