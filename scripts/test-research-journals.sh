@@ -20,6 +20,7 @@ javac --release 17 -d "$OUT" \
   "$BASE/CausalEvidenceJournal.java" \
   "$BASE/DirectSourceWitnessContract.java" \
   "$BASE/ReportConditionedChoice.java" \
+  "$BASE/ReportChoiceMlp.java" \
   "$BASE/JournalWorldBinding.java" \
   "$TEST/WorldIdentityCodecTest.java" \
   "$TEST/WorldIdentityExportFenceTest.java" \
@@ -32,7 +33,8 @@ javac --release 17 -d "$OUT" \
   "$TEST/CausalEvidenceJournalTest.java" \
   "$TEST/CausalEvidenceJournalFaultTest.java" \
   "$TEST/DirectSourceWitnessContractTest.java" \
-  "$TEST/ReportConditionedChoiceTest.java"
+  "$TEST/ReportConditionedChoiceTest.java" \
+  "$TEST/ReportChoiceMlpTest.java"
 for cls in \
   WorldIdentityCodecTest \
   WorldIdentityExportFenceTest \
@@ -45,7 +47,8 @@ for cls in \
   CausalEvidenceJournalTest \
   CausalEvidenceJournalFaultTest \
   DirectSourceWitnessContractTest \
-  ReportConditionedChoiceTest; do
+  ReportConditionedChoiceTest \
+  ReportChoiceMlpTest; do
   echo "== $cls =="
   java -ea -cp "$OUT" "dev.hearthbound.evidence.$cls"
 done
