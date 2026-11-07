@@ -70,6 +70,7 @@ class Rcon:
 def seed():
     with Rcon() as r:
         r.run("forceload add 0 0")
+        r.run("setblock 2 100 1 minecraft:stone replace")
         r.require("execute positioned 2 101 1 run sable spawn","Sable spawned")
         empty=r.run("execute positioned 2 101 1 run sable mill-outcome-journal "+MISSING_JOB)
         if "state=DENIED reason=UNVERIFIED_MINECRAFT_EVIDENCE" not in empty:
