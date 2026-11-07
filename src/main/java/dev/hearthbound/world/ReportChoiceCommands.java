@@ -64,7 +64,7 @@ public final class ReportChoiceCommands {
                                     first, second, treatment);
                                 source.sendSuccess(() -> Component.literal(result), false);
                                 return 1; // a valid, read-only ABSTAIN is success
-                            })))));
+                            }))))));
     }
 
     private static String key(ServerLevel level, BlockPos pos) {
