@@ -90,6 +90,39 @@ public final class CitizenKnowledgeExchange {
             + " action_authorized=false";
     }
 
+    /**
+     * A recipient-owned, previously delivered REPORT, not current world truth.
+     * Used for a read-only decision experiment. Does not force-load a chunk,
+     * consult sender memory, read any inventory or authorize physical work.
+     */
+    public static CompoundTag decisionReport(ServerLevel level, BlockPos source, Villager recipient) {
+        if (level == null || source == null || recipient == null
+                || recipient.level() != level || !citizen(recipient))
+            return null;
+        ListTag reports = recipient.getPersistentData().getCompound(ROOT)
+            .getList(ENTRIES, Tag.TAG_COMPOUND);
+        CompoundTag newest = null;
+        long now = level.getGameTime();
+        for (int i = 0; i < reports.size(); i++) {
+            CompoundTag r = reports.getCompound(i);
+            long delivered = r.getLong("delivered_tick");
+            long observed = r.getLong("observed_tick");
+            if (!key(level, source).equals(r.getString("source"))
+                    || !"REPORTED_DIRECT_FORGE_OBSERVATION".equals(r.getString("origin"))
+                    || !"AVAILABLE".equals(r.getString("state"))
+                    || !r.hasUUID("recipient") || !r.getUUID("recipient").equals(recipient.getUUID())
+                    || !r.hasUUID("sender") || r.getUUID("sender").equals(recipient.getUUID())
+                    || r.getInt("wheat") <= 0 || r.getInt("source_revision") < 1
+                    || observed < 0 || observed > delivered
+                    || delivered > now || now - delivered > REPORT_TTL_TICKS
+                    || delivered - observed > CitizenSourceKnowledge.FRESH_TICKS)
+                continue;
+            if (newest == null || delivered > newest.getLong("delivered_tick"))
+                newest = r;
+        }
+        return newest == null ? null : newest.copy();
+    }
+
     /** Operator inspection, never pulls current inventory or sender's private data. */
     public static String inspect(ServerLevel level, BlockPos source, Villager recipient) {
         if (level == null || source == null || recipient == null)
