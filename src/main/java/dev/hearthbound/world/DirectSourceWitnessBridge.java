@@ -21,12 +21,13 @@ public final class DirectSourceWitnessBridge {
     private DirectSourceWitnessBridge() {}
 
     private static DirectSourceWitnessContract.DirectSource direct(
-            ServerLevel level, Villager observer, BlockPos source) {
+            ServerLevel level, Villager observer, BlockPos source, boolean requireNearbyNow) {
         if (level == null || observer == null || source == null
                 || observer.level() != level || !CitizenSourceKnowledge.isCitizen(observer)
                 || !level.hasChunkAt(source)
-                || observer.distanceToSqr(source.getX() + 0.5, source.getY() + 0.5,
-                    source.getZ() + 0.5) > 16.0 * 16.0)
+                || (requireNearbyNow && observer.distanceToSqr(
+                    source.getX() + 0.5, source.getY() + 0.5,
+                    source.getZ() + 0.5) > 16.0 * 16.0))
             throw new IllegalArgumentException("observer cannot attest to this loaded source");
         CompoundTag memory = CitizenSourceKnowledge.directEvidence(level, source, observer);
         if (memory == null || !"DIRECT_FORGE_OBSERVATION".equals(memory.getString("origin"))
@@ -47,7 +48,7 @@ public final class DirectSourceWitnessBridge {
             return denied("INVALID_PARTICIPANTS");
         DirectSourceWitnessContract.DirectSource direct;
         try {
-            direct = direct(level, witness, source);
+            direct = direct(level, witness, source, true);
             // Preflight ALL witness validation before creating an actual job.
             // bind is repeated with the actual minted job UUID immediately
             // after assignment, on the same authoritative server thread.
@@ -139,7 +140,7 @@ public final class DirectSourceWitnessBridge {
             if (!(entity instanceof Villager observer) || !CitizenSourceKnowledge.isCitizen(observer))
                 return denied("WITNESS_NOT_LOADED");
             DirectSourceWitnessContract.DirectSource currentlyRecorded =
-                direct(level, observer, BlockPos.of(assignment.source()));
+                direct(level, observer, BlockPos.of(assignment.source()), false);
             if (!DirectSourceWitnessContract.matchesProcess(link, currentlyRecorded,
                     world, job, executor.getUUID(), level.dimension().location().toString(),
                     assignment.source(), assignment.assignedTick(), physical.observedStartTick()))
