@@ -73,7 +73,35 @@ with Rcon() as r:
         raise AssertionError("First mill test requires exactly one live Sable: "+marked)
     villager="@e[type=minecraft:villager,name=Sable,limit=1]"
     r.run(f"tp {villager} 2 101 1")
-    r.contains(f"execute at {villager} run sable haul 3 101 1 7 101 1","Sable assigned wheat haul")
+    witnessed=os.environ.get("HEARTHBOUND_DIRECT_WITNESS")=="1"
+    witness_selector="@e[type=minecraft:villager,tag=hb_mill_source_witness,limit=1]"
+    if witnessed:
+        # This is a separate physical, marked villager, not Sable and not
+        # an LLM-driven collaborator. A report or proximity alone cannot
+        # authorize the executor's assignment.
+        spawned=r.run("""summon minecraft:villager 4 101 3 {CustomName:'{"text":"MillWitness"}',Tags:["hb_mill_source_witness"],ForgeData:{"hearthbound.citizen":1b},NoAI:1b}""")
+        if "Summoned new" not in spawned:
+            raise AssertionError("Could not spawn independent direct observer: "+spawned)
+        present=r.run("execute if entity @e[type=minecraft:villager,tag=hb_mill_source_witness,limit=1]")
+        if "Test passed, count: 1" not in present:
+            raise AssertionError("Marked source witness absent from actual world: "+present)
+        missing=r.run(f"execute at {villager} run sable haul-witnessed 3 101 1 7 101 1 {witness_selector}")
+        if "status=DENIED reason=NO_FRESH_DIRECT_SOURCE_WITNESS" not in missing:
+            raise AssertionError("Hearsay-free, unobserved witness incorrectly authorized a haul: "+missing)
+        empty_preflight=r.run("sable mill-reservation 7 101 1")
+        if "MILL_RESERVATION NONE" not in empty_preflight:
+            raise AssertionError("Denied preflight acquired a research lease: "+empty_preflight)
+        observation=r.run(f"hearthbound citizen_observe 3 101 1 {witness_selector}")
+        if "status=OBSERVED" not in observation or "wheat=8" not in observation:
+            raise AssertionError("Independent witness failed to observe real stock: "+observation)
+        before_claim=r.run(f"execute at {villager} run sable haul-witnessed 3 101 1 7 101 1 {witness_selector}")
+        for token in ("WITNESSED_HAUL_ASSIGNED", "dependency=PRE_TASK_DIRECT_SOURCE_OBSERVATION",
+                      "decision_origin=OPERATOR_ASSISTED", "reward_authorized=false",
+                      "learning_authorized=false"):
+            if token not in before_claim:
+                raise AssertionError("Verified witness did not gate executor assignment: "+before_claim)
+    else:
+        r.contains(f"execute at {villager} run sable haul 3 101 1 7 101 1","Sable assigned wheat haul")
     # Only Sable is allowed to transport the wheat; no /summon item.
     complete=False
     for _ in range(180):
@@ -133,6 +161,32 @@ with Rcon() as r:
         raise AssertionError("No direct Create processing callback receipt: "+receipt)
     if "wheatBefore=1 wheatAfter=0" not in receipt or "NO_RESEARCH_CREDIT" not in receipt:
         raise AssertionError("Invalid process receipt or premature knowledge credit: "+receipt)
+    if witnessed:
+        witnessed_process=r.run(f"execute at {villager} run sable mill-witness-probe {job_match.group(1)}")
+        for token in ("MILL_WITNESS_EVIDENCE status=VERIFIED",
+                      "roles=PHYSICAL_EXECUTOR,PRE_TASK_DIRECT_SOURCE_WITNESS",
+                      "witness_gated_assignment=true independent_policy_choice=false",
+                      "personal_milli=0 colony_milli=0 research_milli=0",
+                      "reward_authorized=false", "learning_authorized=false"):
+            if token not in witnessed_process:
+                raise AssertionError("Post-Create two-citizen source link was not verified: "+witnessed_process)
+        # The other citizen may revise their memory; an outcome cannot
+        # retroactively reuse changed observations as the same original proof.
+        refreshed=r.run(f"hearthbound citizen_observe 3 101 1 {witness_selector}")
+        if "status=OBSERVED" not in refreshed or "wheat=7" not in refreshed:
+            raise AssertionError("Witness revision intervention failed: "+refreshed)
+        now_stale=r.run(f"execute at {villager} run sable mill-witness-probe {job_match.group(1)}")
+        if "status=DENIED reason=WITNESS_EVIDENCE_CHANGED_OR_WRONG_JOB" not in now_stale:
+            raise AssertionError("A changed witness revision silently retained attribution: "+now_stale)
+        print("REAL_FORGE_TWO_ROLE_WITNESS_PASS witness_assigned_before_process=true "
+              "direct_observation_only=true replay_changed_revision_denied=true "
+              "personal_rewards=0 research_rewards=0",flush=True)
+    else:
+        # The existing single-citizen experiment is never retroactively
+        # upgraded to a two-citizen research event by proximity or hearsay.
+        unwitnessed=r.run(f"execute at {villager} run sable mill-witness-probe {job_match.group(1)}")
+        if "status=DENIED reason=NO_WITNESSED_ASSIGNMENT" not in unwitnessed:
+            raise AssertionError("Ordinary real mill result acquired a fabricated witness: "+unwitnessed)
     # v0.15.6: joined proof must be derived from real executor NBT,
     # the real Create callback, and an active untainted mill lease.
     proposed=r.run(f"execute at {villager} run sable mill-outcome-probe {job_match.group(1)}")
