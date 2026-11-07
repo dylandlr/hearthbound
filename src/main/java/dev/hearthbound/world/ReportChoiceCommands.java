@@ -67,12 +67,12 @@ public final class ReportChoiceCommands {
                             }))))));
     }
 
-    private static String key(ServerLevel level, BlockPos pos) {
+    static String key(ServerLevel level, BlockPos pos) {
         return level.dimension().location() + "|" + pos.getX() + ","
             + pos.getY() + "," + pos.getZ();
     }
 
-    private static ReportConditionedChoice.Report report(ServerLevel level,
+    static ReportConditionedChoice.Report report(ServerLevel level,
                                                          Villager recipient, BlockPos source) {
         CompoundTag r = CitizenKnowledgeExchange.decisionReport(level, source, recipient);
         if (r == null) return null;

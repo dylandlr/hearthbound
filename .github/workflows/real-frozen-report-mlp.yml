@@ -1,0 +1,134 @@
+name: Real Forge frozen report MLP paired comparison (shadow only)
+on:
+  push:
+    branches:
+      - 'feat/frozen-report-mlp-v0-16-2'
+  pull_request:
+    paths:
+      - 'src/main/java/dev/hearthbound/evidence/ReportChoiceMlp.java'
+      - 'src/main/java/dev/hearthbound/world/ReportChoiceMlpCommands.java'
+      - 'scripts/train_report_choice_mlp.py'
+      - 'scripts/rcon_report_choice_experiment.py'
+      - '.github/workflows/real-frozen-report-mlp.yml'
+jobs:
+  frozen-report-mlp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 42
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.8'
+      - name: Train entirely on simulated outcomes and freeze before Forge starts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/train_report_choice_mlp.py scripts/rcon_report_choice_experiment.py
+          python3 scripts/train_report_choice_mlp.py \
+            --model run/report-choice-mlp-v1.txt \
+            --sha run/report-choice-mlp-v1.sha256 \
+            --report report-choice-mlp-training.json
+          sha256sum run/report-choice-mlp-v1.txt | tee report-choice-mlp-preboot-checksum.txt
+          actual="$(sha256sum run/report-choice-mlp-v1.txt | cut -d' ' -f1)"
+          expected="$(cat run/report-choice-mlp-v1.sha256)"
+          test "$actual" = "$expected"
+          cp run/report-choice-mlp-v1.txt /tmp/report-choice-frozen-original.txt
+          python3 scripts/train_report_choice_mlp.py \
+            --model /tmp/report-choice-reproduced.txt \
+            --sha /tmp/report-choice-reproduced.sha256 \
+            --report /tmp/report-choice-reproduced.json
+          cmp /tmp/report-choice-frozen-original.txt /tmp/report-choice-reproduced.txt
+          test "$expected" = "$(cat /tmp/report-choice-reproduced.sha256)"
+          # Verify original Python trained weights and Java 17 inference
+          # produce the same scores/actions on independent synthetic inputs.
+          python3 scripts/verify_report_choice_mlp_parity.py \
+            --model run/report-choice-mlp-v1.txt \
+            --sha run/report-choice-mlp-v1.sha256 \
+            --out run/report-mlp-parity-v1.tsv
+          mkdir -p /tmp/hearthbound-report-parity-classes
+          javac --release 17 -d /tmp/hearthbound-report-parity-classes \
+            src/main/java/dev/hearthbound/evidence/ReportChoiceMlp.java \
+            src/test/java/dev/hearthbound/evidence/ReportChoiceMlpParity.java
+          java -cp /tmp/hearthbound-report-parity-classes \
+            dev.hearthbound.evidence.ReportChoiceMlpParity \
+            run/report-choice-mlp-v1.txt \
+            run/report-choice-mlp-v1.sha256 \
+            run/report-mlp-parity-v1.tsv
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("report-choice-mlp-training.json").read_text())
+          assert p["origin"]=="SIMULATED_SUPERVISED_OUTCOMES_ONLY"
+          assert p["forge_test_data_used_in_training"] is False
+          assert p["observations_include_real_minecraft_inventory"] is False
+          assert p["supervised_simulated_outcomes_not_reinforcement_learning"] is True
+          assert p["model_is_frozen_before_forge"] is True
+          print("SIMULATOR_TRAIN_ONLY_CHECK_PASSED",p["model_sha256"])
+          PY
+      - name: Prove the same real recipient report changes a frozen neural choice
+        shell: bash
+        env:
+          HEARTHBOUND_RCON_PASSWORD: ci-local-disposable-password
+          HEARTHBOUND_REPORT_MLP: '1'
+        run: |
+          set -euo pipefail
+          mkdir -p run
+          printf 'eula=true\n' > run/eula.txt
+          printf 'online-mode=false\nlevel-name=frozen-mlp-choice-world\nmax-players=2\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties
+          gradle --no-daemon runServer > real-report-mlp-forge.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 360); do
+            if grep -Eq 'Done \([0-9.]+s\)! For help, type "help"' real-report-mlp-forge.log; then ready=1; break; fi
+            if ! kill -0 "$pid" 2>/dev/null; then
+              tail -n 120 real-report-mlp-forge.log
+              exit 1
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then tail -n 120 real-report-mlp-forge.log; exit 1; fi
+          # On the same actual Minecraft world this script runs both the
+          # previously verified scripted choice and the frozen neural choice.
+          python3 scripts/rcon_report_choice_experiment.py | tee real-report-mlp-rcon.log
+          grep -q 'REAL_FORGE_FROZEN_MLP_REPORT_SWITCH_PASS' real-report-mlp-rcon.log
+          grep -q 'REAL_FORGE_REPORT_EXPOSURE_PAIRED_PASS' real-report-mlp-rcon.log
+          test "$(sha256sum run/report-choice-mlp-v1.txt | cut -d' ' -f1)" = "$(cat run/report-choice-mlp-v1.sha256)"
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          test=json.loads(Path("real-report-choice-results.json").read_text())
+          train=json.loads(Path("report-choice-mlp-training.json").read_text())
+          assert test["frozen_mlp_evaluated"] is True
+          assert test["frozen_mlp_model_sha256"]==train["model_sha256"]
+          assert test["frozen_mlp_exposed_initial"]=="CHOOSE_SOURCE_A"
+          assert test["frozen_mlp_exposed_after_report_update"]=="CHOOSE_SOURCE_B"
+          assert test["frozen_mlp_withheld"]=="ABSTAIN"
+          assert test["physical_haul_executed"] is False
+          assert test["reward_authorized"] is False
+          assert test["neural_learning_performed"] is False
+          print("REAL_FORGE_FROZEN_REPORT_MLP_SHADOW_PASS model_frozen=true no_payout=true")
+          PY
+      - name: Archive preboot weights, simulator evaluation, Forge evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frozen-report-mlp-real-forge-no-credits
+          path: |
+            run/report-choice-mlp-v1.txt
+            run/report-choice-mlp-v1.sha256
+            report-choice-mlp-training.json
+            report-choice-mlp-preboot-checksum.txt
+            run/report-mlp-parity-v1.tsv
+            real-report-choice-results.json
+            real-report-mlp-forge.log
+            real-report-mlp-rcon.log
+            run/logs/latest.log
+          if-no-files-found: warn
+          retention-days: 14
