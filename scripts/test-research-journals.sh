@@ -27,7 +27,8 @@ javac --release 17 -d "$OUT" \
   "$TEST/ResearchJournalRuntimeTest.java" \
   "$TEST/JournalWorldBindingTest.java" \
   "$TEST/OutcomeLedgerTest.java" \
-  "$TEST/CausalEvidenceJournalTest.java"
+  "$TEST/CausalEvidenceJournalTest.java" \
+  "$TEST/CausalEvidenceJournalFaultTest.java"
 for cls in \
   WorldIdentityCodecTest \
   WorldIdentityExportFenceTest \
@@ -37,7 +38,8 @@ for cls in \
   JournalWorldBindingTest \
   ResearchJournalRuntimeTest \
   OutcomeLedgerTest \
-  CausalEvidenceJournalTest; do
+  CausalEvidenceJournalTest \
+  CausalEvidenceJournalFaultTest; do
   echo "== $cls =="
   java -ea -cp "$OUT" "dev.hearthbound.evidence.$cls"
 done
