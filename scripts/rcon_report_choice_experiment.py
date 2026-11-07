@@ -83,6 +83,9 @@ def run():
         ): r.run(cmd)
         r.require("execute positioned 2 101 2 run sable spawn","Sable spawned")
         r.require(f"tp {sable} 4 101 2","Teleported")
+        # Freeze the sender after locating it; this fixture tests information
+        # exposure, not Sable's pathfinding or follow-player behavior.
+        r.require(f"data merge entity {sable} {{NoAI:1b}}","Modified entity data")
         summoned=r.run("""summon minecraft:villager 6 101 2 {CustomName:'{"text":"ReportRecipient"}',Tags:["hb_decision_receiver"],ForgeData:{"hearthbound.citizen":1b},NoAI:1b}""")
         if "Summoned new" not in summoned: raise AssertionError("Real recipient not summoned: "+summoned)
         r.require(f"execute if entity {receiver}","Test passed")
