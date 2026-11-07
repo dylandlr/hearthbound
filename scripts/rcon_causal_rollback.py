@@ -73,8 +73,27 @@ def seed():
         r.run("forceload add 0 0")
         r.run("setblock 2 100 1 minecraft:stone replace")
         r.require("execute positioned 2 101 1 run sable spawn","Sable spawned")
-        empty=r.run("execute positioned 2 101 1 run sable mill-outcome-journal "+MISSING_JOB)
-        if "state=DENIED reason=UNVERIFIED_MINECRAFT_EVIDENCE" not in empty:
+        # An entity added by /sable spawn can take another Minecraft tick
+        # before its chunk's entity query sees it. Do not infer a missing
+        # journal from an immediate operator command-selection race.
+        ready=False
+        for _ in range(30):
+            present=r.run("execute positioned 2 101 1 if entity @e[type=minecraft:villager,name=Sable,distance=..12]")
+            if "Test passed" in present:
+                ready=True
+                break
+            time.sleep(0.25)
+        if not ready:
+            raise AssertionError("Initial marked villager not visible to Minecraft after spawn")
+        empty=""
+        for _ in range(20):
+            empty=r.run("execute positioned 2 101 1 run sable mill-outcome-journal "+MISSING_JOB)
+            if "state=DENIED reason=UNVERIFIED_MINECRAFT_EVIDENCE" in empty:
+                break
+            if "No marked Sable within" not in empty:
+                raise AssertionError("Unexpected baseline journal state: "+empty)
+            time.sleep(0.25)
+        else:
             raise AssertionError("Could not initialize world-bound empty causal journal: "+empty)
         killed=r.run("kill @e[type=minecraft:villager,name=Sable]")
         if "Killed" not in killed:
