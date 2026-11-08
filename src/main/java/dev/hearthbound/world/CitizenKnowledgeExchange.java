@@ -84,6 +84,10 @@ public final class CitizenKnowledgeExchange {
         root.putString("schema", SCHEMA);
         root.put(ENTRIES, updated);
         recipient.getPersistentData().put(ROOT, root);
+        // Only a brand-new delivered direct observation with observation
+        // tick strictly after the recipient's real failed extraction can
+        // fulfill an explicitly requested source recheck.
+        SourceFailureBeliefs.fulfillAfterExplicitShare(level, recipient, source, report);
         return "KNOWLEDGE_SHARE status=DELIVERED source=" + key(level, source)
             + " sender=" + sender.getUUID() + " recipient=" + recipient.getUUID()
             + " observed_tick=" + observed + " delivered_tick=" + delivered
