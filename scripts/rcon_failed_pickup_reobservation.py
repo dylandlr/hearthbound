@@ -80,6 +80,13 @@ def main():
         require(r,f"hearthbound citizen_observe {B} {SCOUT}","wheat=1")
         require(r,f"hearthbound-share-direct {A} {SCOUT} {EX}","status=DELIVERED")
         require(r,f"hearthbound-share-direct {B} {SCOUT} {EX}","status=DELIVERED")
+        # Replaying an unchanged direct observation is still idempotent,
+        # but a later ACTUAL direct re-observation of unchanged wheat is
+        # distinct evidence, even with the same source state revision.
+        require(r,f"hearthbound-share-direct {B} {SCOUT} {EX}","status=DUPLICATE")
+        time.sleep(.20)
+        require(r,f"hearthbound citizen_observe {B} {SCOUT}","wheat=1")
+        require(r,f"hearthbound-share-direct {B} {SCOUT} {EX}","status=DELIVERED")
         # Adversarial source change AFTER delivered reports, no omniscient input.
         require(r,f"data modify block {A} Items set value []","Modified block data")
         check_count(r,A,0)
@@ -129,8 +136,11 @@ def main():
             raise AssertionError("Stale report re-entered scripted action menu: "+new_choice)
         # Explicit request for re-observation, but NOT an automatic remote read.
         request=require(r,f"hearthbound-reobserve-request {EX} {A}","status=REQUESTED")
-        if "scout_observed=false" not in request:
-            raise AssertionError("Request faked a scout observation")
+        if "scout_observed=false" not in request or "failed_job="+job not in request:
+            raise AssertionError("Request did not bind real failed-job UUID: "+request)
+        repeat=r.run(f"hearthbound-reobserve-request {EX} {A}")
+        if "reason=ALREADY_AWAITING_SCOUT" not in repeat:
+            raise AssertionError("Repeated request laundered failure timestamp: "+repeat)
         outcome["request_receipt"]=request
         old_replay=r.run(f"hearthbound-share-direct {A} {SCOUT} {EX}")
         if "status=DUPLICATE" not in old_replay:
