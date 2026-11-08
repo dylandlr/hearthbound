@@ -32,9 +32,12 @@ public final class SourceFailureBeliefs {
     }
 
     private static boolean validRoot(CompoundTag root) {
-        return PickupFailureContract.SCHEMA.equals(root.getString("schema"))
-            && root.contains(ENTRIES, Tag.TAG_LIST)
-            && !root.getBoolean("saturated");
+        if (!PickupFailureContract.SCHEMA.equals(root.getString("schema"))
+                || !(root.get(ENTRIES) instanceof ListTag entries)
+                || root.getBoolean("saturated")) return false;
+        // An NBT list with a non-compound element type must not silently be
+        // parsed as an empty compound list, resurrecting invalidated reports.
+        return entries.isEmpty() || entries.getElementType() == Tag.TAG_COMPOUND;
     }
 
     private static CompoundTag invalidFailClosed(Villager executor) {
