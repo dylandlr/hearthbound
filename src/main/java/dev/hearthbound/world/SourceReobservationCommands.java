@@ -6,7 +6,6 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.npc.Villager;
@@ -21,7 +20,6 @@ import net.minecraftforge.fml.common.Mod;
  */
 @Mod.EventBusSubscriber(modid="hearthbound",bus=Mod.EventBusSubscriber.Bus.FORGE)
 public final class SourceReobservationCommands {
-    private static final String REQUEST="hearthbound.pendingSourceRecheck.v1";
     private SourceReobservationCommands() {}
 
     @SubscribeEvent
@@ -55,29 +53,12 @@ public final class SourceReobservationCommands {
                         }
                         ServerLevel level=ctx.getSource().getLevel();
                         BlockPos source=BlockPosArgument.getBlockPos(ctx,"source");
-                        String evidence=SourceFailureBeliefs.inspect(level,citizen,source);
-                        if (!evidence.contains("state=PICKUP_RETURNED_EMPTY")) {
+                        String request=SourceFailureBeliefs.requestReobservation(level,citizen,source);
+                        if (!request.contains("status=REQUESTED")) {
                             ctx.getSource().sendFailure(Component.literal(
-                                "No real extraction miss available to request re-observation"));
+                                "No real extraction miss available to request re-observation; "+request));
                             return 0;
                         }
-                        CompoundTag pending=new CompoundTag();
-                        pending.putString("schema","hearthbound.reobservation-request.v1");
-                        pending.putUUID("world",HearthboundWorldIdentity.get(level));
-                        pending.putUUID("recipient",citizen.getUUID());
-                        pending.putLong("source",source.asLong());
-                        pending.putLong("requestTick",level.getGameTime());
-                        // Do not fake that any scout has accepted or fulfilled
-                        // a request; explicit direct observation is still needed.
-                        pending.putString("state","AWAITING_SCOUT_DIRECT_OBSERVATION");
-                        citizen.getPersistentData().put(REQUEST,pending);
-                        String request="SOURCE_REOBSERVATION_REQUEST status=REQUESTED"
-                            +" recipient="+citizen.getUUID()
-                            +" source="+ReportChoiceCommands.key(level,source)
-                            +" request_tick="+level.getGameTime()
-                            +" origin=FAILED_PHYSICAL_EXTRACTION"
-                            +" scout_assigned=false scout_observed=false"
-                            +" task_authorized=false reward_authorized=false NO_RESEARCH_CREDIT";
                         ctx.getSource().sendSuccess(()->Component.literal(request),false);
                         return 1;
                     }))));
