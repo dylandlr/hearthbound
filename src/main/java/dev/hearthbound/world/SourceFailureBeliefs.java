@@ -23,6 +23,7 @@ public final class SourceFailureBeliefs {
     private static final int LIMIT = 32;
     private static final String HAUL = "hearthbound.haul";
     private static final String ASSIGNMENT = "reportPolicyDispatch.v1";
+    private static final String REQUEST = "hearthbound.pendingSourceRecheck.v1";
     private SourceFailureBeliefs() {}
 
     private static String sourceKey(ServerLevel level, BlockPos source) {
@@ -32,6 +33,7 @@ public final class SourceFailureBeliefs {
 
     private static boolean validRoot(CompoundTag root) {
         return PickupFailureContract.SCHEMA.equals(root.getString("schema"))
+            && root.contains(ENTRIES, Tag.TAG_LIST)
             && !root.getBoolean("saturated");
     }
 
@@ -169,6 +171,55 @@ public final class SourceFailureBeliefs {
         return true;
     }
 
+    /**
+     * A source re-observation request is fulfilled only by an actually
+     * delivered, *newer direct* report, never by changing hidden inventory
+     * or by the same stale report being re-delivered.
+     */
+    public static boolean fulfillAfterExplicitShare(ServerLevel level, Villager recipient,
+                                                    BlockPos source, CompoundTag report) {
+        if (level == null || recipient == null || source == null || report == null
+                || !recipient.getPersistentData().contains(REQUEST)
+                || !recipient.getPersistentData().contains(ROOT)) return false;
+        CompoundTag pending=recipient.getPersistentData().getCompound(REQUEST);
+        if (!"hearthbound.reobservation-request.v1".equals(pending.getString("schema"))
+                || !pending.hasUUID("world")
+                || !pending.getUUID("world").equals(HearthboundWorldIdentity.get(level))
+                || !pending.hasUUID("recipient")
+                || !pending.getUUID("recipient").equals(recipient.getUUID())
+                || pending.getLong("source")!=source.asLong()
+                || !"AWAITING_SCOUT_DIRECT_OBSERVATION".equals(pending.getString("state"))
+                || !"REPORTED_DIRECT_FORGE_OBSERVATION".equals(report.getString("origin"))
+                || !sourceKey(level,source).equals(report.getString("source"))
+                || !report.hasUUID("sender")
+                || report.getUUID("sender").equals(recipient.getUUID())
+                || !report.hasUUID("recipient")
+                || !report.getUUID("recipient").equals(recipient.getUUID())
+                || report.getString("id").isBlank()) return false;
+        CompoundTag root=recipient.getPersistentData().getCompound(ROOT);
+        if (!validRoot(root)) return false;
+        ListTag events=root.getList(ENTRIES,Tag.TAG_COMPOUND);
+        long latest=-1;
+        for (int i=0;i<events.size();i++) {
+            PickupFailureContract.Failure failure;
+            try { failure=decode(events.getCompound(i)); }
+            catch (IllegalArgumentException invalid) { return false; }
+            if (failure.world().equals(HearthboundWorldIdentity.get(level))
+                    && failure.executor().equals(recipient.getUUID())
+                    && failure.source().equals(sourceKey(level,source)))
+                latest=Math.max(latest,failure.failedTick());
+        }
+        if (latest<0 || report.getLong("observed_tick")<=latest
+                || report.getLong("delivered_tick")<report.getLong("observed_tick"))
+            return false;
+        pending.putString("state","FULFILLED_BY_NEW_DIRECT_REPORT");
+        pending.putString("reportId",report.getString("id"));
+        pending.putLong("observedTick",report.getLong("observed_tick"));
+        pending.putLong("deliveredTick",report.getLong("delivered_tick"));
+        recipient.getPersistentData().put(REQUEST,pending);
+        return true;
+    }
+
     public static String inspect(ServerLevel level, Villager executor, BlockPos source) {
         final String base = "PICKUP_FAILURE_BELIEF schema=" + PickupFailureContract.SCHEMA
             + " source=" + sourceKey(level, source)
@@ -195,7 +246,11 @@ public final class SourceFailureBeliefs {
                 newest=negative;
         }
         if (newest==null) return base+" state=NONE next=NONE";
+        String requestStatus=executor.getPersistentData().contains(REQUEST)
+            ? executor.getPersistentData().getCompound(REQUEST).getString("state")
+            : "NONE";
         return base + " state=PICKUP_RETURNED_EMPTY"
+            + " reobservation_request="+requestStatus
             + " job="+newest.job()
             + " failed_tick="+newest.failedTick()
             + " assigned_tick="+newest.assignedTick()
