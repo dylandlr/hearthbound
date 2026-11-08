@@ -46,7 +46,7 @@ public final class ReportHaulExperiment {
                 || destination==null || exposure==null || first.equals(second)
                 || destination.equals(first) || destination.equals(second)
                 || executor.level()!=level || recipient.level()!=level
-                || executor.getUUID().equals(recipient.getUUID())
+                || !executor.getUUID().equals(recipient.getUUID())
                 || !executor.getPersistentData().getBoolean("hearthbound.sable")
                 || !CitizenSourceKnowledge.isCitizen(recipient))
             return denied("INVALID_ACTOR_OR_CANDIDATE");
@@ -164,7 +164,7 @@ public final class ReportHaulExperiment {
                 || !event.hasUUID("executor")
                 || !executor.getUUID().equals(event.getUUID("executor"))
                 || !event.hasUUID("recipient")
-                || executor.getUUID().equals(event.getUUID("recipient"))
+                || !executor.getUUID().equals(event.getUUID("recipient"))
                 || !"SIMULATOR_TRAINED_FROZEN_MLP".equals(event.getString("policy"))
                 || !"OPERATOR_TRIGGERED_FROZEN_POLICY".equals(event.getString("origin"))
                 || !"EXPOSED".equals(event.getString("exposure"))
@@ -217,18 +217,15 @@ public final class ReportHaulExperiment {
         dispatcher.register(Commands.literal("hearthbound-report-dispatch")
             .requires(s->s.hasPermission(2))
             .then(Commands.argument("executor",EntityArgument.entity())
-                .then(Commands.argument("recipient",EntityArgument.entity())
-                    .then(Commands.argument("first",BlockPosArgument.blockPos())
+                .then(Commands.argument("first",BlockPosArgument.blockPos())
                         .then(Commands.argument("second",BlockPosArgument.blockPos())
                             .then(Commands.argument("destination",BlockPosArgument.blockPos())
                                 .then(Commands.argument("exposure",StringArgumentType.word())
                                     .executes(ctx->{
                                         var source=ctx.getSource();
                                         var ex=EntityArgument.getEntity(ctx,"executor");
-                                        var observer=EntityArgument.getEntity(ctx,"recipient");
-                                        if (!(ex instanceof Villager executor)
-                                                || !(observer instanceof Villager recipient)) {
-                                            source.sendFailure(Component.literal("Both roles must be actual villagers"));
+                                        if (!(ex instanceof Villager executor)) {
+                                            source.sendFailure(Component.literal("Executor must be a real villager"));
                                             return 0;
                                         }
                                         ReportConditionedChoice.Exposure exposure;
@@ -240,13 +237,13 @@ public final class ReportHaulExperiment {
                                             source.sendFailure(Component.literal("Exposure must be EXPOSED or WITHHELD"));
                                             return 0;
                                         }
-                                        String result=dispatch(source.getLevel(),executor,recipient,
+                                        String result=dispatch(source.getLevel(),executor,executor,
                                             BlockPosArgument.getBlockPos(ctx,"first"),
                                             BlockPosArgument.getBlockPos(ctx,"second"),
                                             BlockPosArgument.getBlockPos(ctx,"destination"),exposure);
                                         source.sendSuccess(()->Component.literal(result),false);
                                         return result.contains("status=DENIED")?0:1;
-                                    }))))))));
+                                    })))))));
         dispatcher.register(Commands.literal("hearthbound-report-execution")
             .requires(s->s.hasPermission(2))
             .then(Commands.argument("executor",EntityArgument.entity())
