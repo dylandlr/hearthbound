@@ -55,9 +55,13 @@ public final class CitizenKnowledgeExchange {
 
         CompoundTag root = recipient.getPersistentData().getCompound(ROOT);
         ListTag entries = root.getList(ENTRIES, Tag.TAG_COMPOUND);
-        // One report per source/sender/observation revision: replay is idempotent.
+        // Identity includes the DIRECT OBSERVATION TICK, not just the
+        // state revision. Reobserving an unchanged physical source is a new
+        // evidence event; retransmitting the SAME event remains idempotent.
+        // A new delivery timestamp alone never creates a new event.
         String reportId = sender.getUUID() + "|" + evidence.getString("source")
-            + "|" + evidence.getInt("revision");
+            + "|" + evidence.getInt("revision")
+            + "|" + observed;
         for (int i = 0; i < entries.size(); i++) {
             if (reportId.equals(entries.getCompound(i).getString("id")))
                 return "KNOWLEDGE_SHARE status=DUPLICATE action_authorized=false";
