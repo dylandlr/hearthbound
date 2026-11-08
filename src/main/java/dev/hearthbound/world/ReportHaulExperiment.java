@@ -42,6 +42,19 @@ public final class ReportHaulExperiment {
     public static String dispatch(ServerLevel level, Villager executor, Villager recipient,
                                   BlockPos first, BlockPos second, BlockPos destination,
                                   ReportConditionedChoice.Exposure exposure) {
+        return dispatchTrial(level, executor, recipient, first, second, destination,
+            exposure, ReportPolicyTrialChoice.Policy.FROZEN_MLP);
+    }
+
+    public static String dispatchTrial(ServerLevel level, Villager executor, Villager recipient,
+                                  BlockPos first, BlockPos second, BlockPos destination,
+                                  ReportConditionedChoice.Exposure exposure,
+                                  ReportPolicyTrialChoice.Policy policy) {
+        if (policy == null) return denied("MISSING_TRIAL_POLICY");
+        String policyName = policy == ReportPolicyTrialChoice.Policy.FROZEN_MLP
+            ? "SIMULATOR_TRAINED_FROZEN_MLP" : "SCRIPTED_REPORT_RANK_V1";
+        String policyOrigin = policy == ReportPolicyTrialChoice.Policy.FROZEN_MLP
+            ? "OPERATOR_TRIGGERED_FROZEN_POLICY" : "OPERATOR_TRIGGERED_SCRIPTED_POLICY";
         if(level==null || executor==null || recipient==null || first==null || second==null
                 || destination==null || exposure==null || first.equals(second)
                 || destination.equals(first) || destination.equals(second)
@@ -57,15 +70,15 @@ public final class ReportHaulExperiment {
         // not added observation features or model inputs.
         final ReportChoiceMlpCommands.Choice decision;
         try {
-            decision=ReportChoiceMlpCommands.evaluate(level,recipient,first,second,exposure);
+            decision=ReportPolicyTrialChoice.evaluate(level,recipient,first,second,exposure,policy);
         } catch (Exception invalid) {
             return denied("MODEL_OR_REPORT_EVIDENCE_INVALID");
         }
         if (decision.selected()==null)
             return "REPORT_HAUL_DISPATCH status=ABSTAIN job=NONE"
                 +" reason="+decision.reason()
-                +" policy=SIMULATOR_TRAINED_FROZEN_MLP"
-                +" decision_origin=OPERATOR_TRIGGERED_FROZEN_POLICY"
+                +" policy="+policyName
+                +" decision_origin="+policyOrigin
                 +" exposure="+exposure
                 +" model_sha256="+decision.modelSha256()
                 +" executor="+executor.getUUID()
@@ -76,6 +89,9 @@ public final class ReportHaulExperiment {
         BlockPos selected=decision.selected();
         if (!selected.equals(first) && !selected.equals(second))
             return denied("SELECTED_SOURCE_NOT_BOUND_TO_MENU");
+        if (decision.reportId() == null || decision.reportId().isBlank()
+                || "NONE".equals(decision.reportId()))
+            return denied("CHOSEN_SOURCE_HAS_NO_PRE_ACTION_REPORT");
         if (!level.hasChunkAt(selected) || !level.hasChunkAt(destination))
             return denied("SOURCE_OR_DESTINATION_CHUNK_NOT_LOADED");
 
@@ -115,8 +131,8 @@ public final class ReportHaulExperiment {
         snapshot.putLong("assignedTick",assigned);
         snapshot.putString("reportId",decision.reportId());
         snapshot.putString("modelSha256",decision.modelSha256());
-        snapshot.putString("policy","SIMULATOR_TRAINED_FROZEN_MLP");
-        snapshot.putString("origin","OPERATOR_TRIGGERED_FROZEN_POLICY");
+        snapshot.putString("policy",policyName);
+        snapshot.putString("origin",policyOrigin);
         snapshot.putString("exposure",exposure.name());
         haul.put(RECEIPT,snapshot);
         executor.getPersistentData().put(HAUL,haul);
@@ -132,8 +148,8 @@ public final class ReportHaulExperiment {
             +" assigned_tick="+assigned
             +" source_report_id="+decision.reportId()
             +" model_sha256="+decision.modelSha256()
-            +" policy=SIMULATOR_TRAINED_FROZEN_MLP"
-            +" decision_origin=OPERATOR_TRIGGERED_FROZEN_POLICY"
+            +" policy="+policyName
+            +" decision_origin="+policyOrigin
             +" exposure="+exposure
             +" inventory_read=false task_assigned=true"
             +" reward_authorized=false learning_authorized=false NO_RESEARCH_CREDIT";
@@ -165,11 +181,14 @@ public final class ReportHaulExperiment {
                 || !executor.getUUID().equals(event.getUUID("executor"))
                 || !event.hasUUID("recipient")
                 || !executor.getUUID().equals(event.getUUID("recipient"))
-                || !"SIMULATOR_TRAINED_FROZEN_MLP".equals(event.getString("policy"))
-                || !"OPERATOR_TRIGGERED_FROZEN_POLICY".equals(event.getString("origin"))
+                || !("SIMULATOR_TRAINED_FROZEN_MLP".equals(event.getString("policy"))
+                    && "OPERATOR_TRIGGERED_FROZEN_POLICY".equals(event.getString("origin"))
+                    && event.getString("modelSha256").matches("[a-f0-9]{64}")
+                    || "SCRIPTED_REPORT_RANK_V1".equals(event.getString("policy"))
+                    && "OPERATOR_TRIGGERED_SCRIPTED_POLICY".equals(event.getString("origin"))
+                    && ReportPolicyTrialChoice.SCRIPTED_MODEL.equals(event.getString("modelSha256")))
                 || !"EXPOSED".equals(event.getString("exposure"))
                 || event.getString("reportId").isBlank()
-                || !event.getString("modelSha256").matches("[a-f0-9]{64}")
                 || !event.contains("source") || !event.contains("destination")
                 || !event.contains("sourceA") || !event.contains("sourceB")
                 || !event.contains("decisionTick") || !event.contains("assignedTick")
@@ -198,7 +217,8 @@ public final class ReportHaulExperiment {
                     +" decision_tick="+event.getLong("decisionTick")
                     +" assigned_tick="+a.assignedTick()
                     +" source_report_id="+event.getString("reportId")
-                    +" decision_origin=OPERATOR_TRIGGERED_FROZEN_POLICY"
+                    +" policy="+event.getString("policy")
+                    +" decision_origin="+event.getString("origin")
                     +" inventory_delta_verified=false"
                     +" physical_completion_receipt=EXECUTOR_NBT"
                     +" research_authorized=false";
@@ -244,6 +264,42 @@ public final class ReportHaulExperiment {
                                         source.sendSuccess(()->Component.literal(result),false);
                                         return result.contains("status=DENIED")?0:1;
                                     })))))));
+        dispatcher.register(Commands.literal("hearthbound-report-dispatch-trial")
+            .requires(source->source.hasPermission(2))
+            .then(Commands.argument("executor",EntityArgument.entity())
+                .then(Commands.argument("first",BlockPosArgument.blockPos())
+                    .then(Commands.argument("second",BlockPosArgument.blockPos())
+                        .then(Commands.argument("destination",BlockPosArgument.blockPos())
+                            .then(Commands.argument("policy",StringArgumentType.word())
+                                .then(Commands.argument("exposure",StringArgumentType.word())
+                                    .executes(ctx->{
+                                        var source=ctx.getSource();
+                                        var candidate=EntityArgument.getEntity(ctx,"executor");
+                                        if(!(candidate instanceof Villager executor)) {
+                                            source.sendFailure(Component.literal("Executor must be a real villager"));
+                                            return 0;
+                                        }
+                                        ReportPolicyTrialChoice.Policy policy;
+                                        ReportConditionedChoice.Exposure exposure;
+                                        try {
+                                            policy=ReportPolicyTrialChoice.Policy.valueOf(
+                                                StringArgumentType.getString(ctx,"policy")
+                                                    .toUpperCase(Locale.ROOT));
+                                            exposure=ReportConditionedChoice.Exposure.valueOf(
+                                                StringArgumentType.getString(ctx,"exposure")
+                                                    .toUpperCase(Locale.ROOT));
+                                        } catch (IllegalArgumentException invalid) {
+                                            source.sendFailure(Component.literal(
+                                                "Policy must be SCRIPTED or FROZEN_MLP, exposure EXPOSED or WITHHELD"));
+                                            return 0;
+                                        }
+                                        String result=dispatchTrial(source.getLevel(),executor,executor,
+                                            BlockPosArgument.getBlockPos(ctx,"first"),
+                                            BlockPosArgument.getBlockPos(ctx,"second"),
+                                            BlockPosArgument.getBlockPos(ctx,"destination"),exposure,policy);
+                                        source.sendSuccess(()->Component.literal(result),false);
+                                        return result.contains("status=DENIED") ? 0 : 1;
+                                    }))))))));
         dispatcher.register(Commands.literal("hearthbound-report-execution")
             .requires(s->s.hasPermission(2))
             .then(Commands.argument("executor",EntityArgument.entity())
