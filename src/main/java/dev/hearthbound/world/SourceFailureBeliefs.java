@@ -172,6 +172,67 @@ public final class SourceFailureBeliefs {
     }
 
     /**
+     * Record an explicit citizen-owned request for a physical scout recheck.
+     * Bind it to the precise failed Minecraft job; no scout is contacted or
+     * chest inspected by this command. The same failed job cannot mint
+     * repeated timestamp-shifting requests.
+     */
+    public static String requestReobservation(ServerLevel level, Villager executor,
+                                              BlockPos source) {
+        String denied="SOURCE_REOBSERVATION_REQUEST status=DENIED"
+            +" reward_authorized=false learning_authorized=false NO_RESEARCH_CREDIT";
+        if (level == null || executor == null || source == null
+                || executor.level()!=level || !CitizenSourceKnowledge.isCitizen(executor)
+                || !executor.getPersistentData().contains(ROOT))
+            return denied+" reason=NO_PHYSICAL_FAILED_PICKUP";
+        CompoundTag root=executor.getPersistentData().getCompound(ROOT);
+        if (!validRoot(root)) return denied+" reason=FAIL_CLOSED_EVIDENCE";
+        PickupFailureContract.Failure newest=null;
+        ListTag failures=root.getList(ENTRIES,Tag.TAG_COMPOUND);
+        UUID world=HearthboundWorldIdentity.get(level);
+        for (int i=0;i<failures.size();i++) {
+            PickupFailureContract.Failure attempt;
+            try { attempt=decode(failures.getCompound(i)); }
+            catch (IllegalArgumentException malformed) {
+                return denied+" reason=MALFORMED_FAILED_PICKUP";
+            }
+            if (!attempt.world().equals(world)
+                    || !attempt.executor().equals(executor.getUUID())
+                    || !attempt.source().equals(sourceKey(level,source))) continue;
+            if (newest==null || attempt.failedTick()>newest.failedTick())
+                newest=attempt;
+        }
+        if (newest==null) return denied+" reason=NO_PHYSICAL_FAILED_PICKUP";
+        if (executor.getPersistentData().contains(REQUEST)) {
+            CompoundTag existing=executor.getPersistentData().getCompound(REQUEST);
+            if (newest.job().equals(existing.getUUID("failedJob"))
+                    && "AWAITING_SCOUT_DIRECT_OBSERVATION".equals(existing.getString("state")))
+                return denied+" reason=ALREADY_AWAITING_SCOUT"
+                    +" failed_job="+newest.job();
+        }
+        CompoundTag pending=new CompoundTag();
+        pending.putString("schema","hearthbound.reobservation-request.v1");
+        pending.putUUID("world",world);
+        pending.putUUID("recipient",executor.getUUID());
+        pending.putUUID("failedJob",newest.job());
+        pending.putLong("failedTick",newest.failedTick());
+        pending.putString("invalidatedReportId",newest.selectedReportId());
+        pending.putLong("source",source.asLong());
+        pending.putLong("requestTick",level.getGameTime());
+        pending.putString("state","AWAITING_SCOUT_DIRECT_OBSERVATION");
+        executor.getPersistentData().put(REQUEST,pending);
+        return "SOURCE_REOBSERVATION_REQUEST status=REQUESTED"
+            +" recipient="+executor.getUUID()
+            +" source="+sourceKey(level,source)
+            +" failed_job="+newest.job()
+            +" failed_tick="+newest.failedTick()
+            +" request_tick="+level.getGameTime()
+            +" origin=FAILED_PHYSICAL_EXTRACTION"
+            +" scout_assigned=false scout_observed=false"
+            +" task_authorized=false reward_authorized=false NO_RESEARCH_CREDIT";
+    }
+
+    /**
      * A source re-observation request is fulfilled only by an actually
      * delivered, *newer direct* report, never by changing hidden inventory
      * or by the same stale report being re-delivered.
@@ -187,6 +248,8 @@ public final class SourceFailureBeliefs {
                 || !pending.getUUID("world").equals(HearthboundWorldIdentity.get(level))
                 || !pending.hasUUID("recipient")
                 || !pending.getUUID("recipient").equals(recipient.getUUID())
+                || !pending.hasUUID("failedJob")
+                || !pending.contains("failedTick")
                 || pending.getLong("source")!=source.asLong()
                 || !"AWAITING_SCOUT_DIRECT_OBSERVATION".equals(pending.getString("state"))
                 || !"REPORTED_DIRECT_FORGE_OBSERVATION".equals(report.getString("origin"))
@@ -200,16 +263,22 @@ public final class SourceFailureBeliefs {
         if (!validRoot(root)) return false;
         ListTag events=root.getList(ENTRIES,Tag.TAG_COMPOUND);
         long latest=-1;
+        UUID latestJob=null;
         for (int i=0;i<events.size();i++) {
             PickupFailureContract.Failure failure;
             try { failure=decode(events.getCompound(i)); }
             catch (IllegalArgumentException invalid) { return false; }
             if (failure.world().equals(HearthboundWorldIdentity.get(level))
                     && failure.executor().equals(recipient.getUUID())
-                    && failure.source().equals(sourceKey(level,source)))
-                latest=Math.max(latest,failure.failedTick());
+                    && failure.source().equals(sourceKey(level,source))
+                    && failure.failedTick()>=latest) {
+                latest=failure.failedTick();
+                latestJob=failure.job();
+            }
         }
-        if (latest<0 || report.getLong("observed_tick")<=latest
+        if (latest<0 || !pending.getUUID("failedJob").equals(latestJob)
+                || pending.getLong("failedTick")!=latest
+                || report.getLong("observed_tick")<=latest
                 || report.getLong("delivered_tick")<report.getLong("observed_tick"))
             return false;
         pending.putString("state","FULFILLED_BY_NEW_DIRECT_REPORT");
