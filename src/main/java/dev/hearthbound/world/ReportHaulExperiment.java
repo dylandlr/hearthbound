@@ -246,7 +246,7 @@ public final class ReportHaulExperiment {
                                             BlockPosArgument.getBlockPos(ctx,"destination"),exposure);
                                         source.sendSuccess(()->Component.literal(result),false);
                                         return result.contains("status=DENIED")?0:1;
-                                    })))))));
+                                    }))))))));
         dispatcher.register(Commands.literal("hearthbound-report-execution")
             .requires(s->s.hasPermission(2))
             .then(Commands.argument("executor",EntityArgument.entity())
