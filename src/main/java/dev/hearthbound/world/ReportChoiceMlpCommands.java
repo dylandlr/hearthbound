@@ -83,61 +83,81 @@ public final class ReportChoiceMlpCommands {
             + " learning_authorized=false NO_RESEARCH_CREDIT";
     }
 
-    public static String inspect(ServerLevel level, Villager recipient, BlockPos first,
-                                 BlockPos second, ReportConditionedChoice.Exposure exposure) {
+    /**
+     * A decision snapshot created before work is assigned on Minecraft's
+     * authoritative server thread. No block entity or inventory is read.
+     * Both the shadow command and the physical dispatch call THIS method.
+     */
+    static record Choice(ReportChoiceMlp.Action action, BlockPos selected,
+                         String modelSha256, int reports, long tick,
+                         String reason, String reportId) {}
+
+    static Choice evaluate(ServerLevel level, Villager recipient, BlockPos first,
+                           BlockPos second, ReportConditionedChoice.Exposure exposure)
+                           throws Exception {
         if (level == null || recipient == null || first == null || second == null
                 || recipient.level() != level || !CitizenSourceKnowledge.isCitizen(recipient)
                 || first.equals(second) || exposure == null)
-            return denied("INVALID_REQUEST");
-        String selected = "NONE";
-        String status = "ABSTAIN";
-        int admissible = 0;
-        String reason = "REPORT_EXPOSURE_WITHHELD";
-        String sha = "NOT_LOADED_WITHHELD";
-        long tick = level.getGameTime();
+            throw new IllegalArgumentException("Invalid report decision request");
+        long tick=level.getGameTime();
+        // Do not even ask for recipient report NBT in the withheld condition.
+        if (exposure == ReportConditionedChoice.Exposure.WITHHELD)
+            return new Choice(ReportChoiceMlp.Action.ABSTAIN, null,
+                "NOT_LOADED_WITHHELD", 0, tick, "REPORT_EXPOSURE_WITHHELD", "NONE");
+        double[] features=new double[ReportChoiceMlp.INPUT];
+        String[] ids={"NONE","NONE"};
+        int admissible=0;
+        List<BlockPos> candidates=List.of(first,second);
+        for (int i=0;i<2;i++) {
+            // Exactly the same recipient-only accessor as the v0.16.1
+            // scripted baseline. This method NEVER consults source chests.
+            var report=CitizenKnowledgeExchange.decisionReport(level,candidates.get(i),recipient);
+            if (report==null) continue;
+            long age=tick-report.getLong("delivered_tick");
+            long observedAge=tick-report.getLong("observed_tick");
+            ReportChoiceMlp.encode(features,i,report.getInt("wheat"),age,
+                observedAge,report.getInt("source_revision"),true);
+            String reportId=report.getString("id");
+            if (reportId.isBlank())
+                throw new IllegalArgumentException("Direct-origin delivered report lacks identity");
+            ids[i]=reportId;
+            admissible++;
+        }
+        ReportChoiceMlp frozen=model();
+        ReportChoiceMlp.Action action=frozen.choose(features);
+        BlockPos selected=action==ReportChoiceMlp.Action.SOURCE_A ? first
+            : action==ReportChoiceMlp.Action.SOURCE_B ? second : null;
+        int selectedIdx=action==ReportChoiceMlp.Action.SOURCE_A ? 0 : 1;
+        return new Choice(action,selected,frozen.sha256(),admissible,tick,
+            action==ReportChoiceMlp.Action.ABSTAIN ? "MODEL_ABSTAIN_OR_NO_REPORT"
+                : "FROZEN_SIMULATED_OUTCOME_REGRESSION",
+            selected==null ? "NONE" : ids[selectedIdx]);
+    }
 
-        if (exposure == ReportConditionedChoice.Exposure.EXPOSED) {
-            double[] features = new double[ReportChoiceMlp.INPUT];
-            // Exactly the same source keys and recipient-scoped accessors as
-            // SCRIPTED_REPORT_RANK_V1; NO SourceWheatObservation.inspect().
-            List<BlockPos> candidates = List.of(first, second);
-            try {
-                for (int i = 0; i < candidates.size(); i++) {
-                    var report = ReportChoiceCommands.report(level, recipient, candidates.get(i));
-                    if (report == null) continue;
-                    long age = tick - report.deliveredTick();
-                    long observedAge = tick - report.observedTick();
-                    ReportChoiceMlp.encode(features, i, report.wheat(), age,
-                        observedAge, report.revision(), true);
-                    admissible++;
-                }
-                ReportChoiceMlp model = model();
-                sha = model.sha256();
-                var action = model.choose(features);
-                if (action != ReportChoiceMlp.Action.ABSTAIN) {
-                    int idx = action == ReportChoiceMlp.Action.SOURCE_A ? 0 : 1;
-                    selected = ReportChoiceCommands.key(level, candidates.get(idx));
-                    status = "CHOOSE";
-                    reason = "FROZEN_SIMULATED_OUTCOME_REGRESSION";
-                } else {
-                    reason = "MODEL_ABSTAIN_OR_NO_REPORT";
-                }
-            } catch (Exception ex) {
-                return denied("FROZEN_MODEL_OR_REPORT_VALIDATION_FAILED");
-            }
+    public static String inspect(ServerLevel level, Villager recipient, BlockPos first,
+                                 BlockPos second, ReportConditionedChoice.Exposure exposure) {
+        Choice choice;
+        try {
+            choice=evaluate(level,recipient,first,second,exposure);
+        } catch (IllegalArgumentException invalid) {
+            return denied("INVALID_REQUEST_OR_REPORT");
+        } catch (Exception failure) {
+            return denied("FROZEN_MODEL_OR_REPORT_VALIDATION_FAILED");
         }
         return "REPORT_MLP_CHOICE schema=hearthbound.report-mlp-choice.v1"
-            + " status=" + status + " reason=" + reason
+            + " status=" + (choice.selected()==null ? "ABSTAIN" : "CHOOSE")
+            + " reason=" + choice.reason()
             + " recipient=" + recipient.getUUID()
             + " world=" + HearthboundWorldIdentity.get(level)
-            + " tick=" + tick
+            + " tick=" + choice.tick()
             + " exposure=" + exposure
             + " policy=SIMULATOR_TRAINED_FROZEN_MLP"
-            + " model_sha256=" + sha
-            + " candidate_sources=" + ReportChoiceCommands.key(level, first)
-                + ";" + ReportChoiceCommands.key(level, second)
-            + " selected=" + selected
-            + " admissible_reports=" + admissible
+            + " model_sha256=" + choice.modelSha256()
+            + " candidate_sources=" + ReportChoiceCommands.key(level,first)
+                + ";" + ReportChoiceCommands.key(level,second)
+            + " selected=" + (choice.selected()==null ? "NONE"
+                : ReportChoiceCommands.key(level,choice.selected()))
+            + " admissible_reports=" + choice.reports()
             + " evidence_origin=RECIPIENT_DELIVERED_REPORT_ONLY"
             + " inventory_read=false sensor_triggered=false"
             + " task_authorized=false reward_authorized=false"
