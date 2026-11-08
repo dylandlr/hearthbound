@@ -1,0 +1,121 @@
+name: Real Forge frozen neural decision to physical hauling (no rewards)
+on:
+  push:
+    branches:
+      - 'feat/neural-report-haul-receipts-v0-16-3'
+  pull_request:
+    paths:
+      - 'src/main/java/dev/hearthbound/world/ReportHaulExperiment.java'
+      - 'src/main/java/dev/hearthbound/world/ReportChoiceMlpCommands.java'
+      - 'src/main/java/dev/hearthbound/world/ExplicitSourceShareCommands.java'
+      - 'scripts/rcon_neural_report_haul.py'
+      - '.github/workflows/real-neural-report-haul.yml'
+jobs:
+  real-neural-report-haul:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.8'
+      - name: Pretrain frozen MLP on simulator outcomes, prove Python–Java parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/train_report_choice_mlp.py \
+            scripts/rcon_neural_report_haul.py scripts/verify_report_choice_mlp_parity.py
+          python3 scripts/train_report_choice_mlp.py \
+            --model run/report-choice-mlp-v1.txt \
+            --sha run/report-choice-mlp-v1.sha256 \
+            --report neural-report-physical-training.json
+          test "$(sha256sum run/report-choice-mlp-v1.txt | cut -d' ' -f1)" \
+            = "$(cat run/report-choice-mlp-v1.sha256)"
+          python3 scripts/verify_report_choice_mlp_parity.py \
+            --model run/report-choice-mlp-v1.txt \
+            --sha run/report-choice-mlp-v1.sha256 \
+            --out run/report-neural-physical-parity.tsv
+          mkdir -p /tmp/hearthbound-report-physical-parity
+          javac --release 17 -d /tmp/hearthbound-report-physical-parity \
+            src/main/java/dev/hearthbound/evidence/ReportChoiceMlp.java \
+            src/test/java/dev/hearthbound/evidence/ReportChoiceMlpParity.java
+          java -cp /tmp/hearthbound-report-physical-parity \
+            dev.hearthbound.evidence.ReportChoiceMlpParity \
+            run/report-choice-mlp-v1.txt \
+            run/report-choice-mlp-v1.sha256 \
+            run/report-neural-physical-parity.tsv
+          printf 'report_hauling_model_sha256=%s\n' \
+            "$(cat run/report-choice-mlp-v1.sha256)" \
+            > real-neural-physical-model-preboot.txt
+      - name: Real Forge witnessed information to frozen policy to physical executor
+        shell: bash
+        env:
+          HEARTHBOUND_RCON_PASSWORD: ci-local-disposable-password
+        run: |
+          set -euo pipefail
+          mkdir -p run
+          printf 'eula=true\n' > run/eula.txt
+          printf 'online-mode=false\nlevel-name=neural-physical-report-world\nmax-players=2\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties
+          gradle --no-daemon runServer > real-neural-physical-forge.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 360); do
+            if grep -Eq 'Done \([0-9.]+s\)! For help, type "help"' real-neural-physical-forge.log; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "$pid" 2>/dev/null; then
+              tail -n 150 real-neural-physical-forge.log
+              exit 1
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then tail -n 150 real-neural-physical-forge.log; exit 1; fi
+          python3 scripts/rcon_neural_report_haul.py | tee real-neural-physical-rcon.log
+          grep -q 'REAL_FORGE_FROZEN_MLP_PHYSICAL_HAUL_PASS' real-neural-physical-rcon.log
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path("real-neural-report-haul-results.json").read_text())
+          training=json.loads(Path("neural-report-physical-training.json").read_text())
+          assert data["model_sha256"]==training["model_sha256"]
+          assert data["source_selected"]=="A"
+          assert (data["source_a_before"],data["source_a_after"])==(3,2)
+          assert (data["source_b_before"],data["source_b_after"])==(1,1)
+          assert (data["destination_before"],data["destination_after"])==(0,1)
+          assert data["physical_transfer_verified"] is True
+          assert data["task_executed_by_real_villager"] is True
+          assert data["decision_issued_before_outcome"] is True
+          assert data["model_updated"] is False
+          assert data["research_credit_issued"] is False
+          assert data["rewards_issued"] is False
+          assert data["autonomous_planning_claimed"] is False
+          print("REAL_NEURAL_PHYSICAL_EVIDENCE_ACCEPTED true_item_transfer=true "
+                "task_provenance=true no_fabricated_rewards=true")
+          PY
+          test "$(sha256sum run/report-choice-mlp-v1.txt | cut -d' ' -f1)" \
+            = "$(cat run/report-choice-mlp-v1.sha256)"
+      - name: Archive real physical execution and immutable preboot model evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-neural-source-choice-physical-haul-no-reward
+          path: |
+            run/report-choice-mlp-v1.txt
+            run/report-choice-mlp-v1.sha256
+            run/report-neural-physical-parity.tsv
+            neural-report-physical-training.json
+            real-neural-physical-model-preboot.txt
+            real-neural-report-haul-results.json
+            real-neural-physical-rcon.log
+            real-neural-physical-forge.log
+            run/logs/latest.log
+          if-no-files-found: warn
+          retention-days: 14
