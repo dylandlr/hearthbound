@@ -222,6 +222,10 @@ public final class SableHauling {
             }
             ItemStack taken = extractWheat(entity);
             if (taken.isEmpty()) {
+                // A real, attempted extraction returned no item. This is
+                // negative motor evidence for this job, NOT proof that the
+                // chest is empty or that navigation failed.
+                SourceFailureBeliefs.recordAfterEmptyExtraction(level, citizen, target, tag);
                 pause(tag, "No wheat available");
                 return;
             }
