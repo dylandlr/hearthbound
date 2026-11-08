@@ -30,14 +30,14 @@ def exact(sock,n):
         b+=part
     return b
 
-def read(sock):
+def read(sock, allow_empty=False):
     for _ in range(12):
         n=struct.unpack("<i",exact(sock,4))[0]
         if not 10<=n<=1000000: raise ValueError("Bad RCON length")
         raw=exact(sock,n)
         req=struct.unpack("<i",raw[:4])[0]
         out=raw[8:-2].decode(errors="replace")
-        if out.strip(): return req,out
+        if out.strip() or allow_empty: return req,out
     raise RuntimeError("Missing nonempty RCON response")
 
 class Rcon:
@@ -45,8 +45,10 @@ class Rcon:
         self.sock=socket.create_connection(("127.0.0.1",25575),timeout=20)
         self.sock.settimeout(20)
         self.sock.sendall(frame(1,3,os.environ["HEARTHBOUND_RCON_PASSWORD"]))
-        req,_=read(self.sock)
-        if req!=1: req,_=read(self.sock)
+        # RCON authentication SUCCESS uses an empty payload. Ordinary
+        # command responses, in contrast, require nonempty text.
+        req,_=read(self.sock,allow_empty=True)
+        if req!=1: req,_=read(self.sock,allow_empty=True)
         if req!=1: raise ConnectionError("RCON authentication failed")
         self.counter=10
         return self
