@@ -55,9 +55,13 @@ public final class CitizenKnowledgeExchange {
 
         CompoundTag root = recipient.getPersistentData().getCompound(ROOT);
         ListTag entries = root.getList(ENTRIES, Tag.TAG_COMPOUND);
-        // One report per source/sender/observation revision: replay is idempotent.
+        // Identity includes the DIRECT OBSERVATION TICK, not just the
+        // state revision. Reobserving an unchanged physical source is a new
+        // evidence event; retransmitting the SAME event remains idempotent.
+        // A new delivery timestamp alone never creates a new event.
         String reportId = sender.getUUID() + "|" + evidence.getString("source")
-            + "|" + evidence.getInt("revision");
+            + "|" + evidence.getInt("revision")
+            + "|" + observed;
         for (int i = 0; i < entries.size(); i++) {
             if (reportId.equals(entries.getCompound(i).getString("id")))
                 return "KNOWLEDGE_SHARE status=DUPLICATE action_authorized=false";
@@ -84,6 +88,10 @@ public final class CitizenKnowledgeExchange {
         root.putString("schema", SCHEMA);
         root.put(ENTRIES, updated);
         recipient.getPersistentData().put(ROOT, root);
+        // Only a brand-new delivered direct observation with observation
+        // tick strictly after the recipient's real failed extraction can
+        // fulfill an explicitly requested source recheck.
+        SourceFailureBeliefs.fulfillAfterExplicitShare(level, recipient, source, report);
         return "KNOWLEDGE_SHARE status=DELIVERED source=" + key(level, source)
             + " sender=" + sender.getUUID() + " recipient=" + recipient.getUUID()
             + " observed_tick=" + observed + " delivered_tick=" + delivered
@@ -125,6 +133,12 @@ public final class CitizenKnowledgeExchange {
         }
         if (newest == null || !"AVAILABLE".equals(newest.getString("state"))
                 || newest.getInt("wheat") <= 0) return null;
+        // A real pickup attempt can refute a previously delivered source
+        // report. Do not edit the historical report or sample world truth.
+        // Only a new direct observation strictly AFTER that failure can
+        // re-enable the source for the same executor.
+        if (!SourceFailureBeliefs.acceptsReport(level, recipient, source, newest))
+            return null;
         return newest.copy();
     }
 

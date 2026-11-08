@@ -1,0 +1,94 @@
+name: Real Forge failed pickup evidence and scout re-observation
+on:
+  push:
+    branches: ['feat/job-linked-pickup-failure-beliefs-v0-16-5']
+  pull_request:
+    paths:
+      - 'src/main/java/dev/hearthbound/world/SourceFailureBeliefs.java'
+      - 'src/main/java/dev/hearthbound/world/SourceReobservationCommands.java'
+      - 'src/main/java/dev/hearthbound/world/CitizenKnowledgeExchange.java'
+      - 'src/main/java/dev/hearthbound/world/SableHauling.java'
+      - 'src/main/java/dev/hearthbound/evidence/PickupFailureContract.java'
+      - 'scripts/rcon_failed_pickup_reobservation.py'
+      - '.github/workflows/real-failed-pickup-reobservation.yml'
+jobs:
+  recover-after-physical-miss:
+    runs-on: ubuntu-latest
+    timeout-minutes: 38
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.8'}
+      - name: Validate physical negative-evidence contract and freeze neural model
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/rcon_failed_pickup_reobservation.py
+          bash scripts/test-research-journals.sh
+          python3 scripts/train_report_choice_mlp.py \
+            --model run/report-choice-mlp-v1.txt \
+            --sha run/report-choice-mlp-v1.sha256 \
+            --report failed-pickup-simulated-training.json
+          test "$(sha256sum run/report-choice-mlp-v1.txt | cut -d' ' -f1)" \
+            = "$(cat run/report-choice-mlp-v1.sha256)"
+      - name: Real Minecraft extraction miss, distinct scout recheck, actual B delivery
+        shell: bash
+        env:
+          HEARTHBOUND_RCON_PASSWORD: ci-local-disposable-password
+        run: |
+          set -euo pipefail
+          mkdir -p run
+          printf 'eula=true\n' > run/eula.txt
+          printf 'online-mode=false\nlevel-name=pickup-failure-reobserve-world\nmax-players=2\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties
+          gradle --no-daemon runServer > real-failure-reobserve-forge.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 360); do
+            if grep -Eq 'Done \([0-9.]+s\)! For help, type "help"' real-failure-reobserve-forge.log; then ready=1; break; fi
+            if ! kill -0 "$pid" 2>/dev/null; then
+              tail -n 150 real-failure-reobserve-forge.log
+              exit 1
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then tail -n 150 real-failure-reobserve-forge.log; exit 1; fi
+          python3 scripts/rcon_failed_pickup_reobservation.py | tee real-failure-reobserve-rcon.log
+          grep -q 'REAL_FORGE_FAILED_PICKUP_REOBSERVATION_PASS' real-failure-reobserve-rcon.log
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("real-failed-pickup-reobservation-results.json")
+          j=json.loads(p.read_text())
+          assert j["origin"]=="REAL_FORGE_EXTRACTOR_AND_CHEST"
+          assert j["negative_evidence_source"]=="ACTUAL_EXTRACTION_RETURNED_EMPTY"
+          assert j["first_attempt_delivered"] is False
+          assert j["recovery_delivered"] is True
+          assert j["authoritative_endpoints"]=={"A":0,"B":0,"destination":1}
+          assert j["research_reward_authorized"] is False
+          assert j["gradient_update_authorized"] is False
+          assert j["technology_unlocked"] is False
+          assert j["model_sha256"]==Path("run/report-choice-mlp-v1.sha256").read_text().strip()
+          assert j["first_job"]!=j["second_job"]
+          assert "reobservation_request=FULFILLED_BY_NEW_DIRECT_REPORT" in j["request_fulfilled"]
+          assert "state=PICKUP_RETURNED_EMPTY" in j["failed_pickup_receipt"]
+          print("REAL_SOURCE_FAILURE_REPLANNING_ACCEPTED real_A_failed=true real_B_delivered=true")
+          PY
+      - name: Archive server, two physical jobs and independent chest evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-source-failure-reobserve-evidence
+          path: |
+            real-failure-reobserve-forge.log
+            real-failure-reobserve-rcon.log
+            real-failed-pickup-reobservation-results.json
+            failed-pickup-simulated-training.json
+            run/report-choice-mlp-v1.sha256
+            run/logs/latest.log
+          if-no-files-found: warn
+          retention-days: 14
