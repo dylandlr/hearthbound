@@ -125,6 +125,12 @@ public final class CitizenKnowledgeExchange {
         }
         if (newest == null || !"AVAILABLE".equals(newest.getString("state"))
                 || newest.getInt("wheat") <= 0) return null;
+        // A real pickup attempt can refute a previously delivered source
+        // report. Do not edit the historical report or sample world truth.
+        // Only a new direct observation strictly AFTER that failure can
+        // re-enable the source for the same executor.
+        if (!SourceFailureBeliefs.acceptsReport(level, recipient, source, newest))
+            return null;
         return newest.copy();
     }
 
