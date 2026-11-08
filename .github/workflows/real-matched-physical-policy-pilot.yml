@@ -1,0 +1,136 @@
+name: Real Forge matched scripted vs frozen MLP physical pilot
+on:
+  push:
+    branches: ['test/matched-physical-policy-trials-v0-16-4']
+  pull_request:
+    paths:
+      - 'src/main/java/dev/hearthbound/world/ReportHaulExperiment.java'
+      - 'src/main/java/dev/hearthbound/world/ReportPolicyTrialChoice.java'
+      - 'scripts/rcon_matched_physical_haul_trial.py'
+      - 'scripts/analyze_matched_physical_hauls.py'
+      - '.github/workflows/real-matched-physical-policy-pilot.yml'
+jobs:
+  pilot:
+    name: Real world ${{ matrix.seed }} ${{ matrix.policy }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {seed: 3101, scenario: fresh, policy: SCRIPTED}
+          - {seed: 3101, scenario: fresh, policy: FROZEN_MLP}
+          - {seed: 3102, scenario: unannounced_depletion, policy: SCRIPTED}
+          - {seed: 3102, scenario: unannounced_depletion, policy: FROZEN_MLP}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.8'}
+      - name: Freeze one simulator-trained model per independent world
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/train_report_choice_mlp.py scripts/rcon_matched_physical_haul_trial.py
+          python3 -m unittest discover -s scripts -p test_analyze_matched_physical_hauls.py -v
+          python3 scripts/train_report_choice_mlp.py --model run/report-choice-mlp-v1.txt --sha run/report-choice-mlp-v1.sha256 --report pilot-training.json
+          test "$(sha256sum run/report-choice-mlp-v1.txt | cut -d' ' -f1)" = "$(cat run/report-choice-mlp-v1.sha256)"
+          python3 scripts/verify_report_choice_mlp_parity.py --model run/report-choice-mlp-v1.txt --sha run/report-choice-mlp-v1.sha256 --out run/matched-report-parity.tsv
+          mkdir -p /tmp/matched-parity
+          javac --release 17 -d /tmp/matched-parity src/main/java/dev/hearthbound/evidence/ReportChoiceMlp.java src/test/java/dev/hearthbound/evidence/ReportChoiceMlpParity.java
+          java -cp /tmp/matched-parity dev.hearthbound.evidence.ReportChoiceMlpParity run/report-choice-mlp-v1.txt run/report-choice-mlp-v1.sha256 run/matched-report-parity.tsv
+      - name: Run a physical Minecraft world with held-out seed
+        shell: bash
+        env:
+          HEARTHBOUND_RCON_PASSWORD: ci-local-disposable-password
+          TRIAL_SEED: ${{ matrix.seed }}
+          TRIAL_POLICY: ${{ matrix.policy }}
+          TRIAL_SCENARIO: ${{ matrix.scenario }}
+        run: |
+          set -euo pipefail
+          mkdir -p run
+          printf 'eula=true\n' > run/eula.txt
+          printf 'online-mode=false\nlevel-name=matched-pilot-%s-%s\nlevel-seed=%s\nmax-players=2\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' "$TRIAL_SEED" "$TRIAL_POLICY" "$TRIAL_SEED" "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties
+          gradle --no-daemon runServer > real-matched-forge.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 360); do
+            if grep -Eq 'Done \([0-9.]+s\)! For help, type "help"' real-matched-forge.log; then ready=1; break; fi
+            if ! kill -0 "$pid" 2>/dev/null; then tail -n 130 real-matched-forge.log; exit 1; fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then tail -n 130 real-matched-forge.log; exit 1; fi
+          python3 scripts/rcon_matched_physical_haul_trial.py --policy "$TRIAL_POLICY" --seed "$TRIAL_SEED" --scenario "$TRIAL_SCENARIO" --output "pilot-$TRIAL_SEED-$TRIAL_POLICY.json" | tee real-matched-rcon.log
+          grep -q 'REAL_FORGE_MATCHED_PHYSICAL_TRIAL_RECEIPT' real-matched-rcon.log
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          trial=json.loads(Path(f'pilot-{os.environ["TRIAL_SEED"]}-{os.environ["TRIAL_POLICY"]}.json').read_text())
+          assert trial["model_sha256"]==Path("run/report-choice-mlp-v1.sha256").read_text().strip()
+          assert trial["no_training_or_rewards"] is True
+          assert trial["chest_counts_independently_read"] is True
+          assert trial["world_seed_prescribed"] is True
+          PY
+      - name: Archive real item transfers, non-deliveries and preboot model
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: paired-physical-${{ matrix.seed }}-${{ matrix.policy }}
+          path: |
+            pilot-*.json
+            pilot-training.json
+            real-matched-forge.log
+            real-matched-rcon.log
+            run/report-choice-mlp-v1.sha256
+            run/matched-report-parity.tsv
+            run/logs/latest.log
+          if-no-files-found: warn
+          retention-days: 14
+  paired-summary:
+    name: Check paired physical receipts and descriptive confidence interval
+    needs: pilot
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: paired-physical-*
+          path: paired-artifacts
+          merge-multiple: false
+      - name: Validate every counted real-world delivery
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s scripts -p test_analyze_matched_physical_hauls.py -v
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          from sys import path
+          path.insert(0, "scripts")
+          from analyze_matched_physical_hauls import summarize
+          files=sorted(Path("paired-artifacts").glob("paired-physical-*/pilot-*.json"))
+          files=[p for p in files if p.name.startswith("pilot-") and "-training" not in p.name]
+          assert len(files)==4, f"Missing independent physical receipts: {files}"
+          result=summarize([json.loads(p.read_text()) for p in files])
+          assert result["physical_trial_count"]==4
+          assert result["paired_world_count"]==2
+          assert result["sample_too_small_to_claim_superiority"] is True
+          assert result["model_superiority_claimed"] is False
+          assert result["research_reward_authorized"] is False
+          Path("real-matched-physical-summary.json").write_text(json.dumps(result,sort_keys=True,indent=2)+"\n")
+          print("REAL_FORGE_MATCHED_PHYSICAL_PILOT_ACCEPTED",json.dumps(result["policy"],sort_keys=True))
+          PY
+      - name: Save paired comparison for research review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: matched-physical-scripted-vs-neural-summary
+          path: real-matched-physical-summary.json
+          if-no-files-found: warn
+          retention-days: 14
