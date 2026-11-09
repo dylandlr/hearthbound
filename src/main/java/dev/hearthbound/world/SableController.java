@@ -56,6 +56,14 @@ public final class SableController {
     @SubscribeEvent
     public static void registerCommands(RegisterCommandsEvent event) {
         CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
+        // Separate permission-2 inspection command; never modifies Minecraft.
+        dispatcher.register(Commands.literal("hearthbound-pickup-journal")
+            .requires(source -> source.hasPermission(2))
+            .executes(ctx -> {
+                String audit = PickupJournalBridge.audit(ctx.getSource().getLevel(), 8);
+                ctx.getSource().sendSuccess(() -> Component.literal(audit), false);
+                return audit.contains("status=READ_ONLY") ? 1 : 0;
+            }));
         dispatcher.register(Commands.literal("sable")
             .requires(source -> source.hasPermission(2))
             .then(Commands.literal("spawn").executes(ctx -> {
