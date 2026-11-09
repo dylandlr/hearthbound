@@ -20,7 +20,9 @@ HAUL = 'ForgeData."hearthbound.haul"'
 
 def nbt(r, path):
     response = r.require(f"data get entity {EX} {path}", "entity data:")
-    return response.split("entity data: ", 1)[1]
+    # RCON appends a newline to command responses. It is not part of SNBT
+    # and Brigadier rejects it when this exact test fixture is restored.
+    return response.split("entity data: ", 1)[1].strip()
 
 
 def field(receipt, name):
@@ -48,6 +50,9 @@ def no_choices(r):
 
 
 def refresh(r, pos, count):
+    # An unchanged observation in the SAME game tick is intentionally the
+    # same event. Wait a tick before asking for a distinct test observation.
+    time.sleep(.1)
     r.require(f"hearthbound citizen_observe {pos} {SCOUT}", f"wheat={count}")
     r.require(f"hearthbound-share-direct {pos} {SCOUT} {EX}", "status=DELIVERED")
 

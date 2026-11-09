@@ -70,7 +70,23 @@ jobs:
           python3 scripts/rcon_failed_pickup_reobservation.py | tee pickup-restart-before-rcon.log
           test -s pickup-restart-before.json
           if [ "$HEARTHBOUND_PICKUP_RESTART" = crash ]; then
-            kill -KILL -- "-$pid"
+            # Gradle's single-use daemon can launch the game outside the
+            # launcher's process group. Kill the actual RCON-owning JVM FIRST,
+            # otherwise launcher loss can initiate a graceful game save.
+            read -r -a server_owners <<< "$(fuser -n tcp 25575 2>/dev/null)"
+            test "${#server_owners[@]}" -eq 1
+            server_pid="${server_owners[0]}"
+            [[ "$server_pid" =~ ^[0-9]+$ ]]
+            test "$(cat "/proc/$server_pid/comm")" = java
+            test "$(readlink -f "/proc/$server_pid/cwd")" = "$(realpath run)"
+            ps -p "$server_pid" -o pid,ppid,comm | tee pickup-restart-killed-process.log
+            kill -KILL "$server_pid"
+            sleep 1
+            if fuser -n tcp 25575 >/dev/null 2>&1; then
+              echo 'Minecraft RCON listener survived forced termination' >&2
+              exit 1
+            fi
+            kill -KILL -- "-$pid" 2>/dev/null || true
             wait "$pid" 2>/dev/null || true
             pid=''
             sleep 4
