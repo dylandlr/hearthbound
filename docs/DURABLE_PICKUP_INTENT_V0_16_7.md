@@ -35,10 +35,16 @@ the extraction call only; it is not evidence that the destination received wheat
    read-only journal-wide summary and bounded unresolved job/actor/tick IDs,
    including transactions for unloaded citizens. It does not load chunks,
    scan their NBT, or reconcile actual inventory.
-7. NOT IMPLEMENTED: complete scans of *unloaded* citizen NBT, cross-file
+7. Implemented: `/hearthbound-pickup-citizen-audit` joins the full journal to
+   currently loaded marked villager NBT across dimensions, showing `not_loaded`,
+   `mismatched`, and `hold_for_review` counts. Citizens outside the loaded set
+   remain UNKNOWN; no chunk/entity-region loading, inventory scans, or retries.
+   The administrative `resume` method now rejects paused report-policy jobs,
+   closing a path around the restarted-job gate.
+8. NOT IMPLEMENTED: complete scans of *unloaded* citizen NBT, cross-file
    backup rollback/high-water mark anchoring, an authorized reconciliation
    workflow, or independent inventory proof.
-8. NOT VERIFIED: forced-kill real Forge acceptance for interruption boundaries
+9. NOT VERIFIED: forced-kill real Forge acceptance for interruption boundaries
    with independent source, actor cargo and destination inventories.
 
 ## Scope and caveats
@@ -46,7 +52,8 @@ the extraction call only; it is not evidence that the destination received wheat
 The motor hook, loaded-citizen restrictive restart classification, eager
 journal validation, ownership marker and normal server-stop cleanup are wired.
 Full unloaded-citizen reconciliation, external rollback anchors, physical
-recovery controls and real crash verification are not. The new admin audit
+recovery controls and real crash verification are not. Loaded-villager audits
+are read-only comparisons and may not substitute for independent evidence. The new admin audit
 is observational only. A legacy world with an existing
 journal but no marker deliberately fails closed; migration must be explicit. Existing v0.16.6 session fencing remains the
 primary protection for restored report-policy tasks.
