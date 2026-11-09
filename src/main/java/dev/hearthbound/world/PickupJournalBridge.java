@@ -1,6 +1,7 @@
 package dev.hearthbound.world;
 
 import dev.hearthbound.evidence.PickupTransactionJournal;
+import dev.hearthbound.evidence.PickupJournalOwnership;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Map;
@@ -26,17 +27,22 @@ final class PickupJournalBridge {
             throw new IOException("pickup evidence journal fail closed: " + BLOCKED.get(server));
         PickupTransactionJournal existing = OPEN.get(server);
         if (existing != null) return existing;
-        Path path = server.getWorldPath(LevelResource.ROOT)
-            .resolve("data").resolve("hearthbound").resolve("pickup-extraction-v1.bin");
+        Path directory = server.getWorldPath(LevelResource.ROOT)
+            .resolve("data").resolve("hearthbound");
         try {
-            PickupTransactionJournal opened = new PickupTransactionJournal(
-                path, HearthboundWorldIdentity.get(level));
+            PickupTransactionJournal opened = PickupJournalOwnership.open(
+                directory, HearthboundWorldIdentity.get(level));
             OPEN.put(server, opened);
             return opened;
         } catch (IOException | RuntimeException failure) {
             BLOCKED.put(server, failure.getClass().getSimpleName());
             throw new IOException("pickup evidence journal unavailable", failure);
         }
+    }
+
+    /** Eagerly verify ownership and all frames before the first citizen tick. */
+    static synchronized void startup(ServerLevel level) throws IOException {
+        journal(level);
     }
 
     static synchronized void beforeExtraction(ServerLevel level,
