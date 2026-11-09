@@ -133,6 +133,18 @@ def main():
         if "No wheat available" not in audit:
             raise AssertionError("Pickup failure not verified by real motor: "+audit)
         outcome["failed_motor_audit"]=audit
+        # This world-bound journal is independently persisted by the actual
+        # motor. A physical failed job must have exactly one EMPTY outcome,
+        # not merely a citizen NBT failure record.
+        pickup_journal = require(r, "hearthbound-pickup-journal",
+                                 "status=READ_ONLY")
+        if ("total=1" not in pickup_journal
+                or "extraction_empty=1" not in pickup_journal
+                or "cargo_returned=0" not in pickup_journal
+                or "unresolved=0" not in pickup_journal):
+            raise AssertionError("Real failed pickup not independently durable: "
+                                 + pickup_journal)
+        outcome["first_durable_journal_audit"] = pickup_journal
 
         # At the exact decision boundary, no new reports have been sent:
         # Sable must reject A's still-remembered 3-wheat observation.
@@ -213,6 +225,17 @@ def main():
         check_count(r,A,0)
         check_count(r,B,0)
         check_count(r,D,1)
+        # Journal evidence describes attempted source extraction, not delivery;
+        # independent chest deltas above are required to claim the real haul.
+        pickup_journal = require(r, "hearthbound-pickup-journal",
+                                 "status=READ_ONLY")
+        if ("total=2" not in pickup_journal
+                or "extraction_empty=1" not in pickup_journal
+                or "cargo_returned=1" not in pickup_journal
+                or "unresolved=0" not in pickup_journal):
+            raise AssertionError("Real recovery journal outcomes disagree: "
+                                 + pickup_journal)
+        outcome["final_durable_journal_audit"] = pickup_journal
         # The original *failed* pickup never receives a completion receipt.
         final_belief=require(r,f"hearthbound-pickup-belief {EX} {A}",
                              "state=PICKUP_RETURNED_EMPTY")
