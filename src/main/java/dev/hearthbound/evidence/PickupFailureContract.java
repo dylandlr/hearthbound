@@ -37,6 +37,12 @@ public final class PickupFailureContract {
     }
 
     /** An old report cannot be reused merely by changing its delivery time. */
+    public static boolean validInContext(Failure failure, UUID world, UUID actor, long now) {
+        return failure != null && failure.world().equals(world)
+            && failure.executor().equals(actor) && failure.failedTick() <= now;
+    }
+
+    /** An old report cannot be reused merely by changing its delivery time. */
     public static boolean disqualifies(Failure failure, UUID world, UUID actor, Report report) {
         if (failure == null || world == null || actor == null || report == null)
             return false;

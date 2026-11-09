@@ -167,6 +167,14 @@ public final class SableHauling {
         // Jobs that have not picked up cargo may safely continue after restart.
         if (!tag.contains(CARGO) && tag.hasUUID(JOB_ID)
                 && !isLive(level.getServer(), tag.getUUID(JOB_ID))) {
+            if (tag.contains("reportPolicyDispatch.v1") && phase != COMPLETE) {
+                // A restored policy assignment cannot bypass the report-session
+                // fence by resuming its motor without a new source decision.
+                // Preserve an existing failed-job reason and all evidence.
+                if (phase != PAUSED && phase != QUARANTINED)
+                    pause(tag, "Restored report-policy task requires fresh observation and new assignment");
+                return;
+            }
             markLive(level.getServer(), tag.getUUID(JOB_ID));
         }
         // A mill reservation is mandatory throughout the task, not merely at

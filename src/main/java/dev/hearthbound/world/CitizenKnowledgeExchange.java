@@ -50,6 +50,8 @@ public final class CitizenKnowledgeExchange {
             return "KNOWLEDGE_SHARE ABSTAIN reason=NO_DIRECT_EVIDENCE action_authorized=false";
         long observed = evidence.getLong("observed_tick");
         long delivered = level.getGameTime();
+        if (!SourceReportSession.accepts(level, evidence, delivered))
+            return "KNOWLEDGE_SHARE ABSTAIN reason=REOBSERVATION_REQUIRED_AFTER_RESTART action_authorized=false";
         if (observed > delivered || delivered - observed > CitizenSourceKnowledge.FRESH_TICKS)
             return "KNOWLEDGE_SHARE ABSTAIN reason=STALE_SOURCE action_authorized=false";
 
@@ -61,7 +63,8 @@ public final class CitizenKnowledgeExchange {
         // A new delivery timestamp alone never creates a new event.
         String reportId = sender.getUUID() + "|" + evidence.getString("source")
             + "|" + evidence.getInt("revision")
-            + "|" + observed;
+            + "|" + observed + "|" + evidence.getUUID("observationWorld")
+            + "|" + evidence.getUUID("observationSession");
         for (int i = 0; i < entries.size(); i++) {
             if (reportId.equals(entries.getCompound(i).getString("id")))
                 return "KNOWLEDGE_SHARE status=DUPLICATE action_authorized=false";
@@ -74,6 +77,8 @@ public final class CitizenKnowledgeExchange {
         }
         while (updated.size() >= MAX_REPORTS) updated.remove(0);
         CompoundTag report = new CompoundTag();
+        report.putUUID("observationWorld", evidence.getUUID("observationWorld"));
+        report.putUUID("observationSession", evidence.getUUID("observationSession"));
         report.putString("id", reportId);
         report.putString("source", evidence.getString("source"));
         report.putString("state", evidence.getString("state"));
@@ -115,7 +120,8 @@ public final class CitizenKnowledgeExchange {
             CompoundTag r = reports.getCompound(i);
             long delivered = r.getLong("delivered_tick");
             long observed = r.getLong("observed_tick");
-            if (!key(level, source).equals(r.getString("source"))
+            if (!SourceReportSession.accepts(level, r, delivered)
+                    || !key(level, source).equals(r.getString("source"))
                     || !"REPORTED_DIRECT_FORGE_OBSERVATION".equals(r.getString("origin"))
                     || (!"AVAILABLE".equals(r.getString("state"))
                         && !"EMPTY".equals(r.getString("state")))
