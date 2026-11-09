@@ -2,6 +2,7 @@ package dev.hearthbound.world;
 
 import dev.hearthbound.evidence.PickupTransactionJournal;
 import dev.hearthbound.evidence.PickupJournalOwnership;
+import dev.hearthbound.evidence.PickupCitizenReconciliation;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Map;
@@ -114,6 +115,45 @@ final class PickupJournalBridge {
             return "PICKUP_JOURNAL_AUDIT status=FAIL_CLOSED"
                 + " inventory_read=false task_authorized=false"
                 + " reward_authorized=false";
+        }
+    }
+
+    /**
+     * Read-only join with only currently loaded villager NBT. Does not call
+     * getChunk, load region/entity files, or read source inventories. Missing
+     * entities remain NOT_LOADED; contradictions cannot authorize actions.
+     */
+    static synchronized String auditLoadedCitizens(ServerLevel level) {
+        try {
+            java.util.List<PickupTransactionJournal.View> recorded = journal(level).snapshot();
+            java.util.List<PickupCitizenReconciliation.Citizen> loaded =
+                new java.util.ArrayList<>();
+            for (ServerLevel current : level.getServer().getAllLevels()) {
+                for (net.minecraft.world.entity.Entity entity : current.getAllEntities()) {
+                    if (!(entity instanceof net.minecraft.world.entity.npc.Villager citizen)
+                            || !citizen.getPersistentData().getBoolean("hearthbound.sable"))
+                        continue;
+                    net.minecraft.nbt.CompoundTag haul =
+                        citizen.getPersistentData().getCompound("hearthbound.haul");
+                    UUID savedJob = haul.hasUUID("jobId") ? haul.getUUID("jobId") : null;
+                    loaded.add(new PickupCitizenReconciliation.Citizen(
+                        citizen.getUUID(), savedJob, haul.contains("reportPolicyDispatch.v1"),
+                        haul.contains("cargo"), haul.getInt("phase") == 4));
+                }
+            }
+            PickupCitizenReconciliation.Summary result =
+                PickupCitizenReconciliation.inspect(recorded, loaded);
+            return "PICKUP_CITIZEN_AUDIT status=READ_ONLY"
+                + " journal_jobs=" + result.rows().size()
+                + " loaded_citizens=" + loaded.size()
+                + " not_loaded=" + result.notLoaded()
+                + " mismatched=" + result.mismatched()
+                + " hold_for_review=" + result.heldForReview()
+                + " nbt_scan=LOADED_ONLY chunk_load=false"
+                + " inventory_read=false task_authorized=false reward_authorized=false";
+        } catch (IOException | RuntimeException failure) {
+            return "PICKUP_CITIZEN_AUDIT status=FAIL_CLOSED"
+                + " task_authorized=false reward_authorized=false";
         }
     }
 
