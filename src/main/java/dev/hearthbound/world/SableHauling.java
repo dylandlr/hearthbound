@@ -1,6 +1,8 @@
 package dev.hearthbound.world;
 
 import net.minecraft.core.BlockPos;
+import dev.hearthbound.evidence.PickupTransactionJournal;
+import java.io.IOException;
 import java.util.Set;
 import java.util.UUID;
 import java.util.HashSet;
@@ -67,6 +69,7 @@ public final class SableHauling {
 
     public static synchronized void serverStopped(MinecraftServer server) {
         LIVE_JOBS.remove(server);
+        PickupJournalBridge.serverStopped(server);
     }
 
     private static void quarantine(CompoundTag tag, String reason) {
@@ -246,19 +249,64 @@ public final class SableHauling {
                 pause(tag, "Destination unavailable or full before pickup");
                 return;
             }
-            ItemStack taken = extractWheat(entity);
+            // Experimental report-policy jobs require a forced intent before
+            // touching inventory. An unresolved intent on replay is NOT safe
+            // to retry, even when villager NBT has no cargo.
+            boolean journaled = tag.contains("reportPolicyDispatch.v1");
+            if (journaled) {
+                try {
+                    CompoundTag decision = tag.getCompound("reportPolicyDispatch.v1");
+                    if (!tag.hasUUID(JOB_ID) || !tag.contains(ASSIGNED_TICK,
+                            net.minecraft.nbt.Tag.TAG_LONG)
+                            || !decision.hasUUID("world") || !decision.hasUUID("job")
+                            || !decision.hasUUID("executor")
+                            || !decision.getUUID("world").equals(HearthboundWorldIdentity.get(level))
+                            || !decision.getUUID("job").equals(tag.getUUID(JOB_ID))
+                            || !decision.getUUID("executor").equals(citizen.getUUID())
+                            || decision.getString("reportId").isBlank())
+                        throw new IOException("invalid journal assignment provenance");
+                    PickupJournalBridge.beforeExtraction(level,
+                        new PickupTransactionJournal.Intent(
+                            HearthboundWorldIdentity.get(level), tag.getUUID(JOB_ID),
+                            citizen.getUUID(), level.dimension().location()
+                                + "|" + target.getX() + "," + target.getY() + "," + target.getZ(),
+                            decision.getString("reportId"),
+                            tag.getLong(ASSIGNED_TICK), level.getGameTime()));
+                } catch (IOException | RuntimeException failure) {
+                    pause(tag, "Pickup journal denied extraction; operator reconciliation required");
+                    return;
+                }
+            }
+            ItemStack taken;
+            try {
+                taken = extractWheat(entity);
+            } catch (RuntimeException failedMotor) {
+                // Intent may have committed. Leave it UNRESOLVED and never retry.
+                quarantine(tag, "Extraction interrupted after durable intent");
+                return;
+            }
+            // Retain physical cargo even if committing its outcome fails.
+            // A failed outcome force quarantines this job and forbids further motion.
+            if (!taken.isEmpty()) {
+                tag.put(CARGO, taken.save(new CompoundTag()));
+                entity.setChanged();
+            }
+            if (journaled) {
+                try {
+                    PickupJournalBridge.afterExtraction(level, tag.getUUID(JOB_ID), taken.isEmpty());
+                } catch (IOException | RuntimeException failure) {
+                    quarantine(tag, "Pickup outcome not durably committed; reconcile physically");
+                    return;
+                }
+            }
             if (taken.isEmpty()) {
-                // A real, attempted extraction returned no item. This is
-                // negative motor evidence for this job, NOT proof that the
-                // chest is empty or that navigation failed.
+                // Never infer chest emptiness. Negative evidence is recorded
+                // only after the actual motor returned empty and outcome was forced.
                 SourceFailureBeliefs.recordAfterEmptyExtraction(level, citizen, target, tag);
                 pause(tag, "No wheat available");
                 return;
             }
-            // Save cargo in citizen data; never issue a second extraction until delivered.
-            tag.put(CARGO, taken.save(new CompoundTag()));
             tag.putInt(PHASE, TO_DEST);
-            entity.setChanged();
         } else {
             ItemStack cargo = ItemStack.of(tag.getCompound(CARGO));
             if (cargo.isEmpty()) {
