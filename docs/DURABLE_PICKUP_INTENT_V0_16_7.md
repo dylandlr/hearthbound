@@ -83,3 +83,30 @@ during a Minecraft block-entity operation, verify world saves, reconcile
 inventory, or prove power-loss durability on all filesystems. Those are
 separate physical acceptance gates. A delayed, missed, or errored test never
 authorizes replay or new rewards.
+
+## Physical Forge evidence-to-journal linkage (new acceptance assertions)
+
+The existing real Forge scripts now verify that the independent, read-only
+`/hearthbound-pickup-journal` shows one `EXTRACTION_EMPTY` outcome for the
+actual failed A pickup before any scout recovery. After B is actually hauled,
+the journal must show two total jobs: one empty extraction, one cargo-returned
+extraction, and zero unresolved intents. This is checked alongside physical
+source A=0, source B=0, destination=1 inventories.
+
+Both clean-restart and deliberately killed-server acceptance scripts require
+the original durable A extraction receipt to survive boot. In the crash case,
+unsaved villager NBT is deliberately lost while the journal's A receipt survives:
+the journal does **not** fabricate or restore the citizen's missing private
+negative memory. World-swapped copies must return FAIL_CLOSED because the
+world UUID binding differs. The clean recovery arm additionally requires the
+later B cargo-returned receipt with independently observed inventory deltas.
+
+These tests use real Forge/RCON and are **new assertions, not completed passes**.
+Their reliability, including the new journal-integrity startup path, must be
+judged at the exact GitHub Actions commit. A green storage-only kill test
+cannot substitute for a live server crash with physical inventory inspection.
+
+Next: add deterministic real-server crash hooks around each motor boundary,
+in disposable worlds only; measure whether world inventory saves can diverge
+from forced journal state, then design explicit operator-controlled
+reconciliation for every divergence without inferring delivered cargo.
