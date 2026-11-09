@@ -36,7 +36,7 @@ public final class PickupFailureContract {
         }
     }
 
-    /** An old report cannot be reused merely by changing its delivery time. */
+    /** A foreign or future event is invalid evidence, not an absent failure. */
     public static boolean validInContext(Failure failure, UUID world, UUID actor, long now) {
         return failure != null && failure.world().equals(world)
             && failure.executor().equals(actor) && failure.failedTick() <= now;

@@ -74,6 +74,9 @@ def verify(mode):
         check_count(r, B, 1)
         check_count(r, D, 0)
         no_choices(r)
+        if mode == "crash":
+            # Prove rejection is not merely the ordinary report TTL expiring.
+            r.require(f"hearthbound knowledge_report {B} {EX}", "freshness=RETAINED")
         # A stale direct memory must not acquire a new session at delivery.
         r.require(f"hearthbound-share-direct {A} {SCOUT} {EX}",
                   "reason=REOBSERVATION_REQUIRED_AFTER_RESTART")
@@ -97,6 +100,14 @@ def verify(mode):
                     raise AssertionError("Saved evidence changed: " + path)
             r.require(f"hearthbound-reobserve-request {EX} {A}", "reason=ALREADY_AWAITING_SCOUT")
             r.require(f"hearthbound-report-execution {EX} {before['first_job']}", "status=INCOMPLETE")
+            # Adversarial restored motor state: a pre-pickup phase must pause
+            # before extraction instead of bypassing the report session fence.
+            r.require(f"data modify entity {EX} {HAUL}.phase set value 0", "Modified entity data")
+            time.sleep(.25)
+            r.require(f"hearthbound-report-execution {EX} {before['first_job']}", "executor_state=Paused:")
+            check_count(r, B, 1)
+            check_count(r, D, 0)
+            r.require(f"data modify entity {EX} {HAUL} set value {before['haul_nbt']}", "Modified entity data")
             # Fresh B makes these negative controls independent of the boot fence / TTL.
             refresh(r, B, 1)
             r.require(f"hearthbound-report-choice {EX} {A} {B} exposed", "selected=minecraft:overworld|7,101,1")
@@ -111,6 +122,7 @@ def verify(mode):
                 (REQUEST + ".source", '"wrong-type"'),
             )
             for path, value in mutations:
+                refresh(r, B, 1)
                 r.require(f"data modify entity {EX} {path} set value {value}", "Modified entity data")
                 r.require(f"hearthbound-pickup-belief {EX} {A}", "state=FAIL_CLOSED")
                 no_choices(r)
@@ -155,8 +167,8 @@ def verify(mode):
                     raise AssertionError("Post-checkpoint data unexpectedly survived kill: " + path)
             for policy in ("SCRIPTED", "FROZEN_MLP"):
                 r.require(f"hearthbound-report-dispatch-trial {MENU} {policy} exposed", "status=ABSTAIN")
-            # Keep the old observed tick but forge current delivery time as an
-            # adversarial replay: current session still cannot be minted by share.
+            # Fresh real direct observations restore source choice; missing
+            # failure history is deliberately not reconstructed or credited.
             refresh(r, A, 0)
             refresh(r, B, 1)
             r.require(f"hearthbound-report-choice {EX} {A} {B} exposed", "selected=minecraft:overworld|7,101,1")

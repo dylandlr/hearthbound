@@ -34,6 +34,7 @@ public final class SourceFailureBeliefs {
     private static boolean validRoot(CompoundTag root) {
         if (!PickupFailureContract.SCHEMA.equals(root.getString("schema"))
                 || !(root.get(ENTRIES) instanceof ListTag entries)
+                || (root.contains("saturated") && !root.contains("saturated", Tag.TAG_BYTE))
                 || root.getBoolean("saturated") || entries.size() > LIMIT) return false;
         // An NBT list with a non-compound element type must not silently be
         // parsed as an empty compound list, resurrecting invalidated reports.
