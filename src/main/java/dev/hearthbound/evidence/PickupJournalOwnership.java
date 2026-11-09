@@ -15,9 +15,9 @@ import java.util.UUID;
  * Binds a pickup journal to one world and prevents silent regeneration after
  * a crash, a missing file, or a mixed backup. No automatic migration or repair.
  *
- * A new installation is created journal-first, then forced marker, then
- * forced directory. A crash between those operations intentionally creates an
- * orphan journal which MUST fail closed on the next boot.
+ * A new installation reserves the marker first, creates/forces the journal,
+ * then forces the marker and directory. A crash between these operations
+ * intentionally leaves a mismatched or invalid pair that fails closed.
  */
 public final class PickupJournalOwnership {
     public static final String JOURNAL = "pickup-extraction-v1.bin";
@@ -52,8 +52,8 @@ public final class PickupJournalOwnership {
         Files.createDirectories(directory);
         if (Files.isSymbolicLink(directory))
             throw new IOException("pickup journal directory replaced by symlink");
-        // New installation. Do not allow a preexisting legacy file to be
-        // silently accepted if it appeared between existence checks.
+        // New installation. CREATE_NEW reservation prevents another marker
+        // from being silently accepted if it appeared between checks.
         try (FileChannel markerReservation = FileChannel.open(marker,
                 StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
             // The marker is reserved first. A crash here leaves an invalid
