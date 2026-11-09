@@ -101,6 +101,14 @@ public final class PickupTransactionJournal implements AutoCloseable {
         return entry == null ? null : entry.view();
     }
 
+    /** Immutable snapshot includes jobs whose villagers are currently unloaded. */
+    public synchronized List<View> snapshot() {
+        healthy();
+        List<View> result = new ArrayList<>();
+        for (Entry entry : entries.values()) result.add(entry.view());
+        return List.copyOf(result);
+    }
+
     public synchronized List<View> unresolved() {
         healthy();
         List<View> result = new ArrayList<>();
