@@ -62,3 +62,24 @@ checkpoints or an external anchoring mechanism. A whole-file rollback or valid
 prefix truncation cannot be detected without a separately anchored high-water mark.
 Do not enable recovery, autonomous retries, rewards, Create tech unlocks or ML
 weight updates on the basis of this component. No LLMs.
+
+## v0.16.7 process-termination storage acceptance
+
+`PickupJournalForcedKillTest` launches a separate Java 17 JVM and forcibly
+terminates it **without normal shutdown or closing the journal** after:
+
+- **BEFORE_INTENT:** no fabricated transaction may appear.
+- **AFTER_INTENT:** the intent must replay as UNRESOLVED; quarantine required.
+- **AFTER_EMPTY_OUTCOME:** the persisted empty-extraction receipt must replay.
+- **AFTER_CARGO_OUTCOME:** cargo-returned outcome must replay, without implying delivery.
+
+The child prints its readiness sentinel only after the relevant `FileChannel.force(true)`
+returns. Parent kills the process and reopens the exact journal from disk.
+Tests execute through `scripts/test-research-journals.sh`; results must be
+obtained from GitHub Actions at the exact head before claiming passage.
+
+**This is storage-only acceptance.** It does not terminate the real Forge JVM
+during a Minecraft block-entity operation, verify world saves, reconcile
+inventory, or prove power-loss durability on all filesystems. Those are
+separate physical acceptance gates. A delayed, missed, or errored test never
+authorizes replay or new rewards.
