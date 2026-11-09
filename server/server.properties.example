@@ -1,0 +1,15 @@
+# Planning template only. No server is installed or started by this file.
+# Owner must review EULA separately; never copy CI's offline/RCON settings.
+server-ip=127.0.0.1
+server-port=25565
+online-mode=true
+white-list=true
+enforce-whitelist=true
+enable-rcon=false
+enable-query=false
+enable-command-block=false
+max-players=4
+view-distance=6
+simulation-distance=4
+level-name=hearthbound-alpha
+motd=Hearthbound private development candidate

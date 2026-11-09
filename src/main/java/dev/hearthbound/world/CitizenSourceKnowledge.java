@@ -67,6 +67,7 @@ public final class CitizenSourceKnowledge {
         // The oldest entry is evicted first, without inspecting remote sources.
         while (updated.size() >= MAX_ENTRIES) updated.remove(0);
         CompoundTag observation = new CompoundTag();
+        SourceReportSession.stamp(level, observation);
         observation.putString("source", identity);
         observation.putString("state", snapshot.state().name());
         observation.putInt("wheat", snapshot.wheat());

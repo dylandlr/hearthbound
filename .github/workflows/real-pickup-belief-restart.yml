@@ -1,0 +1,132 @@
+name: Real Forge pickup belief restart and lost-save fence
+on:
+  pull_request:
+    paths:
+      - 'src/main/java/dev/hearthbound/world/**'
+      - 'src/main/java/dev/hearthbound/evidence/ReportSessionFence.java'
+      - 'src/main/java/dev/hearthbound/evidence/PickupFailureContract.java'
+      - 'scripts/rcon_pickup_belief_restart.py'
+      - 'scripts/rcon_failed_pickup_reobservation.py'
+      - '.github/workflows/real-pickup-belief-restart.yml'
+  workflow_dispatch:
+jobs:
+  restart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions: {contents: read}
+    strategy:
+      fail-fast: false
+      matrix: {mode: [clean, crash]}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.8'}
+      - name: Freeze model and check evidence contracts
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/rcon_pickup_belief_restart.py scripts/rcon_failed_pickup_reobservation.py
+          bash scripts/test-research-journals.sh
+          python3 scripts/train_report_choice_mlp.py --model run/report-choice-mlp-v1.txt --sha run/report-choice-mlp-v1.sha256 --report pickup-restart-training.json
+      - name: Real extraction then separate process lifetimes
+        shell: bash
+        env:
+          HEARTHBOUND_RCON_PASSWORD: ci-local-disposable-password
+          HEARTHBOUND_PICKUP_RESTART: '${{ matrix.mode }}'
+        run: |
+          set -euo pipefail
+          mkdir -p run
+          printf 'eula=true\n' > run/eula.txt
+          # Disposable CI world only; these are NOT deployment defaults.
+          printf 'server-ip=127.0.0.1\nonline-mode=false\nlevel-name=pickup-restart-world\nmax-players=2\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties
+          pid=''
+          trap 'if [ -n "$pid" ]; then kill -KILL -- "-$pid" 2>/dev/null || true; fi' EXIT
+          boot() {
+            local log="$1"
+            setsid gradle --no-daemon runServer > "$log" 2>&1 &
+            pid=$!
+            for i in $(seq 1 360); do
+              if grep -Eq 'Done \([0-9.]+s\)! For help, type "help"' "$log"; then return; fi
+              if ! kill -0 "$pid" 2>/dev/null; then tail -n 120 "$log"; return 1; fi
+              sleep 2
+            done
+            tail -n 120 "$log"
+            return 1
+          }
+          await_stop() {
+            for i in $(seq 1 90); do
+              if ! kill -0 "$pid" 2>/dev/null; then
+                wait "$pid"
+                pid=''
+                return
+              fi
+              sleep 1
+            done
+            echo 'Server failed to stop cleanly' >&2
+            return 1
+          }
+          boot pickup-restart-first.log
+          python3 scripts/rcon_failed_pickup_reobservation.py | tee pickup-restart-before-rcon.log
+          test -s pickup-restart-before.json
+          if [ "$HEARTHBOUND_PICKUP_RESTART" = crash ]; then
+            # Gradle's single-use daemon can launch the game outside the
+            # launcher's process group. Kill the actual RCON-owning JVM FIRST,
+            # otherwise launcher loss can initiate a graceful game save.
+            read -r -a server_owners <<< "$(fuser -n tcp 25575 2>/dev/null)"
+            test "${#server_owners[@]}" -eq 1
+            server_pid="${server_owners[0]}"
+            [[ "$server_pid" =~ ^[0-9]+$ ]]
+            test "$(cat "/proc/$server_pid/comm")" = java
+            test "$(readlink -f "/proc/$server_pid/cwd")" = "$(realpath run)"
+            ps -p "$server_pid" -o pid,ppid,comm | tee pickup-restart-killed-process.log
+            kill -KILL "$server_pid"
+            sleep 1
+            if fuser -n tcp 25575 >/dev/null 2>&1; then
+              echo 'Minecraft RCON listener survived forced termination' >&2
+              exit 1
+            fi
+            kill -KILL -- "-$pid" 2>/dev/null || true
+            wait "$pid" 2>/dev/null || true
+            pid=''
+            sleep 4
+          else
+            await_stop
+            # Preserve citizen data byte-for-byte in a separate, stopped test
+            # world. Remove only its identity so Forge creates a distinct UUID.
+            python3 - <<'PY'
+          from pathlib import Path
+          import shutil
+          original = Path('run/pickup-restart-world').resolve()
+          swapped = Path('run/pickup-swapped-world').resolve()
+          assert original.parent == swapped.parent and not swapped.exists()
+          shutil.copytree(original, swapped)
+          identity = swapped / 'data/hearthbound_world_identity_v1.dat'
+          assert identity.is_file()
+          identity.unlink()
+          identity.with_suffix('.dat_old').unlink(missing_ok=True)
+          PY
+          fi
+          boot pickup-restart-second.log
+          python3 scripts/rcon_pickup_belief_restart.py "$HEARTHBOUND_PICKUP_RESTART" | tee pickup-restart-after-rcon.log
+          grep -q "REAL_FORGE_PICKUP_RESTART_PASS mode=$HEARTHBOUND_PICKUP_RESTART" pickup-restart-after-rcon.log
+          await_stop
+          if [ "$HEARTHBOUND_PICKUP_RESTART" = clean ]; then
+            sed -i 's/level-name=pickup-restart-world/level-name=pickup-swapped-world/' run/server.properties
+            boot pickup-restart-world-swap.log
+            python3 scripts/rcon_pickup_belief_restart.py world-swap | tee pickup-restart-world-swap-rcon.log
+            grep -q 'REAL_FORGE_PICKUP_RESTART_PASS mode=world-swap' pickup-restart-world-swap-rcon.log
+            await_stop
+          fi
+      - name: Archive physical evidence and restart logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pickup-belief-restart-${{ matrix.mode }}
+          path: |
+            pickup-restart-*.json
+            pickup-restart-*.log
+            run/report-choice-mlp-v1.sha256
+            run/logs/latest.log
+          if-no-files-found: warn
+          retention-days: 14

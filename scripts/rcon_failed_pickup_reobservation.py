@@ -96,6 +96,11 @@ def main():
         old=r.run(f"hearthbound-report-choice {EX} {A} {B} exposed")
         if "selected=minecraft:overworld|3,101,1" not in old:
             raise AssertionError("The old report was not available for failed physical trial: "+old)
+        if os.environ.get("HEARTHBOUND_PICKUP_RESTART") == "crash":
+            # Intentionally retain the old reports but NOT the later extraction
+            # failure. The workflow kills the process group without a save/stop.
+            require(r, "save-all flush", "Saved the game")
+            require(r, "save-off", "Automatic saving is now disabled")
         assigned=require(r,f"hearthbound-report-dispatch-trial {MENU} SCRIPTED exposed",
                          "status=ASSIGNED")
         if "source=minecraft:overworld|3,101,1" not in assigned:
@@ -142,14 +147,27 @@ def main():
         if "reason=ALREADY_AWAITING_SCOUT" not in repeat:
             raise AssertionError("Repeated request laundered failure timestamp: "+repeat)
         outcome["request_receipt"]=request
+        report_path='ForgeData."hearthbound.citizen_reports.v1".entries'
+        reports_before=r.run(f"data get entity {EX} {report_path}")
         old_replay=r.run(f"hearthbound-share-direct {A} {SCOUT} {EX}")
-        if "status=DUPLICATE" not in old_replay:
+        # Depending on the real motor duration, the original observation may
+        # already exceed its 40-tick sharing TTL. Both outcomes reject replay;
+        # neither is a new report. Do not loosen the physical acceptance gate.
+        if ("status=DUPLICATE" not in old_replay
+                and "KNOWLEDGE_SHARE ABSTAIN reason=STALE_SOURCE" not in old_replay):
             raise AssertionError("Original direct observation was replayed as new evidence: "+old_replay)
+        if r.run(f"data get entity {EX} {report_path}") != reports_before:
+            raise AssertionError("Rejected replay mutated recipient report history")
         await_report=require(r,f"hearthbound-pickup-belief {EX} {A}",
                              "reobservation_request=AWAITING_SCOUT_DIRECT_OBSERVATION")
+        if os.environ.get("HEARTHBOUND_PICKUP_RESTART") in ("clean", "crash"):
+            from rcon_pickup_belief_restart import checkpoint
+            checkpoint(r, outcome, os.environ["HEARTHBOUND_PICKUP_RESTART"])
+            return
         # No cargo was ever picked up. Cancellation releases the original
         # claim; no teleportation, synthetic transfer or reconciliation hack.
         require(r,f"execute at {EX} run sable haul-cancel","Unpicked haul cancelled")
+        require(r,f"hearthbound-report-execution {EX} {job}","status=CANCELLED")
         check_count(r,A,0)
         check_count(r,B,1)
         check_count(r,D,0)

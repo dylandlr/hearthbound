@@ -2,6 +2,7 @@ package dev.hearthbound.world;
 
 import dev.hearthbound.evidence.PickupFailureContract;
 import java.util.UUID;
+import java.util.HashSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -21,7 +22,6 @@ public final class SourceFailureBeliefs {
     private static final String ROOT = "hearthbound.pickupFailures.v1";
     private static final String ENTRIES = "entries";
     private static final int LIMIT = 32;
-    private static final String HAUL = "hearthbound.haul";
     private static final String ASSIGNMENT = "reportPolicyDispatch.v1";
     private static final String REQUEST = "hearthbound.pendingSourceRecheck.v1";
     private SourceFailureBeliefs() {}
@@ -34,10 +34,59 @@ public final class SourceFailureBeliefs {
     private static boolean validRoot(CompoundTag root) {
         if (!PickupFailureContract.SCHEMA.equals(root.getString("schema"))
                 || !(root.get(ENTRIES) instanceof ListTag entries)
-                || root.getBoolean("saturated")) return false;
+                || (root.contains("saturated") && !root.contains("saturated", Tag.TAG_BYTE))
+                || root.getBoolean("saturated") || entries.size() > LIMIT) return false;
         // An NBT list with a non-compound element type must not silently be
         // parsed as an empty compound list, resurrecting invalidated reports.
         return entries.isEmpty() || entries.getElementType() == Tag.TAG_COMPOUND;
+    }
+
+    /** Never interpret foreign, future, duplicate or malformed events as no failure. */
+    private static boolean validContext(ServerLevel level, Villager executor) {
+        if (executor.level() != level) return false;
+        if (!executor.getPersistentData().contains(ROOT))
+            return !executor.getPersistentData().contains(REQUEST);
+        CompoundTag root = executor.getPersistentData().getCompound(ROOT);
+        if (!validRoot(root)) return false;
+        ListTag entries = root.getList(ENTRIES, Tag.TAG_COMPOUND);
+        var jobs = new HashSet<UUID>();
+        PickupFailureContract.Failure requested = null;
+        CompoundTag pending = executor.getPersistentData().getCompound(REQUEST);
+        for (int i = 0; i < entries.size(); i++) {
+            try {
+                var failure = decode(entries.getCompound(i));
+                if (!PickupFailureContract.validInContext(failure,
+                        HearthboundWorldIdentity.get(level), executor.getUUID(), level.getGameTime())
+                        || !jobs.add(failure.job())) return false;
+                if (pending.hasUUID("failedJob") && failure.job().equals(pending.getUUID("failedJob")))
+                    requested = failure;
+            } catch (IllegalArgumentException invalid) { return false; }
+        }
+        if (!executor.getPersistentData().contains(REQUEST)) return true;
+        if (requested == null
+                || !"hearthbound.reobservation-request.v1".equals(pending.getString("schema"))
+                || !pending.hasUUID("world") || !requested.world().equals(pending.getUUID("world"))
+                || !pending.hasUUID("recipient") || !executor.getUUID().equals(pending.getUUID("recipient"))
+                || !pending.contains("source", Tag.TAG_LONG)
+                || !requested.source().equals(sourceKey(level, BlockPos.of(pending.getLong("source"))))
+                || !pending.contains("failedTick", Tag.TAG_LONG)
+                || pending.getLong("failedTick") != requested.failedTick()
+                || !requested.selectedReportId().equals(pending.getString("invalidatedReportId"))
+                || !pending.contains("requestTick", Tag.TAG_LONG)
+                || pending.getLong("requestTick") < requested.failedTick()
+                || pending.getLong("requestTick") > level.getGameTime()) return false;
+        if ("AWAITING_SCOUT_DIRECT_OBSERVATION".equals(pending.getString("state")))
+            return !pending.contains("reportId") && !pending.contains("observedTick")
+                && !pending.contains("deliveredTick");
+        return "FULFILLED_BY_NEW_DIRECT_REPORT".equals(pending.getString("state"))
+            && !pending.getString("reportId").isBlank()
+            && !requested.selectedReportId().equals(pending.getString("reportId"))
+            && pending.contains("observedTick", Tag.TAG_LONG)
+            && pending.contains("deliveredTick", Tag.TAG_LONG)
+            && pending.getLong("observedTick") > requested.failedTick()
+            && pending.getLong("deliveredTick") >= pending.getLong("observedTick")
+            && pending.getLong("deliveredTick") >= pending.getLong("requestTick")
+            && pending.getLong("deliveredTick") <= level.getGameTime();
     }
 
     private static CompoundTag invalidFailClosed(Villager executor) {
@@ -93,7 +142,7 @@ public final class SourceFailureBeliefs {
         }
         boolean existed = executor.getPersistentData().contains(ROOT);
         CompoundTag root = executor.getPersistentData().getCompound(ROOT);
-        if (existed && !validRoot(root)) {
+        if ((existed || executor.getPersistentData().contains(REQUEST)) && !validContext(level, executor)) {
             invalidFailClosed(executor);
             return;
         }
@@ -129,9 +178,9 @@ public final class SourceFailureBeliefs {
     private static PickupFailureContract.Failure decode(CompoundTag row) {
         if (!PickupFailureContract.SCHEMA.equals(row.getString("schema"))
                 || !row.hasUUID("world") || !row.hasUUID("job")
-                || !row.hasUUID("executor") || !row.contains("source")
-                || !row.contains("reportId") || !row.contains("assignedTick")
-                || !row.contains("failedTick") || !row.contains("observation"))
+                || !row.hasUUID("executor") || !row.contains("source", Tag.TAG_STRING)
+                || !row.contains("reportId", Tag.TAG_STRING) || !row.contains("assignedTick", Tag.TAG_LONG)
+                || !row.contains("failedTick", Tag.TAG_LONG) || !row.contains("observation", Tag.TAG_STRING))
             throw new IllegalArgumentException("missing physical extraction evidence");
         return new PickupFailureContract.Failure(row.getUUID("world"),
             row.getUUID("job"), row.getUUID("executor"),
@@ -149,6 +198,9 @@ public final class SourceFailureBeliefs {
                                         BlockPos source, CompoundTag report) {
         if (level == null || executor == null || source == null || report == null)
             return false;
+        if (!SourceReportSession.accepts(level, report, report.getLong("delivered_tick"))
+                || !sourceKey(level, source).equals(report.getString("source"))
+                || !validContext(level, executor)) return false;
         if (!executor.getPersistentData().contains(ROOT)) return true;
         CompoundTag root = executor.getPersistentData().getCompound(ROOT);
         if (!validRoot(root)) return false;
@@ -189,7 +241,7 @@ public final class SourceFailureBeliefs {
                 || !executor.getPersistentData().contains(ROOT))
             return denied+" reason=NO_PHYSICAL_FAILED_PICKUP";
         CompoundTag root=executor.getPersistentData().getCompound(ROOT);
-        if (!validRoot(root)) return denied+" reason=FAIL_CLOSED_EVIDENCE";
+        if (!validContext(level, executor)) return denied+" reason=FAIL_CLOSED_EVIDENCE";
         PickupFailureContract.Failure newest=null;
         ListTag failures=root.getList(ENTRIES,Tag.TAG_COMPOUND);
         UUID world=HearthboundWorldIdentity.get(level);
@@ -208,10 +260,11 @@ public final class SourceFailureBeliefs {
         if (newest==null) return denied+" reason=NO_PHYSICAL_FAILED_PICKUP";
         if (executor.getPersistentData().contains(REQUEST)) {
             CompoundTag existing=executor.getPersistentData().getCompound(REQUEST);
-            if (newest.job().equals(existing.getUUID("failedJob"))
-                    && "AWAITING_SCOUT_DIRECT_OBSERVATION".equals(existing.getString("state")))
+            if ("AWAITING_SCOUT_DIRECT_OBSERVATION".equals(existing.getString("state")))
                 return denied+" reason=ALREADY_AWAITING_SCOUT"
-                    +" failed_job="+newest.job();
+                    +" failed_job="+existing.getUUID("failedJob");
+            if (newest.job().equals(existing.getUUID("failedJob")))
+                return denied+" reason=ALREADY_FULFILLED failed_job="+newest.job();
         }
         CompoundTag pending=new CompoundTag();
         pending.putString("schema","hearthbound.reobservation-request.v1");
@@ -244,7 +297,9 @@ public final class SourceFailureBeliefs {
                                                     BlockPos source, CompoundTag report) {
         if (level == null || recipient == null || source == null || report == null
                 || !recipient.getPersistentData().contains(REQUEST)
-                || !recipient.getPersistentData().contains(ROOT)) return false;
+                || !recipient.getPersistentData().contains(ROOT)
+                || !validContext(level, recipient)
+                || !SourceReportSession.accepts(level, report, report.getLong("delivered_tick"))) return false;
         CompoundTag pending=recipient.getPersistentData().getCompound(REQUEST);
         if (!"hearthbound.reobservation-request.v1".equals(pending.getString("schema"))
                 || !pending.hasUUID("world")
@@ -282,6 +337,8 @@ public final class SourceFailureBeliefs {
         if (latest<0 || !pending.getUUID("failedJob").equals(latestJob)
                 || pending.getLong("failedTick")!=latest
                 || report.getLong("observed_tick")<=latest
+                || report.getString("id").equals(pending.getString("invalidatedReportId"))
+                || report.getLong("delivered_tick")<pending.getLong("requestTick")
                 || report.getLong("delivered_tick")<report.getLong("observed_tick"))
             return false;
         pending.putString("state","FULFILLED_BY_NEW_DIRECT_REPORT");
@@ -296,8 +353,11 @@ public final class SourceFailureBeliefs {
         final String base = "PICKUP_FAILURE_BELIEF schema=" + PickupFailureContract.SCHEMA
             + " source=" + sourceKey(level, source)
             + " executor=" + executor.getUUID()
+            + " world=" + HearthboundWorldIdentity.get(level)
             + " inventory_read=false evidence_origin=REAL_EXTRACTION_ONLY"
             + " research_authorized=false reward_authorized=false";
+        if (!validContext(level, executor))
+            return base + " state=FAIL_CLOSED next=OPERATOR_REVIEW";
         if (!executor.getPersistentData().contains(ROOT))
             return base + " state=NONE next=NONE";
         CompoundTag root=executor.getPersistentData().getCompound(ROOT);
