@@ -26,18 +26,24 @@ the extraction call only; it is not evidence that the destination received wheat
    the journal. Missing intent or recorded empty outcome pauses; unresolved,
    cargo-returned, identity mismatch and journal failure quarantine. This is
    restrictive classification only, NOT resumption or exact recovery.
-5. NOT IMPLEMENTED: eager startup admission, ownership of the missing-journal
-   condition, complete scans of *unloaded* citizen data, cross-file rollback
-   detection, a read-only reconciliation command or independent inventory proof.
-6. NOT VERIFIED: forced-kill real Forge acceptance for interruption boundaries
+5. Implemented: eager server-start journal open and a world UUID-bound,
+   fsynced ownership marker. A missing marker/journal pair, orphan file,
+   corrupt journal or foreign identity blocks future report-policy extraction.
+   New-world initialization is marker-reservation-first. Startup blocks on
+   invalid files; it does NOT repair or migrate them.
+6. NOT IMPLEMENTED: complete scans of *unloaded* citizen data, cross-file
+   backup rollback/high-water mark anchoring, a read-only reconciliation
+   command, or independent inventory proof.
+7. NOT VERIFIED: forced-kill real Forge acceptance for interruption boundaries
    with independent source, actor cargo and destination inventories.
 
 ## Scope and caveats
 
-The motor hook, loaded-citizen restrictive restart classification and normal
-server-stop cleanup are wired, but eager startup recovery, full unloaded-citizen
-reconciliation, save-lifecycle journal ownership, operator controls and real
-crash verification are not. Existing v0.16.6 session fencing remains the
+The motor hook, loaded-citizen restrictive restart classification, eager
+journal validation, ownership marker and normal server-stop cleanup are wired.
+Full unloaded-citizen reconciliation, external rollback anchors, operator
+controls and real crash verification are not. A legacy world with an existing
+journal but no marker deliberately fails closed; migration must be explicit. Existing v0.16.6 session fencing remains the
 primary protection for restored report-policy tasks.
 The class does not provide atomic inventory transactions, signed anti-rollback
 checkpoints or an external anchoring mechanism. A whole-file rollback or valid
