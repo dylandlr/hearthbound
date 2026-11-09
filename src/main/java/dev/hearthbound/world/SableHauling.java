@@ -2,6 +2,7 @@ package dev.hearthbound.world;
 
 import net.minecraft.core.BlockPos;
 import dev.hearthbound.evidence.PickupTransactionJournal;
+import dev.hearthbound.evidence.PickupRecoveryGate;
 import java.io.IOException;
 import java.util.Set;
 import java.util.UUID;
@@ -189,11 +190,25 @@ public final class SableHauling {
         if (!tag.contains(CARGO) && tag.hasUUID(JOB_ID)
                 && !isLive(level.getServer(), tag.getUUID(JOB_ID))) {
             if (tag.contains("reportPolicyDispatch.v1") && phase != COMPLETE) {
-                // A restored policy assignment cannot bypass the report-session
-                // fence by resuming its motor without a new source decision.
-                // Preserve an existing failed-job reason and all evidence.
-                if (phase != PAUSED && phase != QUARANTINED)
-                    pause(tag, "Restored report-policy task requires fresh observation and new assignment");
+                // Recovery is a restrictive classification, NEVER an instruction
+                // to redo a motor call or deliver cargo. Reconciles this loaded
+                // citizen with the world-bound journal even if its NBT was saved
+                // before the pickup intent was forced to disk.
+                PickupRecoveryGate.Decision recovery;
+                try {
+                    recovery = PickupRecoveryGate.classify(
+                        HearthboundWorldIdentity.get(level), citizen.getUUID(),
+                        tag.getUUID(JOB_ID),
+                        PickupJournalBridge.inspect(level, tag.getUUID(JOB_ID)), true);
+                } catch (IOException | RuntimeException journalFailure) {
+                    recovery = PickupRecoveryGate.Decision.QUARANTINE_JOURNAL_UNAVAILABLE;
+                }
+                switch (recovery) {
+                    case PAUSE_NO_INTENT, PAUSE_EMPTY_OUTCOME ->
+                        pause(tag, "Restored report-policy job: " + recovery
+                            + "; new observation and assignment required");
+                    default -> quarantine(tag, "Pickup journal requires operator review: " + recovery);
+                }
                 return;
             }
             markLive(level.getServer(), tag.getUUID(JOB_ID));
