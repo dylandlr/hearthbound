@@ -38,6 +38,16 @@ public final class PickupTransactionJournalTest {
             check(replay.inspect(cargo).state() == PickupTransactionJournal.State.CARGO_RETURNED);
             check(replay.inspect(interrupted).requiresQuarantine());
             check(replay.unresolved().size() == 1);
+            var audit = replay.snapshot();
+            check(audit.size() == 3);
+            check(audit.stream().filter(v -> v.state()
+                == PickupTransactionJournal.State.UNRESOLVED).count() == 1);
+            check(audit.stream().anyMatch(v -> v.intent().job().equals(interrupted)
+                && v.requiresQuarantine()));
+            try {
+                audit.clear();
+                throw new AssertionError("snapshot must be immutable");
+            } catch (UnsupportedOperationException expected) { }
             fails(() -> replay.begin(b));
         }
         fails(() -> new PickupTransactionJournal(file, UUID.randomUUID()));
