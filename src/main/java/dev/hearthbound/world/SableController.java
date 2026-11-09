@@ -18,6 +18,7 @@ import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
+import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -34,6 +35,18 @@ public final class SableController {
     private static final PriorityPolicy POLICY = new PriorityPolicy();
 
     private SableController() {}
+
+    @SubscribeEvent
+    public static void onServerStarted(ServerStartedEvent event) {
+        // Load the journal on the authoritative server thread before citizen
+        // ticks; a missing or mismatched owner remains blocked until shutdown.
+        try {
+            PickupJournalBridge.startup(event.getServer().overworld());
+        } catch (java.io.IOException | RuntimeException failure) {
+            org.apache.logging.log4j.LogManager.getLogger().error(
+                "Hearthbound pickup evidence admission blocked: manual review required", failure);
+        }
+    }
 
     @SubscribeEvent
     public static void onServerStopped(ServerStoppedEvent event) {
