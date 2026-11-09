@@ -187,6 +187,14 @@ def verify(mode):
             check_count(r, A, 0)
             check_count(r, B, 0)
             check_count(r, D, 1)
+            finished_journal = r.require("hearthbound-pickup-journal", "status=READ_ONLY")
+            if ("total=2" not in finished_journal
+                    or "extraction_empty=1" not in finished_journal
+                    or "cargo_returned=1" not in finished_journal
+                    or "unresolved=0" not in finished_journal):
+                raise AssertionError("Recovered physical delivery lacks durable pickup journal: "
+                                     + finished_journal)
+            result["final_durable_pickup_journal_audit"] = finished_journal
             if nbt(r, FAILURES) != before["failures_nbt"]:
                 raise AssertionError("Recovery changed original negative event")
             result.update(exact_saved_evidence=True, malformed_controls=len(mutations),
