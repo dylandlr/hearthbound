@@ -147,9 +147,17 @@ def main():
         if "reason=ALREADY_AWAITING_SCOUT" not in repeat:
             raise AssertionError("Repeated request laundered failure timestamp: "+repeat)
         outcome["request_receipt"]=request
+        report_path='ForgeData."hearthbound.citizen_reports.v1".entries'
+        reports_before=r.run(f"data get entity {EX} {report_path}")
         old_replay=r.run(f"hearthbound-share-direct {A} {SCOUT} {EX}")
-        if "status=DUPLICATE" not in old_replay:
+        # Depending on the real motor duration, the original observation may
+        # already exceed its 40-tick sharing TTL. Both outcomes reject replay;
+        # neither is a new report. Do not loosen the physical acceptance gate.
+        if ("status=DUPLICATE" not in old_replay
+                and "KNOWLEDGE_SHARE ABSTAIN reason=STALE_SOURCE" not in old_replay):
             raise AssertionError("Original direct observation was replayed as new evidence: "+old_replay)
+        if r.run(f"data get entity {EX} {report_path}") != reports_before:
+            raise AssertionError("Rejected replay mutated recipient report history")
         await_report=require(r,f"hearthbound-pickup-belief {EX} {A}",
                              "reobservation_request=AWAITING_SCOUT_DIRECT_OBSERVATION")
         if os.environ.get("HEARTHBOUND_PICKUP_RESTART") in ("clean", "crash"):
