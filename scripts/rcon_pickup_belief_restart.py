@@ -108,8 +108,16 @@ def verify(mode):
             # Adversarial restored motor state: a pre-pickup phase must pause
             # before extraction instead of bypassing the report session fence.
             r.require(f"data modify entity {EX} {HAUL}.phase set value 0", "Modified entity data")
-            time.sleep(.25)
-            r.require(f"hearthbound-report-execution {EX} {before['first_job']}", "executor_state=Paused:")
+            # Sable's motor runs every 20 entity ticks, not every RCON command.
+            # Require the guard's specific reason, not any later pickup pause.
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline:
+                motor = r.run(f"hearthbound-report-execution {EX} {before['first_job']}")
+                if "executor_state=Paused:_Restored_report-policy_task_requires_fresh_observation_and_new_assignment" in motor:
+                    break
+                time.sleep(.1)
+            else:
+                raise AssertionError("Restored motor did not reach the restart fence: " + motor)
             check_count(r, B, 1)
             check_count(r, D, 0)
             r.require(f"data modify entity {EX} {HAUL} set value {before['haul_nbt']}", "Modified entity data")
