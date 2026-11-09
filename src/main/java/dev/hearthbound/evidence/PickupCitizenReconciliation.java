@@ -14,7 +14,6 @@ public final class PickupCitizenReconciliation {
                           boolean cargoPresent, boolean cargoQuarantined) {
         public Citizen {
             Objects.requireNonNull(executor);
-            Objects.requireNonNull(job);
         }
     }
     public enum Status {
@@ -48,6 +47,7 @@ public final class PickupCitizenReconciliation {
             Citizen citizen = byActor.get(intent.executor());
             Status status;
             if (citizen == null) status = Status.NOT_LOADED;
+            else if (citizen.job() == null) status = Status.NO_MATCHING_SAVED_JOB;
             else if (ambiguous.contains(intent.executor())
                     || !citizen.job().equals(intent.job())
                     || !citizen.reportPolicyJob())
@@ -62,6 +62,7 @@ public final class PickupCitizenReconciliation {
             else status = Status.MATCHED_EMPTY_OUTCOME;
             if (status == Status.NOT_LOADED) unknown++;
             else if (status == Status.WRONG_JOB_OR_POLICY
+                    || status == Status.NO_MATCHING_SAVED_JOB
                     || status == Status.CARGO_CONTRADICTION) bad++;
             if (status != Status.MATCHED_EMPTY_OUTCOME) hold++;
             result.add(new Row(intent.job(), intent.executor(), status));
