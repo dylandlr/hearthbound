@@ -76,6 +76,47 @@ final class PickupJournalBridge {
         return journal(level).inspect(job);
     }
 
+    /**
+     * Read-only audit of persisted pickup transactions. Does not enumerate
+     * villager NBT or touch source/destination chunks, and never reconciles
+     * physical inventories. Includes intents for unloaded citizens.
+     */
+    static synchronized String audit(ServerLevel level, int limit) {
+        try {
+            java.util.List<PickupTransactionJournal.View> all = journal(level).snapshot();
+            int unresolved = 0, empty = 0, cargo = 0;
+            for (PickupTransactionJournal.View view : all) {
+                switch (view.state()) {
+                    case UNRESOLVED -> unresolved++;
+                    case EXTRACTION_EMPTY -> empty++;
+                    case CARGO_RETURNED -> cargo++;
+                }
+            }
+            StringBuilder result = new StringBuilder(
+                "PICKUP_JOURNAL_AUDIT status=READ_ONLY world="
+                + HearthboundWorldIdentity.get(level)
+                + " total=" + all.size() + " unresolved=" + unresolved
+                + " extraction_empty=" + empty + " cargo_returned=" + cargo
+                + " chunk_load=false nbt_scan=false inventory_read=false"
+                + " reward_authorized=false task_authorized=false");
+            int shown = 0;
+            for (PickupTransactionJournal.View view : all) {
+                if (view.state() != PickupTransactionJournal.State.UNRESOLVED)
+                    continue;
+                if (shown++ >= Math.max(0, Math.min(limit, 16))) break;
+                result.append(" pending_").append(shown).append("=")
+                    .append(view.intent().job()).append(",")
+                    .append(view.intent().executor()).append(",")
+                    .append(view.intent().attemptedTick());
+            }
+            return result.toString();
+        } catch (IOException | RuntimeException failure) {
+            return "PICKUP_JOURNAL_AUDIT status=FAIL_CLOSED"
+                + " inventory_read=false task_authorized=false"
+                + " reward_authorized=false";
+        }
+    }
+
     static synchronized void serverStopped(MinecraftServer server) {
         PickupTransactionJournal opened = OPEN.remove(server);
         BLOCKED.remove(server);
