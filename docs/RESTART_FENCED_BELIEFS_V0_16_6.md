@@ -23,6 +23,13 @@ the alternate path around that filter. Their job and report provenance remain
 unchanged. Existing cargo quarantine remains in force; this change never cancels
 or retries cargo-bearing jobs. Legacy non-policy haul behavior is unchanged.
 
+Unpicked cancellation now has its own terminal state and reports CANCELLED,
+never EXECUTOR_COMPLETED. Completion additionally requires a timestamp written
+only after actual insertion returned no remainder. Older saves used COMPLETE
+for both cancellation and delivery, so legacy completion without this marker is
+unverified. This is an executor receipt, not a substitute for independent
+inventory-delta checks or a claim of crash-atomic transfer.
+
 Failure/request validation rejects foreign-world or foreign-executor records,
 future events, duplicate jobs, oversized/malformed lists, wrong NBT scalar types,
 and requests whose failed job, source, report ID or timestamps disagree. A

@@ -203,6 +203,9 @@ public final class ReportHaulExperiment {
             return base+" status=DENIED reason=INVALID_PRE_ACTION_NEURAL_PROVENANCE";
 
         BlockPos dest=BlockPos.of(event.getLong("destination"));
+        if (SableHauling.cancelledBeforePickup(executor, job))
+            return base+" status=CANCELLED reason=UNPICKED_JOB_CANCELLED"
+                +" physical_delivery_verified=false inventory_delta_verified=false";
         if (SableHauling.completedJob(executor,job,dest)) {
             try {
                 SableHauling.Assignment a=

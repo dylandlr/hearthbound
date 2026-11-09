@@ -159,6 +159,7 @@ def main():
         # No cargo was ever picked up. Cancellation releases the original
         # claim; no teleportation, synthetic transfer or reconciliation hack.
         require(r,f"execute at {EX} run sable haul-cancel","Unpicked haul cancelled")
+        require(r,f"hearthbound-report-execution {EX} {job}","status=CANCELLED")
         check_count(r,A,0)
         check_count(r,B,1)
         check_count(r,D,0)

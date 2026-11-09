@@ -35,6 +35,8 @@ public final class SableHauling {
     private static final int PAUSED = 3;
     private static final int QUARANTINED = 4;
     private static final int INSERTING = 5;
+    private static final int CANCELLED = 6;
+    private static final String DELIVERED_TICK = "physicalDeliveredTick";
     private static final String JOB_ID = "jobId";
     private static final String ASSIGNED_TICK = "assignedTick";
     private static final String FAULT = "faultInsertion";
@@ -113,6 +115,9 @@ public final class SableHauling {
                 || tag.getLong(DESTINATION) != destination.asLong()
                 || tag.getLong(SOURCE) == tag.getLong(DESTINATION)
                 || tag.getInt(PHASE) != COMPLETE || tag.contains(CARGO)
+                || !tag.contains(DELIVERED_TICK, net.minecraft.nbt.Tag.TAG_LONG)
+                || tag.getLong(DELIVERED_TICK) < tag.getLong(ASSIGNED_TICK)
+                || tag.getLong(DELIVERED_TICK) > level.getGameTime()
                 || tag.getLong(ASSIGNED_TICK) < 0
                 || tag.getLong(ASSIGNED_TICK) > level.getGameTime())
             throw new IllegalStateException("missing verified executor assignment");
@@ -124,6 +129,10 @@ public final class SableHauling {
     public static boolean completedJob(Villager citizen, UUID expected, BlockPos destination) {
         CompoundTag tag = citizen.getPersistentData().getCompound(KEY);
         return tag.getInt(PHASE) == COMPLETE && tag.hasUUID(JOB_ID)
+            && tag.contains(ASSIGNED_TICK, net.minecraft.nbt.Tag.TAG_LONG)
+            && tag.contains(DELIVERED_TICK, net.minecraft.nbt.Tag.TAG_LONG)
+            && tag.getLong(DELIVERED_TICK) >= tag.getLong(ASSIGNED_TICK)
+            && tag.getLong(DELIVERED_TICK) <= citizen.level().getGameTime()
             && tag.getUUID(JOB_ID).equals(expected)
             && tag.contains(DESTINATION) && tag.getLong(DESTINATION) == destination.asLong()
             && !tag.contains(CARGO);
@@ -131,7 +140,14 @@ public final class SableHauling {
 
     public static boolean active(Villager citizen) {
         CompoundTag tag = citizen.getPersistentData().getCompound(KEY);
-        return tag.contains(PHASE) && tag.getInt(PHASE) != COMPLETE;
+        return tag.contains(PHASE) && tag.getInt(PHASE) != COMPLETE
+            && tag.getInt(PHASE) != CANCELLED;
+    }
+
+    public static boolean cancelledBeforePickup(Villager citizen, UUID job) {
+        CompoundTag tag = citizen.getPersistentData().getCompound(KEY);
+        return tag.getInt(PHASE) == CANCELLED && tag.hasUUID(JOB_ID)
+            && tag.getUUID(JOB_ID).equals(job) && !tag.contains(CARGO);
     }
 
     public static String status(Villager citizen) {
@@ -140,7 +156,9 @@ public final class SableHauling {
         return switch (tag.getInt(PHASE)) {
             case TO_SOURCE -> "Walking to source";
             case TO_DEST -> "Carrying wheat to destination";
-            case COMPLETE -> "Haul complete";
+            case COMPLETE -> tag.contains(DELIVERED_TICK, net.minecraft.nbt.Tag.TAG_LONG)
+                ? "Haul complete" : "Legacy completion (unverified)";
+            case CANCELLED -> "Haul cancelled before pickup";
             case QUARANTINED -> "QUARANTINED (operator review): " + tag.getString(ERROR);
             case INSERTING -> "Inventory insertion in progress";
             default -> "Paused: " + tag.getString(ERROR);
@@ -151,7 +169,7 @@ public final class SableHauling {
         CompoundTag tag = citizen.getPersistentData().getCompound(KEY);
         if (!tag.contains(PHASE)) return;
         int phase = tag.getInt(PHASE);
-        if (phase == QUARANTINED || phase == COMPLETE) return;
+        if (phase == QUARANTINED || phase == COMPLETE || phase == CANCELLED) return;
         if (phase == INSERTING) {
             quarantine(tag, "Insertion interrupted or state restored; manual reconciliation required");
             return;
@@ -286,6 +304,10 @@ public final class SableHauling {
                     MillExperimentTrace.deliveryComplete(level, citizen, tag.getUUID(JOB_ID));
                 }
                 tag.remove(CARGO);
+                // Written only after real insertion returned no remainder.
+                // Legacy COMPLETE also represented cancellation, so phase alone
+                // cannot authorize a completion receipt after upgrading.
+                tag.putLong(DELIVERED_TICK, level.getGameTime());
                 tag.putInt(PHASE, COMPLETE);
                 HaulClaims.release(level, claimedSource, citizen.getUUID());
             } else {
@@ -393,7 +415,7 @@ public final class SableHauling {
      */
     public static boolean cancelBeforePickup(ServerLevel level, Villager citizen) {
         CompoundTag tag = citizen.getPersistentData().getCompound(KEY);
-        if (!tag.contains(PHASE) || tag.getInt(PHASE) == COMPLETE
+        if (!tag.contains(PHASE) || tag.getInt(PHASE) == COMPLETE || tag.getInt(PHASE) == CANCELLED
             || tag.getInt(PHASE) == QUARANTINED || tag.contains(CARGO))
             return false;
         BlockPos source = BlockPos.of(tag.getLong(SOURCE));
@@ -402,7 +424,7 @@ public final class SableHauling {
             if (!tag.hasUUID(JOB_ID) || !MillReservations.releaseUnpicked(
                     level, destination, tag.getUUID(JOB_ID), citizen.getUUID())) return false;
         }
-        tag.putInt(PHASE, COMPLETE);
+        tag.putInt(PHASE, CANCELLED);
         tag.remove(ERROR);
         HaulClaims.release(level, source, citizen.getUUID());
         return true;

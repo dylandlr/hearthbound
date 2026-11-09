@@ -136,6 +136,13 @@ def verify(mode):
                 r.require(f"data modify entity {EX} {root} set value {before[key]}", "Modified entity data")
             # Only no-cargo failed job cancellation is authorized.
             r.require(f"execute at {EX} run sable haul-cancel", "Unpicked haul cancelled")
+            r.require(f"hearthbound-report-execution {EX} {before['first_job']}", "status=CANCELLED")
+            # Legacy saves used COMPLETE for cancelled jobs as well. Without
+            # a true insertion marker, that old phase must not claim delivery.
+            cancelled = nbt(r, HAUL)
+            r.require(f"data modify entity {EX} {HAUL}.phase set value 2", "Modified entity data")
+            r.require(f"hearthbound-report-execution {EX} {before['first_job']}", "status=INCOMPLETE")
+            r.require(f"data modify entity {EX} {HAUL} set value {cancelled}", "Modified entity data")
             refresh(r, A, 0)
             r.require(f"hearthbound-pickup-belief {EX} {A}", "reobservation_request=FULFILLED_BY_NEW_DIRECT_REPORT")
             fulfilled = nbt(r, REQUEST)
