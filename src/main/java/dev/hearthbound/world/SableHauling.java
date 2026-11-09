@@ -496,7 +496,12 @@ public final class SableHauling {
     public static boolean resume(Villager citizen) {
         CompoundTag tag = citizen.getPersistentData().getCompound(KEY);
         if (tag.getInt(PHASE) != PAUSED || tag.contains(CARGO)) return false;
-        tag.putInt(PHASE, tag.contains(CARGO) ? TO_DEST : TO_SOURCE);
+        // A paused report-policy job may have a durable extraction intent even
+        // when saved citizen NBT predates the call. Resuming it would bypass
+        // the restart fence and permit retrying an uncertain transaction.
+        // A fresh assignment (new job UUID and observation) is required.
+        if (tag.contains("reportPolicyDispatch.v1")) return false;
+        tag.putInt(PHASE, TO_SOURCE);
         tag.remove(ERROR);
         return true;
     }
