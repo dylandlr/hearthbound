@@ -46,6 +46,7 @@ javac --release 17 -d "$OUT" \
   "$TEST/PickupRecoveryGateTest.java" \
   "$TEST/PickupJournalOwnershipTest.java" \
   "$TEST/PickupCitizenReconciliationTest.java" \
+  "$TEST/PickupJournalForcedKillTest.java" \
   "$TEST/ReportSessionFenceTest.java"
 for cls in \
   WorldIdentityCodecTest \
@@ -66,6 +67,7 @@ for cls in \
   PickupRecoveryGateTest \
   PickupJournalOwnershipTest \
   PickupCitizenReconciliationTest \
+  PickupJournalForcedKillTest \
   ReportSessionFenceTest; do
   echo "== $cls =="
   java -ea -cp "$OUT" "dev.hearthbound.evidence.$cls"
