@@ -78,6 +78,20 @@ def verify(mode):
         check_count(r, A, 0)
         check_count(r, B, 1)
         check_count(r, D, 0)
+        # The real failed extraction outcome was forced independently of
+        # villager NBT save. A forced process kill may lose the citizen's
+        # negative memory, but must not erase the durable motor receipt.
+        journal_audit = r.run("hearthbound-pickup-journal")
+        if mode == "world-swap":
+            if "status=FAIL_CLOSED" not in journal_audit:
+                raise AssertionError("Foreign-world pickup journal admitted: " + journal_audit)
+        elif ("status=READ_ONLY" not in journal_audit
+              or "total=1" not in journal_audit
+              or "extraction_empty=1" not in journal_audit
+              or "cargo_returned=0" not in journal_audit
+              or "unresolved=0" not in journal_audit):
+            raise AssertionError("Physical pickup journal did not survive reboot: " + journal_audit)
+        result["durable_pickup_journal_audit"] = journal_audit
         no_choices(r)
         if mode == "crash":
             # Prove rejection is not merely the ordinary report TTL expiring.
@@ -113,7 +127,7 @@ def verify(mode):
             deadline = time.monotonic() + 5
             while time.monotonic() < deadline:
                 motor = r.run(f"hearthbound-report-execution {EX} {before['first_job']}")
-                if "executor_state=Paused:_Restored_report-policy_task_requires_fresh_observation_and_new_assignment" in motor:
+                if "executor_state=Paused:_Restored_report-policy_job:_PAUSE_EMPTY_OUTCOME" in motor:
                     break
                 time.sleep(.1)
             else:
