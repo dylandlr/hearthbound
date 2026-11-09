@@ -64,6 +64,13 @@ public final class SableController {
                 ctx.getSource().sendSuccess(() -> Component.literal(audit), false);
                 return audit.contains("status=READ_ONLY") ? 1 : 0;
             }));
+        dispatcher.register(Commands.literal("hearthbound-pickup-citizen-audit")
+            .requires(source -> source.hasPermission(2))
+            .executes(ctx -> {
+                String result = PickupJournalBridge.auditLoadedCitizens(ctx.getSource().getLevel());
+                ctx.getSource().sendSuccess(() -> Component.literal(result), false);
+                return result.contains("status=READ_ONLY") ? 1 : 0;
+            }));
         dispatcher.register(Commands.literal("sable")
             .requires(source -> source.hasPermission(2))
             .then(Commands.literal("spawn").executes(ctx -> {
