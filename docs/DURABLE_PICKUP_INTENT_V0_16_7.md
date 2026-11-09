@@ -31,18 +31,23 @@ the extraction call only; it is not evidence that the destination received wheat
    corrupt journal or foreign identity blocks future report-policy extraction.
    New-world initialization is marker-reservation-first. Startup blocks on
    invalid files; it does NOT repair or migrate them.
-6. NOT IMPLEMENTED: complete scans of *unloaded* citizen data, cross-file
-   backup rollback/high-water mark anchoring, a read-only reconciliation
-   command, or independent inventory proof.
-7. NOT VERIFIED: forced-kill real Forge acceptance for interruption boundaries
+6. Implemented: permission-2 `/hearthbound-pickup-journal` provides a
+   read-only journal-wide summary and bounded unresolved job/actor/tick IDs,
+   including transactions for unloaded citizens. It does not load chunks,
+   scan their NBT, or reconcile actual inventory.
+7. NOT IMPLEMENTED: complete scans of *unloaded* citizen NBT, cross-file
+   backup rollback/high-water mark anchoring, an authorized reconciliation
+   workflow, or independent inventory proof.
+8. NOT VERIFIED: forced-kill real Forge acceptance for interruption boundaries
    with independent source, actor cargo and destination inventories.
 
 ## Scope and caveats
 
 The motor hook, loaded-citizen restrictive restart classification, eager
 journal validation, ownership marker and normal server-stop cleanup are wired.
-Full unloaded-citizen reconciliation, external rollback anchors, operator
-controls and real crash verification are not. A legacy world with an existing
+Full unloaded-citizen reconciliation, external rollback anchors, physical
+recovery controls and real crash verification are not. The new admin audit
+is observational only. A legacy world with an existing
 journal but no marker deliberately fails closed; migration must be explicit. Existing v0.16.6 session fencing remains the
 primary protection for restored report-policy tasks.
 The class does not provide atomic inventory transactions, signed anti-rollback
