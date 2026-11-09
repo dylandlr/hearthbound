@@ -21,17 +21,23 @@ the extraction call only; it is not evidence that the destination received wheat
    before the outcome force, but this is NOT save-atomicity.
 3. Implemented: the server-stop callback closes the writer. Journal open validates
    world, framing, sequence and hash chain; duplicate job intents fail closed.
-4. NOT IMPLEMENTED: eager startup admission, ownership of the missing-journal
-   condition, explicit ledger-NBT matching for *loaded and unloaded* citizens,
-   mixed-backup detection or a read-only reconciliation command.
-5. NOT VERIFIED: forced-kill real Forge acceptance for interruption boundaries
+4. Partially implemented: when a saved report-policy job is encountered in a
+   loaded citizen after restart, its world/executor/job identity is compared to
+   the journal. Missing intent or recorded empty outcome pauses; unresolved,
+   cargo-returned, identity mismatch and journal failure quarantine. This is
+   restrictive classification only, NOT resumption or exact recovery.
+5. NOT IMPLEMENTED: eager startup admission, ownership of the missing-journal
+   condition, complete scans of *unloaded* citizen data, cross-file rollback
+   detection, a read-only reconciliation command or independent inventory proof.
+6. NOT VERIFIED: forced-kill real Forge acceptance for interruption boundaries
    with independent source, actor cargo and destination inventories.
 
 ## Scope and caveats
 
-The motor hook and normal server-stop cleanup are wired, but eager startup
-recovery, save-lifecycle journal ownership, operator reconciliation controls and
-real crash verification are not. Existing v0.16.6 session fencing remains the
+The motor hook, loaded-citizen restrictive restart classification and normal
+server-stop cleanup are wired, but eager startup recovery, full unloaded-citizen
+reconciliation, save-lifecycle journal ownership, operator controls and real
+crash verification are not. Existing v0.16.6 session fencing remains the
 primary protection for restored report-policy tasks.
 The class does not provide atomic inventory transactions, signed anti-rollback
 checkpoints or an external anchoring mechanism. A whole-file rollback or valid
