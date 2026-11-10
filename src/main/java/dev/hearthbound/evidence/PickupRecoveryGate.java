@@ -17,6 +17,17 @@ public final class PickupRecoveryGate {
         QUARANTINE_IDENTITY_MISMATCH,
         QUARANTINE_JOURNAL_UNAVAILABLE
     }
+    /**
+     * A negative result here is mandatory: an unresolved intent or
+     * CARGO_RETURNED record can coexist with stale no-cargo citizen NBT.
+     * Positive only authorizes ordinary no-cargo cancellation, not a new
+     * extraction, delivery, research credit or learned outcome.
+     */
+    public static boolean permitsNoCargoCancellation(Decision decision) {
+        return decision == Decision.PAUSE_NO_INTENT
+            || decision == Decision.PAUSE_EMPTY_OUTCOME;
+    }
+
     public static Decision classify(UUID world, UUID executor, UUID job,
                                     PickupTransactionJournal.View recorded,
                                     boolean journalAvailable) {
