@@ -31,6 +31,18 @@ public final class PickupRecoveryGateTest {
             == PickupRecoveryGate.Decision.QUARANTINE_IDENTITY_MISMATCH);
         check(PickupRecoveryGate.classify(world, actor, UUID.randomUUID(), empty, true)
             == PickupRecoveryGate.Decision.QUARANTINE_IDENTITY_MISMATCH);
+        for (PickupRecoveryGate.Decision decision : PickupRecoveryGate.Decision.values()) {
+            boolean safe = PickupRecoveryGate.permitsNoCargoCancellation(decision);
+            check(safe == (decision == PickupRecoveryGate.Decision.PAUSE_NO_INTENT
+                || decision == PickupRecoveryGate.Decision.PAUSE_EMPTY_OUTCOME));
+        }
+        // Absence of saved cargo must not erase a forced positive outcome.
+        check(!PickupRecoveryGate.permitsNoCargoCancellation(
+            PickupRecoveryGate.classify(world, actor, job, cargo, true)));
+        check(!PickupRecoveryGate.permitsNoCargoCancellation(
+            PickupRecoveryGate.classify(world, actor, job, unresolved, true)));
+        check(!PickupRecoveryGate.permitsNoCargoCancellation(
+            PickupRecoveryGate.classify(world, actor, job, null, false)));
         System.out.println("PickupRecoveryGateTest passed");
     }
 }
