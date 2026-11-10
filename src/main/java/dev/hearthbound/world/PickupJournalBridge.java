@@ -77,6 +77,30 @@ final class PickupJournalBridge {
         return journal(level).inspect(job);
     }
 
+    /** Exact job UUID audit; no entity lookup or chunk loading. */
+    static synchronized String auditJob(ServerLevel level, UUID job) {
+        try {
+            PickupTransactionJournal.View recorded = journal(level).inspect(job);
+            if (recorded == null)
+                return "PICKUP_JOURNAL_JOB status=ABSENT job=" + job
+                    + " task_authorized=false reward_authorized=false";
+            PickupTransactionJournal.Intent intent = recorded.intent();
+            return "PICKUP_JOURNAL_JOB status=READ_ONLY"
+                + " job=" + intent.job()
+                + " world=" + intent.world()
+                + " executor=" + intent.executor()
+                + " source=" + intent.source()
+                + " state=" + recorded.state()
+                + " assigned_tick=" + intent.assignedTick()
+                + " attempted_tick=" + intent.attemptedTick()
+                + " inventory_read=false chunk_load=false"
+                + " task_authorized=false reward_authorized=false";
+        } catch (IOException | RuntimeException failure) {
+            return "PICKUP_JOURNAL_JOB status=FAIL_CLOSED job=" + job
+                + " task_authorized=false reward_authorized=false";
+        }
+    }
+
     /**
      * Read-only audit of persisted pickup transactions. Does not enumerate
      * villager NBT or touch source/destination chunks, and never reconciles
