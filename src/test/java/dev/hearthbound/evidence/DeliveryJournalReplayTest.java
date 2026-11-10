@@ -48,6 +48,18 @@ public final class DeliveryJournalReplayTest {
                 == PickupTransactionJournal.DeliveryState.INSERTION_UNRESOLVED);
             check(reopened.inspectDelivery(empty)
                 == PickupTransactionJournal.DeliveryState.NOT_STARTED);
+            var completed = reopened.inspectDeliveryRecord(inserted);
+            check(completed.state() == PickupTransactionJournal.DeliveryState.INSERTION_RETURNED);
+            check("minecraft:overworld|10,101,2".equals(completed.destination()));
+            check(completed.attemptedTick() == 3);
+            var pending = reopened.inspectDeliveryRecord(interrupted);
+            check(pending.state() == PickupTransactionJournal.DeliveryState.INSERTION_UNRESOLVED);
+            check("minecraft:overworld|10,101,2".equals(pending.destination()));
+            check(pending.attemptedTick() == 4);
+            var absent = reopened.inspectDeliveryRecord(empty);
+            check(absent.state() == PickupTransactionJournal.DeliveryState.NOT_STARTED);
+            check(absent.destination().isEmpty() && absent.attemptedTick() == -1);
+
             denied(()->reopened.beginDelivery(unresolvedIntent));
             // An insertion RETURNED receipt is still not a saved-inventory
             // proof and must not authorize a second pickup from that source.
