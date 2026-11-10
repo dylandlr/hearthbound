@@ -130,6 +130,19 @@ public final class PickupTransactionJournal implements AutoCloseable {
         entry.delivery = DeliveryState.INSERTION_RETURNED;
     }
 
+    /**
+     * Read-only persisted delivery metadata, including an unresolved insertion.
+     * This is not an inventory receipt or a permission to retry.
+     */
+    public record DeliveryView(DeliveryState state, String destination, long attemptedTick) {}
+
+    public synchronized DeliveryView inspectDeliveryRecord(UUID job) {
+        healthy();
+        Entry entry = entries.get(job);
+        return entry == null ? null :
+            new DeliveryView(entry.delivery, entry.destination, entry.deliveryTick);
+    }
+
     public synchronized DeliveryState inspectDelivery(UUID job) {
         healthy();
         Entry entry = entries.get(job);
