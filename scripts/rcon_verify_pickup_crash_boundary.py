@@ -35,6 +35,18 @@ def main():
             or value(audit, "unresolved") != ("0" if expected == "CARGO_RETURNED" else "1")
             or value(audit, "cargo_returned") != ("1" if expected == "CARGO_RETURNED" else "0")):
             raise AssertionError("Journal replay at crash boundary invalid: " + audit)
+        specific = r.require(
+            "hearthbound-pickup-job " + checkpoint["job"], "status=READ_ONLY")
+        if (value(specific, "job") != checkpoint["job"]
+                or value(specific, "state") != expected
+                or value(specific, "source") != "minecraft:overworld|3,101,1"
+                or value(specific, "task_authorized") != "false"
+                or value(specific, "reward_authorized") != "false"):
+            raise AssertionError("Journal record does not match killed physical job: "
+                                 + specific)
+        marker_world = value(marker, "world")
+        if value(specific, "world") != marker_world:
+            raise AssertionError("World UUID differs from forced boundary marker")
         r.require(f"data get block {A} Items", "Count: 3b")
         r.require(f"data get block {B} Items", "Count: 1b")
         r.require(f"data get block {D} Items", "block data: []")
@@ -47,7 +59,7 @@ def main():
     Path("pickup-crash-verified.json").write_text(
         json.dumps({"schema": "hearthbound.real-pickup-crash-gate.v1",
                     "boundary": boundary, "job": checkpoint["job"],
-                    "journal": audit, "inventory_baseline": {"A": 3, "B": 1, "dest": 0},
+                    "journal": audit, "job_receipt": specific, "inventory_baseline": {"A": 3, "B": 1, "dest": 0},
                     "unsaved_executor_job_restored": False,
                     "automatic_pickup_retry": False,
                     "physical_delivery_claimed": False,
