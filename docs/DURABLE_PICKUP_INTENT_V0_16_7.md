@@ -202,3 +202,32 @@ model update, research credit or technology reward is enabled.
 
 `PickupSourceAdmissionTest` covers unresolved, cargo-returned, empty,
 distinct-source, foreign-world, malformed and reused-job scenarios.
+
+## v0.16.7: durable *insertion attempt* records (not delivered-item proof)
+
+A source pickup and a destination insertion are now separately recorded in
+the **same** world-bound, fsynced, CRC/hash-chained journal. For report-policy
+hauls only, the motor forces an insertion intent before the actual Minecraft
+destination `insert` operation. It records `INSERTION_RETURNED` only when
+the insertion motor returned no remaining cargo, before citizen NBT is
+marked COMPLETE. A partial insertion, thrown exception, or interrupted journal
+force leaves `INSERTION_UNRESOLVED` and requires review.
+
+- `NOT_STARTED`: no delivery intent recorded for this pickup.
+- `INSERTION_UNRESOLVED`: insertion was attempted or possibly interrupted;
+  physical cargo/destination inventory cannot be inferred.
+- `INSERTION_RETURNED`: the real motor call returned no remainder and its
+  outcome was fsynced. This **does not independently prove** that Minecraft
+  persisted the destination inventory.
+
+The original extraction state remains unchanged and `CARGO_RETURNED`
+continues to **block new report-policy pickups from the same source** even
+after `INSERTION_RETURNED`. That block may only be reconsidered after a
+separately designed delivery verification protocol with independent physical
+witness and crash-safe world-state checks. No automated recovery, science
+reward, Create unlock or online ML update is authorized.
+
+`DeliveryBoundaryContractTest` and `DeliveryJournalReplayTest` are
+now part of the standalone Java 17 suite. The real Forge A-failure/B-delivery
+acceptance script also demands `delivery_state=INSERTION_RETURNED` for the
+actual B job. These are **new, unverified** latest-head assertions.
