@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        boundary: [AFTER_INTENT, AFTER_EXTRACTION, AFTER_OUTCOME]
+        boundary: [AFTER_INTENT, AFTER_EXTRACTION, AFTER_OUTCOME, AFTER_DELIVERY_INTENT, AFTER_INSERTION, AFTER_DELIVERY_RETURN]
     env:
       HEARTHBOUND_RCON_PASSWORD: ci-local-disposable-password
       HEARTHBOUND_CRASH_BOUNDARY: ${{ matrix.boundary }}
