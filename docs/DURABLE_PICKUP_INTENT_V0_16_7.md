@@ -125,3 +125,39 @@ only on a stale NBT snapshot after an extraction crash. The pure-Java
 This is a restriction, not proof that an actual inventory is empty and not an
 automatic recovery mechanism. The real Forge forced-crash scenarios and
 independent item delta checks remain necessary.
+
+## Dedicated real Forge kill-at-motor-boundary CI
+
+The opt-in `PickupCrashBoundaryProbe` is **disabled by default**, not exposed
+as a player/admin command, and accepts only a disposable world named
+`pickup-crash-boundary-world` with both explicitly supplied test JVM
+properties. The actual report-policy motor emits and fsyncs a test-only
+marker immediately after one of three physical execution boundaries:
+
+- `AFTER_INTENT`: forced intent persisted; no inventory extraction yet.
+- `AFTER_EXTRACTION`: the real `extractWheat` returned; cargo NBT/outcome
+  persistence has not yet happened.
+- `AFTER_OUTCOME`: real extraction, cargo NBT update and durable outcome
+  persist completed; block-entity and citizen NBT saves are still not atomic.
+
+The dedicated `real-pickup-crash-boundaries.yml` workflow creates a fresh
+disposable, loopback-only world, saves source and scout baseline evidence,
+disables game saving, dispatches one actual policy haul, waits for the
+forced test-only marker, positively identifies the RCON-owning Java process,
+and kills that exact JVM with SIGKILL. It then restarts the same saved world
+without the probe enabled.
+
+Expected journal replay for the first two boundaries is `UNRESOLVED`, and
+for `AFTER_OUTCOME` it is `CARGO_RETURNED`. Independently saved source,
+alternate source, and destination chest inventories must remain at
+pre-dispatch baseline 3/1/0; unsaved assignment NBT must not reappear.
+If a killed server actually saved different data, the test must fail and
+the discrepancy must be investigated, **not waived**. No replay, credit,
+reward, automatic retry, or fabricated cargo is allowed.
+
+This is an acceptance *harness*, not a passed test. An external CI process
+performs termination: the mod itself never issues SIGKILL or calls
+`Runtime.halt`. If the kill does not arrive, the probe times out and
+fails the motor rather than proceeding. The three cases are separated
+into independent test worlds. No real-world power-failure or fully
+crash-atomic Minecraft inventory guarantee is claimed.
