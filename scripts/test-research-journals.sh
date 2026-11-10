@@ -26,6 +26,7 @@ javac --release 17 -d "$OUT" \
   "$BASE/PickupRecoveryGate.java" \
   "$BASE/PickupJournalOwnership.java" \
   "$BASE/PickupCitizenReconciliation.java" \
+  "$BASE/PickupSourceAdmission.java" \
   "$BASE/ReportSessionFence.java" \
   "$BASE/JournalWorldBinding.java" \
   "$TEST/WorldIdentityCodecTest.java" \
@@ -46,6 +47,7 @@ javac --release 17 -d "$OUT" \
   "$TEST/PickupRecoveryGateTest.java" \
   "$TEST/PickupJournalOwnershipTest.java" \
   "$TEST/PickupCitizenReconciliationTest.java" \
+  "$TEST/PickupSourceAdmissionTest.java" \
   "$TEST/PickupJournalForcedKillTest.java" \
   "$TEST/ReportSessionFenceTest.java"
 for cls in \
@@ -67,6 +69,7 @@ for cls in \
   PickupRecoveryGateTest \
   PickupJournalOwnershipTest \
   PickupCitizenReconciliationTest \
+  PickupSourceAdmissionTest \
   PickupJournalForcedKillTest \
   ReportSessionFenceTest; do
   echo "== $cls =="
