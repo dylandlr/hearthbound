@@ -231,3 +231,38 @@ reward, Create unlock or online ML update is authorized.
 now part of the standalone Java 17 suite. The real Forge A-failure/B-delivery
 acceptance script also demands `delivery_state=INSERTION_RETURNED` for the
 actual B job. These are **new, unverified** latest-head assertions.
+
+## Six-boundary real Minecraft crash matrix: insertion coverage
+
+The disposable CI world now tests the original three extraction boundaries
+**and** three destination boundaries. The physical `SableHauling` motor
+emits an external-kill marker at these exact points, with no gameplay command
+or in-mod process termination:
+
+| Marker | Persisted pickup outcome | Persisted insertion state |
+| --- | --- | --- |
+| AFTER_INTENT | UNRESOLVED | NOT_STARTED |
+| AFTER_EXTRACTION | UNRESOLVED | NOT_STARTED |
+| AFTER_OUTCOME | CARGO_RETURNED | NOT_STARTED |
+| AFTER_DELIVERY_INTENT | CARGO_RETURNED | INSERTION_UNRESOLVED |
+| AFTER_INSERTION | CARGO_RETURNED | INSERTION_UNRESOLVED |
+| AFTER_DELIVERY_RETURN | CARGO_RETURNED | INSERTION_RETURNED |
+
+The external test kills the actual RCON-owning Java process only after the
+specified marker has been forced to disk, then restarts a known baseline.
+The verifier requires the **exact job UUID**, world UUID and source to match
+the recovered journal and separately reads saved Minecraft chest inventories
+(A=3, B=1, destination=0). These expected post-kill chest values depend on
+having successfully disabled saving after the independent pre-dispatch
+baseline; any unexpected save or inventory mismatch is a failure to
+investigate, not a reason to modify the expected data.
+
+The two delivery-intent/interrupted-insertion cases cannot tell whether
+destination insertion physically happened. The returned-insertion case only
+proves the motor result was recorded; it still does NOT prove the destination
+inventory survived a server crash. No source is reopened, no item is
+replayed, and no model/research reward is authorized on these records.
+
+**Status:** harness authored and pushed, **latest-head CI not passed or
+independently reviewed**. Success of these six cases is not an atomic
+transaction guarantee across power failures, chunk saves or other plugins.
