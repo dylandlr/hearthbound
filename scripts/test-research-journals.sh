@@ -51,6 +51,7 @@ javac --release 17 -d "$OUT" \
   "$TEST/PickupSourceAdmissionTest.java" \
   "$TEST/DeliveryBoundaryContractTest.java" \
   "$TEST/DeliveryJournalReplayTest.java" \
+  "$TEST/DeliveryJournalCorruptionTest.java" \
   "$TEST/PickupJournalForcedKillTest.java" \
   "$TEST/ReportSessionFenceTest.java"
 for cls in \
@@ -75,6 +76,7 @@ for cls in \
   PickupSourceAdmissionTest \
   DeliveryBoundaryContractTest \
   DeliveryJournalReplayTest \
+  DeliveryJournalCorruptionTest \
   PickupJournalForcedKillTest \
   ReportSessionFenceTest; do
   echo "== $cls =="
