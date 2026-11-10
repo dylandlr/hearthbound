@@ -177,3 +177,28 @@ match this one persisted record. Journal aggregate counts remain useful
 for secondary checks, but cannot independently prove job-level provenance.
 
 These assertions are committed, not yet certified by real Minecraft CI.
+
+## Source-level quarantine across distinct job IDs
+
+`PickupSourceAdmission` now consults the journal before committing a new
+report-policy pickup intent. The check happens under the Forge bridge's
+synchronized transaction boundary, so another pending extraction cannot
+race between admission and `begin`.
+
+A fresh job UUID **cannot bypass** an older `UNRESOLVED` intent or
+`CARGO_RETURNED` extraction for the *same world and source*. Both states
+deny another extraction. `EXTRACTION_EMPTY` does not block an independently
+validated future assignment, though it never proves the chest is currently
+empty. Other sources can continue; source-policy denials are not journal-I/O
+failures and do not poison the entire server's writer.
+
+This is deliberately conservative: `CARGO_RETURNED` records extraction,
+**not completed delivery**. A legitimate completed haul therefore also
+blocks repeat report-policy pickups from the same source in v0.16.7 until a
+future durable delivery/reconciliation protocol is accepted. Do not silently
+clear this block based only on a citizen's COMPLETED phase, a chest count
+snapshot, or an operator's assumption. No automated inventory mutation,
+model update, research credit or technology reward is enabled.
+
+`PickupSourceAdmissionTest` covers unresolved, cargo-returned, empty,
+distinct-source, foreign-world, malformed and reused-job scenarios.
