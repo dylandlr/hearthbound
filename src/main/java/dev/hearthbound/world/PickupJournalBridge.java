@@ -49,14 +49,26 @@ final class PickupJournalBridge {
 
     static synchronized void beforeExtraction(ServerLevel level,
             PickupTransactionJournal.Intent intent) throws IOException {
+        PickupTransactionJournal current;
         try {
-            PickupTransactionJournal current = journal(level);
-            PickupSourceAdmission.Decision admission =
-                PickupSourceAdmission.classify(current.snapshot(), intent);
-            if (admission != PickupSourceAdmission.Decision.ALLOW_NO_CONFLICT)
-                throw new IOException("source extraction quarantined: " + admission);
-            // Keep the inspection and forced begin under this monitor; no
-            // other pickup can commit between conflict check and append.
+            current = journal(level);
+        } catch (IOException | RuntimeException failure) {
+            BLOCKED.put(level.getServer(), failure.getClass().getSimpleName());
+            throw new IOException("pickup journal unavailable", failure);
+        }
+        // Policy denials are NOT storage errors: do not poison the writer or
+        // block other independent sources when one source requires review.
+        PickupSourceAdmission.Decision admission;
+        try {
+            admission = PickupSourceAdmission.classify(current.snapshot(), intent);
+        } catch (RuntimeException failure) {
+            BLOCKED.put(level.getServer(), failure.getClass().getSimpleName());
+            throw new IOException("pickup journal snapshot unavailable", failure);
+        }
+        if (admission != PickupSourceAdmission.Decision.ALLOW_NO_CONFLICT)
+            throw new IOException("source extraction quarantined: " + admission);
+        try {
+            // Check and append share the same monitor: no intervening pickup.
             current.begin(intent);
         } catch (IOException | RuntimeException failure) {
             BLOCKED.put(level.getServer(), failure.getClass().getSimpleName());
