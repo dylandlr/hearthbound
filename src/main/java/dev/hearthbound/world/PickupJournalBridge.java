@@ -143,13 +143,18 @@ final class PickupJournalBridge {
                 return "PICKUP_JOURNAL_JOB status=ABSENT job=" + job
                     + " task_authorized=false reward_authorized=false";
             PickupTransactionJournal.Intent intent = recorded.intent();
+            PickupTransactionJournal.DeliveryView delivery =
+                journal(level).inspectDeliveryRecord(job);
+            if (delivery == null) throw new IOException("missing delivery metadata");
             return "PICKUP_JOURNAL_JOB status=READ_ONLY"
                 + " job=" + intent.job()
                 + " world=" + intent.world()
                 + " executor=" + intent.executor()
                 + " source=" + intent.source()
                 + " state=" + recorded.state()
-                + " delivery_state=" + journal(level).inspectDelivery(job)
+                + " delivery_state=" + delivery.state()
+                + " delivery_destination=" + (delivery.destination().isEmpty() ? "NONE" : delivery.destination())
+                + " delivery_tick=" + delivery.attemptedTick()
                 + " assigned_tick=" + intent.assignedTick()
                 + " attempted_tick=" + intent.attemptedTick()
                 + " inventory_read=false chunk_load=false"
