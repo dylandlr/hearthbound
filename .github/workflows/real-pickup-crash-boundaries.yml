@@ -1,0 +1,115 @@
+name: Real Forge pickup kill-at-boundary acceptance
+on:
+  pull_request:
+    paths:
+      - 'src/main/java/dev/hearthbound/world/PickupCrashBoundaryProbe.java'
+      - 'src/main/java/dev/hearthbound/world/SableHauling.java'
+      - 'src/main/java/dev/hearthbound/world/PickupJournalBridge.java'
+      - 'src/main/java/dev/hearthbound/evidence/PickupTransactionJournal.java'
+      - 'scripts/rcon_arm_pickup_crash_boundary.py'
+      - 'scripts/rcon_verify_pickup_crash_boundary.py'
+      - '.github/workflows/real-pickup-crash-boundaries.yml'
+  workflow_dispatch:
+jobs:
+  forced-crash:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    permissions: {contents: read}
+    strategy:
+      fail-fast: false
+      matrix:
+        boundary: [AFTER_INTENT, AFTER_EXTRACTION, AFTER_OUTCOME]
+    env:
+      HEARTHBOUND_RCON_PASSWORD: ci-local-disposable-password
+      HEARTHBOUND_CRASH_BOUNDARY: ${{ matrix.boundary }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.8'}
+      - name: Preflight contracts, freeze model and validate harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/rcon_arm_pickup_crash_boundary.py scripts/rcon_verify_pickup_crash_boundary.py
+          bash scripts/test-research-journals.sh
+          python3 scripts/train_report_choice_mlp.py --model run/report-choice-mlp-v1.txt --sha run/report-choice-mlp-v1.sha256 --report pickup-crash-training.json
+      - name: Kill actual JVM at the physical motor boundary, then restart and inspect
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p run
+          printf 'eula=true\n' > run/eula.txt
+          printf 'server-ip=127.0.0.1\nonline-mode=false\nlevel-name=pickup-crash-boundary-world\nmax-players=2\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties
+          pid=''
+          trap 'if [ -n "$pid" ]; then kill -KILL -- "-$pid" 2>/dev/null || true; fi' EXIT
+          boot() {
+            local logfile="$1"
+            setsid gradle --no-daemon runServer > "$logfile" 2>&1 &
+            pid=$!
+            for i in $(seq 1 360); do
+              if grep -Eq 'Done \([0-9.]+s\)! For help, type "help"' "$logfile"; then return 0; fi
+              if ! kill -0 "$pid" 2>/dev/null; then tail -n 120 "$logfile"; return 1; fi
+              sleep 2
+            done
+            tail -n 120 "$logfile"
+            return 1
+          }
+          export JAVA_TOOL_OPTIONS="-Dhearthbound.ci.disposablePickupWorld=true -Dhearthbound.ci.pickupCrashBoundary=$HEARTHBOUND_CRASH_BOUNDARY"
+          boot pickup-crash-first.log
+          python3 scripts/rcon_arm_pickup_crash_boundary.py | tee pickup-crash-arm-rcon.log
+          test -s pickup-crash-arm.json
+          marker="run/pickup-crash-boundary.marker"
+          ready=0
+          for i in $(seq 1 300); do
+            if [ -s "$marker" ]; then ready=1; break; fi
+            sleep 0.2
+          done
+          if [ "$ready" -ne 1 ]; then
+            tail -n 120 pickup-crash-first.log
+            echo "Physical pickup boundary never reached" >&2
+            exit 1
+          fi
+          grep -q "HEARTHBOUND_PICKUP_BOUNDARY $HEARTHBOUND_CRASH_BOUNDARY " "$marker"
+          read -r -a owners <<< "$(fuser -n tcp 25575 2>/dev/null)"
+          test "${#owners[@]}" -eq 1
+          server_pid="${owners[0]}"
+          [[ "$server_pid" =~ ^[0-9]+$ ]]
+          test "$(cat "/proc/$server_pid/comm")" = java
+          test "$(readlink -f "/proc/$server_pid/cwd")" = "$(realpath run)"
+          ps -p "$server_pid" -o pid,ppid,comm | tee pickup-crash-target.log
+          kill -KILL "$server_pid"
+          sleep 1
+          if fuser -n tcp 25575 >/dev/null 2>&1; then
+            echo "RCON-owning Minecraft JVM survived forced kill" >&2
+            exit 1
+          fi
+          kill -KILL -- "-$pid" 2>/dev/null || true
+          wait "$pid" 2>/dev/null || true
+          pid=''
+          unset JAVA_TOOL_OPTIONS
+          sleep 4
+          boot pickup-crash-second.log
+          python3 scripts/rcon_verify_pickup_crash_boundary.py | tee pickup-crash-verify-rcon.log
+          grep -q "HEARTHBOUND_PICKUP_CRASH_ACCEPTED boundary=$HEARTHBOUND_CRASH_BOUNDARY" pickup-crash-verify-rcon.log
+          for i in $(seq 1 90); do
+            if ! kill -0 "$pid" 2>/dev/null; then pid=''; break; fi
+            sleep 1
+          done
+          if [ -n "$pid" ]; then
+            echo "Second Minecraft server failed to shut down" >&2
+            exit 1
+          fi
+      - name: Archive exact-boundary physical evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-pickup-kill-${{ matrix.boundary }}
+          path: |
+            pickup-crash-*.json
+            pickup-crash-*.log
+            run/pickup-crash-boundary.marker
+            run/logs/latest.log
+          if-no-files-found: warn
+          retention-days: 14
