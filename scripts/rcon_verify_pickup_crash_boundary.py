@@ -21,7 +21,13 @@ def value(receipt, field):
 
 def main():
     boundary = os.environ["HEARTHBOUND_CRASH_BOUNDARY"]
-    expected = "CARGO_RETURNED" if boundary == "AFTER_OUTCOME" else "UNRESOLVED"
+    insertion_boundaries = {"AFTER_DELIVERY_INTENT", "AFTER_INSERTION",
+                            "AFTER_DELIVERY_RETURN"}
+    expected = ("CARGO_RETURNED" if boundary == "AFTER_OUTCOME"
+                or boundary in insertion_boundaries else "UNRESOLVED")
+    delivery_expected = ("INSERTION_RETURNED" if boundary == "AFTER_DELIVERY_RETURN"
+                         else "INSERTION_UNRESOLVED" if boundary in insertion_boundaries
+                         else "NOT_STARTED")
     checkpoint = json.loads(Path("pickup-crash-arm.json").read_text())
     marker = Path("run/pickup-crash-boundary.marker").read_text().strip()
     if not marker.startswith("HEARTHBOUND_PICKUP_BOUNDARY " + boundary + " job=" + checkpoint["job"]):
@@ -39,6 +45,7 @@ def main():
             "hearthbound-pickup-job " + checkpoint["job"], "status=READ_ONLY")
         if (value(specific, "job") != checkpoint["job"]
                 or value(specific, "state") != expected
+                or value(specific, "delivery_state") != delivery_expected
                 or value(specific, "source") != "minecraft:overworld|3,101,1"
                 or value(specific, "task_authorized") != "false"
                 or value(specific, "reward_authorized") != "false"):
@@ -59,7 +66,8 @@ def main():
     Path("pickup-crash-verified.json").write_text(
         json.dumps({"schema": "hearthbound.real-pickup-crash-gate.v1",
                     "boundary": boundary, "job": checkpoint["job"],
-                    "journal": audit, "job_receipt": specific, "inventory_baseline": {"A": 3, "B": 1, "dest": 0},
+                    "journal": audit, "job_receipt": specific,
+                    "delivery_expected": delivery_expected, "inventory_baseline": {"A": 3, "B": 1, "dest": 0},
                     "unsaved_executor_job_restored": False,
                     "automatic_pickup_retry": False,
                     "physical_delivery_claimed": False,
