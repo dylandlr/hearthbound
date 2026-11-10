@@ -55,6 +55,11 @@ def main():
         r.require(f"data get block {A} Items", "Count: 3b")
         r.require(f"data get block {B} Items", "Count: 1b")
         r.require(f"data get block {DEST} Items", "block data: []")
+        # Commit world, scout reports and chest baseline BEFORE creating the
+        # experimental job. Then suppress further saves so an actual JVM kill
+        # can expose the journal-vs-NBT/world rollback boundary.
+        r.require("save-all flush", "Saved the game")
+        r.require("save-off", "Automatic saving is now disabled")
         selected = r.require(
             f"hearthbound-report-dispatch-trial {EXECUTOR} {A} {B} {DEST} SCRIPTED exposed",
             "status=ASSIGNED",
