@@ -346,6 +346,20 @@ public final class SableHauling {
                 quarantine(tag, "Mill experiment tainted during delivery; cargo quarantined");
                 return;
             }
+            // Force a distinct delivery-intent frame before the destination
+            // motor call. This is NOT proof of a successful delivery.
+            boolean durableDelivery = tag.contains("reportPolicyDispatch.v1");
+            if (durableDelivery) {
+                try {
+                    PickupJournalBridge.beforeInsertion(level, tag.getUUID(JOB_ID),
+                        citizen.getUUID(), level.dimension().location() + "|"
+                            + target.getX() + "," + target.getY() + "," + target.getZ(),
+                        level.getGameTime());
+                } catch (IOException | RuntimeException failure) {
+                    quarantine(tag, "Delivery intent denied; physical reconciliation required");
+                    return;
+                }
+            }
             // A persistent in-progress marker prevents the next tick from silently
             // trying insertion again if this call fails partway through.
             tag.putInt(PHASE, INSERTING);
@@ -372,6 +386,15 @@ public final class SableHauling {
                 return;
             }
             if (remaining.isEmpty()) {
+                if (durableDelivery) {
+                    try {
+                        PickupJournalBridge.afterInsertion(level, tag.getUUID(JOB_ID));
+                    } catch (IOException | RuntimeException failure) {
+                        quarantine(tag, "Delivery motor returned but journal force failed; review items");
+                        entity.setChanged();
+                        return;
+                    }
+                }
                 if (tag.hasUUID(JOB_ID)) {
                     MillExperimentTrace.deliveryComplete(level, citizen, tag.getUUID(JOB_ID));
                 }
