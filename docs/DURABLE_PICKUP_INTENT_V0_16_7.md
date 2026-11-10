@@ -110,3 +110,18 @@ Next: add deterministic real-server crash hooks around each motor boundary,
 in disposable worlds only; measure whether world inventory saves can diverge
 from forced journal state, then design explicit operator-controlled
 reconciliation for every divergence without inferring delivered cargo.
+
+## Manual cancellation guard
+
+`SableHauling.cancelBeforePickup` now consults the durable pickup journal for
+report-policy jobs even if saved citizen NBT contains **no cargo**. Only a job
+with no committed extraction intent or a matched `EXTRACTION_EMPTY` outcome
+may use the existing no-cargo cancellation path. `UNRESOLVED`,
+`CARGO_RETURNED`, foreign identity and unavailable journals all deny
+cancellation. This prevents an operator from releasing the source claim based
+only on a stale NBT snapshot after an extraction crash. The pure-Java
+`PickupRecoveryGateTest` covers each decision state.
+
+This is a restriction, not proof that an actual inventory is empty and not an
+automatic recovery mechanism. The real Forge forced-crash scenarios and
+independent item delta checks remain necessary.
