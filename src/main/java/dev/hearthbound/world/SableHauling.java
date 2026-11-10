@@ -360,6 +360,9 @@ public final class SableHauling {
                     return;
                 }
             }
+            if (durableDelivery)
+                PickupCrashBoundaryProbe.awaitExternalKill(level, tag.getUUID(JOB_ID),
+                    PickupCrashBoundaryProbe.Boundary.AFTER_DELIVERY_INTENT);
             // A persistent in-progress marker prevents the next tick from silently
             // trying insertion again if this call fails partway through.
             tag.putInt(PHASE, INSERTING);
@@ -377,6 +380,9 @@ public final class SableHauling {
                     ? insert(entity, cargo)
                     : MillTransferGate.authorize(level, target, tag.getUUID(JOB_ID),
                         citizen.getUUID(), false, () -> insert(entity, cargo));
+                if (durableDelivery)
+                    PickupCrashBoundaryProbe.awaitExternalKill(level, tag.getUUID(JOB_ID),
+                        PickupCrashBoundaryProbe.Boundary.AFTER_INSERTION);
                 if ("after".equals(fault)) {
                     throw new IllegalStateException("Injected failure after inventory insertion");
                 }
@@ -395,6 +401,9 @@ public final class SableHauling {
                         return;
                     }
                 }
+                if (durableDelivery)
+                    PickupCrashBoundaryProbe.awaitExternalKill(level, tag.getUUID(JOB_ID),
+                        PickupCrashBoundaryProbe.Boundary.AFTER_DELIVERY_RETURN);
                 if (tag.hasUUID(JOB_ID)) {
                     MillExperimentTrace.deliveryComplete(level, citizen, tag.getUUID(JOB_ID));
                 }
