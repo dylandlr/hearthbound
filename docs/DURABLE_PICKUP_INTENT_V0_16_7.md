@@ -161,3 +161,19 @@ performs termination: the mod itself never issues SIGKILL or calls
 fails the motor rather than proceeding. The three cases are separated
 into independent test worlds. No real-world power-failure or fully
 crash-atomic Minecraft inventory guarantee is claimed.
+
+## Job-bound forensic verification
+
+The permission-2 `/hearthbound-pickup-job <uuid>` command now returns
+the exact persisted intent's job, world, executor, source, assigned and
+attempted ticks, and state. It is read-only, does not access player
+inventory, load chunks, or authorize any action. Unknown UUIDs report
+`status=ABSENT`; unavailable/corrupt journals report `FAIL_CLOSED`.
+
+The real Forge crash-boundary verifier requires the job UUID from the
+original physical dispatch, the state expected at that exact kill boundary,
+the source position, and the world UUID in the forced boundary marker to
+match this one persisted record. Journal aggregate counts remain useful
+for secondary checks, but cannot independently prove job-level provenance.
+
+These assertions are committed, not yet certified by real Minecraft CI.
