@@ -3,6 +3,7 @@ package dev.hearthbound.world;
 import dev.hearthbound.evidence.PickupTransactionJournal;
 import dev.hearthbound.evidence.PickupJournalOwnership;
 import dev.hearthbound.evidence.PickupCitizenReconciliation;
+import dev.hearthbound.evidence.PickupSourceAdmission;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Map;
@@ -49,7 +50,14 @@ final class PickupJournalBridge {
     static synchronized void beforeExtraction(ServerLevel level,
             PickupTransactionJournal.Intent intent) throws IOException {
         try {
-            journal(level).begin(intent);
+            PickupTransactionJournal current = journal(level);
+            PickupSourceAdmission.Decision admission =
+                PickupSourceAdmission.classify(current.snapshot(), intent);
+            if (admission != PickupSourceAdmission.Decision.ALLOW_NO_CONFLICT)
+                throw new IOException("source extraction quarantined: " + admission);
+            // Keep the inspection and forced begin under this monitor; no
+            // other pickup can commit between conflict check and append.
+            current.begin(intent);
         } catch (IOException | RuntimeException failure) {
             BLOCKED.put(level.getServer(), failure.getClass().getSimpleName());
             throw new IOException("cannot durably start pickup", failure);
