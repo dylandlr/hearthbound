@@ -481,6 +481,24 @@ public final class SableHauling {
         if (!tag.contains(PHASE) || tag.getInt(PHASE) == COMPLETE || tag.getInt(PHASE) == CANCELLED
             || tag.getInt(PHASE) == QUARANTINED || tag.contains(CARGO))
             return false;
+        // A saved no-cargo state does NOT prove the real motor did not
+        // extract wheat before a crash. Only a proven EMPTY outcome, or no
+        // intent at all, can be cancelled without physical reconciliation.
+        if (tag.contains("reportPolicyDispatch.v1")) {
+            if (!tag.hasUUID(JOB_ID)) return false;
+            try {
+                PickupTransactionJournal.View prior =
+                    PickupJournalBridge.inspect(level, tag.getUUID(JOB_ID));
+                PickupRecoveryGate.Decision verdict = PickupRecoveryGate.classify(
+                    HearthboundWorldIdentity.get(level), citizen.getUUID(),
+                    tag.getUUID(JOB_ID), prior, true);
+                if (verdict != PickupRecoveryGate.Decision.PAUSE_NO_INTENT
+                        && verdict != PickupRecoveryGate.Decision.PAUSE_EMPTY_OUTCOME)
+                    return false;
+            } catch (IOException | RuntimeException unsafe) {
+                return false;
+            }
+        }
         BlockPos source = BlockPos.of(tag.getLong(SOURCE));
         BlockPos destination = BlockPos.of(tag.getLong(DESTINATION));
         if (MillReservations.isMill(level, destination)) {
