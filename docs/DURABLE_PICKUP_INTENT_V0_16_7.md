@@ -283,3 +283,21 @@ the real tested chest, `minecraft:overworld|10,101,2`.
 These are provenance checks only. Even a matching destination and a durable
 `INSERTION_RETURNED` frame do not establish a persisted inventory delta,
 independent third-party witness, or safe automatic retry.
+
+## Adversarial delivery-frame replay tests
+
+`DeliveryJournalCorruptionTest` constructs real forced insertion-intent and
+insertion-return records, closes the journal, then verifies fresh opens reject:
+
+- Truncation into the final frame's header/payload (1 through 12 bytes);
+- Same-length corruption of the final delivery frame;
+- Valid delivery data attached to a different world UUID.
+
+It also checks both intact controls: `INSERTION_UNRESOLVED` and
+`INSERTION_RETURNED`. This test is included in
+`scripts/test-research-journals.sh`, but latest-head CI execution is pending.
+
+Important limit: a **valid-prefix rollback** removing an entire completed
+frame is not detectable using this journal's internal CRC/hash chain alone.
+External high-water anchoring and a separate physical-world witness remain
+unimplemented. This new test does not claim to solve that limitation.
