@@ -292,6 +292,9 @@ public final class SableHauling {
                     return;
                 }
             }
+            if (journaled)
+                PickupCrashBoundaryProbe.awaitExternalKill(level, tag.getUUID(JOB_ID),
+                    PickupCrashBoundaryProbe.Boundary.AFTER_INTENT);
             ItemStack taken;
             try {
                 taken = extractWheat(entity);
@@ -300,6 +303,9 @@ public final class SableHauling {
                 quarantine(tag, "Extraction interrupted after durable intent");
                 return;
             }
+            if (journaled)
+                PickupCrashBoundaryProbe.awaitExternalKill(level, tag.getUUID(JOB_ID),
+                    PickupCrashBoundaryProbe.Boundary.AFTER_EXTRACTION);
             // Retain physical cargo even if committing its outcome fails.
             // A failed outcome force quarantines this job and forbids further motion.
             if (!taken.isEmpty()) {
@@ -314,6 +320,9 @@ public final class SableHauling {
                     return;
                 }
             }
+            if (journaled)
+                PickupCrashBoundaryProbe.awaitExternalKill(level, tag.getUUID(JOB_ID),
+                    PickupCrashBoundaryProbe.Boundary.AFTER_OUTCOME);
             if (taken.isEmpty()) {
                 // Never infer chest emptiness. Negative evidence is recorded
                 // only after the actual motor returned empty and outcome was forced.
