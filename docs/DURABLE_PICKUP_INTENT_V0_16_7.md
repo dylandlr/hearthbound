@@ -266,3 +266,20 @@ replayed, and no model/research reward is authorized on these records.
 **Status:** harness authored and pushed, **latest-head CI not passed or
 independently reviewed**. Success of these six cases is not an atomic
 transaction guarantee across power failures, chunk saves or other plugins.
+
+## Persisted insertion provenance in the exact-job audit
+
+The read-only permission-2 `/hearthbound-pickup-job <uuid>` receipt now
+includes `delivery_destination` and `delivery_tick` from the forced
+insertion-intent frame in addition to `delivery_state`. Where no insertion
+intent exists, those fields are `NONE` and `-1`, respectively.
+
+`DeliveryJournalReplayTest` requires those exact fields to survive closing
+and reopening the journal for both an interrupted insertion and a returned
+insertion. The six-boundary Forge verifier checks that a destination/tick
+appears only after the delivery-intent boundary and that the destination is
+the real tested chest, `minecraft:overworld|10,101,2`.
+
+These are provenance checks only. Even a matching destination and a durable
+`INSERTION_RETURNED` frame do not establish a persisted inventory delta,
+independent third-party witness, or safe automatic retry.
