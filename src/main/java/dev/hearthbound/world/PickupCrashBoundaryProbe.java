@@ -20,7 +20,10 @@ import net.minecraft.world.level.storage.LevelResource;
  * server. A missed kill times out and fails the task instead of proceeding.
  */
 final class PickupCrashBoundaryProbe {
-    enum Boundary { AFTER_INTENT, AFTER_EXTRACTION, AFTER_OUTCOME }
+    enum Boundary {
+        AFTER_INTENT, AFTER_EXTRACTION, AFTER_OUTCOME,
+        AFTER_DELIVERY_INTENT, AFTER_INSERTION, AFTER_DELIVERY_RETURN
+    }
     private static final String WORLD_NAME = "pickup-crash-boundary-world";
     private static final String PROPERTY = "hearthbound.ci.pickupCrashBoundary";
     private static final String ENABLED = "hearthbound.ci.disposablePickupWorld";
