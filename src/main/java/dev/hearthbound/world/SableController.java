@@ -64,6 +64,22 @@ public final class SableController {
                 ctx.getSource().sendSuccess(() -> Component.literal(audit), false);
                 return audit.contains("status=READ_ONLY") ? 1 : 0;
             }));
+        dispatcher.register(Commands.literal("hearthbound-pickup-job")
+            .requires(source -> source.hasPermission(2))
+            .then(Commands.argument("job", StringArgumentType.word())
+                .executes(ctx -> {
+                    java.util.UUID job;
+                    try {
+                        job = java.util.UUID.fromString(
+                            StringArgumentType.getString(ctx, "job"));
+                    } catch (IllegalArgumentException invalid) {
+                        ctx.getSource().sendFailure(Component.literal("Invalid job UUID"));
+                        return 0;
+                    }
+                    String receipt = PickupJournalBridge.auditJob(ctx.getSource().getLevel(), job);
+                    ctx.getSource().sendSuccess(() -> Component.literal(receipt), false);
+                    return receipt.contains("status=READ_ONLY") ? 1 : 0;
+                })));
         dispatcher.register(Commands.literal("hearthbound-pickup-citizen-audit")
             .requires(source -> source.hasPermission(2))
             .executes(ctx -> {
