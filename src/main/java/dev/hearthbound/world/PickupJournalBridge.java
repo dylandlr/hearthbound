@@ -4,6 +4,7 @@ import dev.hearthbound.evidence.PickupTransactionJournal;
 import dev.hearthbound.evidence.PickupJournalOwnership;
 import dev.hearthbound.evidence.PickupCitizenReconciliation;
 import dev.hearthbound.evidence.PickupSourceAdmission;
+import dev.hearthbound.evidence.DeliveryBoundaryContract;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Map;
@@ -88,6 +89,29 @@ final class PickupJournalBridge {
         }
     }
 
+    /** Only a real motor can force this BEFORE destination inventory insertion. */
+    static synchronized void beforeInsertion(ServerLevel level, UUID job,
+            UUID executor, String destination, long tick) throws IOException {
+        try {
+            PickupTransactionJournal current = journal(level);
+            current.beginDelivery(new DeliveryBoundaryContract.Intent(
+                HearthboundWorldIdentity.get(level), job, executor, destination, tick));
+        } catch (IOException | RuntimeException failure) {
+            BLOCKED.put(level.getServer(), failure.getClass().getSimpleName());
+            throw new IOException("cannot durably start inventory insertion", failure);
+        }
+    }
+
+    /** Insert call returned no remainder; does NOT independently prove delivery. */
+    static synchronized void afterInsertion(ServerLevel level, UUID job) throws IOException {
+        try {
+            journal(level).finishDelivery(job);
+        } catch (IOException | RuntimeException failure) {
+            BLOCKED.put(level.getServer(), failure.getClass().getSimpleName());
+            throw new IOException("cannot durably record insertion motor result", failure);
+        }
+    }
+
     /**
      * A recovered UNRESOLVED entry may represent a call that happened before
      * a crash. Never infer whether source inventory changed.
@@ -111,6 +135,7 @@ final class PickupJournalBridge {
                 + " executor=" + intent.executor()
                 + " source=" + intent.source()
                 + " state=" + recorded.state()
+                + " delivery_state=" + journal(level).inspectDelivery(job)
                 + " assigned_tick=" + intent.assignedTick()
                 + " attempted_tick=" + intent.attemptedTick()
                 + " inventory_read=false chunk_load=false"
