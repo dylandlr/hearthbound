@@ -18,6 +18,7 @@ import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
+import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -36,6 +37,18 @@ public final class SableController {
     private SableController() {}
 
     @SubscribeEvent
+    public static void onServerStarted(ServerStartedEvent event) {
+        // Load the journal on the authoritative server thread before citizen
+        // ticks; a missing or mismatched owner remains blocked until shutdown.
+        try {
+            PickupJournalBridge.startup(event.getServer().overworld());
+        } catch (java.io.IOException | RuntimeException failure) {
+            org.apache.logging.log4j.LogManager.getLogger().error(
+                "Hearthbound pickup evidence admission blocked: manual review required", failure);
+        }
+    }
+
+    @SubscribeEvent
     public static void onServerStopped(ServerStoppedEvent event) {
         SableHauling.serverStopped(event.getServer());
     }
@@ -43,6 +56,37 @@ public final class SableController {
     @SubscribeEvent
     public static void registerCommands(RegisterCommandsEvent event) {
         CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
+        // Separate permission-2 inspection command; never modifies Minecraft.
+        dispatcher.register(Commands.literal("hearthbound-pickup-journal")
+            .requires(source -> source.hasPermission(2))
+            .executes(ctx -> {
+                String audit = PickupJournalBridge.audit(ctx.getSource().getLevel(), 8);
+                ctx.getSource().sendSuccess(() -> Component.literal(audit), false);
+                return audit.contains("status=READ_ONLY") ? 1 : 0;
+            }));
+        dispatcher.register(Commands.literal("hearthbound-pickup-job")
+            .requires(source -> source.hasPermission(2))
+            .then(Commands.argument("job", StringArgumentType.word())
+                .executes(ctx -> {
+                    java.util.UUID job;
+                    try {
+                        job = java.util.UUID.fromString(
+                            StringArgumentType.getString(ctx, "job"));
+                    } catch (IllegalArgumentException invalid) {
+                        ctx.getSource().sendFailure(Component.literal("Invalid job UUID"));
+                        return 0;
+                    }
+                    String receipt = PickupJournalBridge.auditJob(ctx.getSource().getLevel(), job);
+                    ctx.getSource().sendSuccess(() -> Component.literal(receipt), false);
+                    return receipt.contains("status=READ_ONLY") ? 1 : 0;
+                })));
+        dispatcher.register(Commands.literal("hearthbound-pickup-citizen-audit")
+            .requires(source -> source.hasPermission(2))
+            .executes(ctx -> {
+                String result = PickupJournalBridge.auditLoadedCitizens(ctx.getSource().getLevel());
+                ctx.getSource().sendSuccess(() -> Component.literal(result), false);
+                return result.contains("status=READ_ONLY") ? 1 : 0;
+            }));
         dispatcher.register(Commands.literal("sable")
             .requires(source -> source.hasPermission(2))
             .then(Commands.literal("spawn").executes(ctx -> {
