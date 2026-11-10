@@ -29,6 +29,7 @@ public final class PickupTransactionJournal implements AutoCloseable {
     private boolean poisoned, closed;
 
     public enum State { UNRESOLVED, EXTRACTION_EMPTY, CARGO_RETURNED }
+    public enum DeliveryState { NOT_STARTED, INSERTION_UNRESOLVED, INSERTION_RETURNED }
     public record Intent(UUID world, UUID job, UUID executor, String source,
                          String reportId, long assignedTick, long attemptedTick) {
         public Intent {
@@ -47,6 +48,9 @@ public final class PickupTransactionJournal implements AutoCloseable {
     private static final class Entry {
         final Intent intent;
         State state = State.UNRESOLVED;
+        DeliveryState delivery = DeliveryState.NOT_STARTED;
+        String destination = "";
+        long deliveryTick = -1;
         Entry(Intent intent) { this.intent = intent; }
         View view() { return new View(intent, state); }
     }
@@ -95,6 +99,63 @@ public final class PickupTransactionJournal implements AutoCloseable {
         entry.state = outcome;
     }
 
+    /**
+     * Force delivery intent BEFORE the real inventory insertion call.
+     * A replayed intent without a returned result is never retried.
+     */
+    public synchronized void beginDelivery(DeliveryBoundaryContract.Intent delivery)
+            throws IOException {
+        healthy();
+        Objects.requireNonNull(delivery);
+        Entry entry = entries.get(delivery.job());
+        DeliveryBoundaryContract.Decision permission =
+            DeliveryBoundaryContract.admit(entry == null ? null : entry.view(),
+                delivery, true, entry != null && entry.delivery != DeliveryState.NOT_STARTED);
+        if (permission != DeliveryBoundaryContract.Decision.ADMIT_INSERTION_INTENT)
+            throw new IOException("delivery intent denied: " + permission);
+        appendDelivery((byte)4, delivery.job(), delivery.destination(), delivery.attemptedTick());
+        entry.destination = delivery.destination();
+        entry.deliveryTick = delivery.attemptedTick();
+        entry.delivery = DeliveryState.INSERTION_UNRESOLVED;
+    }
+
+    /** Recorded after the physical insertion motor returns no remainder.
+     * This records the call's return, NOT an independently saved delivery. */
+    public synchronized void finishDelivery(UUID job) throws IOException {
+        healthy();
+        Entry entry = entries.get(job);
+        if (entry == null || entry.delivery != DeliveryState.INSERTION_UNRESOLVED)
+            throw new IOException("missing or completed insertion intent");
+        appendDelivery((byte)5, job, "", 0);
+        entry.delivery = DeliveryState.INSERTION_RETURNED;
+    }
+
+    public synchronized DeliveryState inspectDelivery(UUID job) {
+        healthy();
+        Entry entry = entries.get(job);
+        return entry == null ? null : entry.delivery;
+    }
+
+    private void appendDelivery(byte type, UUID job, String destination, long tick)
+            throws IOException {
+        byte[] payload;
+        try (ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+             DataOutputStream out = new DataOutputStream(bytes)) {
+            out.writeLong(sequence);
+            out.write(previous);
+            out.writeByte(type);
+            out.writeLong(job.getMostSignificantBits());
+            out.writeLong(job.getLeastSignificantBits());
+            if (type == 4) {
+                out.writeUTF(destination);
+                out.writeLong(tick);
+            }
+            out.flush();
+            payload = bytes.toByteArray();
+        }
+        forceFrame(payload);
+    }
+
     public synchronized View inspect(UUID job) {
         healthy();
         Entry entry = entries.get(job);
@@ -137,6 +198,10 @@ public final class PickupTransactionJournal implements AutoCloseable {
             out.flush();
             payload = bytes.toByteArray();
         }
+        forceFrame(payload);
+    }
+
+    private void forceFrame(byte[] payload) throws IOException {
         if (payload.length > MAX_PAYLOAD) throw new IOException("oversized extraction frame");
         CRC32 crc = new CRC32();
         crc.update(payload);
@@ -203,6 +268,23 @@ public final class PickupTransactionJournal implements AutoCloseable {
                     if (entry == null || entry.state != State.UNRESOLVED)
                         throw new IOException("orphan or repeated pickup outcome");
                     entry.state = type == 2 ? State.EXTRACTION_EMPTY : State.CARGO_RETURNED;
+                } else if (type == 4) {
+                    Entry entry = entries.get(job);
+                    String destination = in.readUTF();
+                    long tick = in.readLong();
+                    if (entry == null || entry.state != State.CARGO_RETURNED
+                            || entry.delivery != DeliveryState.NOT_STARTED
+                            || destination.isBlank() || destination.length() > 512
+                            || tick < entry.intent.attemptedTick())
+                        throw new IOException("invalid or repeated delivery intent");
+                    entry.destination = destination;
+                    entry.deliveryTick = tick;
+                    entry.delivery = DeliveryState.INSERTION_UNRESOLVED;
+                } else if (type == 5) {
+                    Entry entry = entries.get(job);
+                    if (entry == null || entry.delivery != DeliveryState.INSERTION_UNRESOLVED)
+                        throw new IOException("orphan or repeated delivery return");
+                    entry.delivery = DeliveryState.INSERTION_RETURNED;
                 } else throw new IOException("unknown pickup frame");
                 if (in.available() != 0) throw new IOException("trailing pickup bytes");
             } catch (IllegalArgumentException ex) {
