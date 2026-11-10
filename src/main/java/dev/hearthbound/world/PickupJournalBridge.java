@@ -92,10 +92,24 @@ final class PickupJournalBridge {
     /** Only a real motor can force this BEFORE destination inventory insertion. */
     static synchronized void beforeInsertion(ServerLevel level, UUID job,
             UUID executor, String destination, long tick) throws IOException {
+        PickupTransactionJournal current = journal(level);
+        DeliveryBoundaryContract.Intent intent = new DeliveryBoundaryContract.Intent(
+            HearthboundWorldIdentity.get(level), job, executor, destination, tick);
+        // Business-rule denials must not poison the writer for unrelated jobs.
+        DeliveryBoundaryContract.Decision admission;
         try {
-            PickupTransactionJournal current = journal(level);
-            current.beginDelivery(new DeliveryBoundaryContract.Intent(
-                HearthboundWorldIdentity.get(level), job, executor, destination, tick));
+            admission = DeliveryBoundaryContract.admit(current.inspect(job), intent,
+                true, current.inspectDelivery(job) != null
+                    && current.inspectDelivery(job)
+                        != PickupTransactionJournal.DeliveryState.NOT_STARTED);
+        } catch (RuntimeException failure) {
+            BLOCKED.put(level.getServer(), failure.getClass().getSimpleName());
+            throw new IOException("delivery journal unavailable", failure);
+        }
+        if (admission != DeliveryBoundaryContract.Decision.ADMIT_INSERTION_INTENT)
+            throw new IOException("delivery intent denied: " + admission);
+        try {
+            current.beginDelivery(intent);
         } catch (IOException | RuntimeException failure) {
             BLOCKED.put(level.getServer(), failure.getClass().getSimpleName());
             throw new IOException("cannot durably start inventory insertion", failure);
