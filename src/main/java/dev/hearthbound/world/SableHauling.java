@@ -492,8 +492,7 @@ public final class SableHauling {
                 PickupRecoveryGate.Decision verdict = PickupRecoveryGate.classify(
                     HearthboundWorldIdentity.get(level), citizen.getUUID(),
                     tag.getUUID(JOB_ID), prior, true);
-                if (verdict != PickupRecoveryGate.Decision.PAUSE_NO_INTENT
-                        && verdict != PickupRecoveryGate.Decision.PAUSE_EMPTY_OUTCOME)
+                if (!PickupRecoveryGate.permitsNoCargoCancellation(verdict))
                     return false;
             } catch (IOException | RuntimeException unsafe) {
                 return false;
