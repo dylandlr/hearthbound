@@ -236,6 +236,13 @@ def main():
             raise AssertionError("Real recovery journal outcomes disagree: "
                                  + pickup_journal)
         outcome["final_durable_journal_audit"] = pickup_journal
+        delivered_entry = require(r, f"hearthbound-pickup-job {successor}",
+                                  "status=READ_ONLY")
+        if ("state=CARGO_RETURNED" not in delivered_entry
+                or "delivery_state=INSERTION_RETURNED" not in delivered_entry):
+            raise AssertionError("Motor completion lacked durable insertion return: "
+                                 + delivered_entry)
+        outcome["delivery_motor_journal_receipt"] = delivered_entry
         # The original *failed* pickup never receives a completion receipt.
         final_belief=require(r,f"hearthbound-pickup-belief {EX} {A}",
                              "state=PICKUP_RETURNED_EMPTY")
