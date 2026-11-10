@@ -51,6 +51,14 @@ def main():
                 or value(specific, "reward_authorized") != "false"):
             raise AssertionError("Journal record does not match killed physical job: "
                                  + specific)
+        expected_destination = ("minecraft:overworld|10,101,2"
+                                if boundary in insertion_boundaries else "NONE")
+        if value(specific, "delivery_destination") != expected_destination:
+            raise AssertionError("Persisted delivery destination mismatch: " + specific)
+        recorded_delivery_tick = int(value(specific, "delivery_tick"))
+        if ((boundary in insertion_boundaries and recorded_delivery_tick < 0)
+                or (boundary not in insertion_boundaries and recorded_delivery_tick != -1)):
+            raise AssertionError("Delivery tick is inconsistent with crash point: " + specific)
         marker_world = value(marker, "world")
         if value(specific, "world") != marker_world:
             raise AssertionError("World UUID differs from forced boundary marker")
