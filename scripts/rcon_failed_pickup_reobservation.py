@@ -186,6 +186,28 @@ def main():
 
         # A real separate scout makes a NEW direct observation of A's changed
         # physical state. Only that actual direct read can fulfill the request.
+        receipt = outcome.get("failed_pickup_receipt")
+        if not receipt:
+            raise AssertionError("Missing failed pickup receipt")
+
+        match = re.search(r"failed_tick=(\d+)", receipt)
+        if not match:
+            raise AssertionError("Missing failed_tick in failed pickup receipt")
+
+        failed_tick = int(match.group(1))
+        deadline = time.monotonic() + 10
+
+        while time.monotonic() < deadline:
+            clock = r.run("time query gametime")
+            tick_match = re.search(r"The time is (\d+)", clock)
+
+            if tick_match and int(tick_match.group(1)) > failed_tick:
+                break
+
+            time.sleep(0.1)
+        else:
+            raise AssertionError("Game time did not advance beyond failed extraction")
+
         refreshed=require(r,f"hearthbound citizen_observe {A} {SCOUT}","wheat=0")
         if "state=EMPTY" not in refreshed:
             raise AssertionError("Scout did not directly observe the real empty A")
