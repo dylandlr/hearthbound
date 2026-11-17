@@ -22,6 +22,12 @@ javac --release 17 -d "$OUT" \
   "$BASE/ReportConditionedChoice.java" \
   "$BASE/ReportChoiceMlp.java" \
   "$BASE/PickupFailureContract.java" \
+  "$BASE/PickupTransactionJournal.java" \
+  "$BASE/PickupRecoveryGate.java" \
+  "$BASE/PickupJournalOwnership.java" \
+  "$BASE/PickupCitizenReconciliation.java" \
+  "$BASE/PickupSourceAdmission.java" \
+  "$BASE/DeliveryBoundaryContract.java" \
   "$BASE/ReportSessionFence.java" \
   "$BASE/JournalWorldBinding.java" \
   "$TEST/WorldIdentityCodecTest.java" \
@@ -38,6 +44,15 @@ javac --release 17 -d "$OUT" \
   "$TEST/ReportConditionedChoiceTest.java" \
   "$TEST/ReportChoiceMlpTest.java" \
   "$TEST/PickupFailureContractTest.java" \
+  "$TEST/PickupTransactionJournalTest.java" \
+  "$TEST/PickupRecoveryGateTest.java" \
+  "$TEST/PickupJournalOwnershipTest.java" \
+  "$TEST/PickupCitizenReconciliationTest.java" \
+  "$TEST/PickupSourceAdmissionTest.java" \
+  "$TEST/DeliveryBoundaryContractTest.java" \
+  "$TEST/DeliveryJournalReplayTest.java" \
+  "$TEST/DeliveryJournalCorruptionTest.java" \
+  "$TEST/PickupJournalForcedKillTest.java" \
   "$TEST/ReportSessionFenceTest.java"
 for cls in \
   WorldIdentityCodecTest \
@@ -54,6 +69,15 @@ for cls in \
   ReportConditionedChoiceTest \
   ReportChoiceMlpTest \
   PickupFailureContractTest \
+  PickupTransactionJournalTest \
+  PickupRecoveryGateTest \
+  PickupJournalOwnershipTest \
+  PickupCitizenReconciliationTest \
+  PickupSourceAdmissionTest \
+  DeliveryBoundaryContractTest \
+  DeliveryJournalReplayTest \
+  DeliveryJournalCorruptionTest \
+  PickupJournalForcedKillTest \
   ReportSessionFenceTest; do
   echo "== $cls =="
   java -ea -cp "$OUT" "dev.hearthbound.evidence.$cls"

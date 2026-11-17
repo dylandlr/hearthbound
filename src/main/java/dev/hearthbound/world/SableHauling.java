@@ -1,6 +1,9 @@
 package dev.hearthbound.world;
 
 import net.minecraft.core.BlockPos;
+import dev.hearthbound.evidence.PickupTransactionJournal;
+import dev.hearthbound.evidence.PickupRecoveryGate;
+import java.io.IOException;
 import java.util.Set;
 import java.util.UUID;
 import java.util.HashSet;
@@ -67,6 +70,7 @@ public final class SableHauling {
 
     public static synchronized void serverStopped(MinecraftServer server) {
         LIVE_JOBS.remove(server);
+        PickupJournalBridge.serverStopped(server);
     }
 
     private static void quarantine(CompoundTag tag, String reason) {
@@ -186,11 +190,25 @@ public final class SableHauling {
         if (!tag.contains(CARGO) && tag.hasUUID(JOB_ID)
                 && !isLive(level.getServer(), tag.getUUID(JOB_ID))) {
             if (tag.contains("reportPolicyDispatch.v1") && phase != COMPLETE) {
-                // A restored policy assignment cannot bypass the report-session
-                // fence by resuming its motor without a new source decision.
-                // Preserve an existing failed-job reason and all evidence.
-                if (phase != PAUSED && phase != QUARANTINED)
-                    pause(tag, "Restored report-policy task requires fresh observation and new assignment");
+                // Recovery is a restrictive classification, NEVER an instruction
+                // to redo a motor call or deliver cargo. Reconciles this loaded
+                // citizen with the world-bound journal even if its NBT was saved
+                // before the pickup intent was forced to disk.
+                PickupRecoveryGate.Decision recovery;
+                try {
+                    recovery = PickupRecoveryGate.classify(
+                        HearthboundWorldIdentity.get(level), citizen.getUUID(),
+                        tag.getUUID(JOB_ID),
+                        PickupJournalBridge.inspect(level, tag.getUUID(JOB_ID)), true);
+                } catch (IOException | RuntimeException journalFailure) {
+                    recovery = PickupRecoveryGate.Decision.QUARANTINE_JOURNAL_UNAVAILABLE;
+                }
+                switch (recovery) {
+                    case PAUSE_NO_INTENT, PAUSE_EMPTY_OUTCOME ->
+                        pause(tag, "Restored report-policy job: " + recovery
+                            + "; new observation and assignment required");
+                    default -> quarantine(tag, "Pickup journal requires operator review: " + recovery);
+                }
                 return;
             }
             markLive(level.getServer(), tag.getUUID(JOB_ID));
@@ -246,19 +264,73 @@ public final class SableHauling {
                 pause(tag, "Destination unavailable or full before pickup");
                 return;
             }
-            ItemStack taken = extractWheat(entity);
+            // Experimental report-policy jobs require a forced intent before
+            // touching inventory. An unresolved intent on replay is NOT safe
+            // to retry, even when villager NBT has no cargo.
+            boolean journaled = tag.contains("reportPolicyDispatch.v1");
+            if (journaled) {
+                try {
+                    CompoundTag decision = tag.getCompound("reportPolicyDispatch.v1");
+                    if (!tag.hasUUID(JOB_ID) || !tag.contains(ASSIGNED_TICK,
+                            net.minecraft.nbt.Tag.TAG_LONG)
+                            || !decision.hasUUID("world") || !decision.hasUUID("job")
+                            || !decision.hasUUID("executor")
+                            || !decision.getUUID("world").equals(HearthboundWorldIdentity.get(level))
+                            || !decision.getUUID("job").equals(tag.getUUID(JOB_ID))
+                            || !decision.getUUID("executor").equals(citizen.getUUID())
+                            || decision.getString("reportId").isBlank())
+                        throw new IOException("invalid journal assignment provenance");
+                    PickupJournalBridge.beforeExtraction(level,
+                        new PickupTransactionJournal.Intent(
+                            HearthboundWorldIdentity.get(level), tag.getUUID(JOB_ID),
+                            citizen.getUUID(), level.dimension().location()
+                                + "|" + target.getX() + "," + target.getY() + "," + target.getZ(),
+                            decision.getString("reportId"),
+                            tag.getLong(ASSIGNED_TICK), level.getGameTime()));
+                } catch (IOException | RuntimeException failure) {
+                    pause(tag, "Pickup journal denied extraction; operator reconciliation required");
+                    return;
+                }
+            }
+            if (journaled)
+                PickupCrashBoundaryProbe.awaitExternalKill(level, tag.getUUID(JOB_ID),
+                    PickupCrashBoundaryProbe.Boundary.AFTER_INTENT);
+            ItemStack taken;
+            try {
+                taken = extractWheat(entity);
+            } catch (RuntimeException failedMotor) {
+                // Intent may have committed. Leave it UNRESOLVED and never retry.
+                quarantine(tag, "Extraction interrupted after durable intent");
+                return;
+            }
+            if (journaled)
+                PickupCrashBoundaryProbe.awaitExternalKill(level, tag.getUUID(JOB_ID),
+                    PickupCrashBoundaryProbe.Boundary.AFTER_EXTRACTION);
+            // Retain physical cargo even if committing its outcome fails.
+            // A failed outcome force quarantines this job and forbids further motion.
+            if (!taken.isEmpty()) {
+                tag.put(CARGO, taken.save(new CompoundTag()));
+                entity.setChanged();
+            }
+            if (journaled) {
+                try {
+                    PickupJournalBridge.afterExtraction(level, tag.getUUID(JOB_ID), taken.isEmpty());
+                } catch (IOException | RuntimeException failure) {
+                    quarantine(tag, "Pickup outcome not durably committed; reconcile physically");
+                    return;
+                }
+            }
+            if (journaled)
+                PickupCrashBoundaryProbe.awaitExternalKill(level, tag.getUUID(JOB_ID),
+                    PickupCrashBoundaryProbe.Boundary.AFTER_OUTCOME);
             if (taken.isEmpty()) {
-                // A real, attempted extraction returned no item. This is
-                // negative motor evidence for this job, NOT proof that the
-                // chest is empty or that navigation failed.
+                // Never infer chest emptiness. Negative evidence is recorded
+                // only after the actual motor returned empty and outcome was forced.
                 SourceFailureBeliefs.recordAfterEmptyExtraction(level, citizen, target, tag);
                 pause(tag, "No wheat available");
                 return;
             }
-            // Save cargo in citizen data; never issue a second extraction until delivered.
-            tag.put(CARGO, taken.save(new CompoundTag()));
             tag.putInt(PHASE, TO_DEST);
-            entity.setChanged();
         } else {
             ItemStack cargo = ItemStack.of(tag.getCompound(CARGO));
             if (cargo.isEmpty()) {
@@ -274,6 +346,23 @@ public final class SableHauling {
                 quarantine(tag, "Mill experiment tainted during delivery; cargo quarantined");
                 return;
             }
+            // Force a distinct delivery-intent frame before the destination
+            // motor call. This is NOT proof of a successful delivery.
+            boolean durableDelivery = tag.contains("reportPolicyDispatch.v1");
+            if (durableDelivery) {
+                try {
+                    PickupJournalBridge.beforeInsertion(level, tag.getUUID(JOB_ID),
+                        citizen.getUUID(), level.dimension().location() + "|"
+                            + target.getX() + "," + target.getY() + "," + target.getZ(),
+                        level.getGameTime());
+                } catch (IOException | RuntimeException failure) {
+                    quarantine(tag, "Delivery intent denied; physical reconciliation required");
+                    return;
+                }
+            }
+            if (durableDelivery)
+                PickupCrashBoundaryProbe.awaitExternalKill(level, tag.getUUID(JOB_ID),
+                    PickupCrashBoundaryProbe.Boundary.AFTER_DELIVERY_INTENT);
             // A persistent in-progress marker prevents the next tick from silently
             // trying insertion again if this call fails partway through.
             tag.putInt(PHASE, INSERTING);
@@ -291,6 +380,9 @@ public final class SableHauling {
                     ? insert(entity, cargo)
                     : MillTransferGate.authorize(level, target, tag.getUUID(JOB_ID),
                         citizen.getUUID(), false, () -> insert(entity, cargo));
+                if (durableDelivery)
+                    PickupCrashBoundaryProbe.awaitExternalKill(level, tag.getUUID(JOB_ID),
+                        PickupCrashBoundaryProbe.Boundary.AFTER_INSERTION);
                 if ("after".equals(fault)) {
                     throw new IllegalStateException("Injected failure after inventory insertion");
                 }
@@ -300,6 +392,18 @@ public final class SableHauling {
                 return;
             }
             if (remaining.isEmpty()) {
+                if (durableDelivery) {
+                    try {
+                        PickupJournalBridge.afterInsertion(level, tag.getUUID(JOB_ID));
+                    } catch (IOException | RuntimeException failure) {
+                        quarantine(tag, "Delivery motor returned but journal force failed; review items");
+                        entity.setChanged();
+                        return;
+                    }
+                }
+                if (durableDelivery)
+                    PickupCrashBoundaryProbe.awaitExternalKill(level, tag.getUUID(JOB_ID),
+                        PickupCrashBoundaryProbe.Boundary.AFTER_DELIVERY_RETURN);
                 if (tag.hasUUID(JOB_ID)) {
                     MillExperimentTrace.deliveryComplete(level, citizen, tag.getUUID(JOB_ID));
                 }
@@ -418,6 +522,23 @@ public final class SableHauling {
         if (!tag.contains(PHASE) || tag.getInt(PHASE) == COMPLETE || tag.getInt(PHASE) == CANCELLED
             || tag.getInt(PHASE) == QUARANTINED || tag.contains(CARGO))
             return false;
+        // A saved no-cargo state does NOT prove the real motor did not
+        // extract wheat before a crash. Only a proven EMPTY outcome, or no
+        // intent at all, can be cancelled without physical reconciliation.
+        if (tag.contains("reportPolicyDispatch.v1")) {
+            if (!tag.hasUUID(JOB_ID)) return false;
+            try {
+                PickupTransactionJournal.View prior =
+                    PickupJournalBridge.inspect(level, tag.getUUID(JOB_ID));
+                PickupRecoveryGate.Decision verdict = PickupRecoveryGate.classify(
+                    HearthboundWorldIdentity.get(level), citizen.getUUID(),
+                    tag.getUUID(JOB_ID), prior, true);
+                if (!PickupRecoveryGate.permitsNoCargoCancellation(verdict))
+                    return false;
+            } catch (IOException | RuntimeException unsafe) {
+                return false;
+            }
+        }
         BlockPos source = BlockPos.of(tag.getLong(SOURCE));
         BlockPos destination = BlockPos.of(tag.getLong(DESTINATION));
         if (MillReservations.isMill(level, destination)) {
@@ -433,7 +554,12 @@ public final class SableHauling {
     public static boolean resume(Villager citizen) {
         CompoundTag tag = citizen.getPersistentData().getCompound(KEY);
         if (tag.getInt(PHASE) != PAUSED || tag.contains(CARGO)) return false;
-        tag.putInt(PHASE, tag.contains(CARGO) ? TO_DEST : TO_SOURCE);
+        // A paused report-policy job may have a durable extraction intent even
+        // when saved citizen NBT predates the call. Resuming it would bypass
+        // the restart fence and permit retrying an uncertain transaction.
+        // A fresh assignment (new job UUID and observation) is required.
+        if (tag.contains("reportPolicyDispatch.v1")) return false;
+        tag.putInt(PHASE, TO_SOURCE);
         tag.remove(ERROR);
         return true;
     }
