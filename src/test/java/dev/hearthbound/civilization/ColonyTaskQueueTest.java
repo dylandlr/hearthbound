@@ -30,6 +30,19 @@ public final class ColonyTaskQueueTest {
         try { q.finish(second.id(), b, job); }
         catch (IllegalStateException expected) { rejected = true; }
         check(rejected);
+        // Two citizens observing the same chest must not duplicate an active job.
+        Task proposal = restored.propose("minecraft:overworld", 7, 8);
+        check(proposal != null && proposal.state() == State.QUEUED);
+        check(restored.propose("minecraft:overworld", 7, 8).id() == proposal.id());
+        UUID c = UUID.randomUUID();
+        Task owned = restored.reserve(c, "minecraft:overworld", t -> t.id() == proposal.id());
+        check(owned != null);
+        check(restored.propose("minecraft:overworld", 7, 8).id() == proposal.id());
+        restored.hold(proposal.id(), c);
+        check(restored.propose("minecraft:overworld", 7, 8).state() == State.HELD);
+        // Completed jobs can be followed by a new observation and a new job.
+        Task next = restored.propose("minecraft:overworld", 1, 2);
+        check(next != null && next.id() > proposal.id());
         System.out.println("Colony task queue: PASS");
     }
 }
