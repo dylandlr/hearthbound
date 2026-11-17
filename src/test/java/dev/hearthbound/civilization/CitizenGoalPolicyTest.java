@@ -16,7 +16,7 @@ public final class CitizenGoalPolicyTest {
         Candidate near = new Candidate(2, 2, 4, 0);
         Candidate rich = new Candidate(1, 12, 100, 0);
         check(select(t, List.of(near, rich)).taskId() == 1);
-        check(select(t, List.of()).equals(null));
+        check(select(t, List.of()) == null);
         check(select(t, List.of(new Candidate(2, 3, 9, 0),
                 new Candidate(1, 3, 9, 0))).taskId() == 1);
         Candidate contested = new Candidate(3, 10, 4, 2);
