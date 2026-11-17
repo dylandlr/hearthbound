@@ -221,7 +221,13 @@ public final class CivilizationRuntime {
                 }
             }
         }
-        Task candidate = null;
+        // Individual differences affect which feasible, locally witnessed task
+        // is chosen. This remains scripted task ranking, not learned specialization.
+        var traits = dev.hearthbound.civilization.CitizenGoalPolicy.fromIdentity(
+                citizenId, HearthboundWorldIdentity.get(level).hashCode());
+        var menu = new java.util.ArrayList<
+                dev.hearthbound.civilization.CitizenGoalPolicy.Candidate>();
+        var eligible = new java.util.HashMap<Long, Task>();
         for (Task task : board.tasks.snapshot()) {
             if (task.state() != State.QUEUED || !dimension.equals(task.dimension()))
                 continue;
@@ -250,12 +256,17 @@ public final class CivilizationRuntime {
                        CivilizationContracts.ActionKind.WAIT));
             var decision = new CivilizationContracts.ScriptedPolicy().decide(observation);
             CivilizationContracts.validate(observation, decision);
-            if (decision.action() == CivilizationContracts.ActionKind.GATHER
-                    && evidenceId.equals(decision.evidenceId())) {
-                candidate = task;
-                break;
-            }
+            if (decision.action() != CivilizationContracts.ActionKind.GATHER
+                    || !evidenceId.equals(decision.evidenceId()))
+                continue;
+            long distance = (long) Math.ceil(citizen.distanceToSqr(
+                from.getX()+0.5, from.getY()+0.5, from.getZ()+0.5));
+            menu.add(new dev.hearthbound.civilization.CitizenGoalPolicy.Candidate(
+                task.id(), sensor.wheat(), distance, 0));
+            eligible.put(task.id(), task);
         }
+        var selection = dev.hearthbound.civilization.CitizenGoalPolicy.select(traits, menu);
+        Task candidate = selection == null ? null : eligible.get(selection.taskId());
         if (candidate == null) return false;
         long chosenId = candidate.id();
         Task reserved = board.tasks.reserve(citizenId, dimension, t -> t.id() == chosenId);
@@ -272,7 +283,11 @@ public final class CivilizationRuntime {
             board.setDirty();
             CompoundTag memory = citizen.getPersistentData().getCompound(MEMORY);
             memory.putString("schema", "hearthbound.civilization.v1");
-            memory.putString("goal", "HAUL_OPERATOR_SEEDED_WHEAT");
+            memory.putString("goal", "SUPPLY_WHEAT");
+            memory.putString("decisionPolicy", "DETERMINISTIC_TRAIT_RANK_V1");
+            memory.putInt("diligence", traits.diligence());
+            memory.putInt("exploration", traits.exploration());
+            memory.putInt("cooperation", traits.cooperation());
             memory.putLong("taskId", reserved.id());
             memory.putUUID("jobId", haul.getUUID("jobId"));
             memory.putLong("decisionTick", level.getGameTime());
