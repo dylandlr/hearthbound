@@ -3,6 +3,8 @@ package dev.hearthbound.civilization;
 import java.util.List;
 import java.util.UUID;
 import dev.hearthbound.civilization.CitizenGoalPolicy.*;
+import static dev.hearthbound.civilization.CitizenGoalPolicy.fromIdentity;
+import static dev.hearthbound.civilization.CitizenGoalPolicy.select;
 
 public final class CitizenGoalPolicyTest {
     private static void check(boolean v) {
