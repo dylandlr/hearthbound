@@ -34,9 +34,13 @@ public final class CivilizationRuntime {
     private static final class ColonyData extends SavedData {
         final ColonyTaskQueue tasks = new ColonyTaskQueue();
         boolean enabled;
+        boolean hasDestination;
+        long destination;
 
         static ColonyData load(CompoundTag root) {
             ColonyData result = new ColonyData();
+            result.hasDestination = root.contains("destination", Tag.TAG_LONG);
+            if (result.hasDestination) result.destination = root.getLong("destination");
             ListTag entries = root.getList("tasks", Tag.TAG_COMPOUND);
             for (int i = 0; i < entries.size(); i++) {
                 CompoundTag e = entries.getCompound(i);
@@ -76,6 +80,7 @@ public final class CivilizationRuntime {
                 entries.add(e);
             }
             root.put("tasks", entries);
+            if (hasDestination) root.putLong("destination", destination);
             return root;
         }
     }
@@ -100,6 +105,25 @@ public final class CivilizationRuntime {
                     "Dispatch disabled; active jobs retain all existing recovery gates"), false);
                 return 1;
             }))
+            .then(Commands.literal("set-destination")
+                .then(Commands.argument("position", BlockPosArgument.blockPos())
+                    .executes(ctx -> {
+                        ServerLevel level = ctx.getSource().getLevel();
+                        BlockPos pos = BlockPosArgument.getLoadedBlockPos(ctx, "position");
+                        if (level.getBlockEntity(pos) == null) {
+                            ctx.getSource().sendFailure(Component.literal(
+                                "Destination must be a loaded block entity"));
+                            return 0;
+                        }
+                        ColonyData board = data(level);
+                        board.destination = pos.asLong();
+                        board.hasDestination = true;
+                        board.setDirty();
+                        ctx.getSource().sendSuccess(() -> Component.literal(
+                            "Registered shared destination " + pos
+                            + "; local citizen observations may now propose wheat hauls"), false);
+                        return 1;
+                    })))
             .then(Commands.literal("add-haul")
                 .then(Commands.argument("source", BlockPosArgument.blockPos())
                     .then(Commands.argument("destination", BlockPosArgument.blockPos())
@@ -133,7 +157,9 @@ public final class CivilizationRuntime {
                 ctx.getSource().sendSuccess(() -> Component.literal(
                     "COLONY_V1 enabled=" + data.enabled + " queued=" + queued
                     + " assigned=" + assigned + " held=" + held + " done=" + done
-                    + " tasks=OPERATOR_SEEDED reward_authorized=false"), false);
+                    + " destination_registered=" + data.hasDestination
+                    + " task_sources=OPERATOR_OR_LOCAL_OBSERVATION"
+                    + " reward_authorized=false"), false);
                 return 1;
             })));
     }
@@ -163,6 +189,38 @@ public final class CivilizationRuntime {
             }
         }
         if (SableHauling.active(citizen)) return true;
+        // Only loaded, nearby inventories may seed tasks; never sample distant
+        // chunk inventory, bypass the sensor, or infer success from a proposal.
+        // Tick staggering is deliberately limited to the citizen's own cycle.
+        if (board.hasDestination && citizen.tickCount % 100 == 0) {
+            BlockPos destination = BlockPos.of(board.destination);
+            if (level.hasChunkAt(destination) && level.getBlockEntity(destination) != null) {
+                BlockPos center = citizen.blockPosition();
+                boolean filled = false;
+                for (int dx = -2; dx <= 2 && !filled; dx++) {
+                    for (int dy = -1; dy <= 1 && !filled; dy++) {
+                        for (int dz = -2; dz <= 2; dz++) {
+                            BlockPos source = center.offset(dx, dy, dz);
+                            if (source.equals(destination) || !level.hasChunkAt(source)
+                                    || level.getBlockEntity(source) == null)
+                                continue;
+                            SourceWheatObservation.Snapshot sensed =
+                                SourceWheatObservation.inspect(level, source, citizen);
+                            if (sensed.state() != SourceWheatObservation.State.AVAILABLE)
+                                continue;
+                            CitizenSourceKnowledge.remember(level, source, citizen, sensed);
+                            int count = board.tasks.snapshot().size();
+                            Task proposed = board.tasks.propose(dimension,
+                                source.asLong(), destination.asLong());
+                            if (proposed != null && board.tasks.snapshot().size() > count)
+                                board.setDirty();
+                            // Don't keep scanning after reaching the bounded task cap.
+                            if (proposed == null) { filled = true; break; }
+                        }
+                    }
+                }
+            }
+        }
         Task candidate = null;
         for (Task task : board.tasks.snapshot()) {
             if (task.state() != State.QUEUED || !dimension.equals(task.dimension()))
