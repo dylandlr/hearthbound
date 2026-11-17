@@ -30,6 +30,22 @@ public final class ColonyTaskQueue {
         tasks.add(task);
         return task;
     }
+    /**
+     * Idempotently propose a physically observed resource-transfer opportunity.
+     * A held or assigned task blocks duplicates. Completed tasks permit new
+     * opportunities after a later observation, but never replay the old job.
+     */
+    public synchronized Task propose(String dimension, long source, long destination) {
+        for (Task task : tasks) {
+            if (task.dimension().equals(dimension) && task.source() == source
+                    && task.destination() == destination && task.state() != State.DONE)
+                return task;
+        }
+        if (tasks.size() >= 256)
+            return null; // Bounded persisted board; never evict uncertain evidence.
+        return enqueue(dimension, source, destination);
+    }
+
     public synchronized void restore(Task task) {
         Objects.requireNonNull(task);
         if (tasks.stream().anyMatch(t -> t.id() == task.id()))
