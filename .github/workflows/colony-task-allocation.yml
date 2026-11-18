@@ -1,0 +1,53 @@
+name: Learned colony allocation (simulator only)
+on:
+  pull_request:
+    paths:
+      - 'scripts/colony_task_env.py'
+      - 'scripts/test_colony_task_env.py'
+      - 'scripts/train_colony_task_allocation.py'
+      - 'scripts/test_train_colony_task_allocation.py'
+      - '.github/workflows/colony-task-allocation.yml'
+  workflow_dispatch:
+jobs:
+  allocation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install numpy==2.3.5
+      - name: Verify observation, resource, and learning contracts
+        run: python -m unittest discover -s scripts -p 'test*colony_task*.py' -v
+      - name: Execute declared simulator experiment
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ '${{ github.event_name }}' = workflow_dispatch ]; then
+            python scripts/train_colony_task_allocation.py --episodes 600 --training-seeds 17,23,41 --worlds 40 --output-dir run/colony-allocation-v0-4
+          else
+            python scripts/train_colony_task_allocation.py --episodes 40 --training-seeds 101 --worlds 4 --evaluation-seed-start 8000000 --regimes standard --output-dir run/colony-allocation-v0-4
+          fi
+      - name: Validate simulator provenance and conservation
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path('run/colony-allocation-v0-4/report.json').read_text())
+          assert report['origin']=='ABSTRACT_SIMULATOR_ONLY'
+          assert report['forge_control_enabled'] is False
+          assert report['evaluation_weights_frozen'] is True
+          assert all(x['optimizer_updates']>0 for x in report['training_runs'])
+          assert all(x['conservation_residual_A']==x['conservation_residual_B']==0 for x in report['runs'])
+          assert all(x['tick']==report['horizon_ticks'] for x in report['runs'])
+          print('SIMULATED_COLONY_ALLOCATION_INTEGRITY_PASS; no learning superiority required')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: simulated-colony-allocation-evidence
+          path: run/colony-allocation-v0-4/
+          if-no-files-found: warn
