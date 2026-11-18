@@ -4,6 +4,8 @@ on:
     paths:
       - 'src/main/java/dev/hearthbound/civilization/**'
       - 'src/main/java/dev/hearthbound/world/CivilizationRuntime.java'
+      - 'src/main/java/dev/hearthbound/world/SourceReportSession.java'
+      - 'src/test/java/dev/hearthbound/civilization/**'
       - 'src/main/java/dev/hearthbound/world/SableController.java'
       - 'scripts/rcon_civilization_four_citizens.py'
       - '.github/workflows/real-four-citizen-colony.yml'
@@ -23,6 +25,8 @@ jobs:
           gradle-version: '8.8'
       - name: Static check of RCON acceptance
         run: python3 -m py_compile scripts/rcon_civilization_four_citizens.py
+      - name: Verify scoped Java decision contracts
+        run: python3 scripts/test-civilization-contracts.py
       - name: Compile Forge and test sources
         run: gradle --no-daemon compileJava compileTestJava > colony-preflight.log 2>&1 || (tail -n 120 colony-preflight.log; exit 1)
       - name: Boot disposable Forge world and demand four physical deliveries

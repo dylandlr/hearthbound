@@ -86,10 +86,11 @@ def run_trial(rcon, sleep=time.sleep):
         raise AssertionError("Unresolved jobs after delivery: " + final)
     if "distinct_completed_citizens=4" not in final:
         raise AssertionError("Jobs were not completed by four distinct citizens: " + final)
+    check(rcon, "hearthbound-colony decision-audit", "latest_scoped_completed_citizens=4")
     check(rcon, "hearthbound-colony disable", "Dispatch disabled")
     print("CIVILIZATION_FOUR_CITIZEN_ACCEPTANCE_PASS "
           "observed_proposals=4 physical_deliveries=4 destination_wheat=4 "
-          "outstanding_claims=0 no_reward_claim=true", flush=True)
+          "outstanding_claims=0 scoped_citizen_decisions=4 no_reward_claim=true", flush=True)
 
 
 def main():

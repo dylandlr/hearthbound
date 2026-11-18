@@ -4,6 +4,7 @@ import dev.hearthbound.evidence.ReportSessionFence;
 import java.util.Map;
 import java.util.UUID;
 import java.util.WeakHashMap;
+import java.nio.charset.StandardCharsets;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
@@ -29,6 +30,15 @@ public final class SourceReportSession {
     @SubscribeEvent
     public static void stopped(ServerStoppedEvent event) {
         SESSIONS.remove(event.getServer());
+    }
+
+    /** Scope ephemeral actor decisions to this world, dimension and server lifetime. */
+    static UUID episode(ServerLevel level) {
+        var fence = SESSIONS.get(level.getServer());
+        if (fence == null || !fence.world().equals(HearthboundWorldIdentity.get(level)))
+            throw new IllegalStateException("Decision observation session unavailable");
+        return UUID.nameUUIDFromBytes((fence.world() + "|" + fence.session() + "|"
+            + level.dimension().location()).getBytes(StandardCharsets.UTF_8));
     }
 
     /** Only stamp at the actual local observation, never at report delivery. */
