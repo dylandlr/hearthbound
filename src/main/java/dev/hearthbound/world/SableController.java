@@ -56,6 +56,7 @@ public final class SableController {
     @SubscribeEvent
     public static void registerCommands(RegisterCommandsEvent event) {
         CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
+        CivilizationRuntime.register(dispatcher);
         // Separate permission-2 inspection command; never modifies Minecraft.
         dispatcher.register(Commands.literal("hearthbound-pickup-journal")
             .requires(source -> source.hasPermission(2))
@@ -458,6 +459,10 @@ public final class SableController {
             SableHauling.tick(level, villager);
             return;
         }
+
+        // Opt-in colony dispatch: autonomous task selection uses local sensor evidence;
+        // the existing SableHauling motor and recovery journal retain authority.
+        if (CivilizationRuntime.tick(level, villager)) return;
 
         Player target = level.getNearestPlayer(villager, 12.0D);
         if (target == null || target.isSpectator()) {
