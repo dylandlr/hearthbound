@@ -1,0 +1,61 @@
+name: Colony allocation diagnostics (simulator only)
+on:
+  pull_request:
+    paths:
+      - 'scripts/colony_task_env.py'
+      - 'scripts/train_colony_task_allocation.py'
+      - 'scripts/colony_allocation_*.py'
+      - 'scripts/test*colony*.py'
+      - '.github/workflows/colony-allocation-diagnostics.yml'
+  workflow_dispatch:
+jobs:
+  diagnostics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install numpy==2.3.5
+      - name: Verify original and diagnostic contracts
+        run: python -m unittest discover -s scripts -p 'test*colony*.py' -v
+      - name: Exercise fixed-replay training and frozen evaluation
+        run: >-
+          python scripts/colony_allocation_diagnostics.py
+          --training-seeds 101 --corpus-episodes 20 --updates 60
+          --worlds 4 --evaluation-seed-start 8100000 --regimes standard
+          --skip-legacy --output-dir run/colony-diagnostics-v0-5-ci
+      - name: Validate evidence integrity
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path('run/colony-diagnostics-v0-5-ci')
+          report = json.loads((root / 'report.json').read_text())
+          protocol = json.loads((root / 'protocol.json').read_text())
+          assert report['origin'] == 'ABSTRACT_SIMULATOR_ONLY'
+          assert report['minecraft_control'] is False
+          assert report['legacy_included'] is False
+          assert report['evaluation_frozen'] is True
+          assert len(report['runs']) == 48
+          for training in report['training']:
+              arms = list(training['variants'].values())
+              assert all(a['optimizer_updates'] == 60 for a in arms)
+              assert len({a['initial_parameter_sha256'] for a in arms}) == 1
+              assert len({a['sampled_start_order_sha256'] for a in arms}) == 1
+              assert all(a['parameter_sha256'] != a['initial_parameter_sha256'] for a in arms)
+          for row in report['runs']:
+              assert row['conservation_residual_A'] == row['conservation_residual_B'] == 0
+              assert row['tick'] == protocol['horizon']
+              assert not row['pruned'] or row['same_site_inspections'] == 0
+          print('COLONY_DIAGNOSTICS_INTEGRITY_PASS; no performance threshold required')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: simulated-colony-diagnostics-evidence
+          path: run/colony-diagnostics-v0-5-ci/
+          if-no-files-found: warn
