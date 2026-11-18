@@ -41,7 +41,7 @@ def run_trial(rcon, sleep=time.sleep):
         check(rcon, f'data merge block {x} 100 1 {{Items:[{{Slot:0b,id:"minecraft:wheat",Count:1b}}]}}', "modified")
 
     for x in SOURCES:
-        check(rcon, f"execute positioned {x} 100 1 run sable spawn", "Sable spawned")
+        check(rcon, f"execute positioned {x+1} 100 2 run sable spawn", "Sable spawned")
     check(rcon, f"hearthbound-colony set-destination {DESTINATION} 100 1",
           "Registered shared destination")
     before = check(rcon, "hearthbound-colony audit", "queued=0")
