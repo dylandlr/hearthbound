@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'scripts/train_colony_masked_online.py'
+      - 'scripts/colony_masked_policy.py'
       - 'scripts/test_colony_masked_online.py'
       - '.github/workflows/colony-masked-online.yml'
   workflow_dispatch:
