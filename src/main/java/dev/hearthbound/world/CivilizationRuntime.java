@@ -195,8 +195,10 @@ public final class CivilizationRuntime {
         if (SableHauling.active(citizen)) return true;
         // Only loaded, nearby inventories may seed tasks; never sample distant
         // chunk inventory, bypass the sensor, or infer success from a proposal.
-        // Tick staggering is deliberately limited to the citizen's own cycle.
-        if (board.hasDestination && citizen.tickCount % 100 == 0) {
+        // Evaluate once per citizen tick cycle (20 game ticks). Waiting 100 ticks
+        // allowed unloaded/vanilla-wandering citizens to leave a small sensor
+        // neighborhood without ever recording their initial nearby chest.
+        if (board.hasDestination) {
             BlockPos destination = BlockPos.of(board.destination);
             if (level.hasChunkAt(destination) && level.getBlockEntity(destination) != null) {
                 BlockPos center = citizen.blockPosition();
