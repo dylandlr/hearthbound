@@ -6,6 +6,7 @@ on:
       - 'src/main/java/dev/hearthbound/evidence/ReportSessionFence.java'
       - 'src/main/java/dev/hearthbound/evidence/PickupFailureContract.java'
       - 'scripts/rcon_pickup_belief_restart.py'
+      - 'scripts/test_rcon_pickup_belief_restart.py'
       - 'scripts/rcon_failed_pickup_reobservation.py'
       - '.github/workflows/real-pickup-belief-restart.yml'
   workflow_dispatch:
@@ -27,6 +28,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m py_compile scripts/rcon_pickup_belief_restart.py scripts/rcon_failed_pickup_reobservation.py
+          python3 -m unittest discover -s scripts -p test_rcon_pickup_belief_restart.py -v
           bash scripts/test-research-journals.sh
           python3 scripts/train_report_choice_mlp.py --model run/report-choice-mlp-v1.txt --sha run/report-choice-mlp-v1.sha256 --report pickup-restart-training.json
       - name: Real extraction then separate process lifetimes

@@ -36,6 +36,14 @@ public final class CivilizationRuntime {
         boolean enabled;
         boolean hasDestination;
         long destination;
+        // Local counters do not expose another citizen's decision activity.
+        final java.util.Map<UUID, Long> observationRevisions = new java.util.HashMap<>();
+
+        long nextObservationRevision(UUID citizen) {
+            long revision = Math.addExact(observationRevisions.getOrDefault(citizen, 0L), 1L);
+            observationRevisions.put(citizen, revision);
+            return revision;
+        }
 
         static ColonyData load(CompoundTag root) {
             ColonyData result = new ColonyData();
@@ -144,6 +152,50 @@ public final class CivilizationRuntime {
                                 + " (no inventory action performed)"), false);
                             return 1;
                         }))))
+            .then(Commands.literal("decision-audit").executes(ctx -> {
+                ServerLevel level = ctx.getSource().getLevel();
+                ColonyData board = data(level);
+                UUID currentEpisode = SourceReportSession.episode(level);
+                Set<UUID> verifiedCitizens = new java.util.HashSet<>();
+                for (Task task : board.tasks.snapshot()) {
+                    if (task.state() != State.DONE || task.owner() == null)
+                        continue;
+                    var entity = level.getEntity(task.owner());
+                    if (!(entity instanceof Villager citizen)) continue;
+                    CompoundTag memory = citizen.getPersistentData().getCompound(MEMORY);
+                    BlockPos source = BlockPos.of(task.source());
+                    String target = task.dimension() + "|" + source.getX() + ","
+                            + source.getY() + "," + source.getZ();
+                    if (!memory.hasUUID("episodeId") || !memory.hasUUID("decisionId")
+                            || !memory.hasUUID("evidenceId") || !memory.hasUUID("jobId")
+                            || !memory.contains("snapshotRevision", Tag.TAG_LONG)
+                            || !memory.contains("evidenceObservedTick", Tag.TAG_LONG)
+                            || !memory.contains("decisionTick", Tag.TAG_LONG)
+                            || !memory.contains("taskId", Tag.TAG_LONG)
+                            || !currentEpisode.equals(memory.getUUID("episodeId"))
+                            || !"hearthbound.civilization.v3".equals(memory.getString("schema"))
+                            || !"GATHER".equals(memory.getString("actionKind"))
+                            || !target.equals(memory.getString("evidenceTarget"))
+                            || memory.getLong("taskId") != task.id()
+                            || !memory.getUUID("jobId").equals(task.job())
+                            || memory.getLong("snapshotRevision") < 1)
+                        continue;
+                    long observed = memory.getLong("evidenceObservedTick");
+                    long decided = memory.getLong("decisionTick");
+                    if (observed < 0 || decided < observed || decided > task.assignedTick()
+                            || task.assignedTick() > level.getGameTime()
+                            || task.assignedTick() - observed >
+                                CivilizationContracts.MAX_GATHER_EVIDENCE_AGE_TICKS)
+                        continue;
+                    verifiedCitizens.add(task.owner());
+                }
+                ctx.getSource().sendSuccess(() -> Component.literal(
+                    "COLONY_DECISIONS_V0_3 latest_scoped_completed_citizens="
+                    + verifiedCitizens.size()
+                    + " scope=CURRENT_SESSION_LATEST_CITIZEN_MEMORY"
+                    + " physical_reward_authorized=false"), false);
+                return 1;
+            }))
             .then(Commands.literal("audit").executes(ctx -> {
                 ColonyData data = data(ctx.getSource().getLevel());
                 long queued = data.tasks.snapshot().stream()
@@ -163,6 +215,7 @@ public final class CivilizationRuntime {
                     + " distinct_completed_citizens=" + distinctCompletedCitizens
                     + " destination_registered=" + data.hasDestination
                     + " task_sources=OPERATOR_OR_LOCAL_OBSERVATION"
+                    + " decision_contract=V0_3"
                     + " reward_authorized=false"), false);
                 return 1;
             })));
@@ -234,6 +287,9 @@ public final class CivilizationRuntime {
         var menu = new java.util.ArrayList<
                 dev.hearthbound.civilization.CitizenGoalPolicy.Candidate>();
         var eligible = new java.util.HashMap<Long, Task>();
+        var observations = new java.util.HashMap<Long, CivilizationContracts.Observation>();
+        var decisions = new java.util.HashMap<Long, CivilizationContracts.Decision>();
+        UUID episode = SourceReportSession.episode(level);
         for (Task task : board.tasks.snapshot()) {
             if (task.state() != State.QUEUED || !dimension.equals(task.dimension()))
                 continue;
@@ -250,16 +306,18 @@ public final class CivilizationRuntime {
             CitizenSourceKnowledge.remember(level, from, citizen, sensor);
             String target = dimension + "|" + from.getX() + "," + from.getY()
                     + "," + from.getZ();
+            long revision = board.nextObservationRevision(citizenId);
             UUID evidenceId = UUID.nameUUIDFromBytes(
-                    (citizenId + ":" + target + ":" + sensor.tick())
+                    (episode + ":" + citizenId + ":" + target + ":" + sensor.tick()
+                        + ":" + revision)
                     .getBytes(StandardCharsets.UTF_8));
             var evidence = new CivilizationContracts.Evidence(evidenceId, citizenId,
                 citizenId, target, CivilizationContracts.EvidenceKind.DIRECT,
-                sensor.tick(), level.getGameTime(), sensor.wheat());
+                sensor.tick(), level.getGameTime(), sensor.wheat(), episode, revision);
             var observation = new CivilizationContracts.Observation(citizenId,
                 level.getGameTime(), List.of(evidence),
                 Set.of(CivilizationContracts.ActionKind.GATHER,
-                       CivilizationContracts.ActionKind.WAIT));
+                       CivilizationContracts.ActionKind.WAIT), episode, revision);
             var decision = new CivilizationContracts.ScriptedPolicy().decide(observation);
             CivilizationContracts.validate(observation, decision);
             if (decision.action() != CivilizationContracts.ActionKind.GATHER
@@ -270,11 +328,19 @@ public final class CivilizationRuntime {
             menu.add(new dev.hearthbound.civilization.CitizenGoalPolicy.Candidate(
                 task.id(), sensor.wheat(), distance, 0));
             eligible.put(task.id(), task);
+            observations.put(task.id(), observation);
+            decisions.put(task.id(), decision);
         }
         var selection = dev.hearthbound.civilization.CitizenGoalPolicy.select(traits, menu);
         Task candidate = selection == null ? null : eligible.get(selection.taskId());
         if (candidate == null) return false;
         long chosenId = candidate.id();
+        var selectedObservation = observations.get(chosenId);
+        var selectedDecision = decisions.get(chosenId);
+        // Validate against the authoritative dispatch tick immediately before
+        // reserving work. Actual pickup still uses SableHauling's local gates.
+        CivilizationContracts.validateAt(selectedObservation, selectedDecision,
+                level.getGameTime());
         Task reserved = board.tasks.reserve(citizenId, dimension, t -> t.id() == chosenId);
         if (reserved == null) return false;
         board.setDirty();
@@ -288,7 +354,14 @@ public final class CivilizationRuntime {
                     haul.getUUID("jobId"), haul.getLong("assignedTick"));
             board.setDirty();
             CompoundTag memory = citizen.getPersistentData().getCompound(MEMORY);
-            memory.putString("schema", "hearthbound.civilization.v1");
+            memory.putString("schema", "hearthbound.civilization.v3");
+            memory.putUUID("episodeId", episode);
+            memory.putLong("snapshotRevision", selectedObservation.snapshotRevision());
+            memory.putUUID("decisionId", selectedDecision.id());
+            memory.putUUID("evidenceId", selectedDecision.evidenceId());
+            memory.putLong("evidenceObservedTick", selectedObservation.evidence().get(0).observedTick());
+            memory.putString("evidenceTarget", selectedDecision.target());
+            memory.putString("actionKind", selectedDecision.action().name());
             memory.putString("goal", "SUPPLY_WHEAT");
             memory.putString("decisionPolicy", "DETERMINISTIC_TRAIT_RANK_V1");
             memory.putInt("diligence", traits.diligence());
