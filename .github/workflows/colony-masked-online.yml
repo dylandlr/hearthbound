@@ -1,0 +1,27 @@
+name: Online masked colony allocation
+on:
+  pull_request:
+    paths:
+      - 'scripts/train_colony_masked_online.py'
+      - 'scripts/colony_masked_policy.py'
+      - 'scripts/test_colony_masked_online.py'
+      - '.github/workflows/colony-masked-online.yml'
+  workflow_dispatch:
+jobs:
+  masked:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install numpy==2.3.5
+      - run: python -m unittest discover -s scripts -p 'test*colony*.py' -v
+      - run: python scripts/train_colony_masked_online.py --episodes 5 --seeds 101 --worlds 4 --output-dir run/masked-smoke
+      - uses: actions/upload-artifact@v4
+        with:
+          name: masked-online-smoke
+          path: run/masked-smoke/
