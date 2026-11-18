@@ -154,9 +154,13 @@ public final class CivilizationRuntime {
                     .filter(t -> t.state() == State.HELD || t.state() == State.RESERVED).count();
                 long done = data.tasks.snapshot().stream()
                     .filter(t -> t.state() == State.DONE).count();
+                long distinctCompletedCitizens = data.tasks.snapshot().stream()
+                    .filter(t -> t.state() == State.DONE).map(Task::owner)
+                    .distinct().count();
                 ctx.getSource().sendSuccess(() -> Component.literal(
                     "COLONY_V1 enabled=" + data.enabled + " queued=" + queued
                     + " assigned=" + assigned + " held=" + held + " done=" + done
+                    + " distinct_completed_citizens=" + distinctCompletedCitizens
                     + " destination_registered=" + data.hasDestination
                     + " task_sources=OPERATOR_OR_LOCAL_OBSERVATION"
                     + " reward_authorized=false"), false);
