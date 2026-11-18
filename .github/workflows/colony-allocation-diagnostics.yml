@@ -5,6 +5,7 @@ on:
       - 'scripts/colony_task_env.py'
       - 'scripts/train_colony_task_allocation.py'
       - 'scripts/colony_allocation_*.py'
+      - 'scripts/audit_colony_frozen_values.py'
       - 'scripts/test*colony*.py'
       - '.github/workflows/colony-allocation-diagnostics.yml'
   workflow_dispatch:
