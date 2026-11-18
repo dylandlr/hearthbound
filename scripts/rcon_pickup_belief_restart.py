@@ -16,6 +16,88 @@ CHECKPOINT = Path("pickup-restart-before.json")
 FAILURES = 'ForgeData."hearthbound.pickupFailures.v1"'
 REQUEST = 'ForgeData."hearthbound.pendingSourceRecheck.v1"'
 HAUL = 'ForgeData."hearthbound.haul"'
+ORIGINAL_PAUSE_REASON = "No wheat available"
+RESTORED_PAUSE_REASON = (
+    "Restored report-policy job: PAUSE_EMPTY_OUTCOME; new observation and assignment required"
+)
+
+
+def outer_error_span(snbt):
+    """Locate one canonical outer error string; nested diagnostics confer no authority."""
+    if not isinstance(snbt, str) or not snbt.startswith("{") or not snbt.endswith("}"):
+        raise AssertionError("Expected an exported haul compound")
+    stack, quote, escaped = [], None, False
+    start, colon, fields = 1, None, []
+    for i in range(1, len(snbt) - 1):
+        char = snbt[i]
+        if quote:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == quote:
+                quote = None
+            continue
+        if char in ("\"", "'"):
+            quote = char
+        elif char in "{[":
+            stack.append(char)
+        elif char in "}]":
+            if not stack or stack.pop() != {"}": "{", "]": "["}[char]:
+                raise AssertionError("Unbalanced haul compound")
+        elif not stack and char == ":" and colon is None:
+            colon = i
+        elif not stack and char == ",":
+            fields.append((start, colon, i))
+            start, colon = i + 1, None
+    if stack or quote or escaped:
+        raise AssertionError("Unterminated haul field")
+    fields.append((start, colon, len(snbt) - 1))
+    matches = []
+    for begin, separator, end in fields:
+        if separator is None:
+            raise AssertionError("Malformed outer haul field")
+        key = snbt[begin:separator].strip()
+        if key in ("error", '"error"', "'error'"):
+            value_start = separator + 1
+            while value_start < end and snbt[value_start].isspace():
+                value_start += 1
+            value_end = end
+            while value_end > value_start and snbt[value_end - 1].isspace():
+                value_end -= 1
+            try:
+                value = json.loads(snbt[value_start:value_end])
+            except (ValueError, TypeError) as failure:
+                raise AssertionError("Noncanonical outer pause reason") from failure
+            if not isinstance(value, str):
+                raise AssertionError("Outer pause reason must be a string")
+            matches.append((value_start, value_end, value))
+    if len(matches) != 1:
+        raise AssertionError("Expected one unambiguous outer pause reason")
+    return matches[0]
+
+
+def verify_restored_haul(before, after):
+    """Permit exactly the motor's documented diagnostic update; preserve every other byte."""
+    start, end, old_reason = outer_error_span(before)
+    _, _, new_reason = outer_error_span(after)
+    if old_reason != ORIGINAL_PAUSE_REASON or new_reason != RESTORED_PAUSE_REASON:
+        raise AssertionError("Unexpected restart pause transition")
+    expected = before[:start] + json.dumps(RESTORED_PAUSE_REASON) + before[end:]
+    if after != expected:
+        raise AssertionError("Saved haul identity, phase, cargo, or decision data changed")
+
+
+def wait_for_restart_pause(r, job, timeout=5, sleep=time.sleep, clock=time.monotonic):
+    expected = ("Paused: " + RESTORED_PAUSE_REASON).replace(" ", "_")
+    deadline = clock() + timeout
+    while clock() < deadline:
+        receipt = r.run(f"hearthbound-report-execution {EX} {job}")
+        if (field(receipt, "job") == job and field(receipt, "status") == "INCOMPLETE"
+                and field(receipt, "executor_state") == expected):
+            return receipt
+        sleep(.1)
+    raise AssertionError("Restored motor did not reach its exact empty-outcome fence")
 
 
 def nbt(r, path):
@@ -114,9 +196,16 @@ def verify(mode):
             if belief != before["failed_pickup_receipt"].replace(
                     "reobservation_request=NONE", "reobservation_request=AWAITING_SCOUT_DIRECT_OBSERVATION"):
                 raise AssertionError("Failed-job receipt changed across clean restart: " + belief)
-            for path, key in ((FAILURES, "failures_nbt"), (REQUEST, "request_nbt"), (HAUL, "haul_nbt")):
+            for path, key in ((FAILURES, "failures_nbt"), (REQUEST, "request_nbt")):
                 if nbt(r, path) != before[key]:
                     raise AssertionError("Saved evidence changed: " + path)
+            # The motor deliberately replaces its runtime diagnostic after
+            # restart. Wait for that gate, then allow only that exact field
+            # transition; all evidence and other haul bytes must still match.
+            restored_pause = wait_for_restart_pause(r, before["first_job"])
+            verify_restored_haul(before["haul_nbt"], nbt(r, HAUL))
+            result["restored_pause_receipt"] = restored_pause
+            result["haul_preserved_except_expected_pause_reason"] = True
             r.require(f"hearthbound-reobserve-request {EX} {A}", "reason=ALREADY_AWAITING_SCOUT")
             r.require(f"hearthbound-report-execution {EX} {before['first_job']}", "status=INCOMPLETE")
             # Adversarial restored motor state: a pre-pickup phase must pause

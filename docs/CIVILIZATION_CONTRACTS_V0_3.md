@@ -86,9 +86,34 @@ changed to conceal this failure. This is distinct from the older documented
 Create Maven certificate incident.
 
 Consequently, the modified Forge adapter has not been fully compiled locally and
-the new live audit/acceptance has not been run locally. The CI workflow compiles
-and starts a disposable Forge server before admitting a live pass. A standalone
-contract pass cannot substitute for that result.
+the new live audit/acceptance has not been run locally. GitHub CI did execute
+those checks on source commit `f7d6929f35ce7d64219a1a1c0d78bc9e47274b11`:
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Actual Forge compilation | Passed | [Run 44230182062](https://github.com/dylandlr/hearthbound/actions/runs/44230182062) |
+| Playtest JAR build | Passed | [Run 44230181948](https://github.com/dylandlr/hearthbound/actions/runs/44230181948) |
+| Four-citizen physical colony | Passed | [Run 44230182127](https://github.com/dylandlr/hearthbound/actions/runs/44230182127) |
+| Causal-outcome restart | Passed | [Run 44230182193](https://github.com/dylandlr/hearthbound/actions/runs/44230182193) |
+| Dedicated-server smoke | Passed | [Run 44230181904](https://github.com/dylandlr/hearthbound/actions/runs/44230181904) |
+| Pickup-belief restart | Crash mode passed; clean mode exposed a harness mismatch | [Run 44230182166](https://github.com/dylandlr/hearthbound/actions/runs/44230182166) |
+
+The four-citizen execution log reports four observed proposals, four physical
+deliveries, destination wheat exactly four, zero outstanding claims, and four
+scoped citizen decisions. This is one small scripted colony fixture, not a
+learned-policy result, independent-seed generalization, or complete crash-safety
+proof.
+
+The clean pickup-restart mismatch was confined to the haul's outer diagnostic
+string. After restart, the existing motor intentionally replaces `No wheat
+available` with its `PAUSE_EMPTY_OUTCOME` recovery-fence explanation. Original
+failure/request evidence, job, phase, endpoints, and assignment remained intact.
+The harness now waits for that exact same-job recovery receipt, permits only
+that exact outer-string update, and compares all other haul bytes unchanged.
+Nine adversarial harness tests reject changed job/phase/cargo/decision data,
+wrong or duplicated errors, and nested or quoted lookalikes. The original failed
+CI snapshots also satisfy this narrow comparison. A fresh live restart run is
+required to validate the corrected harness end to end.
 
 These validators compare an authoritative snapshot with a proposed decision.
 They do not authenticate arbitrary external payloads, bind an old supplied
@@ -99,7 +124,8 @@ and revalidate the current session and world preconditions before execution.
 
 ## Next gate
 
-Execute the updated four-citizen workflow, then run the existing crash-boundary
-tests. Preserve failed runs and classify uncertainty through existing journals.
-Add communication/exploration controls only after physical execution is verified;
-the old report-withheld-to-WAIT adapter remains a wiring check.
+Complete a fresh clean/crash pickup-restart workflow with the corrected harness,
+preserving the original failed run. Then expand independent-world and contention
+coverage before claiming robust coordination. Add communication/exploration
+controls as separate experiments; the old report-withheld-to-WAIT adapter remains
+a wiring check.
