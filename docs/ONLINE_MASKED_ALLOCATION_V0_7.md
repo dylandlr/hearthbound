@@ -39,3 +39,35 @@ $env:OPENBLAS_NUM_THREADS = "1"
 python -m unittest discover -s scripts -p "test*colony*.py" -v
 python scripts/train_colony_masked_online.py --episodes 600 --output-dir run/colony-masked-online-v0-7
 ```
+
+## Completed pilot
+
+All six runs completed: 3600 training episodes, 230400 world ticks and 228864
+actual optimizer updates. All 1440 frozen evaluation records reached tick 64,
+with zero per-type conservation violations. Strict checkpoint reload preserves
+the learned mask. Source hashes match the protocol saved before training.
+
+| Regime | Full action training | Pruned action training | Balanced script | Paired gain (95% descriptive interval) |
+| --- | ---: | ---: | ---: | --- |
+| Standard | 2.758 | 3.817 | 4.350 | +1.058 [0.517, 1.683] |
+| Longer routes | 0.858 | 1.092 | 2.575 | +0.233 [-0.234, 0.734] |
+| Scarce typeB | 1.533 | 1.883 | 2.000 | +0.350 [0.175, 0.567] |
+
+The primary standard gain criterion is met, with per-seed gains 1.475, 1.050, 0.650.
+The standard mean increases about 38%; the learned actor reaches about 88% of
+the balanced script's production on these worlds. The secondary scarcity gain
+also meets the numerical criterion. Long-route transfer remains inconclusive.
+These comparisons use identical fresh worlds within this experiment; prior
+pilot averages used different worlds and should not be compared directly.
+
+This supports consistent training-time action design in this bounded simulator.
+It does not establish script superiority, learned communication, emergent roles,
+or Minecraft transfer. Keep this model as the learned candidate for subsequent
+robustness/inference-parity work; retain scripted live control. Do not select
+the best seed or tune on these evaluation worlds. Three seeds limit inference.
+
+58 focused tests and the dedicated online-training CI smoke pass. The Minecraft
+foundation independently passed all ten v0.3 acceptance workflows, including
+real four-citizen hauling, decision contracts and restart recovery. This Python
+38-feature tensor still requires an explicit Forge mapping and inference parity
+before a controlled live learned-policy experiment.
