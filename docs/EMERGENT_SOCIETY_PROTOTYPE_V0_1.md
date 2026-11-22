@@ -25,3 +25,26 @@ This is an isolated, optional Node.js prototype based on the verified mill-learn
 `node experiments/society-emergence.test.js`
 
 These checks validate pure functions and evidence deduplication, not trained societal emergence, Minecraft execution or long-term stability.
+
+## v0.2 experimental event projection
+
+`experiments/society-history.js` adds `makeSociety`, `acceptSocietyEvent`, and `projectSociety`. The projector separates input admission from derived occupations and organizations:
+
+- Requires a fixed world ID, known citizen, nonnegative integer world tick and an external `verified: true` evidence assertion. The caller **must** perform real-world authentication and journal integrity checks; this pure module cannot establish them.
+- Deduplicates work and civic event IDs, rejects conflicting replays and out-of-order timestamps, and halts on capacity instead of silently dropping deduplication history.
+- Requires matching, independently submitted two-sided cooperation receipts with a shared transaction ID, domain, and reciprocal citizen IDs. One-sided testimony cannot create an association.
+- Reconstructs citizens from their starting state and event history. Associations require two distinct joint transactions, can overlap by domain, and expire without recent cooperation; there is no forced organizational taxonomy.
+- Supports read-only temporal projections and serializable state with deterministic replay. JSON round-trip **is not** a disk durability or crash-safety guarantee.
+
+Run both local suites:
+
+```bash
+node experiments/society-emergence.test.js
+node experiments/society-history.test.js
+```
+
+`.github/workflows/society-prototype.yml` is configured to run the pure Node tests for changed society research files on pull requests. These checks are necessary but insufficient: they do not train an RL model, establish Minecraft evidence authenticity, prove material transfers, or validate 100-agent performance.
+
+### Subsequent real-society acceptance
+
+Build a disabled-by-default bridge mapping original, verified Minecraft journal identities and scoped citizen observations to this event format. Do not re-issue old receipts on restarts as fresh social events. Then run matched-seed, matched-budget scripted/random/learned comparisons; require diverse work histories and real physical throughput before claiming specialization, and independent behavioral interaction records before claiming emergent organizations or institutions.
