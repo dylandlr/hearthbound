@@ -1,0 +1,18 @@
+const assert=require("node:assert/strict");
+const {selectWork,learnWork,inferredOccupations,reviseBeliefs,discoverOrganizations,preferenceBallot}=require("./society-emergence.js");
+const A={id:"a",skill:{farm:0.1},interest:{farm:0.9},needs:{food:0.9},traits:{openness:0.8,riskTolerance:0.2},beliefs:{commons:0},history:[]};
+const B={...A,id:"b"},J={id:"grow",domain:"farm",output:"wheat",satisfies:"food",available:true,inputsReady:true,risk:0};
+assert.equal(selectWork(A,[J],{demand:{wheat:4},demandScale:4}).length,1);
+assert.equal(selectWork(A,[{...J,inputsReady:false}],{demand:{wheat:4}}).length,0);
+let x=A;for(let i=0;i<3;i++)x=learnWork(x,J,{evidenceId:"e"+i,verifiedSuccess:true});
+assert.equal(inferredOccupations(x)[0].domain,"farm");assert.equal(inferredOccupations(A).length,0);
+assert.equal(learnWork(x,J,{evidenceId:"e0",verifiedSuccess:true}).history.length,3);
+assert.equal(learnWork(A,J,{evidenceId:"fake"}).history.length,0);
+const u=reviseBeliefs(A,[{topic:"commons",evidenceId:"p",value:1,reliability:1},{topic:"commons",evidenceId:"p",value:1,reliability:1}]);
+assert.ok(Math.abs(u.beliefs.commons-0.16)<1e-12);
+assert.equal(reviseBeliefs(u,[{topic:"commons",evidenceId:"p",value:-1,reliability:1}]).beliefs.commons,u.beliefs.commons);
+const c=[{a:"a",b:"b",domain:"farm",verified:true,evidenceId:"c1"},{a:"b",b:"a",domain:"farm",verified:true,evidenceId:"c2"}];
+assert.equal(discoverOrganizations([A,B],c).length,1);
+assert.equal(discoverOrganizations([A,B],[c[0],c[0]]).length,0);
+assert.equal(preferenceBallot([A,B],[{id:"commons-policy",topic:"commons",direction:1}]).id,"commons-policy");
+console.log("11 society prototype checks passed");
