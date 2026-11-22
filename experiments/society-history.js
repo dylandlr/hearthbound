@@ -10,6 +10,8 @@ function makeSociety(worldId,citizens,maxEvents=4096){
 }
 function projectSociety(state,{nowTick=Infinity,cooperationWindow=24000}={}){
  const agents=new Map(state.initial.map(c=>[c.id,structuredClone(c)]));
+ if(nowTick===Infinity)nowTick=state.events.length?state.events[state.events.length-1].tick:0;
+ if(!Number.isSafeInteger(nowTick)||nowTick<0||!Number.isSafeInteger(cooperationWindow)||cooperationWindow<0)throw Error("invalid projection horizon");
  const half=new Map(),pairs=[];
  const sorted=[...state.events].sort((a,b)=>a.tick-b.tick||a.eventId.localeCompare(b.eventId));
  for(const e of sorted){
