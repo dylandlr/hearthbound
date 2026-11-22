@@ -244,7 +244,12 @@ with Rcon() as r:
         raise AssertionError("Different citizen mutated original journal ownership: "+journal_foreign)
     require_denial(r.run(f"execute positioned 12 101 1 run sable mill-learning-probe {job_match.group(1)}"),
                    "FOREIGN_CITIZEN")
-    if r.run(f"execute at {villager} run sable mill-learning-probe {job_match.group(1)}") != learning:
+    # The fixture now has two citizens named Sable. Bind the recheck to the
+    # UUID in the original physical proposal, not an arbitrary limit=1 selector.
+    learning_owner = re.search(r"citizen=([0-9a-fA-F-]{36})", proposed)
+    if not learning_owner:
+        raise AssertionError("Original proposal lacks an executor UUID")
+    if r.run(f"execute at {learning_owner.group(1)} run sable mill-learning-probe {job_match.group(1)}") != learning:
         raise AssertionError("Foreign claimant changed the owner's learning evidence")
     collision=r.run("execute positioned 12 101 1 run sable haul 10 101 1 7 101 1")
     if "millstone reserved" not in collision.lower():
