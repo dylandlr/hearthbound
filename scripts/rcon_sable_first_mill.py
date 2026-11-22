@@ -217,6 +217,14 @@ with Rcon() as r:
     repeated_journal=r.run(f"execute at {villager} run sable mill-outcome-journal {job_match.group(1)}")
     if repeated_journal != journal_before:
         raise AssertionError("Idempotent journal probe changed the reported record")
+    from mill_learning_acceptance import require_replay, require_denial
+    learning = r.run(f"execute at {villager} run sable mill-learning-probe {job_match.group(1)}")
+    require_replay(learning, proposed)
+    if r.run(f"execute at {villager} run sable mill-learning-probe {job_match.group(1)}") != learning:
+        raise AssertionError("Duplicate learning query amplified the real outcome")
+    require_denial(r.run(f"execute at {villager} run sable mill-learning-probe 00000000-0000-4000-8000-000000000001"),
+                   "UNVERIFIED_MINECRAFT_EVIDENCE")
+    print("REAL_FORGE_MILL_LEARNING_REPLAY_PASS numeric_update_verified=true policy_control=false", flush=True)
     # A completed job may NOT be released while flour remains in the machine.
     occupied_release=r.run(f"execute at {villager} run sable mill-release 7 101 1 {job_match.group(1)}")
     if "Collect all millstone output" not in occupied_release:
@@ -234,6 +242,15 @@ with Rcon() as r:
     journal_foreign=r.run(f"execute positioned 12 101 1 run sable mill-outcome-journal {job_match.group(1)}")
     if "state=DENIED reason=FOREIGN_CITIZEN" not in journal_foreign:
         raise AssertionError("Different citizen mutated original journal ownership: "+journal_foreign)
+    require_denial(r.run(f"execute positioned 12 101 1 run sable mill-learning-probe {job_match.group(1)}"),
+                   "FOREIGN_CITIZEN")
+    # The fixture now has two citizens named Sable. Bind the recheck to the
+    # UUID in the original physical proposal, not an arbitrary limit=1 selector.
+    learning_owner = re.search(r"citizen=([0-9a-fA-F-]{36})", proposed)
+    if not learning_owner:
+        raise AssertionError("Original proposal lacks an executor UUID")
+    if r.run(f"execute at {learning_owner.group(1)} run sable mill-learning-probe {job_match.group(1)}") != learning:
+        raise AssertionError("Foreign claimant changed the owner's learning evidence")
     collision=r.run("execute positioned 12 101 1 run sable haul 10 101 1 7 101 1")
     if "millstone reserved" not in collision.lower():
         raise AssertionError("Second citizen assigned conflicting mill haul: "+collision)
@@ -277,6 +294,9 @@ with Rcon() as r:
             raise AssertionError("Released process remained actively admitted: "+journal_revoked)
         if r.run(f"execute positioned 2 101 1 run sable mill-outcome-journal {job_match.group(1)}") != journal_revoked:
             raise AssertionError("Terminal journal revocation was not stable")
+        require_denial(r.run(f"execute positioned 2 101 1 run sable mill-learning-probe {job_match.group(1)}"),
+                       "EVIDENCE_REVOKED")
+        print("REAL_FORGE_MILL_LEARNING_REVOCATION_PASS updates=0 cached_value=false", flush=True)
         replay=r.run(f"execute positioned 2 101 1 run sable mill-release 7 101 1 {job_match.group(1)}")
         if "does not match" not in replay:
             raise AssertionError("Duplicate release was not rejected: "+replay)
@@ -458,7 +478,7 @@ with Rcon() as r:
         with open("mill-outcome-pre-restart.json", "w", encoding="utf-8") as out:
             json.dump({"schema": "hearthbound.outcome-restart-checkpoint.v1",
                        "job": job_match.group(1), "receipt": proposed,
-                       "journal": journal_before},
+                       "journal": journal_before, "learning": learning},
                       out, sort_keys=True, indent=2)
         with open("mill-evidence-job.txt", "w", encoding="utf-8") as out:
             out.write(job_match.group(1) + "\n")

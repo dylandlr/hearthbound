@@ -17,6 +17,7 @@ javac --release 17 -d "$OUT" \
   "$BASE/ResearchReceiptDelivery.java" \
   "$BASE/ResearchJournalRuntime.java" \
   "$BASE/OutcomeLedger.java" \
+  "$BASE/VerifiedMillLearning.java" \
   "$BASE/CausalEvidenceJournal.java" \
   "$BASE/DirectSourceWitnessContract.java" \
   "$BASE/ReportConditionedChoice.java" \
@@ -38,6 +39,7 @@ javac --release 17 -d "$OUT" \
   "$TEST/ResearchJournalRuntimeTest.java" \
   "$TEST/JournalWorldBindingTest.java" \
   "$TEST/OutcomeLedgerTest.java" \
+  "$TEST/VerifiedMillLearningTest.java" \
   "$TEST/CausalEvidenceJournalTest.java" \
   "$TEST/CausalEvidenceJournalFaultTest.java" \
   "$TEST/DirectSourceWitnessContractTest.java" \
@@ -63,6 +65,7 @@ for cls in \
   JournalWorldBindingTest \
   ResearchJournalRuntimeTest \
   OutcomeLedgerTest \
+  VerifiedMillLearningTest \
   CausalEvidenceJournalTest \
   CausalEvidenceJournalFaultTest \
   DirectSourceWitnessContractTest \

@@ -5,6 +5,7 @@ Run only AFTER the first-phase Sable/Create test has saved the game and stopped.
 The pre-restart JSON is an operator-only reference, never a citizen observation.
 """
 import json
+from mill_learning_acceptance import require_replay, require_denial
 import os
 import re
 import socket
@@ -90,6 +91,11 @@ with Rcon() as r:
                              "before="+expected_journal+"\nafter="+journal)
     if r.run(f"execute positioned 7 101 1 run sable mill-outcome-journal {job}") != journal:
         raise AssertionError("Post-restart journal inspection was not idempotent")
+    learning = r.run(f"execute positioned 7 101 1 run sable mill-learning-probe {job}")
+    require_replay(learning, returned)
+    if learning != before["learning"]:
+        raise AssertionError("Revalidated learning replay changed across actual restart")
+    print("REAL_FORGE_MILL_LEARNING_RESTART_PASS exact_update=true", flush=True)
     print("REAL_FORGE_CAUSAL_JOURNAL_RESTART_EXACT_MATCH",flush=True)
     print("REAL_FORGE_OUTCOME_RESTART_EXACT_MATCH",flush=True)
 
@@ -115,6 +121,8 @@ with Rcon() as r:
         raise AssertionError("Old journal admission remained trusted after release: "+invalidated)
     if r.run(f"execute positioned 7 101 1 run sable mill-outcome-journal {job}") != invalidated:
         raise AssertionError("Revoked outcome re-admitted without new process evidence")
+    require_denial(r.run(f"execute positioned 7 101 1 run sable mill-learning-probe {job}"),
+                   "EVIDENCE_REVOKED")
     surviving=r.run(f"sable mill-process {job}")
     if "MILL_PROCESS VERIFIED_CALLBACK" not in surviving or "NO_RESEARCH_CREDIT" not in surviving:
         raise AssertionError("Historical callback unexpectedly removed after release")

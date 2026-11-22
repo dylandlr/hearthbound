@@ -344,6 +344,24 @@ public final class SableController {
                             return 0;
                         }
                     })))
+            .then(Commands.literal("mill-learning-probe")
+                .then(Commands.argument("jobId", StringArgumentType.word())
+                    .executes(ctx -> {
+                        Villager sable = nearestSable(ctx.getSource());
+                        if (sable == null) {
+                            ctx.getSource().sendFailure(Component.literal("No marked Sable within 16 blocks"));
+                            return 0;
+                        }
+                        try {
+                            UUID job = UUID.fromString(StringArgumentType.getString(ctx, "jobId"));
+                            String result = RealMillCausalJournal.shadowLearn(ctx.getSource().getLevel(), sable, job);
+                            ctx.getSource().sendSuccess(() -> Component.literal(result), false);
+                            return 1;
+                        } catch (IllegalArgumentException ex) {
+                            ctx.getSource().sendFailure(Component.literal("Invalid job UUID"));
+                            return 0;
+                        }
+                    })))
             .then(Commands.literal("mill-outcome-probe")
                 .then(Commands.argument("jobId", StringArgumentType.word())
                     .executes(ctx -> {

@@ -2,6 +2,7 @@ package dev.hearthbound.world;
 
 import dev.hearthbound.evidence.CausalEvidenceJournal;
 import dev.hearthbound.evidence.VerifiedMillAttribution;
+import dev.hearthbound.evidence.VerifiedMillLearning;
 import java.nio.file.Path;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
@@ -48,8 +49,17 @@ public final class RealMillCausalJournal {
     }
 
     public static String recordAndRecheck(ServerLevel level, Villager citizen, UUID job) {
+        return inspect(level, citizen, job, false);
+    }
+
+    /** Explicit operator experiment; rebuilds a disposable value from one live outcome. */
+    public static String shadowLearn(ServerLevel level, Villager citizen, UUID job) {
+        return inspect(level, citizen, job, true);
+    }
+
+    private static String inspect(ServerLevel level, Villager citizen, UUID job, boolean learning) {
         if (level == null || citizen == null || job == null || citizen.level() != level)
-            return denied("INVALID_REQUEST");
+            return denied("INVALID_REQUEST", learning);
         UUID world = HearthboundWorldIdentity.get(level);
         String event = "hearthbound:mill:v1:" + world + ":"
             + level.dimension().location() + ":" + job;
@@ -61,15 +71,15 @@ public final class RealMillCausalJournal {
                 // An incorrect operator-selected citizen must not revoke the
                 // real owner's historical admission as a side effect.
                 if (!prior.observation().citizenId().equals(citizen.getUUID().toString()))
-                    return denied("FOREIGN_CITIZEN");
+                    return denied("FOREIGN_CITIZEN", learning);
                 if (!level.hasChunkAt(BlockPos.of(prior.observation().machinePos())))
-                    return denied("SOURCE_CHUNK_UNLOADED");
+                    return denied("SOURCE_CHUNK_UNLOADED", learning);
             } else {
                 CausalEvidenceJournal.Observation witnessed;
                 try {
                     witnessed = live(level, citizen, job);
                 } catch (IllegalArgumentException | IllegalStateException invalid) {
-                    return denied("UNVERIFIED_MINECRAFT_EVIDENCE");
+                    return denied("UNVERIFIED_MINECRAFT_EVIDENCE", learning);
                 }
                 journal.observe(witnessed);
             }
@@ -83,6 +93,29 @@ public final class RealMillCausalJournal {
                     return false;
                 }
             });
+            if (learning) {
+                if (!result.activeForAudit()) return denied("EVIDENCE_REVOKED", true);
+                // Same server-thread operation: re-read the actual Create receipt,
+                // not a Claim manufactured from journal fields or operator input.
+                var claim = MillProcessReceipts.exportVerified(level, world, job,
+                        citizen.getUUID(), BlockPos.of(result.observation().machinePos()));
+                var replay = VerifiedMillLearning.replay(world, citizen.getUUID().toString(),
+                        java.util.List.of(new VerifiedMillLearning.Input(result, claim)));
+                var step = replay.steps().get(0);
+                return "MILL_LEARNING_SHADOW status=REPLAYED"
+                    + " event=" + step.eventId() + " citizen=" + citizen.getUUID()
+                    + " physical_evidence_id=" + step.physicalEvidenceId()
+                    + " samples=" + replay.steps().size() + " updates=" + replay.steps().size()
+                    + " duration_ticks=" + step.durationTicks()
+                    + " personal_milli=" + step.personalMilli()
+                    + " target=" + step.target() + " q_before=" + step.before()
+                    + " q_after=" + step.after()
+                    + " alpha=" + VerifiedMillLearning.ALPHA
+                    + " gamma_per_tick=" + VerifiedMillLearning.GAMMA_PER_TICK
+                    + " replay_from_zero=true model_persisted=false success_only=true"
+                    + " shadow_learning_authorized=true policy_control=false"
+                    + " reward_authorized=false learning_authorized=false NO_RESEARCH_CREDIT";
+            }
             return "CAUSAL_EVIDENCE_JOURNAL state=" + result.state()
                 + " revalidated=" + result.revalidatedThisSession()
                 + " event=" + event + " world=" + world
@@ -93,12 +126,14 @@ public final class RealMillCausalJournal {
         } catch (Exception unavailable) {
             // A bad disk, mismatched world, unavailable source, or write
             // failure can NEVER fall back to a research reward or inference.
-            return denied("JOURNAL_UNAVAILABLE_OR_CORRUPT");
+            return denied("JOURNAL_UNAVAILABLE_OR_CORRUPT", learning);
         }
     }
 
-    private static String denied(String reason) {
-        return "CAUSAL_EVIDENCE_JOURNAL state=DENIED reason=" + reason
+    private static String denied(String reason, boolean learning) {
+        return (learning ? "MILL_LEARNING_SHADOW status=DENIED reason="
+                         : "CAUSAL_EVIDENCE_JOURNAL state=DENIED reason=") + reason
+            + (learning ? " shadow_learning_authorized=false updates=0 policy_control=false" : "")
             + " reward_authorized=false learning_authorized=false NO_RESEARCH_CREDIT";
     }
 }
