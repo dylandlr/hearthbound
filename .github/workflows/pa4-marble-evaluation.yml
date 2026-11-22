@@ -1,0 +1,25 @@
+name: PA4 MARBLE matched-world evaluation
+on:
+  pull_request:
+    paths:
+      - 'experiments/marble-collaboration-bench*.js'
+      - 'experiments/collaboration-evaluation-v0-2*.js'
+      - 'docs/PA4_MARBLE_IMPLEMENTATION_CONTRACT_V0_2.md'
+      - '.github/workflows/pa4-marble-evaluation.yml'
+  workflow_dispatch:
+jobs:
+  evaluation-contract:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Validate legacy and matched-world benchmark contracts
+        run: |
+          node --check experiments/marble-collaboration-bench.js
+          node --check experiments/collaboration-evaluation-v0-2.js
+          node experiments/marble-collaboration-bench.test.js
+          node experiments/collaboration-evaluation-v0-2.test.js
