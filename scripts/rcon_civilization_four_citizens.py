@@ -5,6 +5,7 @@ Four real marked villagers observe separate wheat inventories, propose work
 without operator-enqueued hauling tasks, share one colony task board, and
 physically move exactly one item each. This does not claim learned behavior.
 """
+import json
 import os
 import socket
 import struct
@@ -91,6 +92,36 @@ def run_trial(rcon, sleep=time.sleep):
     print("CIVILIZATION_FOUR_CITIZEN_ACCEPTANCE_PASS "
           "observed_proposals=4 physical_deliveries=4 destination_wheat=4 "
           "outstanding_claims=0 scoped_citizen_decisions=4 no_reward_claim=true", flush=True)
+    # Export aggregate-only verified evidence for offline MARBLE-style analysis.
+    # No invented individual citizen IDs or milestone participation credit.
+    # This output is trustworthy only when bound to this passing live CI job.
+    receipt = {
+        "schema": "hearthbound.four_citizen_physical.v1",
+        "fixture_world": "four-citizen-colony",
+        "fixture_seed": "hearthbound-four-citizen-v0-3",
+        "verification": {
+            "source_chests_without_original_wheat": 4,
+            "destination_wheat": 4,
+            "outstanding_claims": 0,
+            "distinct_completed_citizens": 4,
+            "scoped_citizen_decisions": 4,
+            "dispatch_disabled_at_end": True,
+        },
+        "aggregate_milestone": {
+            "id": "four-independent-wheat-deliveries",
+            "completed": True,
+            "physical_units": 4,
+            "individual_contributors": None,
+        },
+        "limits": {
+            "individual_contribution_scores": False,
+            "independent_world_replicate": False,
+            "learned_policy": False,
+            "journal_crash_atomicity": False,
+        }
+    }
+    print("HEARTHBOUND_BENCHMARK_RECEIPT_V1 " +
+          json.dumps(receipt, sort_keys=True, separators=(",", ":")), flush=True)
 
 
 def main():
