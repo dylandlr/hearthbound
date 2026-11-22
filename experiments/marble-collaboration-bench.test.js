@@ -38,4 +38,8 @@ assert.throws(()=>evaluateCollaboration({...episode,events:[ok("p",0,"source",["
 assert.equal(evaluateCollaboration({...episode,events:[]}).completionRate,0);
 assert.equal(evaluateCollaboration({...episode,events:[]}).participationKpi,0);
 assert.equal(evaluateCollaboration({...episode,events:[ok("x",0,"source",["a"]),ok("y",1,"source",["b"])]}).diagnostics.duplicate_milestone,1);
-console.log("MARBLE-inspired collaboration benchmark: 24 assertions passed");
+assert.equal(allowedEdge("unknown","a",base.agents,"graph",{}),false);
+assert.equal(allowedEdge("unknown","a",base.agents,"chain",{}),false);
+assert.equal(allowedEdge("unknown","a",base.agents,"star",{}),false);
+assert.equal(allowedEdge("a","b",base.agents,"invalid",{}),false);
+console.log("MARBLE-inspired collaboration benchmark: 28 assertions passed");
