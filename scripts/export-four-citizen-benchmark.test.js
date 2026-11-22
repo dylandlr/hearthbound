@@ -41,7 +41,7 @@ assert.throws(()=>verifyReceipt(log(payload),{...provenance,commit:"bad"}),/comm
 assert.throws(()=>verifyReceipt(marker(payload),provenance),/exactly one/);
 assert.throws(()=>verifyReceipt(log(payload)+marker(payload),provenance),/exactly one/);
 assert.throws(()=>verifyReceipt(traceLine(trace)+"\n"+marker(payload)+"\n"+pass,provenance),/out-of-order/);
-assert.throws(()=>verifyReceipt(pass.replace("physical_deliveries=4","physical_deliveries=3")+"\n"+marker(payload),provenance),/incomplete/);
+assert.throws(()=>verifyReceipt(traceLine(trace)+"\n"+pass.replace("physical_deliveries=4","physical_deliveries=3")+"\n"+marker(payload),provenance),/incomplete/);
 assert.throws(()=>verifyReceipt(log({...payload,fixture_world:"foreign"}),provenance),/fixture/);
 assert.throws(()=>verifyReceipt(log({...payload,verification:{...payload.verification,destination_wheat:3}}),provenance),/failed evidence/);
 assert.throws(()=>verifyReceipt(log({...payload,aggregate_milestone:{...payload.aggregate_milestone,individual_contributors:["fake"]}}),provenance),/failed evidence/);
