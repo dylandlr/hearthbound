@@ -23,8 +23,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.8'
-      - name: Static check of RCON acceptance
-        run: python3 -m py_compile scripts/rcon_civilization_four_citizens.py
+      - name: Static check of RCON acceptance and collaboration export
+        run: |
+          python3 -m py_compile scripts/rcon_civilization_four_citizens.py
+          node --check scripts/export-four-citizen-benchmark.js
+          node scripts/export-four-citizen-benchmark.test.js
       - name: Verify scoped Java decision contracts
         run: python3 scripts/test-civilization-contracts.py
       - name: Compile Forge and test sources
@@ -61,6 +64,7 @@ jobs:
           grep -Fq 'Hearthbound bootstrap loaded.' real-four-citizen-server.log
           python3 scripts/rcon_civilization_four_citizens.py | tee real-four-citizen-rcon.log
           grep -Fq 'CIVILIZATION_FOUR_CITIZEN_ACCEPTANCE_PASS' real-four-citizen-rcon.log
+          node scripts/export-four-citizen-benchmark.js real-four-citizen-rcon.log four-citizen-benchmark-evidence.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -68,6 +72,7 @@ jobs:
           path: |
             colony-preflight.log
             real-four-citizen-rcon.log
+            four-citizen-benchmark-evidence.json
             real-four-citizen-server.log
             run/logs/latest.log
           if-no-files-found: warn
