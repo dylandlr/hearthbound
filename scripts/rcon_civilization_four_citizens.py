@@ -6,6 +6,7 @@ without operator-enqueued hauling tasks, share one colony task board, and
 physically move exactly one item each. This does not claim learned behavior.
 """
 import json
+import re
 import os
 import socket
 import struct
@@ -88,6 +89,45 @@ def run_trial(rcon, sleep=time.sleep):
     if "distinct_completed_citizens=4" not in final:
         raise AssertionError("Jobs were not completed by four distinct citizens: " + final)
     check(rcon, "hearthbound-colony decision-audit", "latest_scoped_completed_citizens=4")
+    trace_output = check(rcon, "hearthbound-colony decision-traces", "COLONY_TRACES_V0_4")
+    if "count=4" not in trace_output or "learning_authorized=false" not in trace_output:
+        raise AssertionError("Missing four scoped physical decision traces: " + trace_output)
+    trace_match = re.search(r"entries=(.*?) learning_authorized=false", trace_output)
+    if not trace_match:
+        raise AssertionError("Malformed decision trace envelope: " + trace_output)
+    entries = []
+    for encoded in trace_match.group(1).split(";"):
+        fields = encoded.split(",")
+        if len(fields) != 10 or not all(fields):
+            raise AssertionError("Incomplete citizen decision trace: " + encoded)
+        task, citizen, job, decision, evidence, revision, observed, decided, assigned, delivered = fields
+        if not all(re.fullmatch(r"[0-9a-fA-F-]{36}", ident) for ident in
+                   (citizen, job, decision, evidence)):
+            raise AssertionError("Invalid trace identity: " + encoded)
+        try:
+            task_id, revision_id, t0, t1, t2, t3 = map(
+                int, (task, revision, observed, decided, assigned, delivered))
+        except ValueError as error:
+            raise AssertionError("Non-numeric trace chronology: " + encoded) from error
+        if not (task_id > 0 and revision_id > 0 and 0 <= t0 <= t1 <= t2 <= t3
+                and t2 - t0 <= 20):
+            raise AssertionError("Invalid decision chronology: " + encoded)
+        entries.append({
+            "task_id": task_id, "citizen": citizen, "job": job,
+            "decision": decision, "evidence": evidence,
+            "revision": revision_id, "observed_tick": t0,
+            "decision_tick": t1, "assigned_tick": t2, "delivered_tick": t3,
+        })
+    if len(entries) != 4 or any(len({e[key] for e in entries}) != 4
+                                for key in ("task_id", "citizen", "job", "decision", "evidence")):
+        raise AssertionError("Traces do not identify four distinct completed jobs")
+    print("HEARTHBOUND_CITIZEN_TRACES_V1 " +
+          json.dumps({"schema": "hearthbound.citizen_decisions.v1",
+                      "count": 4, "entries": entries,
+                      "scope": "LOADED_LATEST_CITIZEN_MEMORY_AND_PHYSICAL_JOB",
+                      "policy": "DETERMINISTIC_TRAIT_RANK_V1",
+                      "learning_authorized": False},
+                     sort_keys=True, separators=(",", ":")), flush=True)
     check(rcon, "hearthbound-colony disable", "Dispatch disabled")
     print("CIVILIZATION_FOUR_CITIZEN_ACCEPTANCE_PASS "
           "observed_proposals=4 physical_deliveries=4 destination_wheat=4 "
