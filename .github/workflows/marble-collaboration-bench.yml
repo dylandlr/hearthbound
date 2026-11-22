@@ -1,0 +1,23 @@
+name: MARBLE-inspired Hearthbound collaboration benchmark
+on:
+  pull_request:
+    paths:
+      - 'experiments/marble-collaboration-bench*.js'
+      - 'docs/MARBLE_COLLABORATION_BENCH_V0_1.md'
+      - '.github/workflows/marble-collaboration-bench.yml'
+  workflow_dispatch:
+jobs:
+  pure-evidence-scorer:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Syntax and behavior
+        run: |
+          node --check experiments/marble-collaboration-bench.js
+          node --check experiments/marble-collaboration-bench.test.js
+          node experiments/marble-collaboration-bench.test.js
