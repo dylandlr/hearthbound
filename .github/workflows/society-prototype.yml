@@ -1,0 +1,24 @@
+name: Society research prototype checks
+on:
+  pull_request:
+    paths:
+      - 'experiments/society-*.js'
+      - 'docs/EMERGENT_SOCIETY_PROTOTYPE_V0_1.md'
+      - '.github/workflows/society-prototype.yml'
+  workflow_dispatch:
+jobs:
+  pure-node:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verify society research contracts
+        run: |
+          node --check experiments/society-emergence.js
+          node --check experiments/society-history.js
+          node experiments/society-emergence.test.js
+          node experiments/society-history.test.js
