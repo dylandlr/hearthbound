@@ -5,6 +5,7 @@ function requireValid(v,msg){if(!v)throw new Error(msg);}
 function allowedEdge(from,to,ids,mode,parent){
  if(from===to)return false;
  const a=ids.indexOf(from),b=ids.indexOf(to);
+ if(a<0||b<0||!MODES.has(mode))return false;
  if(mode==="graph")return true;
  if(mode==="chain")return Math.abs(a-b)===1;
  if(mode==="star")return a===0||b===0;
