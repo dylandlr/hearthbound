@@ -2,6 +2,7 @@ package dev.hearthbound.world;
 
 import com.mojang.brigadier.CommandDispatcher;
 import dev.hearthbound.civilization.CivilizationContracts;
+import dev.hearthbound.civilization.ColonyDecisionTrace;
 import dev.hearthbound.civilization.ColonyTaskQueue;
 import dev.hearthbound.civilization.ColonyTaskQueue.State;
 import dev.hearthbound.civilization.ColonyTaskQueue.Task;
@@ -194,6 +195,67 @@ public final class CivilizationRuntime {
                     + verifiedCitizens.size()
                     + " scope=CURRENT_SESSION_LATEST_CITIZEN_MEMORY"
                     + " physical_reward_authorized=false"), false);
+                return 1;
+            }))
+            .then(Commands.literal("decision-traces").executes(ctx -> {
+                ServerLevel level = ctx.getSource().getLevel();
+                ColonyData board = data(level);
+                UUID episode = SourceReportSession.episode(level);
+                List<String> traces = new java.util.ArrayList<>();
+                for (Task task : board.tasks.snapshot()) {
+                    if (task.state() != State.DONE || task.owner() == null || task.job() == null)
+                        continue;
+                    var entity = level.getEntity(task.owner());
+                    if (!(entity instanceof Villager citizen)) continue;
+                    CompoundTag memory = citizen.getPersistentData().getCompound(MEMORY);
+                    CompoundTag haul = citizen.getPersistentData().getCompound("hearthbound.haul");
+                    if (!memory.hasUUID("episodeId") || !memory.hasUUID("decisionId")
+                            || !memory.hasUUID("evidenceId") || !memory.hasUUID("jobId")
+                            || !memory.contains("snapshotRevision", Tag.TAG_LONG)
+                            || !memory.contains("evidenceObservedTick", Tag.TAG_LONG)
+                            || !memory.contains("decisionTick", Tag.TAG_LONG)
+                            || !memory.contains("taskId", Tag.TAG_LONG)
+                            || !haul.contains("physicalDeliveredTick", Tag.TAG_LONG)
+                            || !episode.equals(memory.getUUID("episodeId"))
+                            || !"hearthbound.civilization.v3".equals(memory.getString("schema"))
+                            || memory.getLong("taskId") != task.id()
+                            || !task.job().equals(memory.getUUID("jobId"))
+                            || !SableHauling.completedJob(citizen, task.job(),
+                                BlockPos.of(task.destination())))
+                        continue;
+                    String target = task.dimension() + "|" + BlockPos.of(task.source()).getX()
+                        + "," + BlockPos.of(task.source()).getY() + ","
+                        + BlockPos.of(task.source()).getZ();
+                    if (!target.equals(memory.getString("evidenceTarget")))
+                        continue;
+                    try {
+                        var assignment = SableHauling.completedAssignment(level, citizen,
+                            task.job(), BlockPos.of(task.destination()));
+                        if (assignment.source() != task.source()
+                                || assignment.assignedTick() != task.assignedTick()
+                                || !assignment.citizen().equals(task.owner()))
+                            continue;
+                        var trace = new ColonyDecisionTrace.Trace(task.id(), task.owner(),
+                            task.job(), memory.getUUID("episodeId"),
+                            memory.getUUID("decisionId"), memory.getUUID("evidenceId"),
+                            memory.getLong("snapshotRevision"),
+                            memory.getLong("evidenceObservedTick"),
+                            memory.getLong("decisionTick"), task.assignedTick(),
+                            haul.getLong("physicalDeliveredTick"),
+                            memory.getString("actionKind"), target,
+                            memory.getString("decisionPolicy"));
+                        if (ColonyDecisionTrace.valid(trace, episode, level.getGameTime()))
+                            traces.add(ColonyDecisionTrace.encode(trace));
+                    } catch (RuntimeException invalid) {
+                        // Unloaded, conflicting or incomplete evidence is omitted.
+                    }
+                }
+                String result = "COLONY_TRACES_V0_4 count=" + traces.size()
+                    + " episode=" + episode
+                    + " scope=LOADED_LATEST_CITIZEN_MEMORY_AND_PHYSICAL_JOB"
+                    + " entries=" + String.join(";", traces)
+                    + " learning_authorized=false reward_authorized=false";
+                ctx.getSource().sendSuccess(() -> Component.literal(result), false);
                 return 1;
             }))
             .then(Commands.literal("audit").executes(ctx -> {
