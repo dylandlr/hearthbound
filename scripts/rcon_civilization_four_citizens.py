@@ -89,6 +89,12 @@ def run_trial(rcon, sleep=time.sleep):
     if "distinct_completed_citizens=4" not in final:
         raise AssertionError("Jobs were not completed by four distinct citizens: " + final)
     check(rcon, "hearthbound-colony decision-audit", "latest_scoped_completed_citizens=4")
+    history_audit = check(rcon, "hearthbound-colony history-audit", "COLONY_HISTORY_V0_5")
+    for expected in ("records=4", "physically_completed=4",
+                     "assigned_without_verified_completion=0", "capacity_denials=0",
+                     "reward_authorized=false"):
+        if expected not in history_audit:
+            raise AssertionError("Incomplete persisted citizen decision history: " + history_audit)
     trace_output = check(rcon, "hearthbound-colony decision-traces", "COLONY_TRACES_V0_4")
     if "count=4" not in trace_output or "learning_authorized=false" not in trace_output:
         raise AssertionError("Missing four scoped physical decision traces: " + trace_output)

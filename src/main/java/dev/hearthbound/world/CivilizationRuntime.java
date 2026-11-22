@@ -3,6 +3,7 @@ package dev.hearthbound.world;
 import com.mojang.brigadier.CommandDispatcher;
 import dev.hearthbound.civilization.CivilizationContracts;
 import dev.hearthbound.civilization.ColonyDecisionTrace;
+import dev.hearthbound.civilization.CitizenDecisionHistory;
 import dev.hearthbound.civilization.ColonyTaskQueue;
 import dev.hearthbound.civilization.ColonyTaskQueue.State;
 import dev.hearthbound.civilization.ColonyTaskQueue.Task;
@@ -34,6 +35,7 @@ public final class CivilizationRuntime {
 
     private static final class ColonyData extends SavedData {
         final ColonyTaskQueue tasks = new ColonyTaskQueue();
+        final CitizenDecisionHistory decisionHistory = new CitizenDecisionHistory(1024);
         boolean enabled;
         boolean hasDestination;
         long destination;
@@ -69,6 +71,33 @@ public final class CivilizationRuntime {
                     e.getLong("source"), e.getLong("destination"),
                     state == State.RESERVED ? State.HELD : state, owner, job, tick));
             }
+            if (root.contains("decisionHistory", Tag.TAG_LIST)) {
+                ListTag history = root.getList("decisionHistory", Tag.TAG_COMPOUND);
+                for (int i = 0; i < history.size(); i++) {
+                    CompoundTag e = history.getCompound(i);
+                    if (!e.contains("task", Tag.TAG_LONG) || !e.hasUUID("citizen")
+                        || !e.hasUUID("job") || !e.hasUUID("episode")
+                        || !e.hasUUID("decision") || !e.hasUUID("evidence")
+                        || !e.contains("revision", Tag.TAG_LONG)
+                        || !e.contains("observed", Tag.TAG_LONG)
+                        || !e.contains("decided", Tag.TAG_LONG)
+                        || !e.contains("assigned", Tag.TAG_LONG)
+                        || !e.contains("delivered", Tag.TAG_LONG)
+                        || !e.contains("source", Tag.TAG_LONG)
+                        || !e.contains("destination", Tag.TAG_LONG)
+                        || !e.contains("status", Tag.TAG_STRING))
+                        throw new IllegalStateException("Invalid saved decision history");
+                    result.decisionHistory.restore(new CitizenDecisionHistory.Entry(
+                        e.getLong("task"), e.getUUID("citizen"), e.getUUID("job"),
+                        e.getUUID("episode"), e.getUUID("decision"), e.getUUID("evidence"),
+                        e.getLong("revision"), e.getLong("observed"), e.getLong("decided"),
+                        e.getLong("assigned"), e.getLong("delivered"), e.getLong("source"),
+                        e.getLong("destination"),
+                        CitizenDecisionHistory.Status.valueOf(e.getString("status"))));
+                }
+            }
+            if (root.contains("historyDeniedCapacity", Tag.TAG_LONG))
+                result.decisionHistory.restoreDeniedCapacity(root.getLong("historyDeniedCapacity"));
             // Enabled is deliberately session-scoped and always resets to false.
             return result;
         }
@@ -89,6 +118,27 @@ public final class CivilizationRuntime {
                 entries.add(e);
             }
             root.put("tasks", entries);
+            ListTag history = new ListTag();
+            for (var entry : decisionHistory.snapshot()) {
+                CompoundTag e = new CompoundTag();
+                e.putLong("task", entry.taskId());
+                e.putUUID("citizen", entry.citizen());
+                e.putUUID("job", entry.job());
+                e.putUUID("episode", entry.episode());
+                e.putUUID("decision", entry.decision());
+                e.putUUID("evidence", entry.evidence());
+                e.putLong("revision", entry.revision());
+                e.putLong("observed", entry.observedTick());
+                e.putLong("decided", entry.decisionTick());
+                e.putLong("assigned", entry.assignedTick());
+                e.putLong("delivered", entry.deliveredTick());
+                e.putLong("source", entry.source());
+                e.putLong("destination", entry.destination());
+                e.putString("status", entry.status().name());
+                history.add(e);
+            }
+            root.put("decisionHistory", history);
+            root.putLong("historyDeniedCapacity", decisionHistory.deniedCapacity());
             if (hasDestination) root.putLong("destination", destination);
             return root;
         }
@@ -258,6 +308,22 @@ public final class CivilizationRuntime {
                 ctx.getSource().sendSuccess(() -> Component.literal(result), false);
                 return 1;
             }))
+            .then(Commands.literal("history-audit").executes(ctx -> {
+                ColonyData board = data(ctx.getSource().getLevel());
+                var records = board.decisionHistory.snapshot();
+                long completed = records.stream()
+                    .filter(e -> e.status() == CitizenDecisionHistory.Status.PHYSICALLY_COMPLETED)
+                    .count();
+                long pending = records.size() - completed;
+                ctx.getSource().sendSuccess(() -> Component.literal(
+                    "COLONY_HISTORY_V0_5 records=" + records.size()
+                    + " physically_completed=" + completed
+                    + " assigned_without_verified_completion=" + pending
+                    + " capacity_denials=" + board.decisionHistory.deniedCapacity()
+                    + " policy_control=false reward_authorized=false"
+                    + " scope=PERSISTED_SAVEDDATA_CURRENT_DIMENSION"), false);
+                return 1;
+            }))
             .then(Commands.literal("audit").executes(ctx -> {
                 ColonyData data = data(ctx.getSource().getLevel());
                 long queued = data.tasks.snapshot().stream()
@@ -298,6 +364,25 @@ public final class CivilizationRuntime {
                         BlockPos.of(assigned.destination()))) {
                     board.tasks.finish(assigned.id(), citizenId, assigned.job());
                     board.setDirty();
+                    // Research history is read-only. Never retry, cancel or
+                    // mutate physical work on an observation-log error.
+                    try {
+                        CompoundTag haul = citizen.getPersistentData()
+                            .getCompound("hearthbound.haul");
+                        if (haul.contains("physicalDeliveredTick", Tag.TAG_LONG)) {
+                            var assignment = SableHauling.completedAssignment(level, citizen,
+                                assigned.job(), BlockPos.of(assigned.destination()));
+                            if (board.decisionHistory.complete(assigned.job(), citizenId,
+                                    SourceReportSession.episode(level),
+                                    haul.getLong("physicalDeliveredTick"),
+                                    assignment.source(), assignment.destination()))
+                                board.setDirty();
+                        }
+                    } catch (RuntimeException invalidHistory) {
+                        org.apache.logging.log4j.LogManager.getLogger().warn(
+                            "Colony history incomplete for completed physical job {}",
+                            assigned.job(), invalidHistory);
+                    }
                 } else if (!SableHauling.active(citizen)) {
                     board.tasks.hold(assigned.id(), citizenId);
                     board.setDirty();
@@ -433,6 +518,24 @@ public final class CivilizationRuntime {
             memory.putUUID("jobId", haul.getUUID("jobId"));
             memory.putLong("decisionTick", level.getGameTime());
             citizen.getPersistentData().put(MEMORY, memory);
+            try {
+                boolean retained = board.decisionHistory.register(
+                    new CitizenDecisionHistory.Entry(reserved.id(), citizenId,
+                        haul.getUUID("jobId"), episode, selectedDecision.id(),
+                        selectedDecision.evidenceId(), selectedObservation.snapshotRevision(),
+                        selectedObservation.evidence().get(0).observedTick(),
+                        selectedDecision.tick(), haul.getLong("assignedTick"), -1L,
+                        reserved.source(), reserved.destination(),
+                        CitizenDecisionHistory.Status.ASSIGNED));
+                board.setDirty();
+                if (!retained)
+                    org.apache.logging.log4j.LogManager.getLogger().warn(
+                        "Colony history capacity reached for job {}", haul.getUUID("jobId"));
+            } catch (RuntimeException invalidHistory) {
+                org.apache.logging.log4j.LogManager.getLogger().warn(
+                    "Colony history could not record job {}", haul.getUUID("jobId"),
+                    invalidHistory);
+            }
         } catch (RuntimeException failure) {
             // Do not replay a possibly partly mutated assignment.
             board.tasks.hold(reserved.id(), citizenId);
