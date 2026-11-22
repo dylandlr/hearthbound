@@ -9,6 +9,8 @@ on:
       - 'scripts/rcon_outcome_restart_acceptance.py'
       - '.github/workflows/real-outcome-restart.yml'
       - 'src/main/java/dev/hearthbound/world/**'
+      - 'src/main/java/dev/hearthbound/evidence/VerifiedMillLearning.java'
+      - 'scripts/mill_learning_acceptance.py'
 jobs:
   outcome-restart:
     runs-on: ubuntu-latest

@@ -7,6 +7,9 @@ on:
     paths:
       - 'src/main/java/dev/hearthbound/world/**'
       - 'src/main/java/dev/hearthbound/evidence/OutcomeLedger.java'
+      - 'src/main/java/dev/hearthbound/evidence/VerifiedMillLearning.java'
+      - 'scripts/mill_learning_acceptance.py'
+      - 'scripts/test_mill_learning_acceptance.py'
       - 'scripts/rcon_sable_first_mill.py'
       - '.github/workflows/real-mill-outcome-probe.yml'
 jobs:
@@ -31,6 +34,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m py_compile scripts/rcon_sable_first_mill.py
+          python3 -m unittest discover -s scripts -p 'test_mill_learning_acceptance.py'
           mkdir -p run
           printf 'eula=true\n' > run/eula.txt
           printf 'online-mode=false\nlevel-name=real-outcome-proposal-world\nmax-players=2\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties
@@ -60,6 +64,8 @@ jobs:
           grep -q 'status=DENIED reason=TAINTED_OR_UNHELD_RESERVATION' real-outcome-rcon.log
           grep -q 'HEARTHBOUND_PROCESS_RECEIPT' real-outcome-forge-server.log
           grep -q 'HEARTHBOUND_FALLING_ITEM_DENIED' real-outcome-forge-server.log
+          grep -q 'REAL_FORGE_MILL_LEARNING_REPLAY_PASS' real-outcome-rcon.log
+          grep -q 'REAL_FORGE_MILL_LEARNING_REVOCATION_PASS' real-outcome-rcon.log
           echo "REAL_FORGE_MILL_OUTCOME_PROPOSAL_PASS reward_authorized=false"
       - name: Upload actual RCON and Forge logs
         if: always()
