@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
@@ -23,9 +24,15 @@ public final class ReportPolicyTrialChoice {
     public static ReportChoiceMlpCommands.Choice evaluate(
             ServerLevel level, Villager executor, BlockPos a, BlockPos b,
             ReportConditionedChoice.Exposure exposure, Policy policy) throws Exception {
+        return evaluate(level, executor, a, b, exposure, policy, null);
+    }
+
+    static ReportChoiceMlpCommands.Choice evaluate(
+            ServerLevel level, Villager executor, BlockPos a, BlockPos b,
+            ReportConditionedChoice.Exposure exposure, Policy policy, UUID dispatchDecision) throws Exception {
         if (policy == null) throw new IllegalArgumentException("Missing policy");
         if (policy == Policy.FROZEN_MLP)
-            return ReportChoiceMlpCommands.evaluate(level, executor, a, b, exposure);
+            return ReportChoiceMlpCommands.evaluate(level, executor, a, b, exposure, dispatchDecision);
 
         if (level == null || executor == null || a == null || b == null ||
                 exposure == null || a.equals(b) ||
@@ -46,6 +53,7 @@ public final class ReportPolicyTrialChoice {
             CompoundTag snapshot = CitizenKnowledgeExchange.decisionReport(
                 level, candidate, executor);
             if (snapshot == null) continue;
+            CitizenCommunicationRecords.read(level, executor, dispatchDecision, snapshot);
             String id = snapshot.getString("id");
             if (id.isBlank())
                 throw new IllegalArgumentException("Delivered report without a bound identity");

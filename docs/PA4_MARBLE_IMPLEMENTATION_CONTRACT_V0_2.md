@@ -1,11 +1,12 @@
-# PA4 + MARBLE primary implementation reference: Hearthbound v0.2
+# Project Sid + MultiAgentBench/MARBLE + PA4 implementation contract: Hearthbound v0.2
 
-Status: **research/evaluation code only**. This is an original Hearthbound adaptation; it is NOT a reproduction of Zhu et al.'s published MultiAgentBench scores and it is NOT autonomous real-Minecraft MARL deployment.
+Status: **research/evaluation contract**. This is an original Hearthbound adaptation, not a reproduction of the published Project Sid or MultiAgentBench experiments. Per-citizen physical participation accounting does not establish learned collaboration or societal emergence. Every revision must distinguish automated checks from live Minecraft validation and repeated independent-world evidence.
 
 ## Canonical sources and version boundaries
 
+- Altera.AL, *Project Sid: Many-agent simulations toward AI civilization*, arXiv:2411.00114v1 (31 October 2024), [paper](https://arxiv.org/abs/2411.00114v1), [full text](https://arxiv.org/html/2411.00114v1), [official report repository](https://github.com/altera-al/project-sid). This is a primary architectural and social-experiment reference alongside MultiAgentBench/MARBLE. The repository publishes the report and assets, not runnable PIANO agents. Its LLM-based experiments are evidence about its own configurations, not Hearthbound citizens.
 - Kunlun Zhu et al., *MultiAgentBench: Evaluating the Collaboration and Competition of LLM Agents*, ACL 2025 (pp. 8580–8622), DOI [10.18653/v1/2025.acl-long.421](https://aclanthology.org/2025.acl-long.421/). Benchmark engine: https://github.com/ulab-uiuc/MARBLE, maintained code distinct from published paper; as of November 2026 the upstream README documents multiple bug fixes, including a repeated Minecraft task file.
-- CSCE 631 PA4 Reading Reports, section P42 (MultiAgentBench) and synthesis; P06 (MAST failure taxonomy), P11 (multiagent debate), P32/P33 (empirical game-theoretic analysis). The source's core caution is to distinguish model/policy, coordination mechanism, outcome verifier and evaluator.
+- CSCE 631 PA4 Reading Reports, particularly P42 (MultiAgentBench), P06/P11 (failures and disagreement), P28/P37 (memory and grounded action), P30/P34 (architecture), P04/P15/P19 (strategic interaction), and P32/P33 (empirical game theory). Distinguish policy, coordination mechanism, outcome verifier, and evaluator. Exact references and dossier page ranges are in [the research foundation](PROJECT_SID_PA4_RESEARCH_FOUNDATION.md).
 - Source-version hashes must be pinned before experiments; label new revisions explicitly. A repaired newer MARBLE checkout must not be reported as reproducing 2025 results.
 
 ## Architectural decisions
@@ -16,6 +17,26 @@ Status: **research/evaluation code only**. This is an original Hearthbound adapt
 4. **Distinct objectives**: Preserve personal, colony and research rewards. Collect satisfaction, wealth, fairness, governance and political diversity as separate observables rather than forcing them into a premature single 'civilization quality' number.
 5. **Communication safety**: Preserve speaker, recipient, time, scope, channel and delivery. Keep claims separate from independently verified observations; reserve mechanism/policy authority outside peer messages. No omniscient social planning.
 6. **Organizations and politics**: Treat guilds, parties, cooperatives, councils, rivalries and other groups as *possible* outcomes of repeated interaction, resource allocation, local incentives and learning. Their names, ideology and survival are not preassigned success criteria; evaluate resulting institutions and membership uncertainty without claiming realistic human political preferences.
+7. **Responsive execution and coherent decisions**: Project Sid motivates modules with different update rates and a controller that coordinates action and communication. Hearthbound must preserve server-thread ownership of world changes, bound background work, reject decisions based on stale state, and trace accepted intents to executed actions. This is an architectural adaptation, not an implementation of PIANO or proof that it improves Hearthbound.
+8. **Grounded, scoped memory**: Use outcome-linked records with observation time, source, subject, world/run identity, and expiry or invalidation. Keep peer claims and inferred beliefs distinct from authoritative observations. Start with scripted or fixed-policy memory consumers; LLM reflection stays deferred. Memory updates, inference-time adaptation, and trained weight updates are different mechanisms and must be reported separately. Reset agent memories between independent trials unless retained memory is the declared treatment.
+
+## Actual communication evidence and causal limits
+
+The next measurement layer must capture actual events rather than infer a conversation from task co-participation. Link records with stable message, citizen, task, action, world, and run identifiers:
+
+| Evidence stage | Minimum meaning | Insufficient substitute |
+|---|---|---|
+| Sent | A citizen emitted a particular payload to explicit intended recipients under a recorded protocol | Nearby citizens or shared task membership |
+| Delivered | The transport made that payload available to a named recipient; record tick and route | Send intent or a global broadcast counter |
+| Consumed | The recipient's actual policy/decision path read the delivered payload | Merely storing it in a mailbox or memory |
+| Used | A decision/action records the consumed message as an input, with an observable policy rule or decision record | Acknowledgment, repetition, or later task success |
+| Physical outcome | An independently verified world event is linked to the resulting action/task | A speaker's completion claim or reward update |
+
+Record blocked, dropped, expired, duplicate, ignored, rejected, and unresolved messages with explicit reasons where known. For broadcasts, delivery and consumption are recipient-specific. Keep private observations private under the observation contract; a shared blackboard must not silently bypass the configured network. Restrict message authority to data: peer messages cannot redefine verification rules, reward rules, or protocol permissions.
+
+Use these records for descriptive provenance: who communicated, who received information, which decisions used it, and which independently witnessed outcomes followed. Even a complete linked trace establishes an observed pathway, not the counterfactual benefit of the information. A claim that communication or a topology improves outcomes requires matched no-message and altered-message controls across independent worlds, with comparable policy, resources, time horizon, and measured costs. Removing messages may itself alter compute or timing; report that change.
+
+Report lifecycle counts, useful-message rate with its explicit denominator, delivery/consumption latency, invalid-report rates, verified output, completion, participation, and cost separately. Unsupported or uncollected metrics remain unavailable, not fabricated zeros. MARBLE's LLM communication/planning scores are separate optional research instruments and remain deferred with LLM use.
 
 ## Newly implemented experimental controls
 
@@ -38,12 +59,20 @@ It reports **paired** improvements in independent milestone completion, real out
 | P42 MultiAgentBench | Completion, participation, and costs separately; matched topology comparisons | Arithmetic decline of contribution KPI as team size grows, confused with reduced coordination |
 | P06 MAST | Label observable system design, inter-agent information, and verification errors | Unsupported motive attributions or missed failure classes |
 | P11 Debate | Separate correctness from agreement; track beneficial and harmful revisions | Persuasive misinformation looks like collaboration |
+| Project Sid | Separate fast execution from deliberation; compare intended and observed outcomes; test social modules through ablations | Speech and action diverge, or role labels are mistaken for verified work |
+| P28 Reflexion | Bound episodic memory; ground lessons in trustworthy feedback; compare with memory off | Self-reported lessons are mistaken for trained competence |
+| P37 ReAct | Trace observation, decision, accepted action, execution, and resulting observation | A plan or explanation is counted as a world change |
+| P30/P34 surveys | Keep perception, memory, planning, action, and evaluation interfaces explicit | Adding modules or agents is assumed to improve results |
 | P32/P33 EGTA | Freeze strategy/policy menu, model the full profile, measure unilateral deviations with sampled uncertainty | Leaderboard incorrectly called equilibrium |
 | P04 NegotiationArena | Explicit resource/payoff objects, both role/seat orders | 'Agreed' incorrectly treated as fair, correct, or incentive compatible |
+| P15 Game-theoretic LLM | Verify feasibility and utility independently; separate strategic stability from joint welfare | A negotiated agreement is called a Nash equilibrium |
+| P19 Alympics | Separate rules, agent policies, endowments, and resource regimes; retain all survival and failed-trial outcomes | Attrition or unequal resources are mistaken for collective improvement |
 | P07 Visibility | Agent IDs, time-scoped activity, authorized observations, inspectable provenance | Can't reconstruct who knew or did what |
 | P20/P23 incident analyses | Independent monitors, authority boundaries and scoped stopping rules | Unverified collective assumptions become operational authority |
 
 ## Experimental program
+
+First resolve measurement reliability: run repeated fresh-world trials of the existing four-citizen physical task scenario. Freeze the candidate revision and record the originally observed failure signature separately from other failures: physical output is complete while task accounting remains three of four. Record source inventories, carried items, destination delta, task states, active claims, errors, and terminal status even when a run fails or times out. A later passing run does not erase the earlier failure. Report failure counts, total scheduled/valid/invalid worlds, and uncertainty at world level; a rerun inside a surviving world is not an independent-world replicate. Do not merge evidence from different code revisions into one failure-rate estimate without stratification.
 
 The Phase A offline suite runs *script, random, untrained, frozen learned* task allocation with the same seed and map, then compares *star, tree, chain, graph, no-message and shuffled-message* variants. Freeze policy weights, action masks, initial needs and training budgets. Only topology/information exposure should change in topology-specific treatments. Distinguish communication architecture from planner compute budget.
 

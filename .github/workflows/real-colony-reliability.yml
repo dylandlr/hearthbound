@@ -1,0 +1,87 @@
+name: Real Forge independent-world colony reliability
+on:
+  pull_request:
+    paths:
+      - 'src/main/java/dev/hearthbound/civilization/**'
+      - 'src/main/java/dev/hearthbound/world/CivilizationRuntime.java'
+      - 'src/main/java/dev/hearthbound/world/SableController.java'
+      - 'src/main/java/dev/hearthbound/world/SableHauling.java'
+      - 'src/main/java/dev/hearthbound/world/SourceReportSession.java'
+      - 'scripts/rcon_civilization_four_citizens.py'
+      - 'scripts/run_colony_reliability_trial.py'
+      - 'scripts/summarize_colony_reliability.py'
+      - 'scripts/test_colony_reliability.py'
+      - '.github/workflows/real-colony-reliability.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  world:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {trial: world-01, seed: 43101}
+          - {trial: world-02, seed: 43102}
+          - {trial: world-03, seed: 43103}
+          - {trial: world-04, seed: 43104}
+          - {trial: world-05, seed: 43105}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Record and test the actual proposed revision, not an implicit merge ref.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.8'
+      - name: Test trial provenance and complete-denominator aggregation
+        run: python3 -m unittest discover -s scripts -p 'test_colony_reliability.py'
+      - name: Compile Forge and test sources
+        run: gradle --no-daemon compileJava compileTestJava > reliability-preflight.log 2>&1 || (tail -n 120 reliability-preflight.log; exit 1)
+      - name: Run one untouched fixture in a new world and server process
+        env:
+          HEARTHBOUND_EXPECTED_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: >-
+          python3 scripts/run_colony_reliability_trial.py
+          --trial-id '${{ matrix.trial }}' --seed '${{ matrix.seed }}'
+          --output 'reliability/${{ matrix.trial }}'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: colony-reliability-${{ matrix.trial }}
+          path: |
+            reliability/${{ matrix.trial }}/
+            reliability-preflight.log
+          if-no-files-found: warn
+  summary:
+    needs: world
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: colony-reliability-world-*
+          path: reliability-downloads
+      - name: Include all five planned worlds and retain unknown failures
+        env:
+          HEARTHBOUND_EXPECTED_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: >-
+          python3 scripts/summarize_colony_reliability.py reliability-downloads
+          --expected-commit "$HEARTHBOUND_EXPECTED_COMMIT"
+          --output colony-reliability-summary.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: colony-reliability-summary
+          path: colony-reliability-summary.json
+          if-no-files-found: error

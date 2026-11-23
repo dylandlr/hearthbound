@@ -69,8 +69,10 @@ public final class ReportHaulExperiment {
         // All following Minecraft source checks are task-execution safeguards,
         // not added observation features or model inputs.
         final ReportChoiceMlpCommands.Choice decision;
+        final UUID communicationDecision = UUID.randomUUID();
         try {
-            decision=ReportPolicyTrialChoice.evaluate(level,recipient,first,second,exposure,policy);
+            decision=ReportPolicyTrialChoice.evaluate(level,recipient,first,second,exposure,policy,
+                communicationDecision);
         } catch (Exception invalid) {
             return denied("MODEL_OR_REPORT_EVIDENCE_INVALID");
         }
@@ -92,6 +94,8 @@ public final class ReportHaulExperiment {
         if (decision.reportId() == null || decision.reportId().isBlank()
                 || "NONE".equals(decision.reportId()))
             return denied("CHOSEN_SOURCE_HAS_NO_PRE_ACTION_REPORT");
+        CitizenCommunicationRecords.selected(level, recipient, communicationDecision,
+            decision.reportId(), decision.tick());
         if (!level.hasChunkAt(selected) || !level.hasChunkAt(destination))
             return denied("SOURCE_OR_DESTINATION_CHUNK_NOT_LOADED");
 
@@ -134,12 +138,16 @@ public final class ReportHaulExperiment {
         snapshot.putString("policy",policyName);
         snapshot.putString("origin",policyOrigin);
         snapshot.putString("exposure",exposure.name());
+        snapshot.putUUID("communicationDecision", communicationDecision);
         haul.put(RECEIPT,snapshot);
         executor.getPersistentData().put(HAUL,haul);
+        CitizenCommunicationRecords.assigned(level, recipient, communicationDecision,
+            decision.reportId(), job, selected.asLong(), destination.asLong(), assigned);
         return "REPORT_HAUL_DISPATCH status=ASSIGNED"
             +" job="+job
             +" executor="+executor.getUUID()
             +" recipient="+recipient.getUUID()
+            +" communication_decision="+communicationDecision
             +" source="+ReportChoiceCommands.key(level,selected)
             +" destination="+ReportChoiceCommands.key(level,destination)
             +" candidates="+ReportChoiceCommands.key(level,first)
