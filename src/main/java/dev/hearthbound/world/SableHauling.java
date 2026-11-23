@@ -414,6 +414,7 @@ public final class SableHauling {
                 tag.putLong(DELIVERED_TICK, level.getGameTime());
                 tag.putInt(PHASE, COMPLETE);
                 HaulClaims.release(level, claimedSource, citizen.getUUID());
+                CitizenCommunicationRecords.physicalCompleted(level, citizen);
             } else {
                 tag.put(CARGO, remaining.save(new CompoundTag()));
                 quarantine(tag, "Incomplete insertion; reconcile remaining cargo and destination");

@@ -7,6 +7,7 @@ import dev.hearthbound.evidence.ReportConditionedChoice;
 import java.nio.file.Path;
 import java.util.Locale;
 import java.util.List;
+import java.util.UUID;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
@@ -95,6 +96,12 @@ public final class ReportChoiceMlpCommands {
     static Choice evaluate(ServerLevel level, Villager recipient, BlockPos first,
                            BlockPos second, ReportConditionedChoice.Exposure exposure)
                            throws Exception {
+        return evaluate(level, recipient, first, second, exposure, null);
+    }
+
+    static Choice evaluate(ServerLevel level, Villager recipient, BlockPos first,
+                           BlockPos second, ReportConditionedChoice.Exposure exposure,
+                           UUID dispatchDecision) throws Exception {
         if (level == null || recipient == null || first == null || second == null
                 || recipient.level() != level || !CitizenSourceKnowledge.isCitizen(recipient)
                 || first.equals(second) || exposure == null)
@@ -113,6 +120,7 @@ public final class ReportChoiceMlpCommands {
             // scripted baseline. This method NEVER consults source chests.
             var report=CitizenKnowledgeExchange.decisionReport(level,candidates.get(i),recipient);
             if (report==null) continue;
+            CitizenCommunicationRecords.read(level, recipient, dispatchDecision, report);
             long age=tick-report.getLong("delivered_tick");
             long observedAge=tick-report.getLong("observed_tick");
             ReportChoiceMlp.encode(features,i,report.getInt("wheat"),age,

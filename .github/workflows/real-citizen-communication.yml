@@ -1,0 +1,84 @@
+name: Real Forge citizen communication and physical outcome records
+on:
+  pull_request:
+    paths:
+      - 'src/main/java/dev/hearthbound/civilization/CommunicationJournal.java'
+      - 'src/test/java/dev/hearthbound/civilization/CommunicationJournalTest.java'
+      - 'src/main/java/dev/hearthbound/world/CitizenCommunicationRecords.java'
+      - 'src/main/java/dev/hearthbound/world/CitizenKnowledgeExchange.java'
+      - 'src/main/java/dev/hearthbound/world/ReportChoiceMlpCommands.java'
+      - 'src/main/java/dev/hearthbound/world/ReportPolicyTrialChoice.java'
+      - 'src/main/java/dev/hearthbound/world/ReportHaulExperiment.java'
+      - 'src/main/java/dev/hearthbound/world/SableHauling.java'
+      - 'scripts/rcon_citizen_communication.py'
+      - 'scripts/test_citizen_communication.py'
+      - '.github/workflows/real-citizen-communication.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  communication:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.8'}
+      - name: Check journal and compile the Forge integration
+        run: |
+          python3 -m py_compile scripts/rcon_citizen_communication.py
+          python3 -m unittest discover -s scripts -p test_citizen_communication.py -v
+          python3 scripts/test-civilization-contracts.py
+          gradle --no-daemon compileJava compileTestJava > citizen-communication-compile.log 2>&1 || (tail -n 100 citizen-communication-compile.log; exit 1)
+      - name: Trace actual report use and physical delivery through a clean restart
+        shell: bash
+        env:
+          HEARTHBOUND_RCON_PASSWORD: ci-disposable-communication-world
+        run: |
+          set -euo pipefail
+          mkdir -p run
+          printf 'eula=true\n' > run/eula.txt
+          printf 'server-ip=127.0.0.1\nonline-mode=false\nlevel-name=citizen-communication-world\nlevel-seed=communication-v1\nmax-players=2\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties
+          pid=''
+          trap 'if [ -n "$pid" ]; then kill -- "-$pid" 2>/dev/null || true; fi' EXIT
+          boot() {
+            local log="$1"
+            setsid gradle --no-daemon runServer > "$log" 2>&1 &
+            pid=$!
+            for i in $(seq 1 360); do
+              if grep -Eq 'Done \([0-9.]+s\)! For help, type "help"' "$log"; then return; fi
+              if ! kill -0 "$pid" 2>/dev/null; then tail -n 100 "$log"; return 1; fi
+              sleep 2
+            done
+            tail -n 100 "$log"
+            return 1
+          }
+          await_stop() {
+            for i in $(seq 1 90); do
+              if ! kill -0 "$pid" 2>/dev/null; then wait "$pid"; pid=''; return; fi
+              sleep 1
+            done
+            echo 'Server did not stop cleanly' >&2
+            return 1
+          }
+          boot citizen-communication-first-server.log
+          python3 scripts/rcon_citizen_communication.py before | tee citizen-communication-before-rcon.log
+          grep -Fq 'CITIZEN_COMMUNICATION_PHYSICAL_PASS' citizen-communication-before-rcon.log
+          await_stop
+          boot citizen-communication-second-server.log
+          python3 scripts/rcon_citizen_communication.py after | tee citizen-communication-after-rcon.log
+          grep -Fq 'CITIZEN_COMMUNICATION_RESTART_PASS' citizen-communication-after-rcon.log
+          await_stop
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: citizen-communication-physical-evidence
+          path: |
+            citizen-communication-*.json
+            citizen-communication-*.log
+            run/logs/latest.log
+          if-no-files-found: warn

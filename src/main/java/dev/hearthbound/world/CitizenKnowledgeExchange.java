@@ -39,21 +39,22 @@ public final class CitizenKnowledgeExchange {
     public static String share(ServerLevel level, BlockPos source, Villager sender, Villager recipient) {
         if (level == null || source == null || sender == null || recipient == null)
             throw new IllegalArgumentException("missing exchange arguments");
+        UUID attempt = CitizenCommunicationRecords.sendAttempt(level, source, sender, recipient);
         if (!citizen(sender) || !citizen(recipient) || sender.getUUID().equals(recipient.getUUID()))
-            return "KNOWLEDGE_SHARE ABSTAIN reason=INVALID_PARTICIPANTS action_authorized=false";
+            return rejected(level, attempt, "INVALID_PARTICIPANTS");
         if (sender.level() != level || recipient.level() != level ||
             sender.distanceToSqr(recipient) > COMMUNICATION_RANGE * COMMUNICATION_RANGE)
-            return "KNOWLEDGE_SHARE ABSTAIN reason=OUT_OF_RANGE action_authorized=false";
+            return rejected(level, attempt, "OUT_OF_RANGE");
 
         CompoundTag evidence = CitizenSourceKnowledge.directEvidence(level, source, sender);
         if (evidence == null)
-            return "KNOWLEDGE_SHARE ABSTAIN reason=NO_DIRECT_EVIDENCE action_authorized=false";
+            return rejected(level, attempt, "NO_DIRECT_EVIDENCE");
         long observed = evidence.getLong("observed_tick");
         long delivered = level.getGameTime();
         if (!SourceReportSession.accepts(level, evidence, delivered))
-            return "KNOWLEDGE_SHARE ABSTAIN reason=REOBSERVATION_REQUIRED_AFTER_RESTART action_authorized=false";
+            return rejected(level, attempt, "REOBSERVATION_REQUIRED_AFTER_RESTART");
         if (observed > delivered || delivered - observed > CitizenSourceKnowledge.FRESH_TICKS)
-            return "KNOWLEDGE_SHARE ABSTAIN reason=STALE_SOURCE action_authorized=false";
+            return rejected(level, attempt, "STALE_SOURCE");
 
         CompoundTag root = recipient.getPersistentData().getCompound(ROOT);
         ListTag entries = root.getList(ENTRIES, Tag.TAG_COMPOUND);
@@ -66,8 +67,10 @@ public final class CitizenKnowledgeExchange {
             + "|" + observed + "|" + evidence.getUUID("observationWorld")
             + "|" + evidence.getUUID("observationSession");
         for (int i = 0; i < entries.size(); i++) {
-            if (reportId.equals(entries.getCompound(i).getString("id")))
+            if (reportId.equals(entries.getCompound(i).getString("id"))) {
+                CitizenCommunicationRecords.duplicate(level, attempt, reportId);
                 return "KNOWLEDGE_SHARE status=DUPLICATE action_authorized=false";
+            }
         }
         ListTag updated = new ListTag();
         for (int i = 0; i < entries.size(); i++) {
@@ -93,6 +96,7 @@ public final class CitizenKnowledgeExchange {
         root.putString("schema", SCHEMA);
         root.put(ENTRIES, updated);
         recipient.getPersistentData().put(ROOT, root);
+        CitizenCommunicationRecords.delivered(level, attempt, report);
         // Only a brand-new delivered direct observation with observation
         // tick strictly after the recipient's real failed extraction can
         // fulfill an explicitly requested source recheck.
@@ -101,6 +105,11 @@ public final class CitizenKnowledgeExchange {
             + " sender=" + sender.getUUID() + " recipient=" + recipient.getUUID()
             + " observed_tick=" + observed + " delivered_tick=" + delivered
             + " action_authorized=false";
+    }
+
+    private static String rejected(ServerLevel level, UUID attempt, String reason) {
+        CitizenCommunicationRecords.rejected(level, attempt, reason);
+        return "KNOWLEDGE_SHARE ABSTAIN reason=" + reason + " action_authorized=false";
     }
 
     /**
