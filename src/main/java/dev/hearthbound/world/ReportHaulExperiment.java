@@ -95,6 +95,12 @@ public final class ReportHaulExperiment {
         if (!level.hasChunkAt(selected) || !level.hasChunkAt(destination))
             return denied("SOURCE_OR_DESTINATION_CHUNK_NOT_LOADED");
 
+        // Freeze the recipient's selected social memory before assignment.
+        // Never reconstruct sender/timing from a later inbox or world inventory.
+        CompoundTag selectedReport = CitizenKnowledgeExchange.decisionReport(level, selected, recipient);
+        if (selectedReport == null || !decision.reportId().equals(selectedReport.getString("id")))
+            return denied("SELECTED_REPORT_CHANGED_BEFORE_ASSIGNMENT");
+
         // SableHauling is the only source-claim and inventory-moving path.
         // No operator or model code manually transfers an item.
         try {
@@ -130,6 +136,7 @@ public final class ReportHaulExperiment {
         snapshot.putLong("decisionTick",decision.tick());
         snapshot.putLong("assignedTick",assigned);
         snapshot.putString("reportId",decision.reportId());
+        snapshot.put("selectedReport", selectedReport.copy());
         snapshot.putString("modelSha256",decision.modelSha256());
         snapshot.putString("policy",policyName);
         snapshot.putString("origin",policyOrigin);
@@ -147,6 +154,10 @@ public final class ReportHaulExperiment {
             +" decision_tick="+decision.tick()
             +" assigned_tick="+assigned
             +" source_report_id="+decision.reportId()
+            +" world="+HearthboundWorldIdentity.get(level)
+            +" sender="+selectedReport.getUUID("sender")
+            +" observed_tick="+selectedReport.getLong("observed_tick")
+            +" report_delivered_tick="+selectedReport.getLong("delivered_tick")
             +" model_sha256="+decision.modelSha256()
             +" policy="+policyName
             +" decision_origin="+policyOrigin
@@ -220,6 +231,8 @@ public final class ReportHaulExperiment {
                     +" decision_tick="+event.getLong("decisionTick")
                     +" assigned_tick="+a.assignedTick()
                     +" source_report_id="+event.getString("reportId")
+                    +" world="+event.getUUID("world")
+                    +" executor="+executor.getUUID()
                     +" policy="+event.getString("policy")
                     +" decision_origin="+event.getString("origin")
                     +" inventory_delta_verified=false"

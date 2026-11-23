@@ -14,7 +14,8 @@ const EXPECTED={
  fixture_world:"four-citizen-colony",
  fixture_seed:"hearthbound-four-citizen-v0-3"
 };
-function verifyReceipt(log,{workflowRunId,commit}={}){
+function verifyReceipt(log,{workflowRunId,commit,fixtureSeed=EXPECTED.fixture_seed}={}){
+ if(![EXPECTED.fixture_seed,"hearthbound-four-citizen-v0-8-1","hearthbound-four-citizen-v0-8-2"].includes(fixtureSeed))throw Error("unregistered fixture seed");
  if(typeof log!=="string"||!log)throw Error("missing log");
  if(typeof workflowRunId!=="string"||!/^[0-9]+$/.test(workflowRunId))throw Error("workflow run ID required");
  if(typeof commit!=="string"||!/^[0-9a-f]{40}$/i.test(commit))throw Error("40-character source commit required");
@@ -56,7 +57,7 @@ function verifyReceipt(log,{workflowRunId,commit}={}){
  if(expectedPass.some(token=>!passes[0].includes(token)))throw Error("incomplete acceptance marker");
  let obj;try{obj=JSON.parse(receipts[0].slice(MARKER.length))}catch{throw Error("invalid receipt JSON")}
  if(!obj||typeof obj!=="object"||Array.isArray(obj))throw Error("invalid receipt object");
- for(const [k,v] of Object.entries(EXPECTED))if(obj[k]!==v)throw Error("wrong fixture: "+k);
+ for(const [k,v] of Object.entries({...EXPECTED,fixture_seed:fixtureSeed}))if(obj[k]!==v)throw Error("wrong fixture: "+k);
  const v=obj.verification,m=obj.aggregate_milestone,l=obj.limits;
  if(!v||!m||!l||
  v.source_chests_without_original_wheat!==4||v.destination_wheat!==4||
@@ -85,7 +86,7 @@ function verifyReceipt(log,{workflowRunId,commit}={}){
 function main(argv=process.argv.slice(2),env=process.env){
  if(argv.length!==2)throw Error("usage: node scripts/export-four-citizen-benchmark.js <rcon-log> <output-json>");
  const result=verifyReceipt(fs.readFileSync(argv[0],"utf8"),{
-  workflowRunId:env.GITHUB_RUN_ID,commit:env.GITHUB_SHA
+  workflowRunId:env.GITHUB_RUN_ID,commit:env.GITHUB_SHA,fixtureSeed:env.HEARTHBOUND_WORLD_SEED
  });
  fs.writeFileSync(argv[1],JSON.stringify(result,null,2)+"\n",{flag:"wx"});
  console.log("HEARTHBOUND_COLLABORATION_EVIDENCE_EXPORTED "+result.provenance.logSha256);

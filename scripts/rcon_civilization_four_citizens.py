@@ -78,6 +78,12 @@ def run_trial(rcon, sleep=time.sleep):
         rcon.run("hearthboundclaims count")
         rcon.run("hearthbound-colony physical-reconciliation-audit")
         rcon.run("hearthbound-colony history-audit")
+        # Terminal observation only: an intermediate 3/4 poll is not a failure.
+        print("HEARTHBOUND_TERMINAL_ACCOUNTING_V1 " + json.dumps({
+            "done": int(re.search(r"\bdone=(\d+)", audit).group(1)),
+            "destination_has_four_wheat": wheat_count(rcon, DESTINATION, 4),
+            "deadline_exhausted": True,
+        }, sort_keys=True), flush=True)
         raise AssertionError("Four independently observed jobs did not complete: " + audit)
 
     for x in SOURCES:
@@ -155,7 +161,7 @@ def run_trial(rcon, sleep=time.sleep):
     receipt = {
         "schema": "hearthbound.four_citizen_physical.v1",
         "fixture_world": "four-citizen-colony",
-        "fixture_seed": "hearthbound-four-citizen-v0-3",
+        "fixture_seed": os.environ.get("HEARTHBOUND_WORLD_SEED", "hearthbound-four-citizen-v0-3"),
         "verification": {
             "source_chests_without_original_wheat": 4,
             "destination_wheat": 4,

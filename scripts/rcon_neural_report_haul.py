@@ -17,6 +17,7 @@ import socket
 import struct
 import time
 from pathlib import Path
+from social_communication_evidence import communication_evidence
 
 def frame(seq, kind, payload):
     body=struct.pack("<ii",seq,kind)+payload.encode()+b"\0\0"
@@ -128,8 +129,9 @@ def go():
         # A different citizen directly senses the actual source inventories.
         r.require(f"hearthbound citizen_observe {a} {scout}","wheat=3")
         r.require(f"hearthbound citizen_observe {b} {scout}","wheat=1")
-        r.require(f"hearthbound-share-direct {a} {scout} {sable}","status=DELIVERED")
-        r.require(f"hearthbound-share-direct {b} {scout} {sable}","status=DELIVERED")
+        info['communication_deliveries'] = [
+            r.require(f"hearthbound-share-direct {source} {scout} {sable}","status=DELIVERED")
+            for source in (a, b)]
         for source in (a,b):
             r.require(f"hearthbound knowledge_report {source} {sable}","status=REPORTED")
             # Incoming scout reports must not become executor direct observation.
@@ -207,6 +209,7 @@ def go():
                      "physical_transfer_verified":True,
                      "wall_seconds_to_completed_receipt":round(time.monotonic()-start,3),
                      "rewards_issued":False,"model_updated":False})
+        info['communication_evidence'] = communication_evidence(info)
         Path("real-neural-report-haul-results.json").write_text(
             json.dumps(info,indent=2,sort_keys=True)+"\n",encoding="utf-8")
         print("REAL_FORGE_FROZEN_MLP_PHYSICAL_HAUL_PASS "
