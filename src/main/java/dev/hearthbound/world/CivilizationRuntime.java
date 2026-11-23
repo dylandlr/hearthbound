@@ -1,6 +1,12 @@
 package dev.hearthbound.world;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonNull;
+import com.google.gson.JsonObject;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
+import dev.hearthbound.civilization.BoundedSourceDiscovery;
 import dev.hearthbound.civilization.CivilizationContracts;
 import dev.hearthbound.civilization.ColonyDecisionTrace;
 import dev.hearthbound.civilization.CitizenDecisionHistory;
@@ -24,8 +30,8 @@ import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.level.saveddata.SavedData;
 
 /**
- * Opt-in, server-thread colony dispatcher. Source/destination tasks are supplied
- * by an operator; the policy does NOT discover work or claim emergent technology.
+ * Opt-in, server-thread colony dispatcher. A shared destination is supplied by
+ * an operator; scripted local observations may propose resource-transfer work.
  * Only SableHauling performs physical actions and verifies their outcomes.
  */
 public final class CivilizationRuntime {
@@ -37,6 +43,8 @@ public final class CivilizationRuntime {
     private static final class ColonyData extends SavedData {
         final ColonyTaskQueue tasks = new ColonyTaskQueue();
         final CitizenDecisionHistory decisionHistory = new CitizenDecisionHistory(1024);
+        // Scheduling diagnostics never survive restart or authorize execution.
+        final BoundedSourceDiscovery discovery = new BoundedSourceDiscovery();
         boolean enabled;
         boolean hasDestination;
         long destination;
@@ -165,6 +173,15 @@ public final class CivilizationRuntime {
                     "Dispatch disabled; active jobs retain all existing recovery gates"), false);
                 return 1;
             }))
+            .then(Commands.literal("discovery-audit")
+                .executes(ctx -> discoveryAudit(ctx.getSource(), null, 0))
+                .then(Commands.argument("citizen", StringArgumentType.word())
+                    .executes(ctx -> discoveryAudit(ctx.getSource(),
+                        StringArgumentType.getString(ctx, "citizen"), 0))
+                    .then(Commands.argument("offset", IntegerArgumentType.integer(0))
+                        .executes(ctx -> discoveryAudit(ctx.getSource(),
+                            StringArgumentType.getString(ctx, "citizen"),
+                            IntegerArgumentType.getInteger(ctx, "offset"))))))
             .then(Commands.literal("set-destination")
                 .then(Commands.argument("position", BlockPosArgument.blockPos())
                     .executes(ctx -> {
@@ -460,6 +477,164 @@ public final class CivilizationRuntime {
             })));
     }
 
+    private static BoundedSourceDiscovery.Point point(BlockPos value) {
+        return new BoundedSourceDiscovery.Point(value.getX(), value.getY(), value.getZ());
+    }
+
+    private static BoundedSourceDiscovery.Scope discoveryScope(ServerLevel level, ColonyData board) {
+        return new BoundedSourceDiscovery.Scope(HearthboundWorldIdentity.get(level),
+            SourceReportSession.episode(level), level.dimension().location().toString(),
+            point(BlockPos.of(board.destination)));
+    }
+
+    private static JsonArray coordinates(BoundedSourceDiscovery.Point value) {
+        JsonArray result = new JsonArray();
+        result.add(value.x()); result.add(value.y()); result.add(value.z());
+        return result;
+    }
+
+    /** Only retained records are read. No sensor, cursor advance, or task mutation. */
+    private static int discoveryAudit(CommandSourceStack source, String citizenText, int offset) {
+        UUID citizenId = null;
+        if (citizenText != null) {
+            try {
+                citizenId = UUID.fromString(citizenText);
+                if (!citizenId.toString().equals(citizenText))
+                    throw new IllegalArgumentException("Noncanonical UUID");
+            } catch (IllegalArgumentException invalid) {
+                source.sendFailure(Component.literal("Citizen must be a canonical UUID"));
+                return 0;
+            }
+        }
+        ServerLevel level = source.getLevel();
+        ColonyData board = data(level);
+        var scope = discoveryScope(level, board);
+        var summary = board.discovery.summary(scope);
+        JsonObject root = new JsonObject();
+        root.addProperty("schema", "hearthbound.colony-discovery.v1");
+        root.addProperty("world", scope.world().toString());
+        root.addProperty("episode", scope.episode().toString());
+        root.addProperty("dimension", scope.dimension());
+        root.addProperty("read_only", true);
+        root.addProperty("scope", "SESSION_LOCAL_INCREMENTAL_FALLBACK");
+        root.addProperty("counter_scope", "RETAINED_CITIZEN_CURSOR_LIFETIME");
+        root.addProperty("retained_citizens", summary.citizens());
+        root.addProperty("retained_observations", summary.observations());
+        root.addProperty("citizen_evictions", summary.citizenEvictions());
+        root.addProperty("observation_evictions", summary.observationEvictions());
+        root.addProperty("candidate_positions", summary.candidatePositions());
+        JsonObject bounds = new JsonObject();
+        bounds.addProperty("positions_per_opportunity", BoundedSourceDiscovery.POSITION_BUDGET);
+        bounds.addProperty("inspections_per_opportunity", BoundedSourceDiscovery.INSPECTION_BUDGET);
+        bounds.addProperty("cadence_ticks", BoundedSourceDiscovery.CADENCE_TICKS);
+        bounds.addProperty("citizens", BoundedSourceDiscovery.MAX_CITIZENS);
+        bounds.addProperty("observations", BoundedSourceDiscovery.MAX_OBSERVATIONS);
+        bounds.addProperty("page_size", BoundedSourceDiscovery.PAGE_SIZE);
+        root.add("bounds", bounds);
+        if (citizenId != null) {
+            root.addProperty("citizen", citizenId.toString());
+            var state = board.discovery.citizen(scope, citizenId);
+            root.addProperty("retained", state != null);
+            if (state == null) root.add("stats", JsonNull.INSTANCE);
+            else {
+                JsonObject stats = new JsonObject();
+                stats.addProperty("opportunities", state.opportunities());
+                stats.addProperty("probes", state.probes());
+                stats.addProperty("inspections", state.inspections());
+                stats.addProperty("proposals", state.proposals());
+                stats.addProperty("max_cycle_probes", state.maxCycleProbes());
+                stats.addProperty("max_cycle_inspections", state.maxCycleInspections());
+                stats.addProperty("last_cycle_probes", state.lastCycleProbes());
+                stats.addProperty("last_cycle_inspections", state.lastCycleInspections());
+                stats.addProperty("last_tick", state.lastTick());
+                stats.addProperty("cursor", state.cursor());
+                stats.add("anchor", coordinates(state.anchor()));
+                stats.add("destination", coordinates(state.destination()));
+                stats.addProperty("cycles", state.cycles());
+                stats.addProperty("reanchors", state.reanchors());
+                root.add("stats", stats);
+            }
+            var records = board.discovery.observations(scope, citizenId);
+            root.addProperty("observation_total", records.size());
+            root.addProperty("offset", offset);
+            int end = (int) Math.min(records.size(), (long) offset + BoundedSourceDiscovery.PAGE_SIZE);
+            if (end < records.size()) root.addProperty("next_offset", end);
+            else root.add("next_offset", JsonNull.INSTANCE);
+            JsonArray entries = new JsonArray();
+            for (int i = offset; i < end; i++) {
+                var entry = records.get(i);
+                var observed = entry.observation();
+                JsonObject row = new JsonObject();
+                row.addProperty("sequence", entry.sequence());
+                row.addProperty("world", entry.scope().world().toString());
+                row.addProperty("episode", entry.scope().episode().toString());
+                row.addProperty("dimension", entry.scope().dimension());
+                row.addProperty("citizen", entry.citizen().toString());
+                row.addProperty("tick", observed.tick());
+                row.add("source", coordinates(entry.source()));
+                row.add("destination", coordinates(entry.scope().destination()));
+                JsonArray observer = new JsonArray();
+                observer.add(entry.observer().x()); observer.add(entry.observer().y());
+                observer.add(entry.observer().z());
+                row.add("observer", observer);
+                row.addProperty("distance_squared", entry.observer().distanceSquared(entry.source()));
+                row.addProperty("state", observed.state().name());
+                row.addProperty("wheat", observed.wheat());
+                row.addProperty("reason", observed.reason());
+                row.addProperty("origin", "BOUNDED_IDLE_DISCOVERY");
+                if (observed.taskId() == null) row.add("task_id", JsonNull.INSTANCE);
+                else row.addProperty("task_id", observed.taskId());
+                row.addProperty("proposal", observed.proposal().name());
+                entries.add(row);
+            }
+            root.add("observations", entries);
+        }
+        String output = "COLONY_DISCOVERY_V0_12 " + root;
+        source.sendSuccess(() -> Component.literal(output), false);
+        return 1;
+    }
+
+    private static void discoverIdle(ServerLevel level, Villager citizen, ColonyData board) {
+        if (!board.hasDestination) return;
+        BlockPos destination = BlockPos.of(board.destination);
+        if (!level.hasChunkAt(destination) || level.getBlockEntity(destination) == null) return;
+        var scope = discoveryScope(level, board);
+        board.discovery.advance(scope, citizen.getUUID(),
+            new BoundedSourceDiscovery.Position(citizen.getX(), citizen.getY(), citizen.getZ()),
+            level.getGameTime(), new BoundedSourceDiscovery.WorldView() {
+                private BlockPos position(BoundedSourceDiscovery.Point source) {
+                    return new BlockPos(source.x(), source.y(), source.z());
+                }
+                @Override public boolean loaded(BoundedSourceDiscovery.Point source) {
+                    return level.hasChunkAt(position(source));
+                }
+                @Override public boolean blockEntity(BoundedSourceDiscovery.Point source) {
+                    return level.getBlockEntity(position(source)) != null;
+                }
+                @Override public BoundedSourceDiscovery.Observation inspect(
+                        BoundedSourceDiscovery.Point source) {
+                    BlockPos from = position(source);
+                    var sensed = SourceWheatObservation.inspect(level, from, citizen);
+                    if (sensed.state() != SourceWheatObservation.State.UNKNOWN)
+                        CitizenSourceKnowledge.remember(level, from, citizen, sensed);
+                    Task task = null;
+                    var proposal = BoundedSourceDiscovery.Proposal.NONE;
+                    if (sensed.state() == SourceWheatObservation.State.AVAILABLE) {
+                        int before = board.tasks.snapshot().size();
+                        task = board.tasks.propose(scope.dimension(), from.asLong(), destination.asLong());
+                        if (task == null) proposal = BoundedSourceDiscovery.Proposal.CAPACITY_DENIED;
+                        else if (board.tasks.snapshot().size() > before) {
+                            proposal = BoundedSourceDiscovery.Proposal.CREATED;
+                            board.setDirty();
+                        } else proposal = BoundedSourceDiscovery.Proposal.EXISTING;
+                    }
+                    return new BoundedSourceDiscovery.Observation(
+                        BoundedSourceDiscovery.State.valueOf(sensed.state().name()), sensed.wheat(),
+                        sensed.tick(), sensed.reason(), task == null ? null : task.id(), proposal);
+                }
+            });
+    }
+
     /**
      * Called after a motor has inserted its cargo and released its source claim.
      * Completing an already owned task is independent of whether new dispatch
@@ -640,7 +815,13 @@ public final class CivilizationRuntime {
         }
         var selection = dev.hearthbound.civilization.CitizenGoalPolicy.select(traits, menu);
         Task candidate = selection == null ? null : eligible.get(selection.taskId());
-        if (candidate == null) return false;
+        if (candidate == null) {
+            // Additional bounded sensing only when current local tasks provide
+            // no feasible action. A proposal is re-inspected by the ordinary
+            // menu on a later cycle; discovery itself cannot assign or deliver.
+            discoverIdle(level, citizen, board);
+            return false;
+        }
         long chosenId = candidate.id();
         var selectedObservation = observations.get(chosenId);
         var selectedDecision = decisions.get(chosenId);
