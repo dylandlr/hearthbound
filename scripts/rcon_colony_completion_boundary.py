@@ -104,7 +104,7 @@ def wait_for_citizen(rcon):
         if "test passed" in rcon.run(f"execute if entity {SABLE}").lower():
             return
         time.sleep(0.25)
-    raise AssertionError("Persisted citizen did not load within the fixed readiness window")
+    raise AssertionError("Fixture citizen did not load within the fixed readiness window")
 
 
 def parse_trace(text, expected_job):
@@ -257,6 +257,7 @@ def before_restart():
         ):
             rcon.run(command)
         rcon.require("execute positioned 5 101 8 run sable spawn", "Sable spawned")
+        wait_for_citizen(rcon)
         rcon.require(f"hearthbound-colony set-destination {DESTINATION}", "Registered shared destination")
         rounds = [autonomous_round(rcon, n) for n in range(2)]
         traces = [entry["trace"] for entry in rounds]
