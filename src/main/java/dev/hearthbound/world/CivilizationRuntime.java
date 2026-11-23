@@ -308,6 +308,57 @@ public final class CivilizationRuntime {
                 ctx.getSource().sendSuccess(() -> Component.literal(result), false);
                 return 1;
             }))
+            .then(Commands.literal("physical-reconciliation-audit").executes(ctx -> {
+                ServerLevel level = ctx.getSource().getLevel();
+                ColonyData board = data(level);
+                int assigned = 0;
+                int assignedLoadedIncomplete = 0;
+                int assignedLoadedPhysicallyComplete = 0;
+                int assignedUnloaded = 0;
+                int done = 0;
+                int doneLoaded = 0;
+                int doneUnloaded = 0;
+                java.util.List<String> anomalies = new java.util.ArrayList<>();
+                for (Task task : board.tasks.snapshot()) {
+                    if (task.state() != State.ASSIGNED && task.state() != State.DONE)
+                        continue;
+                    if (task.state() == State.ASSIGNED) assigned++;
+                    else done++;
+                    var entity = task.owner() == null ? null : level.getEntity(task.owner());
+                    if (!(entity instanceof Villager citizen)) {
+                        if (task.state() == State.ASSIGNED) assignedUnloaded++;
+                        else doneUnloaded++;
+                        continue;
+                    }
+                    if (task.state() == State.DONE) {
+                        doneLoaded++;
+                        continue;
+                    }
+                    if (task.job() == null || !SableHauling.completedJob(citizen,
+                            task.job(), BlockPos.of(task.destination()))) {
+                        assignedLoadedIncomplete++;
+                        if (anomalies.size() < 8)
+                            anomalies.add("not-complete:" + task.id() + ":" + task.owner());
+                    } else {
+                        assignedLoadedPhysicallyComplete++;
+                        if (anomalies.size() < 8)
+                            anomalies.add("physical-complete-queue-assigned:" + task.id()
+                                + ":" + task.owner());
+                    }
+                }
+                final String report = "COLONY_PHYSICAL_RECONCILIATION_V0_6 assigned="
+                    + assigned + " assigned_loaded_incomplete=" + assignedLoadedIncomplete
+                    + " assigned_loaded_physically_complete=" + assignedLoadedPhysicallyComplete
+                    + " assigned_unloaded=" + assignedUnloaded
+                    + " done=" + done + " done_loaded=" + doneLoaded
+                    + " done_unloaded=" + doneUnloaded
+                    + " history_records=" + board.decisionHistory.snapshot().size()
+                    + " history_capacity_denials=" + board.decisionHistory.deniedCapacity()
+                    + " anomalies=" + String.join(";", anomalies)
+                    + " strictly_read_only=true policy_control=false reward_authorized=false";
+                ctx.getSource().sendSuccess(() -> Component.literal(report), false);
+                return 1;
+            }))
             .then(Commands.literal("history-audit").executes(ctx -> {
                 ColonyData board = data(ctx.getSource().getLevel());
                 var records = board.decisionHistory.snapshot();
