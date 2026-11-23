@@ -64,12 +64,15 @@ def run_trial(rcon, sleep=time.sleep):
             print("CIVILIZATION_PROGRESS poll=" + str(poll) + " " + audit, flush=True)
             rcon.run("hearthbound-colony physical-reconciliation-audit")
             rcon.run("hearthbound-colony history-audit")
+            for x in SOURCES:
+                rcon.run(f"hearthbound-colony source-readiness-audit {x} 100 1")
 
     if not success:
         # Preserve read-only evidence of the missed opportunity and citizen
         # positions; never issue additional assignments or teleport agents.
         for x in SOURCES:
             rcon.run(f"data get block {x} 100 1 Items")
+            rcon.run(f"hearthbound-colony source-readiness-audit {x} 100 1")
             rcon.run(
                 f"execute positioned {x+1} 100 2 run "
                 "execute if entity @e[type=minecraft:villager,name=Sable,distance=..6]"

@@ -97,6 +97,27 @@ def accounting_three_of_four(snapshot):
                     for key in ("audit_before", "audit_after")))
 
 
+def diagnostic_flags(snapshot):
+    """Descriptive terminal patterns; do not change preregistered pass/fail classes."""
+    if not snapshot_valid(snapshot):
+        return []
+    before, after = snapshot["audit_before"], snapshot["audit_after"]
+    flags = []
+    if accounting_three_of_four(snapshot):
+        flags.append("PHYSICAL_FOUR_TASK_THREE_ASSIGNED_ONE")
+    if (physical_four(snapshot) and before["done"] == after["done"] == 4
+            and before["assigned"] == after["assigned"] == 0
+            and after.get("distinct_completed_citizens") is not None
+            and after["distinct_completed_citizens"] < 4):
+        flags.append("FOUR_DELIVERIES_FEWER_THAN_FOUR_CITIZENS")
+    if (not snapshot["destination_has_exact_four_wheat"]
+            and not all(snapshot["source_wheat_absent"])
+            and before["done"] == after["done"] < 4
+            and before["assigned"] == after["assigned"] == 0):
+        flags.append("SOURCE_REMAINS_NO_ASSIGNED_TASK")
+    return flags
+
+
 def classified_status(fixture_passed, full_window, error_type, snapshot):
     if fixture_passed:
         # A pass marker alone is never sufficient to promote a trial.
@@ -214,6 +235,8 @@ def summarize(records, plan=PLAN, expected_commit=None):
         normalized.append({
             **item, "status": "INVALID_EVIDENCE" if invalid else record["status"],
             "world_uuid": world_id,
+            "diagnostic_flags": diagnostic_flags(record.get("terminal_snapshot"))
+                if not invalid and snapshot_valid(record.get("terminal_snapshot")) else [],
             "accounting_event_observed": accounting_three_of_four(record["terminal_snapshot"])
                 if eligible else None,
             "errors": invalid,
@@ -227,6 +250,8 @@ def summarize(records, plan=PLAN, expected_commit=None):
     if errors:
         for trial in normalized:
             trial["accounting_event_observed"] = None
+    diagnostic_counts = Counter(flag for item in normalized
+                                for flag in item.get("diagnostic_flags", []))
     count = Counter(item["status"] for item in normalized)
     observed = sum(item["accounting_event_observed"] is True for item in normalized)
     assessed = sum(item["accounting_event_observed"] is not None for item in normalized)
@@ -237,6 +262,7 @@ def summarize(records, plan=PLAN, expected_commit=None):
         "planned_trials": total,
         "received_unique_trials": len(by_id),
         "statuses": dict(sorted(count.items())),
+        "terminal_diagnostic_patterns": dict(sorted(diagnostic_counts.items())),
         "all_trials_passed": not errors and count["PASS"] == total,
         "trials": normalized,
         "cohort_errors": errors,
