@@ -31,6 +31,7 @@ import net.minecraft.world.level.saveddata.SavedData;
 public final class CivilizationRuntime {
     private static final String MEMORY = "hearthbound.civilization.v1";
     private static final String STORAGE = "hearthbound_colony_tasks_v1";
+    private static final String HAUL_WORLD = "colonyWorldId";
     private CivilizationRuntime() {}
 
     private static final class ColonyData extends SavedData {
@@ -459,6 +460,68 @@ public final class CivilizationRuntime {
             })));
     }
 
+    /**
+     * Called after a motor has inserted its cargo and released its source claim.
+     * Completing an already owned task is independent of whether new dispatch
+     * is enabled, and must not depend on a future entity tick. Failure here can
+     * only leave bookkeeping incomplete; it never retries physical inventory.
+     */
+    static void physicalCompleted(ServerLevel level, Villager citizen) {
+        try {
+            reconcileCompleted(level, citizen);
+        } catch (RuntimeException invalidCompletion) {
+            org.apache.logging.log4j.LogManager.getLogger().warn(
+                "Colony completion bookkeeping rejected for citizen {}",
+                citizen == null ? null : citizen.getUUID(), invalidCompletion);
+        }
+    }
+
+    private static boolean reconcileCompleted(ServerLevel level, Villager citizen) {
+        if (level == null || citizen == null || citizen.level() != level)
+            throw new IllegalArgumentException("Foreign physical completion world");
+        CompoundTag haul = citizen.getPersistentData().getCompound("hearthbound.haul");
+        if (!haul.hasUUID("jobId")) return false;
+        UUID job = haul.getUUID("jobId");
+        ColonyData board = data(level);
+        // Direct/operator jobs have no matching colony ownership. Do not
+        // reconstruct an assignment or touch their inventory/motor state.
+        Task owned = board.tasks.snapshot().stream()
+            .filter(t -> job.equals(t.job()) && citizen.getUUID().equals(t.owner()))
+            .findFirst().orElse(null);
+        if (owned == null) return false;
+        if (owned.state() != State.ASSIGNED && owned.state() != State.DONE) return false;
+        UUID world = HearthboundWorldIdentity.get(level);
+        // New colony assignments carry their world identity with the motor.
+        // Legacy receipts are already scoped by this world's persisted board
+        // plus the exact owner/job/endpoints/time binding below.
+        if (haul.contains(HAUL_WORLD) && !haul.hasUUID(HAUL_WORLD))
+            throw new IllegalArgumentException("Malformed colony world binding");
+        UUID receiptWorld = haul.hasUUID(HAUL_WORLD) ? haul.getUUID(HAUL_WORLD) : world;
+        var assignment = SableHauling.completedAssignment(level, citizen, job,
+            BlockPos.of(owned.destination()));
+        long delivered = haul.getLong("physicalDeliveredTick");
+        Task completed = board.tasks.finishVerified(world,
+            level.dimension().location().toString(), level.getGameTime(),
+            new ColonyTaskQueue.Completion(receiptWorld,
+                level.dimension().location().toString(), assignment.citizen(),
+                assignment.job(), assignment.source(), assignment.destination(),
+                assignment.assignedTick(), delivered));
+        if (completed == null) return false;
+        if (owned.state() != State.DONE) board.setDirty();
+        // The bounded research history remains a separate observer. A missing,
+        // conflicting or previous-session entry never authorizes motor replay.
+        try {
+            if (board.decisionHistory.complete(job, citizen.getUUID(),
+                    SourceReportSession.episode(level), delivered,
+                    assignment.source(), assignment.destination()))
+                board.setDirty();
+        } catch (RuntimeException invalidHistory) {
+            org.apache.logging.log4j.LogManager.getLogger().warn(
+                "Colony history incomplete for completed physical job {}", job, invalidHistory);
+        }
+        return true;
+    }
+
     /** Called for idle, marked citizens on the authoritative server thread. */
     public static boolean tick(ServerLevel level, Villager citizen) {
         ColonyData board = data(level);
@@ -472,26 +535,13 @@ public final class CivilizationRuntime {
             if (assigned.state() == State.ASSIGNED) {
                 if (SableHauling.completedJob(citizen, assigned.job(),
                         BlockPos.of(assigned.destination()))) {
-                    board.tasks.finish(assigned.id(), citizenId, assigned.job());
-                    board.setDirty();
-                    // Research history is read-only. Never retry, cancel or
-                    // mutate physical work on an observation-log error.
                     try {
-                        CompoundTag haul = citizen.getPersistentData()
-                            .getCompound("hearthbound.haul");
-                        if (haul.contains("physicalDeliveredTick", Tag.TAG_LONG)) {
-                            var assignment = SableHauling.completedAssignment(level, citizen,
-                                assigned.job(), BlockPos.of(assigned.destination()));
-                            if (board.decisionHistory.complete(assigned.job(), citizenId,
-                                    SourceReportSession.episode(level),
-                                    haul.getLong("physicalDeliveredTick"),
-                                    assignment.source(), assignment.destination()))
-                                board.setDirty();
-                        }
-                    } catch (RuntimeException invalidHistory) {
+                        if (!reconcileCompleted(level, citizen)) return true;
+                    } catch (RuntimeException invalidCompletion) {
                         org.apache.logging.log4j.LogManager.getLogger().warn(
-                            "Colony history incomplete for completed physical job {}",
-                            assigned.job(), invalidHistory);
+                            "Colony completion bookkeeping rejected for physical job {}",
+                            assigned.job(), invalidCompletion);
+                        return true;
                     }
                 } else if (!SableHauling.active(citizen)) {
                     board.tasks.hold(assigned.id(), citizenId);
@@ -609,6 +659,7 @@ public final class CivilizationRuntime {
                 throw new IllegalStateException("Physical assignment identity absent");
             board.tasks.assign(reserved.id(), citizenId,
                     haul.getUUID("jobId"), haul.getLong("assignedTick"));
+            haul.putUUID(HAUL_WORLD, HearthboundWorldIdentity.get(level));
             board.setDirty();
             CompoundTag memory = citizen.getPersistentData().getCompound(MEMORY);
             memory.putString("schema", "hearthbound.civilization.v3");

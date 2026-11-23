@@ -414,6 +414,9 @@ public final class SableHauling {
                 tag.putLong(DELIVERED_TICK, level.getGameTime());
                 tag.putInt(PHASE, COMPLETE);
                 HaulClaims.release(level, claimedSource, citizen.getUUID());
+                // Reconcile the owned colony task now: a completed citizen
+                // can leave entity-ticking range before its next idle cycle.
+                CivilizationRuntime.physicalCompleted(level, citizen);
                 CitizenCommunicationRecords.physicalCompleted(level, citizen);
             } else {
                 tag.put(CARGO, remaining.save(new CompoundTag()));

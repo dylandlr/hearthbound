@@ -1,0 +1,95 @@
+name: Real Forge colony completion with dispatch disabled
+on:
+  pull_request:
+    paths:
+      - 'src/main/java/dev/hearthbound/civilization/**'
+      - 'src/test/java/dev/hearthbound/civilization/**'
+      - 'src/main/java/dev/hearthbound/world/CivilizationRuntime.java'
+      - 'src/main/java/dev/hearthbound/world/SableHauling.java'
+      - 'src/main/java/dev/hearthbound/world/SableController.java'
+      - 'scripts/rcon_colony_completion_boundary.py'
+      - 'scripts/test_colony_completion_boundary.py'
+      - 'scripts/rcon_neural_report_haul.py'
+      - 'scripts/run_colony_reliability_trial.py'
+      - '.github/workflows/real-colony-completion-boundary.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  completion-boundary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      HEARTHBOUND_EXPECTED_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.8'}
+      - name: Verify completion contracts and compile Forge
+        run: |
+          test "$(git rev-parse HEAD)" = "$HEARTHBOUND_EXPECTED_COMMIT"
+          python3 -m py_compile scripts/rcon_colony_completion_boundary.py
+          python3 -m unittest discover -s scripts -p test_colony_completion_boundary.py -v
+          python3 scripts/test-civilization-contracts.py
+          gradle --no-daemon compileJava compileTestJava > colony-completion-boundary-compile.log 2>&1 || (tail -n 120 colony-completion-boundary-compile.log; exit 1)
+      - name: Finish two owned jobs while disabled and retain them through restart
+        shell: bash
+        env:
+          HEARTHBOUND_RCON_PASSWORD: ci-disposable-completion-boundary
+        run: |
+          set -euo pipefail
+          mkdir -p run
+          test ! -e run/colony-completion-boundary-world
+          test ! -e run/server.properties
+          printf 'eula=true\n' > run/eula.txt
+          printf 'server-ip=127.0.0.1\nonline-mode=false\nlevel-name=colony-completion-boundary-world\nlevel-seed=completion-boundary-v1\nmax-players=2\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties
+          pid=''
+          trap 'if [ -n "$pid" ]; then kill -- "-$pid" 2>/dev/null || true; fi' EXIT
+          boot() {
+            local log="$1"
+            setsid gradle --no-daemon runServer > "$log" 2>&1 &
+            pid=$!
+            for i in $(seq 1 360); do
+              if grep -Eq 'Done \([0-9.]+s\)! For help, type "help"' "$log"; then
+                grep -Fq 'Hearthbound bootstrap loaded.' "$log"
+                return
+              fi
+              if ! kill -0 "$pid" 2>/dev/null; then tail -n 120 "$log"; return 1; fi
+              sleep 2
+            done
+            tail -n 120 "$log"
+            return 1
+          }
+          await_stop() {
+            for i in $(seq 1 90); do
+              if ! kill -0 "$pid" 2>/dev/null; then wait "$pid"; pid=''; return; fi
+              sleep 1
+            done
+            echo 'Server did not stop cleanly' >&2
+            return 1
+          }
+          boot colony-completion-boundary-first-server.log
+          python3 scripts/rcon_colony_completion_boundary.py before | tee colony-completion-boundary-before-rcon.log
+          grep -Fq 'COLONY_COMPLETION_BOUNDARY_PASS ' colony-completion-boundary-before-rcon.log
+          await_stop
+          boot colony-completion-boundary-second-server.log
+          python3 scripts/rcon_colony_completion_boundary.py after | tee colony-completion-boundary-after-rcon.log
+          grep -Fq 'COLONY_COMPLETION_BOUNDARY_RESTART_PASS ' colony-completion-boundary-after-rcon.log
+          await_stop
+          sha256sum colony-completion-boundary-*.json colony-completion-boundary-*.log > colony-completion-boundary-evidence.sha256
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: colony-completion-boundary-evidence
+          path: |
+            colony-completion-boundary-*.json
+            colony-completion-boundary-*.log
+            colony-completion-boundary-evidence.sha256
+            run/colony-completion-boundary-world/data/hearthbound_colony_tasks_v1.dat
+            run/colony-completion-boundary-world/data/hearthbound_world_identity_v1.dat
+            run/logs/latest.log
+          if-no-files-found: warn

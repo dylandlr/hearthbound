@@ -135,3 +135,14 @@ verifies false-pass rejection, failed/missing denominators, duplicate worlds,
 revision and seed mismatches, interval behavior, and actual binary NBT parsing.
 Those unit cases are synthetic test inputs and are never reported as live
 Minecraft trials.
+
+## Additional accounting event in v0.10
+
+The original three-of-four event remains frozen. The subsequent evaluator
+also reports `physical_delivery_accounting_event`: four physical deliveries,
+zero claims, and stable, plausible terminal task counts with `done<4` and
+`assigned>0`, after the full observation window. It has separate uncertainty
+and unknown-trial accounting. This captures the two-complete/two-assigned
+variant observed in the #212 cohort without redefining the original event.
+See [delivery reconciliation v0.10](COLONY_DELIVERY_RECONCILIATION_V0_10.md)
+for the retained baseline evidence, exact scope, and regression design.

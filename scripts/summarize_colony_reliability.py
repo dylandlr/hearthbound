@@ -97,6 +97,31 @@ def accounting_three_of_four(snapshot):
                     for key in ("audit_before", "audit_after")))
 
 
+def physical_delivery_accounting(snapshot):
+    """Additional prospective event; never redefine the original 3/1 event.
+
+    Return None when non-atomic probes disagree or fixture task counters cannot
+    describe its four one-item jobs. Such evidence cannot establish either the
+    presence or absence of this stable pending-assignment signature. The caller
+    additionally requires a complete observation window and valid provenance.
+    """
+    if not snapshot_valid(snapshot):
+        return None
+    before, after = snapshot["audit_before"], snapshot["audit_after"]
+    fields = ("done", "assigned", "held", "queued")
+    if any(before[field] != after[field] for field in fields):
+        return None
+    if sum(after[field] for field in fields) > 4:
+        return None
+    for audit in (before, after):
+        distinct = audit.get("distinct_completed_citizens")
+        if distinct is not None and (type(distinct) is not int
+                                     or not 0 <= distinct <= audit["done"]):
+            return None
+    return (physical_four(snapshot)
+            and after["done"] < 4 and after["assigned"] > 0)
+
+
 def diagnostic_flags(snapshot):
     """Descriptive terminal patterns; do not change preregistered pass/fail classes."""
     if not snapshot_valid(snapshot):
@@ -107,7 +132,7 @@ def diagnostic_flags(snapshot):
         flags.append("PHYSICAL_FOUR_TASK_THREE_ASSIGNED_ONE")
     if (physical_four(snapshot) and before["done"] == after["done"] == 4
             and before["assigned"] == after["assigned"] == 0
-            and after.get("distinct_completed_citizens") is not None
+            and type(after.get("distinct_completed_citizens")) is int
             and after["distinct_completed_citizens"] < 4):
         flags.append("FOUR_DELIVERIES_FEWER_THAN_FOUR_CITIZENS")
     if (not snapshot["destination_has_exact_four_wheat"]
@@ -215,6 +240,7 @@ def summarize(records, plan=PLAN, expected_commit=None):
         if record is None:
             normalized.append({**item, "status": "MISSING_RESULT",
                                "accounting_event_observed": None,
+                               "physical_delivery_accounting_event_observed": None,
                                "errors": ["no artifact for planned trial"]})
             continue
         invalid = result_errors(record, item, expected_commit)
@@ -239,6 +265,9 @@ def summarize(records, plan=PLAN, expected_commit=None):
                 if not invalid and snapshot_valid(record.get("terminal_snapshot")) else [],
             "accounting_event_observed": accounting_three_of_four(record["terminal_snapshot"])
                 if eligible else None,
+            "physical_delivery_accounting_event_observed":
+                physical_delivery_accounting(record["terminal_snapshot"])
+                if eligible else None,
             "errors": invalid,
         })
     if len(commits) > 1:
@@ -250,6 +279,7 @@ def summarize(records, plan=PLAN, expected_commit=None):
     if errors:
         for trial in normalized:
             trial["accounting_event_observed"] = None
+            trial["physical_delivery_accounting_event_observed"] = None
     diagnostic_counts = Counter(flag for item in normalized
                                 for flag in item.get("diagnostic_flags", []))
     count = Counter(item["status"] for item in normalized)
@@ -257,6 +287,11 @@ def summarize(records, plan=PLAN, expected_commit=None):
     assessed = sum(item["accounting_event_observed"] is not None for item in normalized)
     total = len(plan)
     unknown = total - assessed
+    physical_observed = sum(item["physical_delivery_accounting_event_observed"] is True
+                            for item in normalized)
+    physical_assessed = sum(item["physical_delivery_accounting_event_observed"] is not None
+                            for item in normalized)
+    physical_unknown = total - physical_assessed
     return {
         "schema": SUMMARY_SCHEMA,
         "planned_trials": total,
@@ -275,6 +310,19 @@ def summarize(records, plan=PLAN, expected_commit=None):
             "wilson_95_interval_among_assessable": wilson(observed, assessed),
             "planned_cohort_missingness_bounds": [observed / total, (observed + unknown) / total],
             "definition": "four physical deliveries, zero claims, done=3 and assigned=1 in both terminal audit reads",
+        },
+        "physical_delivery_accounting_event": {
+            "observed": physical_observed, "assessable_trials": physical_assessed,
+            "unknown_trials": physical_unknown, "planned_trials": total,
+            "frequency_among_assessable":
+                physical_observed / physical_assessed if physical_assessed else None,
+            "wilson_95_interval_among_assessable":
+                wilson(physical_observed, physical_assessed),
+            "planned_cohort_missingness_bounds":
+                [physical_observed / total, (physical_observed + physical_unknown) / total],
+            "definition": "four physical deliveries, zero claims, done<4 and assigned>0 with identical terminal task counters",
+            "assessment": "complete observation window; invalid, changing, or impossible four-job task counters are unknown",
+            "protocol": "additional prospective event; original three-of-four definition and denominator unchanged",
         },
         "limits": {
             "original_reliability_issue_resolved": False,
