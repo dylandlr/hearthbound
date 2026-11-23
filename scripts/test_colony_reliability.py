@@ -14,7 +14,7 @@ import unittest
 from run_colony_reliability_trial import NbtReader, world_evidence
 from summarize_colony_reliability import (
     PLAN, TRIAL_SCHEMA, accounting_three_of_four, classified_status,
-    counters, diagnostic_flags, summarize, wilson,
+    counters, diagnostic_flags, physical_delivery_accounting, summarize, wilson,
 )
 
 COMMIT = "a" * 40
@@ -112,6 +112,114 @@ class CohortTests(unittest.TestCase):
         self.assertEqual((event["observed"], event["assessable_trials"]), (1, 5))
         self.assertEqual(event["frequency_among_assessable"], 0.2)
         self.assertEqual(result["statuses"]["ACCOUNTING_THREE_OF_FOUR"], 1)
+
+    def test_additional_accounting_event_includes_two_pending_jobs(self):
+        self.records[0] = record(PLAN[0], done=2, assigned=2)
+        self.records[1] = record(PLAN[1], done=3, assigned=1)
+        result = summarize(self.records)
+        event = result["physical_delivery_accounting_event"]
+        self.assertEqual((event["observed"], event["assessable_trials"],
+                          event["unknown_trials"]), (2, 5, 0))
+        self.assertEqual(event["frequency_among_assessable"], 0.4)
+        self.assertEqual(event["wilson_95_interval_among_assessable"], wilson(2, 5))
+        self.assertEqual(event["planned_cohort_missingness_bounds"], [0.4, 0.4])
+        # Both original classifications and the narrow estimator stay intact.
+        self.assertEqual(result["statuses"], {
+            "ACCOUNTING_THREE_OF_FOUR": 1, "PASS": 3, "TASK_ACCOUNTING_MISMATCH": 1,
+        })
+        original = result["three_of_four_accounting_event"]
+        self.assertEqual((original["observed"], original["assessable_trials"]), (1, 5))
+        self.assertEqual(original["frequency_among_assessable"], 0.2)
+        self.assertEqual([t["physical_delivery_accounting_event_observed"]
+                          for t in result["trials"]], [True, True, False, False, False])
+
+    def test_accounted_and_incomplete_physical_work_are_not_pending_delivery_event(self):
+        missing = record(PLAN[0], done=3, assigned=0)
+        missing["terminal_snapshot"]["destination_has_exact_four_wheat"] = False
+        missing["terminal_snapshot"]["source_wheat_absent"][0] = False
+        missing["status"] = "FIXTURE_ASSERTION_FAILURE"
+        distinct = record(PLAN[1])
+        distinct.update(fixture_passed=False, status="FIXTURE_ASSERTION_FAILURE",
+                        error_type="AssertionError")
+        for key in ("audit_before", "audit_after"):
+            distinct["terminal_snapshot"][key]["distinct_completed_citizens"] = 3
+        self.records[:2] = [missing, distinct]
+        result = summarize(self.records)
+        event = result["physical_delivery_accounting_event"]
+        self.assertEqual((event["observed"], event["assessable_trials"]), (0, 5))
+        self.assertFalse(result["all_trials_passed"])
+        # An early participation assertion is still unknown under the existing
+        # full-window rule, even though the physical/accounting probes succeeded.
+        self.records[1]["observation_window_completed"] = False
+        result = summarize(self.records)
+        self.assertEqual(result["physical_delivery_accounting_event"]["unknown_trials"], 1)
+        self.assertEqual(result["three_of_four_accounting_event"]["unknown_trials"], 1)
+
+    def test_additional_event_requires_stable_terminal_task_counters(self):
+        for change in ({"done": 3, "assigned": 1}, {"held": 1}, {"queued": 1}):
+            with self.subTest(change=change):
+                item = record(PLAN[0], done=2, assigned=2)
+                item["terminal_snapshot"]["audit_after"].update(change)
+                result = summarize([item], plan=PLAN[:1])
+                self.assertEqual(result["statuses"], {"TASK_ACCOUNTING_MISMATCH": 1})
+                self.assertEqual(result["physical_delivery_accounting_event"]["unknown_trials"], 1)
+                self.assertIsNone(result["physical_delivery_accounting_event"]["frequency_among_assessable"])
+                # This additional conservative denominator does not rewrite the
+                # original estimator's eligibility for the same complete trial.
+                self.assertEqual(result["three_of_four_accounting_event"]["assessable_trials"], 1)
+
+    def test_impossible_fixture_counts_are_unknown_only_in_additional_estimator(self):
+        for change in ({"done": 5, "assigned": 0}, {"assigned": 3}, {"held": 1}):
+            with self.subTest(change=change):
+                item = record(PLAN[0], done=2, assigned=2)
+                for key in ("audit_before", "audit_after"):
+                    item["terminal_snapshot"][key].update(change)
+                result = summarize([item], plan=PLAN[:1])
+                self.assertEqual(result["physical_delivery_accounting_event"]["unknown_trials"], 1)
+                self.assertEqual(result["three_of_four_accounting_event"]["assessable_trials"], 1)
+
+    def test_malformed_task_counters_cannot_be_counted_as_negative_events(self):
+        for value in (None, "2", True, -1):
+            with self.subTest(value=value):
+                item = record(PLAN[0], done=2, assigned=2)
+                item["terminal_snapshot"]["audit_after"]["done"] = value
+                result = summarize([item], plan=PLAN[:1])
+                self.assertEqual(result["statuses"], {"INVALID_EVIDENCE": 1})
+                self.assertEqual(result["physical_delivery_accounting_event"]["unknown_trials"], 1)
+        for value in ("three", True, -1, 5):
+            with self.subTest(distinct=value):
+                snap = snapshot()
+                snap["audit_after"]["distinct_completed_citizens"] = value
+                self.assertIsNone(physical_delivery_accounting(snap))
+                # Diagnostic parsing must not crash on malformed optional input.
+                diagnostic_flags(snap)
+
+    def test_additional_event_missing_and_invalid_worlds_retain_uncertainty(self):
+        self.records[0] = record(PLAN[0], done=2, assigned=2)
+        self.records[1]["artifact_validation_errors"] = ["retained log missing"]
+        self.records[2].update(status="INFRASTRUCTURE_FAILURE", fixture_passed=False,
+                               observation_window_completed=False, terminal_snapshot=None,
+                               world={}, error_type="TimeoutError")
+        result = summarize(self.records[:4])
+        event = result["physical_delivery_accounting_event"]
+        self.assertEqual((event["observed"], event["assessable_trials"],
+                          event["unknown_trials"]), (1, 2, 3))
+        self.assertEqual(event["planned_cohort_missingness_bounds"], [0.2, 0.8])
+        self.assertEqual(event["wilson_95_interval_among_assessable"], wilson(1, 2))
+        self.assertIsNone(result["trials"][-1]["physical_delivery_accounting_event_observed"])
+
+    def test_additional_event_cannot_pool_invalid_cohorts(self):
+        cohorts = [self.records + [copy.deepcopy(self.records[0])]]
+        for field, value in (("source_commit", "c" * 40), ("protocol_sha256", "d" * 64)):
+            records = copy.deepcopy(self.records)
+            records[0][field] = value
+            cohorts.append(records)
+        for records in cohorts:
+            result = summarize(records)
+            event = result["physical_delivery_accounting_event"]
+            self.assertEqual((event["observed"], event["assessable_trials"],
+                              event["unknown_trials"]), (0, 0, 5))
+            self.assertEqual(event["planned_cohort_missingness_bounds"], [0.0, 1.0])
 
     def test_missing_world_is_never_dropped(self):
         result = summarize(self.records[:4])

@@ -23,6 +23,24 @@ public final class ColonyTaskQueue {
                 throw new IllegalArgumentException("Assignment requires a physical job");
         }
     }
+
+    /**
+     * A completed motor receipt supplied by the authoritative world adapter.
+     * This value does not inspect inventories or establish physical success by
+     * itself; the caller must first validate the actual completed executor job.
+     */
+    public record Completion(UUID world, String dimension, UUID citizen, UUID job,
+                             long source, long destination, long assignedTick,
+                             long deliveredTick) {
+        public Completion {
+            Objects.requireNonNull(world);
+            Objects.requireNonNull(citizen);
+            Objects.requireNonNull(job);
+            if (dimension == null || dimension.isBlank() || source == destination
+                    || assignedTick < 0 || deliveredTick < assignedTick)
+                throw new IllegalArgumentException("Invalid motor completion receipt");
+        }
+    }
     private final List<Task> tasks = new ArrayList<>();
     private long nextId = 1;
     public synchronized Task enqueue(String dimension, long source, long destination) {
@@ -89,6 +107,39 @@ public final class ColonyTaskQueue {
                 State.DONE, citizen, physicalJob, current.assignedTick());
         replace(next);
         return next;
+    }
+
+    /**
+     * Idempotently reconcile assignment state at a physical completion boundary.
+     * Valid replay of the same assignment returns the unchanged DONE task.
+     * Tasks do not retain a delivery timestamp: this method checks its chronology,
+     * while CitizenDecisionHistory separately retains the timestamp and rejects
+     * conflicting completion-time replay. Unrelated jobs and uncertain
+     * HELD/RESERVED work are never created, assigned, resumed or credited here.
+     */
+    public synchronized Task finishVerified(UUID world, String dimension, long now,
+                                             Completion receipt) {
+        Objects.requireNonNull(receipt);
+        if (!receipt.world().equals(world) || !receipt.dimension().equals(dimension)
+                || now < 0 || receipt.deliveredTick() > now)
+            throw new IllegalArgumentException("Foreign or future motor completion");
+        Task matched = null;
+        for (Task task : tasks) {
+            if (!receipt.job().equals(task.job())) continue;
+            if (matched != null)
+                throw new IllegalArgumentException("Ambiguous physical job binding");
+            matched = task;
+        }
+        if (matched == null) return null;
+        if (!matched.dimension().equals(dimension)
+                || !receipt.citizen().equals(matched.owner())
+                || receipt.source() != matched.source()
+                || receipt.destination() != matched.destination()
+                || receipt.assignedTick() != matched.assignedTick())
+            throw new IllegalArgumentException("Completion differs from owned assignment");
+        if (matched.state() == State.DONE) return matched;
+        if (matched.state() != State.ASSIGNED) return null;
+        return finish(matched.id(), receipt.citizen(), receipt.job());
     }
     public synchronized Task hold(long id, UUID citizen) {
         Task current = ownedAny(id, citizen);
