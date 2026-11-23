@@ -7,6 +7,8 @@ on:
     paths:
       - 'scripts/rcon_sable_first_mill.py'
       - 'scripts/rcon_outcome_restart_acceptance.py'
+      - 'scripts/outcome_restart_identity.py'
+      - 'scripts/test_outcome_restart_identity.py'
       - '.github/workflows/real-outcome-restart.yml'
       - 'src/main/java/dev/hearthbound/world/**'
       - 'src/main/java/dev/hearthbound/evidence/VerifiedMillLearning.java'
@@ -34,6 +36,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m py_compile scripts/rcon_sable_first_mill.py scripts/rcon_outcome_restart_acceptance.py
+          python3 -m unittest discover -s scripts -p test_outcome_restart_identity.py -v
           mkdir -p run
           printf 'eula=true\n' > run/eula.txt
           printf 'online-mode=false\nlevel-name=real-causal-outcome-restart\nmax-players=2\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties

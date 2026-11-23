@@ -228,7 +228,46 @@ send/message/event records remain available for inspecting any aggregate count.
 Long RCON responses are collected completely before the next observation. The
 client sends its read-only delimiter only after receiving the command's first
 response, checks request identity and bounds, and does not replay failed
-commands. Existing fixture clients are unchanged.
+commands. Terminal shutdown uses a single `stop` request without queuing a
+delimiter behind it. Existing fixture clients are unchanged.
+
+## Retained first live attempt
+
+The initial revision `dde42d15075248c4b45f1c344ada4910c5dbdc68`, protocol
+`bd00b4dd32a31bae78207f1f1b214603679411b164a4c6865d913f573f97de07`, produced
+**zero valid performance worlds out of six planned**, with zero completed
+pairs. All five worlds that booted stopped during fixture setup, before any
+worker was enrolled or measured: the weather check rejected Minecraft's actual
+successful response, `Set the weather to clear`. The sixth world failed Forge
+dependency resolution before starting Minecraft. These are unavailable
+performance measurements, not zero-output observations.
+
+[The original run](https://github.com/dylandlr/hearthbound/actions/runs/45232725636)
+and [complete-denominator summary artifact](https://github.com/dylandlr/hearthbound/actions/runs/45232725636/artifacts/14846474629)
+remain retained. All seven artifact ZIP digests and 28 internal file digests were
+verified, and the original summary was reproduced exactly with the frozen
+original code. No member of that cohort reached its measured horizon.
+
+Follow-up fixture corrections accept the captured weather response, send no
+extra command after terminal shutdown, and preserve the first failure separately
+from cleanup or missing-final-snapshot errors. The first isolated-world cleanup
+log showed completed saves followed by the server waiting for its RCON client;
+the old client had queued a `list` request behind `stop`. The clean-exit gate and
+timeouts remain unchanged. Corrected code and protocol require a separate
+cohort; they do not relabel the original attempts as passing.
+
+The same validation round exposed an independent identity problem in the
+existing outcome-restart fixture. Its first post-restart receipt and journal
+matched the original executor exactly, but its repeated fixed-position query
+selected a different nearby Sable and correctly returned `FOREIGN_CITIZEN`.
+The second Sable was deliberately present for the original foreign-owner
+negative test. This was not a demonstrated idempotence failure for the same
+executor; the archived evidence does not distinguish movement from a distance
+tie. The fixture correction binds actor-scoped queries to the checkpoint UUID,
+waits read-only for that original entity, and preserves the exact evidence,
+idempotence, wrong-job, foreign-owner, and revocation checks. No production
+journal behavior changes. The [original failed artifact](https://github.com/dylandlr/hearthbound/actions/runs/45232725718/artifacts/14845839719)
+remains available separately.
 
 ## Research connections
 

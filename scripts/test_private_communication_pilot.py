@@ -3,8 +3,12 @@
 import contextlib
 import copy
 import io
+import json
+from pathlib import Path
 import struct
+import tempfile
 import unittest
+from unittest.mock import patch
 from uuid import NAMESPACE_URL, uuid5
 
 from private_communication_protocol import (
@@ -13,10 +17,11 @@ from private_communication_protocol import (
 )
 from rcon_private_communication_trial import (
     MultipartRcon, SETUP_COMMANDS, actor_witness, inventory, packed, read_frame,
-    source_key, uuid_ints, validate_communication, validate_trial,
+    source_key, uuid_ints, validate_communication, validate_setup_response, validate_trial,
 )
 from rcon_two_citizen_haul_acceptance import packet
 from summarize_private_communication_pilot import paired_summary
+import run_private_communication_trial as runner
 
 
 def identity(label):
@@ -84,7 +89,7 @@ def zero_output_fixture(arm="NO_MESSAGES", seed=SEEDS[0]):
         elif command.startswith("time "):
             response = "Set the time to 6000"
         elif command.startswith("weather "):
-            response = "Changing to clear weather"
+            response = "Set the weather to clear\n"
         elif command.startswith("forceload "):
             response = "Marked chunks as force loaded"
         else:
@@ -195,6 +200,14 @@ class FragmentSocket:
 
 
 class TransportTests(unittest.TestCase):
+    def test_terminal_stop_never_queues_a_command_behind_shutdown(self):
+        response = packet(10, 0, "Stopping the server\n")
+        sock = FragmentSocket(response, split=2)
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(MultipartRcon(sock).stop_server(), "Stopping the server\n")
+        self.assertEqual(sock.sent, [(packet(10, 2, "stop"), 0)])
+        self.assertEqual(sock.data, b"")
+
     def test_large_multipart_response_and_two_sequential_commands(self):
         first, middle, last = "begin:", "x" * 5000, ":end"
         first_packet = packet(10, 0, first)
@@ -236,6 +249,115 @@ class TransportTests(unittest.TestCase):
             MultipartRcon(FragmentSocket(data, split=100_000)).run("audit")
 
 
+class RunnerFailureRetentionTests(unittest.TestCase):
+    def run_synthetic(self, fixture_error=None, metadata_error=None, wrong_world=False, exit_code=0):
+        """Exercise actual result/ledger writing with mocked external process I/O."""
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        repo = Path(temporary.name)
+        output = repo / "evidence"
+        output.mkdir()
+        planned = dict(PLAN[0], source_commit="a" * 40, source_tree="b" * 40,
+                       protocol_sha256="c" * 64, matched_initial_manifest_sha256="d" * 64)
+        (output / "planned-trial.json").write_text(json.dumps(planned))
+        saved_world = identity("runner-saved-world")
+
+        class Process:
+            returncode = None
+            def poll(self):
+                return self.returncode
+
+        process = Process()
+        terminal_calls = []
+
+        def launch(*args, **kwargs):
+            kwargs["stdout"].write('Hearthbound bootstrap loaded.\nDone (1.0s)! For help, type "help"\n')
+            kwargs["stdout"].flush()
+            world = repo / "run" / ("private-communication-" + planned["trial_id"])
+            (world / "data").mkdir(parents=True)
+            (world / "level.dat").write_bytes(b"captured level metadata")
+            (world / "data/hearthbound_world_identity_v1.dat").write_bytes(b"captured identity metadata")
+            return process
+
+        class Connection:
+            def require(self, command, expected):
+                terminal_calls.append(command)
+                if command != "save-all flush":
+                    raise AssertionError("Unexpected command in runner stub")
+                return "Saved the game\n"
+
+            def stop_server(self):
+                terminal_calls.append("stop")
+                return "Stopping the server\n"
+
+        @contextlib.contextmanager
+        def connect(password):
+            yield Connection()
+
+        def fixture(rcon, seed, arm, data):
+            if fixture_error is not None:
+                raise fixture_error
+            data["final"] = {"world": identity("wrong-world") if wrong_world else saved_world}
+
+        def metadata(*args):
+            if metadata_error is not None:
+                raise metadata_error
+            return {"world_uuid": saved_world, "generated_seed": planned["seed"]}
+
+        with patch.object(runner, "plan_document", return_value=planned), \
+             patch.object(runner.subprocess, "Popen", side_effect=launch), \
+             patch.object(runner, "connection", side_effect=connect), \
+             patch.object(runner, "run_trial", side_effect=fixture), \
+             patch.object(runner, "capture_diagnostics"), \
+             patch.object(runner, "stop_process", side_effect=lambda child: setattr(child, "returncode", exit_code)), \
+             patch.object(runner, "world_evidence", side_effect=metadata), \
+             patch.dict(runner.os.environ, {"HEARTHBOUND_EXPECTED_COMMIT": planned["source_commit"]}), \
+             contextlib.redirect_stdout(io.StringIO()):
+            result = runner.run(repo, planned["trial_id"], output)
+        self.assertEqual(json.loads((output / "trial-result.json").read_text()), result)
+        ledger = json.loads((output / "evidence-sha256.json").read_text())
+        self.assertIn("trial-result.json", ledger["files"])
+        self.assertIn("world-metadata/level.dat", ledger["files"])
+        self.assertEqual(terminal_calls, ["save-all flush", "stop"])
+        return result
+
+    def test_early_setup_failure_preserves_primary_status_and_phase_without_final_scope(self):
+        error = ValueError("captured early setup failure")
+        result = self.run_synthetic(fixture_error=error)
+        self.assertEqual((result["status"], result["phase"], result["error_type"], result["error"]),
+                         ("INVALID_OBSERVATION", "FIXTURE", "ValueError", str(error)))
+        self.assertEqual(result["failure_phase"], "FIXTURE")
+        self.assertEqual(result["secondary_errors"], [])
+        self.assertTrue(result["clean_server_exit"])
+        self.assertIsNotNone(result["world"])
+        self.assertFalse(result["protocol_valid"])
+
+    def test_secondary_metadata_failure_does_not_replace_setup_failure(self):
+        result = self.run_synthetic(fixture_error=ValueError("original fixture error"),
+                                    metadata_error=FileNotFoundError("missing saved identity"))
+        self.assertEqual(result["status"], "INVALID_OBSERVATION")
+        self.assertEqual(result["phase"], "FIXTURE")
+        self.assertEqual(result["error"], "original fixture error")
+        self.assertEqual(result["secondary_errors"], [{"status": "EVIDENCE_FAILURE", "phase": "WORLD_METADATA",
+                         "error_type": "FileNotFoundError", "error": "missing saved identity"}])
+
+    def test_unclean_shutdown_is_secondary_to_fixture_failure_and_keeps_metadata(self):
+        result = self.run_synthetic(fixture_error=ValueError("original fixture error"), exit_code=-15)
+        self.assertEqual(result["status"], "INVALID_OBSERVATION")
+        self.assertEqual(result["phase"], "FIXTURE")
+        self.assertEqual(result["server_exit_code"], -15)
+        self.assertFalse(result["clean_server_exit"])
+        self.assertIsNotNone(result["world"])
+        self.assertEqual(result["secondary_errors"][0]["phase"], "CLEAN_STOP")
+
+    def test_actual_final_scope_mismatch_is_still_an_evidence_failure(self):
+        result = self.run_synthetic(wrong_world=True)
+        self.assertEqual(result["status"], "EVIDENCE_FAILURE")
+        self.assertEqual(result["phase"], "WORLD_METADATA")
+        self.assertIn("Runtime world UUID differs", result["error"])
+        self.assertFalse(result["protocol_valid"])
+
+
 class FixedReply:
     def __init__(self, response):
         self.response = response
@@ -247,6 +369,14 @@ class FixedReply:
 
 
 class NativeWitnessTests(unittest.TestCase):
+    def test_captured_forge_weather_reply_is_accepted_and_unknown_text_rejected(self):
+        # Captured from every initial PR216 pilot setup, before actors/start.
+        validate_setup_response("weather clear", "Set the weather to clear\n")
+        for response in ("Changing to clear weather", "Set the weather to rain\n",
+                         "Unknown or incomplete command\n", "An unexpected error occurred\n"):
+            with self.subTest(response=response), self.assertRaisesRegex(ValueError, "Failed weather setup"):
+                validate_setup_response("weather clear", response)
+
     def test_actual_empty_and_wheat_snbt_inventory_shapes(self):
         for payload, count in (("[]", 0), ('[{Slot: 0b, id: "minecraft:wheat", Count: 2b}]', 2),
                                ('[{Count: 4b, Slot: 0b, id: "minecraft:wheat"}]', 4)):

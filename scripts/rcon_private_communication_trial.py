@@ -120,6 +120,22 @@ class MultipartRcon:
                 f"Expected {expected!r}: {command}: {response}")
         return response
 
+    def stop_server(self):
+        """Terminal command: never queue a delimiter behind server shutdown.
+
+        The server thread joins its RCON thread while stopping. A queued `list`
+        can leave that thread waiting for the stopped server to execute it.
+        The caller closes this connection immediately after the first reply.
+        """
+        request_id = self.next_id
+        self.next_id += 1
+        self.sock.sendall(packet(request_id, 2, "stop"))
+        actual, kind, response = read_frame(self.sock)
+        require(actual == request_id and kind == 0, "Invalid terminal RCON response")
+        require("Stopping the server" in response, "Unexpected terminal RCON acknowledgement")
+        print("PRIVATE_COMMUNICATION_RCON command='stop' response=" + repr(response), flush=True)
+        return response
+
 
 @contextlib.contextmanager
 def connection(password):
@@ -291,7 +307,7 @@ def validate_setup_response(command, response):
     elif command.startswith("time "):
         require("Set the time to 6000" in response, "Failed clock setup: " + response)
     elif command.startswith("weather "):
-        require("Changing to clear weather" in response, "Failed weather setup: " + response)
+        require(response.strip() == "Set the weather to clear", "Failed weather setup: " + response)
     elif command.startswith("forceload "):
         require("force loaded" in response, "Failed chunk setup: " + response)
     else:

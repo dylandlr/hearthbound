@@ -35,6 +35,39 @@ def evidence_ledger(output):
         "schema": "hearthbound.private-communication-evidence-digests.v1", "files": files})
 
 
+def advance_phase(result, phase):
+    """Preserve the original failure phase while cleanup continues."""
+    result["last_runner_phase"] = phase
+    if result["error_type"] is None:
+        result["phase"] = phase
+
+
+def record_error(result, status, phase, error):
+    entry = {"status": status, "phase": phase,
+             "error_type": type(error).__name__, "error": str(error)}
+    result["protocol_valid"] = False
+    if result["error_type"] is None:
+        result.update(entry)
+        result["failure_phase"] = phase
+    else:
+        result.setdefault("secondary_errors", []).append(entry)
+
+
+def capture_world_metadata(result, world_dir, level_name, seed, output):
+    """Saved world evidence remains useful even when setup never reached start."""
+    metadata = output / "world-metadata"
+    metadata.mkdir(exist_ok=False)
+    for source, target in ((world_dir / "level.dat", "level.dat"),
+                           (world_dir / "data/hearthbound_world_identity_v1.dat", "hearthbound_world_identity_v1.dat"),
+                           (world_dir / "data/hearthbound_citizen_communication_v1.dat", "hearthbound_citizen_communication_v1.dat")):
+        if source.exists():
+            shutil.copyfile(source, metadata / target)
+    result["world"] = world_evidence(world_dir, level_name, seed)
+    final = result["fixture"].get("final")
+    if final is not None and final.get("world") != result["world"]["world_uuid"]:
+        raise ValueError("Runtime world UUID differs from independently saved world identity")
+
+
 def capture_diagnostics(rcon, data):
     diagnostics = {"partial": True, "not_promoted_to_valid_observation": True}
     readers = {"runtime": lambda: runtime(rcon), "actors": lambda: pages(rcon, "actors"),
@@ -73,7 +106,7 @@ def run(repo, trial_id, output, boot_timeout=720):
         "status": "STARTING", "phase": "PREFLIGHT", "fresh_world_directory": False,
         "behavioral_retries": 0, "planned_worlds": 6, "planned_pairs": 3,
         "protocol_valid": False, "world": None, "fixture": {},
-        "error_type": None, "error": None,
+        "error_type": None, "error": None, "secondary_errors": [],
         "communication_win_required": False, "causal_benefit_established": False,
         "learned_collaboration": False, "reward_authorized": False,
     }
@@ -83,7 +116,8 @@ def run(repo, trial_id, output, boot_timeout=720):
     level_name = "private-communication-" + trial_id
     world_dir = run_dir / level_name
     server_log, rcon_log = output / "forge-server.log", output / "rcon.log"
-    process, ready, stopped = None, False, False
+    process, ready = None, False
+    result["last_runner_phase"] = "PREFLIGHT"
     password = secrets.token_hex(24)
     try:
         expected = os.environ.get("HEARTHBOUND_EXPECTED_COMMIT")
@@ -104,7 +138,8 @@ def run(repo, trial_id, output, boot_timeout=720):
                 raise ValueError("Existing EULA does not enable disposable server")
         else:
             eula.write_text("eula=true\n")
-        result.update(status="RUNNING", phase="BOOT")
+        result["status"] = "RUNNING"
+        advance_phase(result, "BOOT")
         write_result(result_path, result)
         with server_log.open("w") as log:
             process = subprocess.Popen(["gradle", "--no-daemon", "runServer"], cwd=repo,
@@ -122,7 +157,7 @@ def run(repo, trial_id, output, boot_timeout=720):
                 if time.monotonic() >= deadline:
                     raise TimeoutError("Forge readiness deadline exceeded")
                 time.sleep(2)
-            result["phase"] = "FIXTURE"
+            advance_phase(result, "FIXTURE")
             write_result(result_path, result)
             with rcon_log.open("w", buffering=1) as log, contextlib.redirect_stdout(log):
                 with connection(password) as rcon:
@@ -130,49 +165,57 @@ def run(repo, trial_id, output, boot_timeout=720):
                         run_trial(rcon, planned["seed"], planned["arm"], result["fixture"])
                         result.update(status="VALID_OBSERVATION", protocol_valid=True)
                     except Exception as error:
-                        result.update(status="INVALID_OBSERVATION", error_type=type(error).__name__, error=str(error))
+                        record_error(result, "INVALID_OBSERVATION", "FIXTURE", error)
                         traceback.print_exc(file=log)
                         capture_diagnostics(rcon, result["fixture"])
                     write_result(result_path, result)
-                    result["phase"] = "CLEAN_STOP"
-                    rcon.require("save-all flush", "Saved the game")
+                    advance_phase(result, "CLEAN_STOP")
                     try:
-                        rcon.run("stop")
+                        rcon.require("save-all flush", "Saved the game")
+                    except Exception as error:
+                        record_error(result, "EVIDENCE_FAILURE", "CLEAN_STOP", error)
+                    try:
+                        rcon.stop_server()
                     except (ConnectionError, OSError):
-                        pass  # The server may close before the read-only delimiter.
+                        pass  # Normal shutdown may close before its acknowledgement.
             stop_process(process)
-            stopped = process.returncode == 0
+            result["server_exit_code"] = process.returncode
+            result["clean_server_exit"] = process.returncode == 0
             process = None
-        result["clean_server_exit"] = stopped
-        if not stopped:
-            raise RuntimeError("Forge did not exit cleanly after final evidence save")
-        result["world"] = world_evidence(world_dir, level_name, planned["seed"])
-        metadata = output / "world-metadata"
-        metadata.mkdir(exist_ok=False)
-        for source, target in ((world_dir / "level.dat", "level.dat"),
-                               (world_dir / "data/hearthbound_world_identity_v1.dat", "hearthbound_world_identity_v1.dat"),
-                               (world_dir / "data/hearthbound_citizen_communication_v1.dat", "hearthbound_citizen_communication_v1.dat")):
-            if source.exists():
-                shutil.copyfile(source, metadata / target)
-        if result["fixture"].get("final", {}).get("world") != result["world"]["world_uuid"]:
-            raise ValueError("Runtime world UUID differs from independently saved world identity")
-        result["phase"] = "FINISHED"
+        if not result["clean_server_exit"]:
+            record_error(result, "EVIDENCE_FAILURE", "CLEAN_STOP",
+                         RuntimeError("Forge did not exit cleanly after final evidence save"))
     except Exception as error:
-        result["status"] = "INFRASTRUCTURE_FAILURE" if not ready else "EVIDENCE_FAILURE"
-        result["protocol_valid"] = False
-        result["runner_error"] = type(error).__name__ + ": " + str(error)
-        if result["error_type"] is None:
-            result["error_type"], result["error"] = type(error).__name__, str(error)
+        record_error(result, "INFRASTRUCTURE_FAILURE" if not ready else "EVIDENCE_FAILURE",
+                     result["last_runner_phase"], error)
     finally:
         if process is not None:
-            try:
-                with rcon_log.open("a") as log, contextlib.redirect_stdout(log):
-                    with connection(password) as rcon:
-                        rcon.run("save-all flush")
-                        rcon.run("stop")
-            except Exception:
-                pass
+            advance_phase(result, "CLEAN_STOP")
+            if process.poll() is None:
+                try:
+                    with rcon_log.open("a") as log, contextlib.redirect_stdout(log):
+                        with connection(password) as rcon:
+                            rcon.require("save-all flush", "Saved the game")
+                            try:
+                                rcon.stop_server()
+                            except (ConnectionError, OSError):
+                                pass
+                except Exception as error:
+                    record_error(result, "EVIDENCE_FAILURE", "CLEAN_STOP", error)
             stop_process(process)
+            result["server_exit_code"] = process.returncode
+            result["clean_server_exit"] = process.returncode == 0
+            if not result["clean_server_exit"]:
+                record_error(result, "EVIDENCE_FAILURE", "CLEAN_STOP",
+                             RuntimeError("Forge did not exit cleanly after final evidence save"))
+        if ready:
+            advance_phase(result, "WORLD_METADATA")
+            try:
+                capture_world_metadata(result, world_dir, level_name, planned["seed"], output)
+            except Exception as error:
+                record_error(result, "EVIDENCE_FAILURE", "WORLD_METADATA", error)
+        if result["error_type"] is None:
+            advance_phase(result, "FINISHED")
         for name, path in (("server_log_sha256", server_log), ("rcon_log_sha256", rcon_log)):
             if path.exists():
                 result[name] = hashlib.sha256(path.read_bytes()).hexdigest()

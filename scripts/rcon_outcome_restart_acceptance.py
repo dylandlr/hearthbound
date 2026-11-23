@@ -12,6 +12,7 @@ import socket
 import struct
 import uuid
 from pathlib import Path
+from outcome_restart_identity import checkpoint_identity, executor_command, wait_for_executor
 
 CHECKPOINT = Path("mill-outcome-pre-restart.json")
 assert CHECKPOINT.is_file(), "Missing first-phase outcome reference"
@@ -24,6 +25,12 @@ assert "reward_authorized=false learning_authorized=false NO_RESEARCH_CREDIT" in
 expected_journal = before["journal"]
 assert "CAUSAL_EVIDENCE_JOURNAL state=ADMITTED revalidated=true" in expected_journal
 assert "reward_authorized=false learning_authorized=false NO_RESEARCH_CREDIT" in expected_journal
+original = checkpoint_identity(before)
+assert original.job == job
+
+
+def owned(command):
+    return executor_command(original.citizen, command)
 
 def packet(seq, kind, command):
     body=struct.pack("<ii",seq,kind)+command.encode()+b"\0\0"
@@ -70,28 +77,29 @@ class Rcon:
 
 with Rcon() as r:
     r.run("forceload add 0 0")
-    presence=r.run("execute if entity @e[type=minecraft:villager,name=Sable]")
-    if "Test passed" not in presence:
-        raise AssertionError("Sable not loaded after server restart")
+    wait_for_executor(r, original.citizen)
     raw=r.run(f"sable mill-process {job}")
     if "MILL_PROCESS VERIFIED_CALLBACK" not in raw or "NO_RESEARCH_CREDIT" not in raw:
         raise AssertionError("Actual Create callback not persisted: "+raw)
+    if f"job={job} " not in raw or f"citizen={original.citizen} " not in raw:
+        raise AssertionError("Create callback changed original executor/job identity: "+raw)
     lease=r.run("sable mill-reservation 7 101 1")
-    if "MILL_RESERVATION HELD" not in lease or f"job={job}" not in lease:
+    if ("MILL_RESERVATION HELD" not in lease or f"job={job} " not in lease
+            or f"citizen={original.citizen} " not in lease):
         raise AssertionError("Previously held machine lease did not survive restart: "+lease)
 
     # Same physical actor, actual NBT, identical world UUID and time receipt.
-    returned=r.run(f"execute positioned 7 101 1 run sable mill-outcome-probe {job}")
+    returned=r.run(owned(f"sable mill-outcome-probe {job}"))
     if returned != expected:
         raise AssertionError("Causal outcome differs across true Forge save/restart:\n"
                              "before="+expected+"\nafter="+returned)
-    journal=r.run(f"execute positioned 7 101 1 run sable mill-outcome-journal {job}")
+    journal=r.run(owned(f"sable mill-outcome-journal {job}"))
     if journal != expected_journal:
         raise AssertionError("Fsynced causal journal did not revalidate to same evidence after reboot:\n"
                              "before="+expected_journal+"\nafter="+journal)
-    if r.run(f"execute positioned 7 101 1 run sable mill-outcome-journal {job}") != journal:
+    if r.run(owned(f"sable mill-outcome-journal {job}")) != journal:
         raise AssertionError("Post-restart journal inspection was not idempotent")
-    learning = r.run(f"execute positioned 7 101 1 run sable mill-learning-probe {job}")
+    learning = r.run(owned(f"sable mill-learning-probe {job}"))
     require_replay(learning, returned)
     if learning != before["learning"]:
         raise AssertionError("Revalidated learning replay changed across actual restart")
@@ -99,29 +107,28 @@ with Rcon() as r:
     print("REAL_FORGE_CAUSAL_JOURNAL_RESTART_EXACT_MATCH",flush=True)
     print("REAL_FORGE_OUTCOME_RESTART_EXACT_MATCH",flush=True)
 
-    duplicate=r.run(f"execute positioned 7 101 1 run sable mill-outcome-probe {job}")
+    duplicate=r.run(owned(f"sable mill-outcome-probe {job}"))
     if duplicate != expected:
         raise AssertionError("Repeat post-restart inspection changed attribution")
-    wrong=r.run("execute positioned 7 101 1 run sable mill-outcome-probe "
-                "00000000-0000-4000-8000-000000000001")
+    wrong=r.run(owned("sable mill-outcome-probe 00000000-0000-4000-8000-000000000001"))
     if "status=DENIED reason=NO_CREATE_CALLBACK" not in wrong:
         raise AssertionError("Unknown job attributed after restart: "+wrong)
 
     # Physical receipt remains historic truth; releasing the lease must revoke
     # proposal eligibility, even if the operator clears the output inventory.
     r.run("data modify block 7 101 1 OutputInventory.Items set value []")
-    release=r.run(f"execute positioned 7 101 1 run sable mill-release 7 101 1 {job}")
+    release=r.run(owned(f"sable mill-release 7 101 1 {job}"))
     if "Mill reservation released with audit tombstone" not in release:
         raise AssertionError("Could not close original job after restart: "+release)
-    denied=r.run(f"execute positioned 7 101 1 run sable mill-outcome-probe {job}")
+    denied=r.run(owned(f"sable mill-outcome-probe {job}"))
     if "status=DENIED reason=TAINTED_OR_UNHELD_RESERVATION" not in denied:
         raise AssertionError("Released historic evidence was incorrectly credited: "+denied)
-    invalidated=r.run(f"execute positioned 7 101 1 run sable mill-outcome-journal {job}")
+    invalidated=r.run(owned(f"sable mill-outcome-journal {job}"))
     if "state=REVOKED revalidated=false" not in invalidated or "NO_RESEARCH_CREDIT" not in invalidated:
         raise AssertionError("Old journal admission remained trusted after release: "+invalidated)
-    if r.run(f"execute positioned 7 101 1 run sable mill-outcome-journal {job}") != invalidated:
+    if r.run(owned(f"sable mill-outcome-journal {job}")) != invalidated:
         raise AssertionError("Revoked outcome re-admitted without new process evidence")
-    require_denial(r.run(f"execute positioned 7 101 1 run sable mill-learning-probe {job}"),
+    require_denial(r.run(owned(f"sable mill-learning-probe {job}")),
                    "EVIDENCE_REVOKED")
     surviving=r.run(f"sable mill-process {job}")
     if "MILL_PROCESS VERIFIED_CALLBACK" not in surviving or "NO_RESEARCH_CREDIT" not in surviving:
