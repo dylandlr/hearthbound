@@ -23,12 +23,30 @@ import traceback
 from uuid import UUID
 
 import rcon_civilization_four_citizens as fixture
+import colony_motor_diagnostics as motor_diagnostics
 from rcon_two_citizen_haul_acceptance import Rcon, exact, packet
 from summarize_colony_reliability import (
     PLAN, TRIAL_SCHEMA, classified_status, counters, protocol_hash,
 )
 
 READY = re.compile(r'Done \([0-9.]+s\)! For help, type "help"')
+
+
+class TraceRetainingRcon(Rcon):
+    """Pass through the original fixture unchanged while retaining its trace reply."""
+    def __init__(self, sock):
+        super().__init__(sock)
+        self.retained_decision_traces = []
+
+    def run(self, command):
+        request_id = self.next_id
+        response = super().run(command)
+        if command == motor_diagnostics.TRACE_COMMAND:
+            # No parsing, validation, extra command, retry, or exception handling
+            # belongs in the original fixture's execution window.
+            self.retained_decision_traces.append({
+                "command": command, "request_id": request_id, "response": response})
+        return response
 
 
 class NbtReader:
@@ -126,7 +144,7 @@ def connection(password):
             if request == -1:
                 raise ValueError("RCON authentication rejected")
             if request == 1 and kind == 2:
-                yield Rcon(sock)
+                yield TraceRetainingRcon(sock)
                 return
         raise ValueError("RCON authentication response missing")
 
@@ -199,6 +217,8 @@ def run(repo, trial_id, seed, output, boot_timeout=720):
         "observation_window_completed": False, "fresh_world_directory": False,
         "world": {}, "terminal_snapshot": None,
         "error_type": None, "error": None,
+        "motor_diagnostics_required": True,
+        "motor_diagnostics": {"status": "NOT_REACHED"},
         "legacy_receipt_fixture_seed_is_actual_seed": False,
     }
     write_result(result_path, result)
@@ -264,6 +284,27 @@ def run(repo, trial_id, seed, output, boot_timeout=720):
                         result["terminal_snapshot"] = terminal_snapshot(rcon)
                     except Exception as error:
                         result["diagnostic_error"] = type(error).__name__ + ": " + str(error)
+                    # Freeze the original scoring evidence before the additional
+                    # read-only observations. Natural later completion is diagnostic
+                    # history and never changes this fixture's result or deadline.
+                    if result["observation_window_completed"] and result["terminal_snapshot"] is not None:
+                        try:
+                            report = motor_diagnostics.capture(
+                                rcon, result["terminal_snapshot"],
+                                retained_traces=rcon.retained_decision_traces)
+                            payload = (json.dumps(report, indent=2, sort_keys=True,
+                                                  allow_nan=False) + "\n").encode()
+                            (output / motor_diagnostics.FILENAME).write_bytes(payload)
+                            result["motor_diagnostics"] = {
+                                "status": report["status"], "file": motor_diagnostics.FILENAME,
+                                "sha256": hashlib.sha256(payload).hexdigest(),
+                                "error": "; ".join(report["errors"]) or None,
+                            }
+                        except Exception as error:
+                            result["motor_diagnostics"] = {
+                                "status": "CAPTURE_ERROR", "error": type(error).__name__ + ": " + str(error)}
+                    else:
+                        result["motor_diagnostics"] = {"status": "NO_COMPLETED_OBSERVATION_WINDOW"}
                     # Disable only after terminal diagnostics, without task repair.
                     rcon.run("hearthbound-colony disable")
                     rcon.run("save-all flush")
@@ -314,7 +355,8 @@ def main():
     args = parser.parse_args()
     repo = Path(__file__).resolve().parents[1]
     result = run(repo, args.trial_id, args.seed, args.output.resolve(), args.boot_timeout)
-    raise SystemExit(0 if result["status"] == "PASS" else 1)
+    raise SystemExit(0 if result["status"] == "PASS"
+                     and result["motor_diagnostics"]["status"] == "COMPLETE" else 1)
 
 
 if __name__ == "__main__":

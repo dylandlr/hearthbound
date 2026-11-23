@@ -81,4 +81,14 @@ public final class HaulClaims extends SavedData {
     public static UUID owner(ServerLevel level, BlockPos source) {
         return get(level).claims.get(source.asLong());
     }
+
+    public record Snapshot(boolean storePresent, UUID sourceOwner, int totalClaims) {}
+
+    /** Existing state only; may cache a disk read, never creates or refreshes claims. */
+    public static Snapshot snapshot(ServerLevel level, BlockPos source) {
+        HaulClaims existing = level.getDataStorage().get(HaulClaims::load, DATA_NAME);
+        if (existing == null) return new Snapshot(false, null, 0);
+        return new Snapshot(true, source == null ? null : existing.claims.get(source.asLong()),
+            existing.claims.size());
+    }
 }

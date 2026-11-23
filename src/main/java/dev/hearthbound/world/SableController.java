@@ -57,6 +57,7 @@ public final class SableController {
     public static void registerCommands(RegisterCommandsEvent event) {
         CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
         CivilizationRuntime.register(dispatcher);
+        HaulMotorDiagnostics.register(dispatcher);
         // Separate permission-2 inspection command; never modifies Minecraft.
         dispatcher.register(Commands.literal("hearthbound-pickup-journal")
             .requires(source -> source.hasPermission(2))

@@ -13,6 +13,8 @@ from collections import Counter
 from pathlib import Path
 from uuid import UUID
 
+import colony_motor_diagnostics as motor_diagnostics
+
 TRIAL_SCHEMA = "hearthbound.colony-reliability-trial.v1"
 SUMMARY_SCHEMA = "hearthbound.colony-reliability-summary.v1"
 PLAN = tuple({"trial_id": f"world-{i:02d}", "seed": 43100 + i}
@@ -32,6 +34,11 @@ def protocol_hash(repo):
         "scripts/rcon_two_citizen_haul_acceptance.py",
         "scripts/run_colony_reliability_trial.py",
         "scripts/summarize_colony_reliability.py",
+        "scripts/colony_motor_diagnostics.py",
+        "scripts/haul_motor_diagnostics.py",
+        "src/main/java/dev/hearthbound/world/HaulMotorDiagnostics.java",
+        "src/main/java/dev/hearthbound/world/HaulClaims.java",
+        "src/main/java/dev/hearthbound/world/HearthboundWorldIdentity.java",
         ".github/workflows/real-colony-reliability.yml",
     )
     digest = hashlib.sha256()
@@ -220,7 +227,7 @@ def result_errors(record, expected, expected_commit=None):
     return errors
 
 
-def summarize(records, plan=PLAN, expected_commit=None):
+def summarize(records, plan=PLAN, expected_commit=None, require_motor_diagnostics=False):
     by_id = {}
     errors = []
     expected_ids = {item["trial_id"] for item in plan}
@@ -235,12 +242,15 @@ def summarize(records, plan=PLAN, expected_commit=None):
     normalized = []
     world_ids = set()
     commits, protocols = set(), set()
+    motor_diagnostics_required = require_motor_diagnostics or any(
+        record.get("motor_diagnostics_required") is True for record in records)
     for item in plan:
         record = by_id.get(item["trial_id"])
         if record is None:
             normalized.append({**item, "status": "MISSING_RESULT",
                                "accounting_event_observed": None,
                                "physical_delivery_accounting_event_observed": None,
+                               "motor_diagnostics": {"status": "MISSING_TRIAL", "findings": []},
                                "errors": ["no artifact for planned trial"]})
             continue
         invalid = result_errors(record, item, expected_commit)
@@ -269,6 +279,10 @@ def summarize(records, plan=PLAN, expected_commit=None):
                 physical_delivery_accounting(record["terminal_snapshot"])
                 if eligible else None,
             "errors": invalid,
+            "motor_diagnostics": {"status": "INVALID_WORLD_PROVENANCE", "findings": []}
+                if invalid else record.get("verified_motor_diagnostics", {
+                "status": "NOT_VERIFIED" if motor_diagnostics_required
+                else "NOT_REQUIRED_FOR_THIS_REVISION", "findings": []}),
         })
     if len(commits) > 1:
         errors.append("mixed tested commits")
@@ -280,6 +294,7 @@ def summarize(records, plan=PLAN, expected_commit=None):
         for trial in normalized:
             trial["accounting_event_observed"] = None
             trial["physical_delivery_accounting_event_observed"] = None
+            trial["motor_diagnostics"] = {"status": "INVALID_COHORT_PROVENANCE", "findings": []}
     diagnostic_counts = Counter(flag for item in normalized
                                 for flag in item.get("diagnostic_flags", []))
     count = Counter(item["status"] for item in normalized)
@@ -292,6 +307,11 @@ def summarize(records, plan=PLAN, expected_commit=None):
     physical_assessed = sum(item["physical_delivery_accounting_event_observed"] is not None
                             for item in normalized)
     physical_unknown = total - physical_assessed
+    motor_counts = Counter(item["motor_diagnostics"]["status"] for item in normalized)
+    motor_flags = Counter(flag for item in normalized
+                          if item["motor_diagnostics"]["status"] == "VERIFIED_COMPLETE"
+                          for finding in item["motor_diagnostics"].get("findings", [])
+                          for flag in finding.get("flags", []))
     return {
         "schema": SUMMARY_SCHEMA,
         "planned_trials": total,
@@ -299,6 +319,17 @@ def summarize(records, plan=PLAN, expected_commit=None):
         "statuses": dict(sorted(count.items())),
         "terminal_diagnostic_patterns": dict(sorted(diagnostic_counts.items())),
         "all_trials_passed": not errors and count["PASS"] == total,
+        "post_window_motor_diagnostics": {
+            "required_for_cohort": motor_diagnostics_required,
+            "planned_worlds": total,
+            "statuses": dict(sorted(motor_counts.items())),
+            "all_required_worlds_verified": not motor_diagnostics_required
+                or (not errors and motor_counts["VERIFIED_COMPLETE"] == total),
+            "citizen_sequence_patterns": dict(sorted(motor_flags.items())),
+            "patterns_are_diagnostics_not_independent_replicates": True,
+            "original_score_recomputed": False,
+            "root_cause_established": False,
+        },
         "trials": normalized,
         "cohort_errors": errors,
         "source_commits": sorted(commits),
@@ -341,6 +372,8 @@ def main():
     parser.add_argument("directory", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--expected-commit")
+    parser.add_argument("--require-motor-diagnostics", action="store_true",
+                        help="Trusted workflow requirement; artifact flags cannot disable this gate")
     args = parser.parse_args()
     records = []
     for path in sorted(args.directory.rglob("trial-result.json")):
@@ -370,16 +403,20 @@ def main():
                     except OSError:
                         artifact_errors.append("retained world metadata missing: " + name)
                 record["artifact_validation_errors"] = artifact_errors
+            record["verified_motor_diagnostics"] = motor_diagnostics.inspect_artifact(
+                path.parent, record, required=args.require_motor_diagnostics)
             records.append(record)
         except (OSError, ValueError) as error:
             # A corrupt additional artifact could hide a duplicate trial.
             # Preserve it as a cohort error and invalidate pooled estimation.
             records.append({"trial_id": "UNREADABLE " + str(path) + ": " + str(error)})
-    result = summarize(records, expected_commit=args.expected_commit)
+    result = summarize(records, expected_commit=args.expected_commit,
+                       require_motor_diagnostics=args.require_motor_diagnostics)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
     print(json.dumps(result, indent=2, sort_keys=True))
-    raise SystemExit(0 if result["all_trials_passed"] else 1)
+    raise SystemExit(0 if result["all_trials_passed"]
+                     and result["post_window_motor_diagnostics"]["all_required_worlds_verified"] else 1)
 
 
 if __name__ == "__main__":
