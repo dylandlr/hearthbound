@@ -8,6 +8,7 @@ on:
       - 'src/main/java/dev/hearthbound/evidence/PickupTransactionJournal.java'
       - 'scripts/rcon_arm_pickup_crash_boundary.py'
       - 'scripts/rcon_verify_pickup_crash_boundary.py'
+      - 'scripts/test_pickup_crash_executor_readiness.py'
       - '.github/workflows/real-pickup-crash-boundaries.yml'
   workflow_dispatch:
 jobs:
@@ -24,6 +25,8 @@ jobs:
       HEARTHBOUND_CRASH_BOUNDARY: ${{ matrix.boundary }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-java@v4
         with: {distribution: temurin, java-version: '17'}
       - uses: gradle/actions/setup-gradle@v4
@@ -33,6 +36,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m py_compile scripts/rcon_arm_pickup_crash_boundary.py scripts/rcon_verify_pickup_crash_boundary.py
+          python3 -m unittest discover -s scripts -p 'test_pickup_crash_executor_readiness.py' -v
           bash scripts/test-research-journals.sh
           python3 scripts/train_report_choice_mlp.py --model run/report-choice-mlp-v1.txt --sha run/report-choice-mlp-v1.sha256 --report pickup-crash-training.json
       - name: Kill actual JVM at the physical motor boundary, then restart and inspect
