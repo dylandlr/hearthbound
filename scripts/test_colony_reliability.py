@@ -14,7 +14,7 @@ import unittest
 from run_colony_reliability_trial import NbtReader, world_evidence
 from summarize_colony_reliability import (
     PLAN, TRIAL_SCHEMA, accounting_three_of_four, classified_status,
-    counters, summarize, wilson,
+    counters, diagnostic_flags, summarize, wilson,
 )
 
 COMMIT = "a" * 40
@@ -64,6 +64,45 @@ class CohortTests(unittest.TestCase):
         self.assertEqual((event["observed"], event["assessable_trials"], event["unknown_trials"]), (0, 5, 0))
         self.assertAlmostEqual(event["wilson_95_interval_among_assessable"][1], 0.43448246, places=6)
         self.assertFalse(result["limits"]["original_reliability_issue_resolved"])
+
+    def test_terminal_diagnostic_patterns_are_disjoint(self):
+        distinct = snapshot(done=4, assigned=0)
+        distinct["audit_before"]["distinct_completed_citizens"] = 3
+        distinct["audit_after"]["distinct_completed_citizens"] = 3
+        self.assertEqual(diagnostic_flags(distinct),
+                         ["FOUR_DELIVERIES_FEWER_THAN_FOUR_CITIZENS"])
+        missing = snapshot(done=3, assigned=0)
+        missing["destination_has_exact_four_wheat"] = False
+        missing["source_wheat_absent"][0] = False
+        self.assertEqual(diagnostic_flags(missing),
+                         ["SOURCE_REMAINS_NO_ASSIGNED_TASK"])
+        stuck = snapshot(done=3, assigned=1)
+        self.assertEqual(diagnostic_flags(stuck),
+                         ["PHYSICAL_FOUR_TASK_THREE_ASSIGNED_ONE"])
+        self.assertEqual(diagnostic_flags(None), [])
+        self.assertEqual(diagnostic_flags(snapshot()), [])
+
+    def test_patterns_do_not_promote_or_exclude_failed_worlds(self):
+        records = copy.deepcopy(self.records)
+        records[0]["fixture_passed"] = False
+        records[0]["status"] = "FIXTURE_ASSERTION_FAILURE"
+        records[0]["error_type"] = "AssertionError"
+        records[0]["terminal_snapshot"]["audit_before"]["distinct_completed_citizens"] = 3
+        records[0]["terminal_snapshot"]["audit_after"]["distinct_completed_citizens"] = 3
+        records[1]["fixture_passed"] = False
+        records[1]["status"] = "FIXTURE_ASSERTION_FAILURE"
+        records[1]["error_type"] = "AssertionError"
+        records[1]["terminal_snapshot"]["destination_has_exact_four_wheat"] = False
+        records[1]["terminal_snapshot"]["source_wheat_absent"][0] = False
+        records[1]["terminal_snapshot"]["audit_before"]["done"] = 3
+        records[1]["terminal_snapshot"]["audit_after"]["done"] = 3
+        result = summarize(records)
+        self.assertFalse(result["all_trials_passed"])
+        self.assertEqual(result["statuses"]["FIXTURE_ASSERTION_FAILURE"], 2)
+        self.assertEqual(result["terminal_diagnostic_patterns"], {
+            "FOUR_DELIVERIES_FEWER_THAN_FOUR_CITIZENS": 1,
+            "SOURCE_REMAINS_NO_ASSIGNED_TASK": 1,
+        })
 
     def test_real_signature_is_failure_not_delivery_success(self):
         self.records[2] = record(PLAN[2], done=3, assigned=1)
