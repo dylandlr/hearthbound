@@ -1,0 +1,98 @@
+name: Real Forge private communication matched pilot
+on:
+  pull_request:
+    paths:
+      - 'src/main/java/dev/hearthbound/civilization/**'
+      - 'src/test/java/dev/hearthbound/civilization/**'
+      - 'src/main/java/dev/hearthbound/world/PrivateCommunicationTrial.java'
+      - 'src/main/java/dev/hearthbound/world/CivilizationRuntime.java'
+      - 'src/main/java/dev/hearthbound/world/CitizenKnowledgeExchange.java'
+      - 'src/main/java/dev/hearthbound/world/CitizenSourceKnowledge.java'
+      - 'src/main/java/dev/hearthbound/world/CitizenCommunicationRecords.java'
+      - 'src/main/java/dev/hearthbound/world/SourceWheatObservation.java'
+      - 'src/main/java/dev/hearthbound/world/SourceReportSession.java'
+      - 'src/main/java/dev/hearthbound/world/SableController.java'
+      - 'src/main/java/dev/hearthbound/world/SableHauling.java'
+      - 'src/main/java/dev/hearthbound/world/HaulClaims.java'
+      - 'scripts/*private_communication*.py'
+      - 'scripts/run_colony_reliability_trial.py'
+      - 'scripts/rcon_two_citizen_haul_acceptance.py'
+      - '.github/workflows/real-private-communication-pilot.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  world:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      HEARTHBOUND_EXPECTED_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {trial: pair-01-no-messages}
+          - {trial: pair-01-direct}
+          - {trial: pair-02-no-messages}
+          - {trial: pair-02-direct}
+          - {trial: pair-03-no-messages}
+          - {trial: pair-03-direct}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Preserve the predeclared trial before build or server startup
+        run: >-
+          python3 scripts/private_communication_protocol.py
+          --trial-id '${{ matrix.trial }}'
+          --output 'private-communication/${{ matrix.trial }}/planned-trial.json'
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.8'}
+      - name: Test private-policy and evidence contracts
+        run: |
+          test "$(git rev-parse HEAD)" = "$HEARTHBOUND_EXPECTED_COMMIT"
+          python3 -m unittest discover -s scripts -p test_private_communication_pilot.py -v
+          python3 scripts/test-civilization-contracts.py
+      - name: Compile actual Forge and test sources
+        run: gradle --no-daemon compileJava compileTestJava > private-communication-preflight.log 2>&1 || (tail -n 120 private-communication-preflight.log; exit 1)
+      - name: Measure one fixed game-tick horizon in a new world and JVM
+        run: >-
+          python3 scripts/run_private_communication_trial.py
+          --trial-id '${{ matrix.trial }}'
+          --output 'private-communication/${{ matrix.trial }}'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: private-communication-${{ matrix.trial }}
+          path: |
+            private-communication/${{ matrix.trial }}/
+            private-communication-preflight.log
+          if-no-files-found: warn
+  summary:
+    needs: world
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: private-communication-pair-*
+          path: private-communication-downloads
+      - name: Validate all six planned worlds and report paired output and costs
+        env:
+          HEARTHBOUND_EXPECTED_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: >-
+          python3 scripts/summarize_private_communication_pilot.py private-communication-downloads
+          --expected-commit "$HEARTHBOUND_EXPECTED_COMMIT"
+          --output private-communication-summary.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: private-communication-summary
+          path: private-communication-summary.json
+          if-no-files-found: error
