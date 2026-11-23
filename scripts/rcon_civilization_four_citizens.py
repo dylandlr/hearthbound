@@ -62,6 +62,8 @@ def run_trial(rcon, sleep=time.sleep):
             break
         if poll in (20, 60, 100):
             print("CIVILIZATION_PROGRESS poll=" + str(poll) + " " + audit, flush=True)
+            rcon.run("hearthbound-colony physical-reconciliation-audit")
+            rcon.run("hearthbound-colony history-audit")
 
     if not success:
         # Preserve read-only evidence of the missed opportunity and citizen
@@ -74,6 +76,8 @@ def run_trial(rcon, sleep=time.sleep):
             )
         rcon.run(f"data get block {DESTINATION} 100 1 Items")
         rcon.run("hearthboundclaims count")
+        rcon.run("hearthbound-colony physical-reconciliation-audit")
+        rcon.run("hearthbound-colony history-audit")
         raise AssertionError("Four independently observed jobs did not complete: " + audit)
 
     for x in SOURCES:
@@ -83,6 +87,13 @@ def run_trial(rcon, sleep=time.sleep):
     if not wheat_count(rcon, DESTINATION, 4):
         raise AssertionError("Destination lacks exact 4-wheat physical inventory")
     check(rcon, "hearthboundclaims count", "Active source claims in this dimension: 0")
+    reconciliation = check(rcon, "hearthbound-colony physical-reconciliation-audit",
+                           "COLONY_PHYSICAL_RECONCILIATION_V0_6")
+    for expected in ("assigned=0", "assigned_loaded_physically_complete=0",
+                     "assigned_unloaded=0", "done=4",
+                     "strictly_read_only=true"):
+        if expected not in reconciliation:
+            raise AssertionError("Physical/queue discrepancy at acceptance: " + reconciliation)
     final = check(rcon, "hearthbound-colony audit", "done=4")
     if "held=0" not in final or "assigned=0" not in final:
         raise AssertionError("Unresolved jobs after delivery: " + final)
