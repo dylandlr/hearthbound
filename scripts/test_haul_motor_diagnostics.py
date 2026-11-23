@@ -20,6 +20,13 @@ OTHER = "22222222-2222-4222-8222-222222222222"
 WORLD = "33333333-3333-4333-8333-333333333333"
 JOB = "44444444-4444-4444-8444-444444444444"
 SOURCE, DESTINATION = [11, 100, 1], [7, 100, 1]
+# Exact native replies retained from controlled run 45249680599; add and remove
+# deliberately have different grammar. Do not synthesize a shared fake phrase.
+NATIVE_TICKET_RESPONSES = {
+    "forceload add 4096 4096": "Marked chunk [256, 256] in minecraft:overworld to be force loaded\n",
+    "forceload add 4104 4088": "Marked chunk [256, 255] in minecraft:overworld to be force loaded\n",
+    "forceload remove 4104 4088": "Unmarked chunk [256, 255] in minecraft:overworld for force loading\n",
+}
 
 
 def inventory(wheat):
@@ -111,10 +118,11 @@ def probe_sequence(readiness=None):
 
 class ProbeRcon:
     """Scripted transport replies exercise the real parser and fixture gates."""
-    def __init__(self, probe_replies, native_identity=None, after_changes=None):
+    def __init__(self, probe_replies, native_identity=None, after_changes=None, ticket_responses=None):
         self.probe_replies = list(probe_replies)
         self.native_identity = native_identity or fixture.PROBE_CITIZEN
         self.after_changes = after_changes or {}
+        self.ticket_responses = dict(NATIVE_TICKET_RESPONSES, **(ticket_responses or {}))
         self.commands = []
         self.original_reads = {CITIZEN: 0, OTHER: 0}
 
@@ -146,8 +154,8 @@ class ProbeRcon:
         if command == f"data get entity {fixture.PROBE_CITIZEN} UUID":
             return "Probe has the following entity data: [I; " + ", ".join(
                 map(str, struct.unpack(">iiii", UUID(self.native_identity).bytes))) + "]"
-        if command.startswith("forceload "):
-            return "Marked or unmarked chunk to be force loaded"
+        if command in self.ticket_responses:
+            return self.ticket_responses[command]
         if command.startswith("fill "):
             return "Successfully filled blocks"
         if command.startswith("summon minecraft:villager "):
@@ -198,6 +206,58 @@ class ChunkProbeIdentityTests(unittest.TestCase):
             self.assertEqual(authority_view(protection["before"][name]), authority_view(protection["after"][name]))
             self.assertNotEqual(protection["before"][name]["entity"]["position"],
                                 protection["after"][name]["entity"]["position"])
+
+    def test_archived_native_add_remove_receipts_allow_suspension_and_resume(self):
+        rcon, data = ProbeRcon(probe_sequence()), self.data()
+        fixture.run_chunk_probe(rcon, data, lambda _: None)
+        receipts = data["chunk_ticket_receipts"]
+        self.assertEqual([r["command"] for r in receipts], [
+            "forceload add 4096 4096", "forceload add 4104 4088",
+            "forceload remove 4104 4088", "forceload add 4104 4088"])
+        self.assertTrue(all(r["accepted"] for r in receipts))
+        for receipt in receipts:
+            self.assertEqual(receipt["response"], NATIVE_TICKET_RESPONSES[receipt["command"]])
+            self.assertEqual(receipt["response"].strip(), receipt["expected_response"])
+            self.assertEqual(receipt["dimension"], "minecraft:overworld")
+        self.assertEqual(receipts[2]["chunk"], [256, 255])
+        self.assertEqual(len(data["chunk_suspended_reads"]), 3)
+        self.assertIn("chunk_resumed", data)
+        self.assertTrue(data["chunk_probe_originals"]["unchanged_verified"])
+        self.assert_no_fallback(rcon, removed=True)
+
+    def test_wrong_or_generic_native_ticket_receipts_are_retained_and_rejected(self):
+        bad_removals = (
+            "Chunk [256, 255] is not marked for force loading\n",
+            "Unmarked chunk [256, 254] in minecraft:overworld for force loading\n",
+            "Unmarked chunk [256, 255] in minecraft:the_nether for force loading\n",
+            "Marked or unmarked chunk to be force loaded\n",
+            "force loading\n",
+            NATIVE_TICKET_RESPONSES["forceload remove 4104 4088"] + "Test failed\n",
+        )
+        bad_adds = (
+            "Chunk [256, 255] is already marked for force loading\n",
+            "Marked chunk [256, 256] in minecraft:overworld to be force loaded\n",
+            "Marked chunk [256, 255] in minecraft:the_nether to be force loaded\n",
+            "Marked or unmarked chunk to be force loaded\n",
+        )
+        for command, responses in (("forceload remove 4104 4088", bad_removals),
+                                   ("forceload add 4104 4088", bad_adds)):
+            for response in responses:
+                with self.subTest(command=command, response=response):
+                    rcon = ProbeRcon(probe_sequence(), ticket_responses={command: response})
+                    data = self.data()
+                    with self.assertRaisesRegex(ValueError, "Unexpected native ticket receipt"):
+                        fixture.run_chunk_probe(rcon, data, lambda _: None)
+                    receipt = data["chunk_ticket_receipts"][-1]
+                    self.assertEqual(receipt["command"], command)
+                    self.assertEqual(receipt["response"], response)
+                    self.assertEqual(receipt["chunk"], [256, 255])
+                    self.assertFalse(receipt["accepted"])
+                    self.assertNotIn("chunk_suspended_reads", data)
+                    self.assertNotIn("chunk_resumed", data)
+                    self.assertEqual(rcon.commands.count("forceload add 4104 4088"), 1)
+                    self.assertTrue(data["chunk_probe_originals"]["unchanged_verified"])
+                    self.assert_no_fallback(rcon, removed=command.startswith("forceload remove"))
 
     def test_original_uuid_collision_never_summons_or_changes_tickets(self):
         rcon, data = ProbeRcon([]), self.data()
@@ -309,6 +369,7 @@ class ChunkProbeIdentityTests(unittest.TestCase):
         plan = fixture.plan(Path(fixture.__file__).resolve().parents[1])["chunk_probe"]
         self.assertEqual(plan["probe_citizen"], str(UUID(fixture.PROBE_CITIZEN)))
         self.assertEqual(plan["identity_policy"], "PREDECLARED_UUID_NATIVE_SUMMON_NO_SELECTOR")
+        self.assertEqual(plan["ticket_receipt_policy"], "EXACT_NATIVE_SUCCESS_CHUNK_AND_DIMENSION")
         self.assertEqual(plan["probe_chunk"], (256, 255))
         self.assertEqual(plan["readiness"]["max_polls"], 60)
         self.assertEqual(plan["readiness"]["poll_seconds"], 0.25)

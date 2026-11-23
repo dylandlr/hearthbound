@@ -40,6 +40,7 @@ PROBE_POSITION = (4104.5, 101.0, 4088.5)
 PROBE_CHUNK = tuple(value // 16 for value in PROBE_COLUMN)
 PROBE_CITIZEN = "00000000-0000-4000-8000-000000217001"
 PROBE_IDENTITY_POLICY = "PREDECLARED_UUID_NATIVE_SUMMON_NO_SELECTOR"
+TICKET_RECEIPT_POLICY = "EXACT_NATIVE_SUCCESS_CHUNK_AND_DIMENSION"
 PROBE_GAP_TICKS = 40
 PROBE_POLL_SECONDS, PROBE_MAX_POLLS = 0.25, 60
 PROTOCOL_FILES = (
@@ -70,6 +71,7 @@ def plan(repo):
                             "probe_position": PROBE_POSITION, "no_ai": True, "haul_assigned": False,
                             "probe_chunk": PROBE_CHUNK, "probe_citizen": PROBE_CITIZEN,
                             "identity_policy": PROBE_IDENTITY_POLICY,
+                            "ticket_receipt_policy": TICKET_RECEIPT_POLICY,
                             "reject_original_or_loaded_uuid": True,
                             "initial_nbt": {"sable_marker": True, "persistence_required": True, "no_ai": True},
                             "readiness": {"status": "OBSERVED", "loaded": True, "chunk_loaded": True,
@@ -132,6 +134,23 @@ def wait_probe(rcon, data, citizen, predicate, label, sleep, expected_world=None
     raise AssertionError("Chunk diagnostic did not reach declared condition: " + label)
 
 
+def change_probe_ticket(rcon, data, column, add):
+    """Retain and bind the native success receipt to this ticket intervention."""
+    x, z = column
+    action = "add" if add else "remove"
+    command = f"forceload {action} {x} {z}"
+    chunk = [x // 16, z // 16]
+    subject = f"chunk [{chunk[0]}, {chunk[1]}] in minecraft:overworld"
+    expected = (f"Marked {subject} to be force loaded" if add
+                else f"Unmarked {subject} for force loading")
+    response = rcon.run(command)
+    receipt = {"policy": TICKET_RECEIPT_POLICY, "command": command, "chunk": chunk,
+               "dimension": "minecraft:overworld", "expected_response": expected,
+               "response": response, "accepted": response.strip() == expected}
+    data.setdefault("chunk_ticket_receipts", []).append(receipt)
+    require(receipt["accepted"], f"Unexpected native ticket receipt for {command}: {response}")
+
+
 def run_chunk_probe(rcon, data, sleep=time.sleep):
     """Protect the completed workers even if a later probe observation fails."""
     originals = data["citizens"]
@@ -186,8 +205,8 @@ def _run_chunk_probe(rcon, data, world, sleep):
     identity["before_setup"] = absent
     require(absent["status"] == "NOT_LOADED_IN_DIMENSION",
             "Probe UUID is already loaded or its absence is unavailable")
-    rcon.require(f"forceload add {PROBE_ANCHOR[0]} {PROBE_ANCHOR[1]}", "force loaded")
-    rcon.require(f"forceload add {PROBE_COLUMN[0]} {PROBE_COLUMN[1]}", "force loaded")
+    change_probe_ticket(rcon, data, PROBE_ANCHOR, True)
+    change_probe_ticket(rcon, data, PROBE_COLUMN, True)
     for command in (
         "fill 4102 100 4086 4106 104 4090 minecraft:stone",
         "fill 4103 101 4087 4105 103 4089 minecraft:air",
@@ -223,7 +242,7 @@ def _run_chunk_probe(rcon, data, world, sleep):
             "Native probe UUID witness belongs to a different entity")
     identity["readiness"].update(ready=True, snapshot=initial)
     data["chunk_probe_initial_forced"] = initial
-    rcon.require(f"forceload remove {PROBE_COLUMN[0]} {PROBE_COLUMN[1]}", "force loaded")
+    change_probe_ticket(rcon, data, PROBE_COLUMN, False)
     suspended = wait_probe(rcon, data, citizen,
         lambda s: s["status"] == "OBSERVED" and s["entity"]["position_entity_ticking"] is False
         and s["entity"]["forced_chunk"] is False, "chunk-probe-suspend", sleep, world)
@@ -242,7 +261,7 @@ def _run_chunk_probe(rcon, data, world, sleep):
                 "Probe was not loaded with stable entity ticks during advancing world time")
         reads.append(value)
     data["chunk_suspended_reads"] = reads
-    rcon.require(f"forceload add {PROBE_COLUMN[0]} {PROBE_COLUMN[1]}", "force loaded")
+    change_probe_ticket(rcon, data, PROBE_COLUMN, True)
     resumed = wait_probe(rcon, data, citizen,
         lambda s: s["status"] == "OBSERVED" and s["entity"]["position_entity_ticking"] is True
         and s["entity"]["forced_chunk"] is True

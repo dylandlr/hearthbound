@@ -90,8 +90,15 @@ The passing fixture may already have disabled dispatch itself.
 
 The additional collector:
 
-1. Obtains the union of the four source-readiness rosters, requiring exactly four
-   distinct marked citizen UUIDs and matching untruncated source responses.
+1. Retains the exact decision-trace response already requested by the unchanged
+   original fixture. A valid complete trace supplies its four distinct citizen
+   UUIDs without rediscovering identity by proximity. The four source-readiness
+   queries remain current loaded-scope observations; they cannot silently replace
+   that roster or introduce unrelated citizens. The retained command, RCON request
+   ID, raw response, digest, and parsed citizen/job chronology remain inspectable.
+   Trials without a retained complete trace use the explicitly bounded source-roster
+   fallback and remain incomplete if four subjects are not established. An invalid
+   retained trace remains an error even if the fallback finds four citizens.
 2. Takes three rounds of exact-UUID snapshots, with one wall-clock second between
    rounds. Each snapshot supplies its actual server/entity tick counters.
 3. In the first and last rounds, separately reads native job UUID, phase, and
@@ -99,9 +106,26 @@ The additional collector:
    remain in the artifact. Display names alone do not establish identity.
 4. Writes `motor-diagnostics.json`, including the original terminal snapshot and
    its canonical SHA-256. The trial result records the diagnostic file's digest.
-5. Reports sequence patterns without altering the original score or claiming a
+5. Preserves unavailable native replies and continues the remaining safe
+   observations when a known subject disappears. `No entity was found` is
+   unavailable state, never evidence of absent cargo. The strict coverage gate
+   still requires all four subjects to be observed in every round, with valid
+   native probes; missing or removed actors do not become complete evidence.
+6. Reports sequence patterns without altering the original score or claiming a
    root cause. Natural completion during this phase remains a late diagnostic
    observation; it cannot turn the original failure into a pass.
+
+The collector uses schema `hearthbound.colony-post-window-motor-diagnostics.v2`.
+It records semantic snapshot and native-field failures individually and continues
+the remaining subjects/rounds while the transport remains usable. A loaded
+`OBSERVED` snapshot with `alive=false` is valid death evidence. A later missing
+entity or unavailable native field still prevents complete coverage. Retaining
+the original trace adds no command inside the original scoring window; validation
+of that retained response begins only after the terminal score is frozen.
+Artifact verification compares the entire retained trace set with the trial's
+hashed original RCON log. Fallback identity requires that log to contain no
+original trace command; deleting an invalid or additional trace cannot create
+complete evidence.
 
 Suspension is flagged only when world ticks advance across repeated observations,
 the same citizen's tick counter remains unchanged, and its observed position is
@@ -143,7 +167,9 @@ authority are compared before and after the probe; their positions and navigatio
 can continue to change naturally.
 
 Both chunks are loaded during setup. The operator then removes only the probe's
-own chunk ticket. The test requires the probe to remain loaded, ineligible for
+own chunk ticket. Each ticket intervention records and validates the exact native
+success receipt for the expected chunk and dimension before proceeding. The test
+requires the probe to remain loaded, ineligible for
 entity ticking, and stationary with unchanged entity tick count across two
 40-game-tick gaps. Restoring that chunk ticket once must make the same citizen
 eligible and advance its tick count while NoAI remains set. The original hauling
@@ -191,6 +217,34 @@ Both accounting-event definitions were 0/5, with a descriptive 95% Wilson
 interval of 0–43.45%. The archived physical stall and historical accounting
 issue therefore remain unresolved. Results from later revisions are not pooled
 with this cohort.
+
+At the next source revision, `3183e76fd43ab49844e59f65afefe875d4fac2a3`, the
+[controlled run](https://github.com/dylandlr/hearthbound/actions/runs/45249680599)
+verified the exact-UUID correction: eight readiness reads found no loaded probe,
+then read nine identified the declared stationary, unassigned probe at its planned
+position/chunk. Its separate native UUID witness matched, and both original
+workers retained their NoAI and authority state. Minecraft then acknowledged
+ticket removal with `Unmarked chunk [256, 255] in minecraft:overworld for force
+loading`. The fixture incorrectly expected the add-command wording `force loaded`
+and stopped before any suspension or resume reads. This second overall failure
+is also retained, with [artifact 14857190333](https://github.com/dylandlr/hearthbound/actions/runs/45249680599/artifacts/14857190333)
+and ZIP SHA-256 `17ffa36c0496cde131a2df253be194e73dee7821a30879c7e8a229c03d139a7e`.
+The current ticket checks bind the actual successful native add/remove receipts
+to the expected chunk and dimension.
+
+That revision's [five-world reliability cohort](https://github.com/dylandlr/hearthbound/actions/runs/45249680629)
+again had five passing original frozen scores, but only two complete diagnostic
+captures. Worlds 02 and 05 saw only three nearby citizens during post-window
+rediscovery, although their earlier original-fixture decision traces retained all
+four UUIDs. World 03 recorded one completed, cargo-free worker alive at tick 162,
+dead at tick 183, and not loaded at tick 203; the Forge log also records a fatal
+fall. The subsequent native `No entity was found` response is unavailable evidence,
+not an empty-cargo witness. This is separate from the archived active-haul stall.
+
+The collector changes above retain the already-recorded identities and continue
+partial observations without lowering coverage requirements or rescoring any
+original outcome. The second cohort stays 5/5 original PASS with three incomplete
+diagnostic captures; its failures are not overwritten by later observations.
 
 ## Validation and research connections
 

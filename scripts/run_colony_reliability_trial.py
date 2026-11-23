@@ -32,6 +32,23 @@ from summarize_colony_reliability import (
 READY = re.compile(r'Done \([0-9.]+s\)! For help, type "help"')
 
 
+class TraceRetainingRcon(Rcon):
+    """Pass through the original fixture unchanged while retaining its trace reply."""
+    def __init__(self, sock):
+        super().__init__(sock)
+        self.retained_decision_traces = []
+
+    def run(self, command):
+        request_id = self.next_id
+        response = super().run(command)
+        if command == motor_diagnostics.TRACE_COMMAND:
+            # No parsing, validation, extra command, retry, or exception handling
+            # belongs in the original fixture's execution window.
+            self.retained_decision_traces.append({
+                "command": command, "request_id": request_id, "response": response})
+        return response
+
+
 class NbtReader:
     """Small bounded NBT reader for saved world identity and level seed only."""
     def __init__(self, payload):
@@ -127,7 +144,7 @@ def connection(password):
             if request == -1:
                 raise ValueError("RCON authentication rejected")
             if request == 1 and kind == 2:
-                yield Rcon(sock)
+                yield TraceRetainingRcon(sock)
                 return
         raise ValueError("RCON authentication response missing")
 
@@ -272,7 +289,9 @@ def run(repo, trial_id, seed, output, boot_timeout=720):
                     # history and never changes this fixture's result or deadline.
                     if result["observation_window_completed"] and result["terminal_snapshot"] is not None:
                         try:
-                            report = motor_diagnostics.capture(rcon, result["terminal_snapshot"])
+                            report = motor_diagnostics.capture(
+                                rcon, result["terminal_snapshot"],
+                                retained_traces=rcon.retained_decision_traces)
                             payload = (json.dumps(report, indent=2, sort_keys=True,
                                                   allow_nan=False) + "\n").encode()
                             (output / motor_diagnostics.FILENAME).write_bytes(payload)
