@@ -132,6 +132,16 @@ citizen identity probes must not silently select another worker.
 
 The second control uses a fresh, unassigned NoAI probe at
 `(4104.5,101,4088.5)`, with a forced neighboring anchor at `(4096,4096)`.
+The probe has a predeclared UUID and is summoned with its Sable marker,
+persistence, and NoAI already in its initial NBT. That UUID must differ from both
+hauling workers and must not already be loaded. The fixture waits read-only for
+that exact actor, within the declared 60-by-0.25-second readiness bound. Native
+UUID, planned position/chunk, forced/entity-ticking state, and absence of a haul
+must agree before any ticket is removed. There is no nearest-actor fallback or
+post-spawn NoAI mutation. The original workers' NoAI and job/claim/inventory
+authority are compared before and after the probe; their positions and navigation
+can continue to change naturally.
+
 Both chunks are loaded during setup. The operator then removes only the probe's
 own chunk ticket. The test requires the probe to remain loaded, ineligible for
 entity ticking, and stationary with unchanged entity tick count across two
@@ -146,6 +156,41 @@ fresh reliability cohort supplies separate observations of the original fixture.
 The runner preserves first failures, secondary cleanup errors, plan, logs,
 native world identity/seed, and file digests. It requires clean shutdown. There
 are no behavioral retries or communication-performance winner gates.
+
+## Retained first live attempt and fixture correction
+
+At source `2b8c5a88048ca452eaa989bac793eb898f10aa05`, the
+[first controlled run](https://github.com/dylandlr/hearthbound/actions/runs/45245168314)
+passed actual Forge compilation, blocked-cargo inspection, independent B delivery,
+same-job A recovery, and negative identity checks. It then failed during chunk
+probe setup. The immediate unbounded nearest-Sable lookup after the distant
+spawn returned completed B's UUID. The fixture set B's NoAI flag before its
+fresh/unassigned check correctly rejected that actor.
+
+The [original artifact](https://github.com/dylandlr/hearthbound/actions/runs/45245168314/artifacts/14853628303)
+remains a failed overall acceptance, with SHA-256
+`21ab85482f142846880fd6cf29f382c8a8470667c11ccb5b03bf66bd5244d62e`.
+Its seven internal digests and native saved-world identity/seed verified.
+Native inventory and job evidence establish the earlier two deliveries and
+16-wheat conservation, but the later probe did modify an original worker.
+There were no ticket-removal, suspension, or resume observations. The distant
+actor's visibility/readiness was not established by the accepted spawn command.
+
+The exact-UUID native-summon and readiness contract above corrects that fixture
+error. It does not change the production motor, original four-citizen fixture,
+physical acceptance thresholds, or chunk-suspension observation requirements.
+Its new revision and fresh-world run remain separate from the failed first
+attempt; a successful correction cannot overwrite that failure.
+
+The same first revision's
+[original reliability cohort](https://github.com/dylandlr/hearthbound/actions/runs/45245168165)
+was independently verified as five passing worlds with complete diagnostics:
+60 snapshots and 120 native field probes. One already-completed worker was
+loaded but not entity-ticking; no active/carrying suspension was observed.
+Both accounting-event definitions were 0/5, with a descriptive 95% Wilson
+interval of 0–43.45%. The archived physical stall and historical accounting
+issue therefore remain unresolved. Results from later revisions are not pooled
+with this cohort.
 
 ## Validation and research connections
 

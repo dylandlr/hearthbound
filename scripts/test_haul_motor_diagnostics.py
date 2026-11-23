@@ -2,8 +2,10 @@
 """Adversarial evidence tests; Minecraft pathfinding is checked by the live fixture."""
 import copy
 import json
+from pathlib import Path
 import struct
 import unittest
+from unittest.mock import patch
 from uuid import UUID
 
 from haul_motor_diagnostics import (
@@ -11,6 +13,7 @@ from haul_motor_diagnostics import (
     parse_snapshot, require_blocked_cargo, require_completed, validate_snapshot,
 )
 from rcon_haul_motor_diagnostics import native_uuid
+import rcon_haul_motor_diagnostics as fixture
 
 CITIZEN = "11111111-1111-4111-8111-111111111111"
 OTHER = "22222222-2222-4222-8222-222222222222"
@@ -71,6 +74,247 @@ def completed():
                           navigation_request_target=None, distance_sq=None, within_reach=None)
     value["inventories"]["destination"] = inventory(1)
     return value
+
+
+def missing_probe(status="NOT_LOADED_IN_DIMENSION"):
+    value = {key: val for key, val in observed().items()
+             if key not in ("entity", "haul", "claim", "motor", "navigation", "inventories", "read_only_checks")}
+    value.update(citizen=fixture.PROBE_CITIZEN, status=status, loaded=status != "NOT_LOADED_IN_DIMENSION")
+    return value
+
+
+def probe_snapshot(tick=100, entity_tick=10, forced=True, ticking=True):
+    value = completed()
+    value.update(citizen=fixture.PROBE_CITIZEN, tick=tick)
+    value["entity"].update(no_ai=True, tick_count=entity_tick, position=list(fixture.PROBE_POSITION),
+                           chunk=list(fixture.PROBE_CHUNK), forced_chunk=forced,
+                           position_entity_ticking=ticking, horizontal_collision=False)
+    value["haul"].update(present=False, type=0, phase=None, phase_name="ABSENT", job=None,
+                         source=None, destination=None, assigned_tick=None, delivered_tick=None)
+    value["haul"]["types"] = dict.fromkeys(value["haul"]["types"], 0)
+    value["claim"].update(owned_by_citizen=None)
+    value["motor"].update(phase_known=False)
+    value["navigation"].update(target=None, path_present=False, next_node_index=None, node_count=None,
+                                path_can_reach=None, path_target=None, next_node=None, end_node=None)
+    value["inventories"] = {key: {"status": "NO_ENDPOINT", "scope": "LOCAL_VANILLA_CONTAINER_NBT",
+                                 "slots": None, "inspected_slots": None, "wheat": None,
+                                 "total_items": None, "complete": False}
+                            for key in ("source", "destination")}
+    return value
+
+
+def probe_sequence(readiness=None):
+    return [missing_probe(), missing_probe(), *(readiness or [probe_snapshot()]),
+            probe_snapshot(200, 12, False, False), probe_snapshot(240, 12, False, False),
+            probe_snapshot(280, 12, False, False), probe_snapshot(300, 13)]
+
+
+class ProbeRcon:
+    """Scripted transport replies exercise the real parser and fixture gates."""
+    def __init__(self, probe_replies, native_identity=None, after_changes=None):
+        self.probe_replies = list(probe_replies)
+        self.native_identity = native_identity or fixture.PROBE_CITIZEN
+        self.after_changes = after_changes or {}
+        self.commands = []
+        self.original_reads = {CITIZEN: 0, OTHER: 0}
+
+    def run(self, command):
+        self.commands.append(command)
+        if command.startswith("hearthbound-haul-diagnostics "):
+            citizen = command.split()[-1]
+            if citizen in self.original_reads:
+                self.original_reads[citizen] += 1
+                value = completed()
+                value["citizen"] = citizen
+                if citizen == OTHER:
+                    value["haul"]["job"] = OTHER
+                if self.original_reads[citizen] > 1:
+                    value["tick"] += 200
+                    value["entity"]["tick_count"] += 200
+                    value["entity"]["position"][0] += 0.25
+                    value["navigation"]["stuck"] = True
+                    change = self.after_changes.get(citizen)
+                    if isinstance(change, Exception):
+                        raise change
+                    if change is not None:
+                        change(value)
+            else:
+                assert citizen == fixture.PROBE_CITIZEN, command
+                assert self.probe_replies, "Unexpected extra probe observation"
+                value = copy.deepcopy(self.probe_replies.pop(0))
+            return PREFIX + json.dumps(value, separators=(",", ":"))
+        if command == f"data get entity {fixture.PROBE_CITIZEN} UUID":
+            return "Probe has the following entity data: [I; " + ", ".join(
+                map(str, struct.unpack(">iiii", UUID(self.native_identity).bytes))) + "]"
+        if command.startswith("forceload "):
+            return "Marked or unmarked chunk to be force loaded"
+        if command.startswith("fill "):
+            return "Successfully filled blocks"
+        if command.startswith("summon minecraft:villager "):
+            return "Summoned new HaulMotorChunkProbe"
+        raise AssertionError("Unexpected or unsafe probe command: " + command)
+
+    def require(self, command, expected):
+        response = self.run(command)
+        assert expected.lower() in response.lower(), (command, response)
+        return response
+
+
+class ChunkProbeIdentityTests(unittest.TestCase):
+    def data(self):
+        return {"citizens": {"A": CITIZEN, "B": OTHER}}
+
+    def assert_no_fallback(self, rcon, removed=False):
+        self.assertFalse(any("@e" in c or "sort=nearest" in c or c.startswith("data merge entity ")
+                             for c in rcon.commands))
+        if not removed:
+            self.assertFalse(any(c.startswith("forceload remove ") for c in rcon.commands))
+
+    def test_delayed_visibility_uses_exact_uuid_then_preserves_originals(self):
+        readiness = [missing_probe(), missing_probe(), probe_snapshot(forced=False, ticking=False),
+                     probe_snapshot(ticking=False), probe_snapshot()]
+        rcon, data, sleeps = ProbeRcon(probe_sequence(readiness)), self.data(), []
+        fixture.run_chunk_probe(rcon, data, sleeps.append)
+        self.assert_no_fallback(rcon, removed=True)
+        self.assertEqual(sleeps, [fixture.PROBE_POLL_SECONDS] * 4)
+        self.assertEqual(data["probe_identity"]["readiness"]["polls"], 5)
+        self.assertTrue(data["probe_identity"]["readiness"]["ready"])
+        self.assertEqual(native_uuid(data["probe_identity"]["native_uuid_response"]), fixture.PROBE_CITIZEN)
+        summons = [c for c in rcon.commands if c.startswith("summon ")]
+        self.assertEqual(len(summons), 1)
+        self.assertEqual(native_uuid(summons[0]), fixture.PROBE_CITIZEN)
+        for nbt in ('PersistenceRequired:1b', 'NoAI:1b', 'ForgeData:{"hearthbound.sable":1b}'):
+            self.assertIn(nbt, summons[0])
+        binding = rcon.commands.index(f"data get entity {fixture.PROBE_CITIZEN} UUID")
+        removal = rcon.commands.index(f"forceload remove {fixture.PROBE_COLUMN[0]} {fixture.PROBE_COLUMN[1]}")
+        self.assertLess(binding, removal)
+        self.assertEqual(len(data["chunk_suspended_reads"]), 3)
+        self.assertEqual([s["tick"] for s in data["chunk_suspended_reads"]], [200, 240, 280])
+        self.assertEqual(data["chunk_resumed"]["entity"]["tick_count"], 13)
+        protection = data["chunk_probe_originals"]
+        self.assertTrue(protection["unchanged_verified"])
+        self.assertEqual(protection["errors"], [])
+        for name in ("A", "B"):
+            self.assertEqual(authority_view(protection["before"][name]), authority_view(protection["after"][name]))
+            self.assertNotEqual(protection["before"][name]["entity"]["position"],
+                                protection["after"][name]["entity"]["position"])
+
+    def test_original_uuid_collision_never_summons_or_changes_tickets(self):
+        rcon, data = ProbeRcon([]), self.data()
+        with patch.object(fixture, "PROBE_CITIZEN", CITIZEN), self.assertRaisesRegex(ValueError, "collides"):
+            fixture.run_chunk_probe(rcon, data, lambda _: None)
+        self.assertFalse(any(c.startswith(("summon ", "forceload ", "fill ")) for c in rcon.commands))
+        self.assertTrue(data["chunk_probe_originals"]["unchanged_verified"])
+        self.assert_no_fallback(rcon)
+
+    def test_preexisting_loaded_or_unavailable_uuid_is_rejected(self):
+        for before in (probe_snapshot(), missing_probe("NOT_A_MARKED_VILLAGER"),
+                       missing_probe("SNAPSHOT_UNAVAILABLE")):
+            with self.subTest(status=before["status"]):
+                rcon, data = ProbeRcon([before]), self.data()
+                with self.assertRaisesRegex(ValueError, "already loaded|absence is unavailable"):
+                    fixture.run_chunk_probe(rcon, data, lambda _: None)
+                self.assertFalse(any(c.startswith(("summon ", "forceload ", "fill ")) for c in rcon.commands))
+                self.assertTrue(data["chunk_probe_originals"]["unchanged_verified"])
+                self.assert_no_fallback(rcon)
+
+    def test_uuid_loaded_by_setup_is_rejected_before_summon(self):
+        rcon, data = ProbeRcon([missing_probe(), probe_snapshot()]), self.data()
+        with self.assertRaisesRegex(ValueError, "became loaded"):
+            fixture.run_chunk_probe(rcon, data, lambda _: None)
+        self.assertFalse(any(c.startswith("summon ") for c in rcon.commands))
+        self.assertTrue(data["chunk_probe_originals"]["unchanged_verified"])
+        self.assert_no_fallback(rcon)
+
+    def test_old_worker_foreign_world_and_unmarked_readiness_fail_closed(self):
+        wrong_worker = completed()
+        wrong_worker["citizen"] = OTHER
+        wrong_world = probe_snapshot()
+        wrong_world["world"] = OTHER
+        for response in (wrong_worker, wrong_world, missing_probe("NOT_A_MARKED_VILLAGER")):
+            with self.subTest(response=response["status"], citizen=response["citizen"], world=response["world"]):
+                rcon, data = ProbeRcon([missing_probe(), missing_probe(), response]), self.data()
+                with self.assertRaises(ValueError):
+                    fixture.run_chunk_probe(rcon, data, lambda _: None)
+                self.assertEqual(data["probe_identity"]["readiness"]["polls"], 1)
+                self.assertFalse(data["probe_identity"]["readiness"]["ready"])
+                self.assertTrue(data["chunk_probe_originals"]["unchanged_verified"])
+                self.assert_no_fallback(rcon)
+
+    def test_native_uuid_binding_cannot_return_old_worker(self):
+        rcon, data = ProbeRcon([missing_probe(), missing_probe(), probe_snapshot()], native_identity=OTHER), self.data()
+        with self.assertRaisesRegex(ValueError, "Native probe UUID witness"):
+            fixture.run_chunk_probe(rcon, data, lambda _: None)
+        self.assertEqual(native_uuid(data["probe_identity"]["native_uuid_response"]), OTHER)
+        self.assertFalse(data["probe_identity"]["readiness"]["ready"])
+        self.assertTrue(data["chunk_probe_originals"]["unchanged_verified"])
+        self.assert_no_fallback(rcon)
+
+    def test_wrong_position_chunk_marker_noai_or_existing_haul_prevents_ticket_removal(self):
+        for corruption in ("position", "chunk", "marker", "no_ai", "haul"):
+            response = probe_snapshot()
+            if corruption == "position":
+                response["entity"]["position"][0] += 1
+            elif corruption == "chunk":
+                response["entity"]["chunk"][0] += 1
+            elif corruption == "marker":
+                response["entity"].update(sable_marker=False, citizen_marker=True)
+            elif corruption == "no_ai":
+                response["entity"]["no_ai"] = False
+            else:
+                response["haul"] = completed()["haul"]
+                response["claim"]["owned_by_citizen"] = False
+            with self.subTest(corruption=corruption):
+                rcon, data = ProbeRcon([missing_probe(), missing_probe(), response]), self.data()
+                with self.assertRaises(ValueError):
+                    fixture.run_chunk_probe(rcon, data, lambda _: None)
+                self.assertEqual(data["probe_identity"]["readiness"]["polls"], 1)
+                self.assertTrue(data["chunk_probe_originals"]["unchanged_verified"])
+                self.assert_no_fallback(rcon)
+
+    def test_readiness_timeout_obeys_original_budget_and_finally_checks_originals(self):
+        rcon = ProbeRcon([missing_probe()] * (fixture.PROBE_MAX_POLLS + 2))
+        data, sleeps = self.data(), []
+        with self.assertRaisesRegex(AssertionError, "chunk-probe-readiness"):
+            fixture.run_chunk_probe(rcon, data, sleeps.append)
+        self.assertEqual(data["probe_identity"]["readiness"]["polls"], 60)
+        self.assertEqual(sleeps, [0.25] * 60)
+        self.assertEqual(rcon.probe_replies, [])
+        self.assertTrue(data["chunk_probe_originals"]["unchanged_verified"])
+        self.assert_no_fallback(rcon)
+
+    def test_original_noai_and_authority_changes_fail_the_probe(self):
+        for change in (lambda s: s["entity"].update(no_ai=True),
+                       lambda s: s["haul"].update(job=WORLD)):
+            rcon, data = ProbeRcon(probe_sequence(), after_changes={OTHER: change}), self.data()
+            with self.assertRaisesRegex(ValueError, "original-state verification failed"):
+                fixture.run_chunk_probe(rcon, data, lambda _: None)
+            self.assertFalse(data["chunk_probe_originals"]["unchanged_verified"])
+            self.assertEqual(set(data["chunk_probe_originals"]["after"]), {"A", "B"})
+            self.assertIn("Original citizen NoAI or stable authority changed", data["chunk_probe_originals"]["errors"][0])
+            self.assert_no_fallback(rcon, removed=True)
+
+    def test_primary_timeout_survives_changed_or_unavailable_original_after_read(self):
+        for change in (lambda s: s["entity"].update(no_ai=True), RuntimeError("protected read failed")):
+            rcon = ProbeRcon([missing_probe()] * (fixture.PROBE_MAX_POLLS + 2), after_changes={OTHER: change})
+            data = self.data()
+            with self.assertRaisesRegex(AssertionError, "chunk-probe-readiness"):
+                fixture.run_chunk_probe(rcon, data, lambda _: None)
+            self.assertFalse(data["chunk_probe_originals"]["unchanged_verified"])
+            self.assertEqual(len(data["chunk_probe_originals"]["errors"]), 1)
+            self.assertIn("A", data["chunk_probe_originals"]["after"])
+            self.assert_no_fallback(rcon)
+
+    def test_plan_declares_identity_readiness_and_protection(self):
+        plan = fixture.plan(Path(fixture.__file__).resolve().parents[1])["chunk_probe"]
+        self.assertEqual(plan["probe_citizen"], str(UUID(fixture.PROBE_CITIZEN)))
+        self.assertEqual(plan["identity_policy"], "PREDECLARED_UUID_NATIVE_SUMMON_NO_SELECTOR")
+        self.assertEqual(plan["probe_chunk"], (256, 255))
+        self.assertEqual(plan["readiness"]["max_polls"], 60)
+        self.assertEqual(plan["readiness"]["poll_seconds"], 0.25)
+        self.assertTrue(plan["readiness"]["native_uuid_binding"])
+        self.assertEqual(plan["initial_nbt"], {"sable_marker": True, "persistence_required": True, "no_ai": True})
+        self.assertEqual(plan["protect_originals"], "NOAI_AND_STABLE_AUTHORITY_BEFORE_AND_FINALLY_AFTER")
 
 
 class DiagnosticEvidenceTests(unittest.TestCase):

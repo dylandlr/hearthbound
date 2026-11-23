@@ -37,6 +37,9 @@ MISSING_CITIZEN = "00000000-0000-4000-8000-000000000217"
 PROBE_ANCHOR = (4096, 4096)
 PROBE_COLUMN = (4104, 4088)
 PROBE_POSITION = (4104.5, 101.0, 4088.5)
+PROBE_CHUNK = tuple(value // 16 for value in PROBE_COLUMN)
+PROBE_CITIZEN = "00000000-0000-4000-8000-000000217001"
+PROBE_IDENTITY_POLICY = "PREDECLARED_UUID_NATIVE_SUMMON_NO_SELECTOR"
 PROBE_GAP_TICKS = 40
 PROBE_POLL_SECONDS, PROBE_MAX_POLLS = 0.25, 60
 PROTOCOL_FILES = (
@@ -65,6 +68,15 @@ def plan(repo):
                              "poll_seconds": POLL_SECONDS, "max_polls_per_stage": MAX_POLLS},
             "chunk_probe": {"anchor_column": PROBE_ANCHOR, "probe_column": PROBE_COLUMN,
                             "probe_position": PROBE_POSITION, "no_ai": True, "haul_assigned": False,
+                            "probe_chunk": PROBE_CHUNK, "probe_citizen": PROBE_CITIZEN,
+                            "identity_policy": PROBE_IDENTITY_POLICY,
+                            "reject_original_or_loaded_uuid": True,
+                            "initial_nbt": {"sable_marker": True, "persistence_required": True, "no_ai": True},
+                            "readiness": {"status": "OBSERVED", "loaded": True, "chunk_loaded": True,
+                                          "forced_chunk": True, "position_entity_ticking": True,
+                                          "native_uuid_binding": True, "planned_position_and_chunk": True,
+                                          "poll_seconds": PROBE_POLL_SECONDS, "max_polls": PROBE_MAX_POLLS},
+                            "protect_originals": "NOAI_AND_STABLE_AUTHORITY_BEFORE_AND_FINALLY_AFTER",
                             "setup_forces_both_chunks": True, "remove_probe_ticket_before_measurement": True,
                             "read_gap_game_ticks": PROBE_GAP_TICKS,
                             "poll_seconds": PROBE_POLL_SECONDS, "max_polls_per_stage": PROBE_MAX_POLLS,
@@ -102,15 +114,18 @@ def native_inventories(rcon):
                             ("source_B", SOURCE_B), ("destination_B", DEST_B))}
 
 
-def snapshot(rcon, data, citizen, label):
-    value = capture_snapshot(rcon, citizen, expected_dimension="minecraft:overworld")
+def snapshot(rcon, data, citizen, label, expected_world=None):
+    value = capture_snapshot(rcon, citizen, expected_world=expected_world,
+                             expected_dimension="minecraft:overworld")
     data.setdefault("snapshots", []).append({"label": label, "snapshot": value})
     return value
 
 
-def wait_probe(rcon, data, citizen, predicate, label, sleep):
+def wait_probe(rcon, data, citizen, predicate, label, sleep, expected_world=None, progress=None):
     for index in range(PROBE_MAX_POLLS):
-        value = snapshot(rcon, data, citizen, f"{label}-{index}")
+        if progress is not None:
+            progress["polls"] = index + 1
+        value = snapshot(rcon, data, citizen, f"{label}-{index}", expected_world)
         if predicate(value):
             return value
         sleep(PROBE_POLL_SECONDS)
@@ -118,7 +133,59 @@ def wait_probe(rcon, data, citizen, predicate, label, sleep):
 
 
 def run_chunk_probe(rcon, data, sleep=time.sleep):
-    """Change chunk tickets only for a fresh, unassigned, stationary test citizen."""
+    """Protect the completed workers even if a later probe observation fails."""
+    originals = data["citizens"]
+    require(set(originals) == {"A", "B"} and originals["A"] != originals["B"],
+            "Chunk probe requires the two distinct original citizen identities")
+    protected = data["chunk_probe_originals"] = {"before": {}, "after": {},
+                                                "unchanged_verified": False, "errors": []}
+    primary_error = None
+    try:
+        for name, citizen in originals.items():
+            value = snapshot(rcon, data, citizen, "chunk-probe-original-before-" + name)
+            protected["before"][name] = value
+            require(value["status"] == "OBSERVED" and value["world_state"] == "PRESENT",
+                    "Original citizen unavailable before chunk probe: " + name)
+        world = protected["before"]["A"]["world"]
+        require(protected["before"]["B"]["world"] == world, "Original citizens belong to different worlds")
+        require(PROBE_CITIZEN not in originals.values(), "Probe UUID collides with an original citizen")
+        _run_chunk_probe(rcon, data, world, sleep)
+    except Exception as error:
+        primary_error = error
+        raise
+    finally:
+        for name, citizen in originals.items():
+            try:
+                value = snapshot(rcon, data, citizen, "chunk-probe-original-after-" + name)
+                protected["after"][name] = value
+                before = protected["before"].get(name)
+                require(before is not None and before["status"] == value["status"] == "OBSERVED",
+                        "Original citizen unavailable for protected-state comparison: " + name)
+                require(value["entity"]["no_ai"] == before["entity"]["no_ai"]
+                        and authority_view(value) == authority_view(before),
+                        "Original citizen NoAI or stable authority changed during chunk probe: " + name)
+            except Exception as error:
+                protected["errors"].append(type(error).__name__ + ": " + str(error))
+        protected["unchanged_verified"] = not protected["errors"]
+        if protected["errors"] and primary_error is None:
+            raise ValueError("Chunk probe original-state verification failed: " + "; ".join(protected["errors"]))
+
+
+def _run_chunk_probe(rcon, data, world, sleep):
+    """Create exactly one named probe; ticket changes follow verified readiness."""
+    citizen = PROBE_CITIZEN
+    command_for(citizen)  # Validate the declared identity before constructing native NBT.
+    identity = data["probe_identity"] = {
+        "policy": PROBE_IDENTITY_POLICY, "citizen": citizen,
+        "planned_position": PROBE_POSITION, "planned_chunk": PROBE_CHUNK,
+        "readiness": {"ready": False, "polls": 0, "max_polls": PROBE_MAX_POLLS,
+                      "poll_seconds": PROBE_POLL_SECONDS},
+    }
+    data["probe_citizen"] = citizen
+    absent = snapshot(rcon, data, citizen, "chunk-probe-absent-before-setup", world)
+    identity["before_setup"] = absent
+    require(absent["status"] == "NOT_LOADED_IN_DIMENSION",
+            "Probe UUID is already loaded or its absence is unavailable")
     rcon.require(f"forceload add {PROBE_ANCHOR[0]} {PROBE_ANCHOR[1]}", "force loaded")
     rcon.require(f"forceload add {PROBE_COLUMN[0]} {PROBE_COLUMN[1]}", "force loaded")
     for command in (
@@ -126,23 +193,46 @@ def run_chunk_probe(rcon, data, sleep=time.sleep):
         "fill 4103 101 4087 4105 103 4089 minecraft:air",
     ):
         rcon.require(command, "filled")
-    citizen = spawn_citizen(rcon, PROBE_POSITION)
-    data["probe_citizen"] = citizen
-    rcon.require(f"data merge entity {citizen} {{NoAI:1b}}", "modified")
-    initial = snapshot(rcon, data, citizen, "chunk-probe-initial-forced")
-    require(initial["status"] == "OBSERVED" and initial["entity"]["no_ai"] is True
-            and initial["entity"]["forced_chunk"] is True and initial["haul"]["present"] is False,
-            "Fresh chunk probe was not stationary, forced, and unassigned")
+    absent = snapshot(rcon, data, citizen, "chunk-probe-absent-before-summon", world)
+    identity["before_summon"] = absent
+    require(absent["status"] == "NOT_LOADED_IN_DIMENSION",
+            "Probe UUID became loaded before native summon")
+    ints = ",".join(map(str, struct.unpack(">iiii", UUID(citizen).bytes)))
+    nbt = ('{UUID:[I;' + ints + '],CustomName:\'{"text":"HaulMotorChunkProbe"}\','
+           'PersistenceRequired:1b,NoAI:1b,Rotation:[0f,0f],ForgeData:{"hearthbound.sable":1b}}')
+    identity["summon_command"] = "summon minecraft:villager " + " ".join(map(str, PROBE_POSITION)) + " " + nbt
+    rcon.require(identity["summon_command"], "Summoned new")
+
+    def ready(value):
+        if value["status"] == "NOT_LOADED_IN_DIMENSION":
+            return False
+        require(value["status"] == "OBSERVED", "Exact probe identity is not an observed marked citizen")
+        entity = value["entity"]
+        require(entity["alive"] and entity["can_update"] and entity["sable_marker"]
+                and entity["no_ai"] and value["haul"]["present"] is False and value["haul"]["type"] == 0,
+                "Fresh chunk probe is not alive, marked, stationary, and unassigned")
+        require(entity["position"] == list(PROBE_POSITION) and entity["chunk"] == list(PROBE_CHUNK),
+                "Exact probe is outside its planned position or chunk")
+        return (value["loaded"] and entity["chunk_loaded"] and entity["forced_chunk"]
+                and entity["position_entity_ticking"])
+
+    initial = wait_probe(rcon, data, citizen, ready, "chunk-probe-readiness", sleep, world,
+                         identity["readiness"])
+    identity["native_uuid_response"] = rcon.require(f"data get entity {citizen} UUID", "entity data:")
+    require(native_uuid(identity["native_uuid_response"]) == citizen,
+            "Native probe UUID witness belongs to a different entity")
+    identity["readiness"].update(ready=True, snapshot=initial)
+    data["chunk_probe_initial_forced"] = initial
     rcon.require(f"forceload remove {PROBE_COLUMN[0]} {PROBE_COLUMN[1]}", "force loaded")
     suspended = wait_probe(rcon, data, citizen,
         lambda s: s["status"] == "OBSERVED" and s["entity"]["position_entity_ticking"] is False
-        and s["entity"]["forced_chunk"] is False, "chunk-probe-suspend", sleep)
+        and s["entity"]["forced_chunk"] is False, "chunk-probe-suspend", sleep, world)
     reads = [suspended]
     for index in range(2):
         previous = reads[-1]
         value = wait_probe(rcon, data, citizen,
             lambda s: s["status"] == "OBSERVED" and s["tick"] - previous["tick"] >= PROBE_GAP_TICKS,
-            f"chunk-probe-suspended-gap-{index}", sleep)
+            f"chunk-probe-suspended-gap-{index}", sleep, world)
         require(value["entity"]["chunk_loaded"] is True
                 and value["entity"]["position_entity_ticking"] is False
                 and value["entity"]["forced_chunk"] is False
@@ -156,7 +246,7 @@ def run_chunk_probe(rcon, data, sleep=time.sleep):
     resumed = wait_probe(rcon, data, citizen,
         lambda s: s["status"] == "OBSERVED" and s["entity"]["position_entity_ticking"] is True
         and s["entity"]["forced_chunk"] is True
-        and s["entity"]["tick_count"] > suspended["entity"]["tick_count"], "chunk-probe-resume", sleep)
+        and s["entity"]["tick_count"] > suspended["entity"]["tick_count"], "chunk-probe-resume", sleep, world)
     require(resumed["entity"]["no_ai"] is True and resumed["haul"]["present"] is False,
             "Chunk probe changed action state")
     data["chunk_resumed"] = resumed
