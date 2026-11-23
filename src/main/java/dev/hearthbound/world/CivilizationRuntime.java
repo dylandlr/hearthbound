@@ -308,6 +308,65 @@ public final class CivilizationRuntime {
                 ctx.getSource().sendSuccess(() -> Component.literal(result), false);
                 return 1;
             }))
+            .then(Commands.literal("source-readiness-audit")
+                .then(Commands.argument("position", BlockPosArgument.blockPos())
+                    .executes(ctx -> {
+                        ServerLevel level = ctx.getSource().getLevel();
+                        ColonyData board = data(level);
+                        BlockPos source = BlockPosArgument.getBlockPos(ctx, "position");
+                        // One operator-selected source. Never load chunks, scan
+                        // distant world data, or mutate citizen/task/inventory state.
+                        StringBuilder report = new StringBuilder(
+                            "COLONY_SOURCE_READINESS_V0_9 source="
+                            + source.getX() + "," + source.getY() + "," + source.getZ()
+                            + " source_chunk_loaded=" + level.hasChunkAt(source));
+                        if (!level.hasChunkAt(source)) {
+                            report.append(" citizens=0 unknown_unloaded=true");
+                        } else {
+                            var candidates = level.getEntitiesOfClass(Villager.class,
+                                new net.minecraft.world.phys.AABB(source).inflate(16.0),
+                                CitizenSourceKnowledge::isCitizen);
+                            candidates.sort(java.util.Comparator.comparing(v -> v.getUUID().toString()));
+                            int visible = Math.min(candidates.size(), 16);
+                            report.append(" citizens=").append(candidates.size())
+                                .append(" truncated=").append(candidates.size() > visible);
+                            for (int i = 0; i < visible; i++) {
+                                Villager citizen = candidates.get(i);
+                                UUID id = citizen.getUUID();
+                                long done = board.tasks.snapshot().stream().filter(t ->
+                                    t.state() == State.DONE && id.equals(t.owner())).count();
+                                long assigned = board.tasks.snapshot().stream().filter(t ->
+                                    t.state() == State.ASSIGNED && id.equals(t.owner())).count();
+                                long held = board.tasks.snapshot().stream().filter(t ->
+                                    (t.state() == State.HELD || t.state() == State.RESERVED)
+                                    && id.equals(t.owner())).count();
+                                double distanceSq = citizen.distanceToSqr(
+                                    source.getX() + 0.5, source.getY() + 0.5,
+                                    source.getZ() + 0.5);
+                                BlockPos position = citizen.blockPosition();
+                                boolean localScanReach = Math.abs(position.getX() - source.getX()) <= 2
+                                    && Math.abs(position.getY() - source.getY()) <= 1
+                                    && Math.abs(position.getZ() - source.getZ()) <= 2;
+                                report.append(" citizen_").append(i).append("=")
+                                    .append(id).append(",pos:")
+                                    .append(position.getX()).append(":")
+                                    .append(position.getY()).append(":")
+                                    .append(position.getZ())
+                                    .append(",distance_sq:").append((long)Math.ceil(distanceSq))
+                                    .append(",local_scan_reach:").append(localScanReach)
+                                    .append(",task_menu_reach:").append(distanceSq <= 256.0)
+                                    .append(",active_motor:").append(SableHauling.active(citizen))
+                                    .append(",done:").append(done)
+                                    .append(",assigned:").append(assigned)
+                                    .append(",held:").append(held);
+                            }
+                        }
+                        report.append(" strictly_read_only=true policy_control=false")
+                            .append(" reward_authorized=false");
+                        String output = report.toString();
+                        ctx.getSource().sendSuccess(() -> Component.literal(output), false);
+                        return 1;
+                    })))
             .then(Commands.literal("physical-reconciliation-audit").executes(ctx -> {
                 ServerLevel level = ctx.getSource().getLevel();
                 ColonyData board = data(level);
