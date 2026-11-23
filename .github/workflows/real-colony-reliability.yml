@@ -6,11 +6,18 @@ on:
       - 'src/main/java/dev/hearthbound/world/CivilizationRuntime.java'
       - 'src/main/java/dev/hearthbound/world/SableController.java'
       - 'src/main/java/dev/hearthbound/world/SableHauling.java'
+      - 'src/main/java/dev/hearthbound/world/HaulMotorDiagnostics.java'
+      - 'src/main/java/dev/hearthbound/world/HaulClaims.java'
+      - 'src/main/java/dev/hearthbound/world/HearthboundWorldIdentity.java'
       - 'src/main/java/dev/hearthbound/world/SourceReportSession.java'
       - 'scripts/rcon_civilization_four_citizens.py'
       - 'scripts/run_colony_reliability_trial.py'
       - 'scripts/summarize_colony_reliability.py'
       - 'scripts/test_colony_reliability.py'
+      - 'scripts/colony_motor_diagnostics.py'
+      - 'scripts/haul_motor_diagnostics.py'
+      - 'scripts/test_colony_motor_diagnostics.py'
+      - 'scripts/test_haul_motor_diagnostics.py'
       - '.github/workflows/real-colony-reliability.yml'
   workflow_dispatch:
 permissions:
@@ -41,7 +48,10 @@ jobs:
         with:
           gradle-version: '8.8'
       - name: Test trial provenance and complete-denominator aggregation
-        run: python3 -m unittest discover -s scripts -p 'test_colony_reliability.py'
+        run: |
+          python3 -m unittest discover -s scripts -p 'test_colony_reliability.py'
+          python3 -m unittest discover -s scripts -p 'test_colony_motor_diagnostics.py'
+          python3 -m unittest discover -s scripts -p 'test_haul_motor_diagnostics.py'
       - name: Compile Forge and test sources
         run: gradle --no-daemon compileJava compileTestJava > reliability-preflight.log 2>&1 || (tail -n 120 reliability-preflight.log; exit 1)
       - name: Run one untouched fixture in a new world and server process
@@ -78,6 +88,7 @@ jobs:
         run: >-
           python3 scripts/summarize_colony_reliability.py reliability-downloads
           --expected-commit "$HEARTHBOUND_EXPECTED_COMMIT"
+          --require-motor-diagnostics
           --output colony-reliability-summary.json
       - uses: actions/upload-artifact@v4
         if: always()

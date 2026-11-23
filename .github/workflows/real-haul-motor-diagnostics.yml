@@ -1,0 +1,101 @@
+name: Real Forge read-only haul and chunk diagnostics
+on:
+  pull_request:
+    paths:
+      - 'src/main/java/dev/hearthbound/world/HaulMotorDiagnostics.java'
+      - 'src/main/java/dev/hearthbound/world/SableController.java'
+      - 'src/main/java/dev/hearthbound/world/SableHauling.java'
+      - 'src/main/java/dev/hearthbound/world/HaulClaims.java'
+      - 'src/main/java/dev/hearthbound/world/HearthboundWorldIdentity.java'
+      - 'scripts/*haul_motor_diagnostics.py'
+      - 'scripts/rcon_obstructed_haul_acceptance.py'
+      - 'scripts/rcon_two_citizen_haul_acceptance.py'
+      - 'scripts/rcon_private_communication_trial.py'
+      - 'scripts/run_colony_reliability_trial.py'
+      - '.github/workflows/real-haul-motor-diagnostics.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  read-only-haul-diagnostics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      HEARTHBOUND_EXPECTED_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Preserve the single planned controlled trial before compilation
+        run: |
+          test "$(git rev-parse HEAD)" = "$HEARTHBOUND_EXPECTED_COMMIT"
+          python3 scripts/rcon_haul_motor_diagnostics.py --write-plan
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.8'}
+      - name: Test bounded parsing and physical evidence gates
+        run: python3 -m unittest discover -s scripts -p test_haul_motor_diagnostics.py -v
+      - name: Compile actual Forge and test sources
+        run: >-
+          gradle --no-daemon compileJava compileTestJava
+          > haul-motor-diagnostics/preflight.log 2>&1
+          || (tail -n 120 haul-motor-diagnostics/preflight.log; exit 1)
+      - name: Observe blocked cargo, recovery, and controlled chunk suspension
+        env:
+          HEARTHBOUND_RCON_PASSWORD: ci-haul-motor-diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/rcon_haul_motor_diagnostics.py --prepare-server
+          gradle --no-daemon runServer > haul-motor-diagnostics/forge-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 360); do
+            if grep -Eq 'Done \([0-9.]+s\)! For help, type "help"' haul-motor-diagnostics/forge-server.log; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              tail -n 100 haul-motor-diagnostics/forge-server.log
+              exit 1
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            tail -n 100 haul-motor-diagnostics/forge-server.log
+            exit 1
+          fi
+          grep -Fq 'Hearthbound bootstrap loaded.' haul-motor-diagnostics/forge-server.log
+          set +e
+          python3 -u scripts/rcon_haul_motor_diagnostics.py --run > haul-motor-diagnostics/rcon.log 2>&1
+          fixture_exit=$?
+          set -e
+          cat haul-motor-diagnostics/rcon.log
+          shutdown_timed_out=1
+          for i in $(seq 1 30); do
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              shutdown_timed_out=0
+              break
+            fi
+            sleep 2
+          done
+          if [ "$shutdown_timed_out" -ne 0 ]; then
+            kill "$server_pid" 2>/dev/null || true
+            sleep 2
+            kill -KILL "$server_pid" 2>/dev/null || true
+          fi
+          server_exit=0
+          wait "$server_pid" || server_exit=$?
+          if [ "$shutdown_timed_out" -ne 0 ]; then server_exit=124; fi
+          python3 scripts/rcon_haul_motor_diagnostics.py --finish-server "$server_exit"
+          exit "$fixture_exit"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: real-haul-motor-diagnostics-evidence
+          path: |
+            haul-motor-diagnostics/
+            run/logs/latest.log
+          if-no-files-found: error

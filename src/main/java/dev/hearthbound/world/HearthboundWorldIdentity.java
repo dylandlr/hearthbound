@@ -40,4 +40,17 @@ public final class HearthboundWorldIdentity extends SavedData {
         return overworld.getDataStorage().computeIfAbsent(
             HearthboundWorldIdentity::load, HearthboundWorldIdentity::createNew, NAME).id;
     }
+
+    /**
+     * Inspect existing SavedData without creating an identity or marking it dirty.
+     * Minecraft may cache data read from disk; no persistent or gameplay state is
+     * created. A null result means no existing identity is available.
+     */
+    public static UUID peek(ServerLevel level) {
+        ServerLevel overworld = level.getServer().getLevel(Level.OVERWORLD);
+        if (overworld == null) return null;
+        HearthboundWorldIdentity existing = overworld.getDataStorage().get(
+            HearthboundWorldIdentity::load, NAME);
+        return existing == null ? null : existing.id;
+    }
 }
