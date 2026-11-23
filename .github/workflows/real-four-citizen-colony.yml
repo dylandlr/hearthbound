@@ -8,6 +8,10 @@ on:
       - 'src/test/java/dev/hearthbound/civilization/**'
       - 'src/main/java/dev/hearthbound/world/SableController.java'
       - 'scripts/rcon_civilization_four_citizens.py'
+      - 'scripts/export-four-citizen-benchmark.js'
+      - 'scripts/export-four-citizen-benchmark.test.js'
+      - 'scripts/score-verified-citizen-participation.js'
+      - 'scripts/score-verified-citizen-participation.test.js'
       - '.github/workflows/real-four-citizen-colony.yml'
   workflow_dispatch:
 jobs:
@@ -28,6 +32,8 @@ jobs:
           python3 -m py_compile scripts/rcon_civilization_four_citizens.py
           node --check scripts/export-four-citizen-benchmark.js
           node scripts/export-four-citizen-benchmark.test.js
+          node --check scripts/score-verified-citizen-participation.js
+          node scripts/score-verified-citizen-participation.test.js
       - name: Verify scoped Java decision contracts
         run: python3 scripts/test-civilization-contracts.py
       - name: Compile Forge and test sources

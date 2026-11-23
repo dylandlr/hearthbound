@@ -5,6 +5,7 @@
  */
 const fs=require("node:fs");
 const crypto=require("node:crypto");
+const {scoreCitizenParticipation}=require("./score-verified-citizen-participation.js");
 const MARKER="HEARTHBOUND_BENCHMARK_RECEIPT_V1 ";
 const PASS="CIVILIZATION_FOUR_CITIZEN_ACCEPTANCE_PASS ";
 const TRACES="HEARTHBOUND_CITIZEN_TRACES_V1 ";
@@ -66,7 +67,7 @@ function verifyReceipt(log,{workflowRunId,commit}={}){
  l.individual_contribution_scores!==false||l.independent_world_replicate!==false||
  l.learned_policy!==false||l.journal_crash_atomicity!==false)
  throw Error("failed evidence or unsupported scope");
- return {
+ const verified = {
   schema:"hearthbound.collaboration_evidence.v0.4",
   provenance:{workflowRunId,commit,fixtureWorld:obj.fixture_world,
    fixtureSeed:obj.fixture_seed,logSha256:crypto.createHash("sha256").update(log).digest("hex")},
@@ -78,6 +79,8 @@ function verifyReceipt(log,{workflowRunId,commit}={}){
   audit:{passedLiveAcceptanceMarker:true,fromExplicitReceipt:true,
    limit:"Log-bound CI export; this offline parser cannot independently authenticate a forged RCON log or prove unobserved citizen events. Individual roles and participation beyond these four physical jobs remain unmeasured."}
  };
+ verified.fixtureParticipation = scoreCitizenParticipation(verified);
+ return verified;
 }
 function main(argv=process.argv.slice(2),env=process.env){
  if(argv.length!==2)throw Error("usage: node scripts/export-four-citizen-benchmark.js <rcon-log> <output-json>");
