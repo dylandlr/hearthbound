@@ -27,10 +27,19 @@ class ReliabilityTest(unittest.TestCase):
             self.assertEqual(summary['unclassified_worlds'],2)
             self.assertEqual(summary['planned_failure_fraction_bounds'],[1/3,1])
             self.assertLess(summary['wilson_95_observed_only'][0],1)
+    def test_malformed_terminal_is_not_a_measured_failure(self):
+        for done, physical in [(True, True), (3, 'true'), (-1, True), (5, False)]:
+            log='HEARTHBOUND_TERMINAL_ACCOUNTING_V1 '+json.dumps(dict(done=done,destination_has_four_wheat=physical,deadline_exhausted=True))
+            with self.assertRaises(ValueError): classify(log,None)
+    def test_conflicting_success_is_rejected(self):
+        log='HEARTHBOUND_TERMINAL_ACCOUNTING_V1 '+json.dumps(dict(done=3,destination_has_four_wheat=True,deadline_exhausted=True))
+        with self.assertRaises(ValueError): classify(log,{'aggregate':{'physicalDeliveries':4}})
     def test_manifest_seed_swap_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp); folder=root/'real-four-citizen-colony-evidence-0';folder.mkdir()
             (folder/'trial-metadata.json').write_text(json.dumps(dict(trial=0,seed=SEEDS[1],fresh_world=True)))
-            with self.assertRaises(ValueError): summarize(root)
+            result=summarize(root)
+            self.assertEqual(result['trials'][0]['status'],'INVALID_EVIDENCE')
+            self.assertEqual(result['unclassified_worlds'],3)
 
 if __name__=='__main__': unittest.main()

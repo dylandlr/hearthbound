@@ -65,9 +65,12 @@ def communication_evidence(data):
         observed, delivered = int(delivery['observed_tick']), int(delivery['delivered_tick'])
         require(0 <= observed <= delivered <= int(assignment['decision_tick']) <=
                 int(assignment['assigned_tick']), 'Invalid chronology')
+        require(delivered-observed <= 40, 'Stale direct evidence at delivery')
+        selected = delivery['report_id'] == assignment['source_report_id']
+        if selected:
+            require(int(assignment['decision_tick'])-delivered <= 200, 'Expired selected report')
         require(delivery['state'] == 'AVAILABLE' and int(delivery['wheat']) > 0 and
                 int(delivery['source_revision']) > 0, 'Invalid source report')
-        selected = delivery['report_id'] == assignment['source_report_id']
         if selected:
             for left, right in [('sender', 'sender'), ('source', 'source'),
                                 ('observed_tick', 'observed_tick'),

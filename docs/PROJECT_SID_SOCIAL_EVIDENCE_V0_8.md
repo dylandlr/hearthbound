@@ -19,9 +19,9 @@ Read `PA4_Reading_Reports (2).pdf` (188 physical pages), SHA-256 `ea658537d963e2
 | P06 [Cemri et al., MAST v3](https://arxiv.org/abs/2503.13657v3) | 30–33 | Classify observable lost history, information and verification failures; do not infer motives or topology superiority. |
 | P11 [Du et al., multiagent debate v1](https://arxiv.org/abs/2305.14325v1) | 50–53 | Keep accurate disagreement and harmful revisions visible; agreement cannot verify inventory. |
 | P28 [Shinn et al., Reflexion v4](https://arxiv.org/abs/2303.11366v4) | 122–125 | Bounded episodic feedback requires trustworthy outcomes; retaining memory is not weight training. Reset memory between independent worlds. |
-| P19 [Mao et al., ALYMPICS v4](https://arxiv.org/abs/2311.03220v4) | index p.1 | Declare scarce resources, permitted actions and utilities before interpreting strategy; do not transfer human-behavior claims. |
-| P32 Wellman, Methods for Empirical Game-Theoretic Analysis (2006 extended abstract) | 140–143 | Treat complete policies as strategies; missing profile payoffs are unknown, not zero. Identity from dossier; original full text not re-audited here. |
-| P33 [Wellman, Tuyls, Greenwald, EGTA survey](https://arxiv.org/abs/2403.04018) / JAIR 82 (2025), DOI 10.1613/jair.1.16146 | 144–149 | Require covered unilateral deviations and sampling uncertainty before equilibrium claims; survey is not a Hearthbound result. |
+| P19 [Mao et al., ALYMPICS v4](https://arxiv.org/abs/2311.03220v4) | 84-87 | Declare scarce resources, permitted actions and utilities before interpreting strategy; do not transfer human-behavior claims. |
+| P32 [Wellman, Methods for Empirical Game-Theoretic Analysis (2006 extended abstract)](https://strategicreasoning.org/wp-content/uploads/2010/03/MethodsEmpiricalGameTheoretic.pdf) | 140–143 | Treat complete policies as strategies; missing profile payoffs are unknown, not zero. Original four-page paper checked; its printed pages are 1552-1555 (the author landing page lists a discrepant range). |
+| P33 [Wellman, Tuyls, Greenwald, EGTA survey](https://arxiv.org/html/2403.04018v2) / JAIR 82 (2025), DOI 10.1613/jair.1.16146 | 144–149 | Require covered unilateral deviations and sampling uncertainty before equilibrium claims; survey is not a Hearthbound result. |
 | P42 MultiAgentBench | 185–188 | Separate completion, participation, information use and budget; use independent-world comparisons. |
 
 ## Implemented and deliberately unmeasured

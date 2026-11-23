@@ -10,17 +10,20 @@ SEEDS = ['hearthbound-four-citizen-v0-3', 'hearthbound-four-citizen-v0-8-1',
 
 
 def classify(log, benchmark):
-    if benchmark is not None:
-        if benchmark['aggregate']['physicalDeliveries'] != 4:
-            raise ValueError('Invalid passing evidence')
-        return 'PASS'
     marker = 'HEARTHBOUND_TERMINAL_ACCOUNTING_V1 '
     terminal = [json.loads(line[len(marker):]) for line in log.splitlines() if line.startswith(marker)]
     if len(terminal) > 1:
         raise ValueError('Multiple terminal trials in one log')
+    if benchmark is not None:
+        if benchmark['aggregate']['physicalDeliveries'] != 4:
+            raise ValueError('Invalid passing evidence')
+        if terminal:
+            raise ValueError('Conflicting pass and terminal failure')
+        return 'PASS'
     if terminal:
         t = terminal[0]
-        if t['deadline_exhausted'] is not True:
+        if (t['deadline_exhausted'] is not True or type(t['done']) is not int
+                or not 0 <= t['done'] <= 4 or type(t['destination_has_four_wheat']) is not bool):
             raise ValueError('Nonterminal failure')
         if t['done'] == 3 and t['destination_has_four_wheat'] is True:
             return 'THREE_OF_FOUR_ACCOUNTING_FAILURE'
@@ -36,23 +39,31 @@ def summarize(root):
         if not metadata_path.exists():
             trials.append({'trial': index, 'seed': seed, 'status': 'MISSING_ARTIFACT'})
             continue
-        metadata = json.loads(metadata_path.read_text())
-        if metadata['trial'] != index or metadata['seed'] != seed or metadata['fresh_world'] is not True:
-            raise ValueError('Wrong trial manifest')
-        log_path = folder / 'real-four-citizen-rcon.log'
-        log = log_path.read_text() if log_path.exists() else ''
-        path = folder / 'four-citizen-benchmark-evidence.json'
-        benchmark = json.loads(path.read_text()) if path.exists() else None
-        if benchmark:
-            p = benchmark['provenance']
-            if (p['fixtureSeed'] != seed or p['commit'] != metadata['commit'] or
-                    p['workflowRunId'] != metadata['run_id'] or
-                    p['logSha256'] != hashlib.sha256(log.encode()).hexdigest()):
-                raise ValueError('Unbound benchmark evidence')
-        trials.append({**metadata, 'status': classify(log, benchmark)})
+        try:
+            metadata = json.loads(metadata_path.read_text())
+            if metadata['trial'] != index or metadata['seed'] != seed or metadata['fresh_world'] is not True:
+                raise ValueError('Wrong trial manifest')
+            if not all(metadata.get(key) for key in ('commit', 'run_id', 'attempt')):
+                raise ValueError('Missing revision/run/attempt identity')
+            log_path = folder / 'real-four-citizen-rcon.log'
+            log = log_path.read_text() if log_path.exists() else ''
+            path = folder / 'four-citizen-benchmark-evidence.json'
+            benchmark = json.loads(path.read_text()) if path.exists() else None
+            if benchmark:
+                p = benchmark['provenance']
+                if (p['fixtureSeed'] != seed or p['commit'] != metadata['commit'] or
+                        p['workflowRunId'] != metadata['run_id'] or
+                        p['logSha256'] != hashlib.sha256(log.encode()).hexdigest()):
+                    raise ValueError('Unbound benchmark evidence')
+            trials.append({**metadata, 'status': classify(log, benchmark)})
+        except (ValueError, KeyError, TypeError, OSError) as error:
+            trials.append({'trial': index, 'seed': seed, 'status': 'INVALID_EVIDENCE',
+                           'error': str(error)})
     present = [t for t in trials if 'commit' in t]
     if len({(t['commit'], t['run_id'], t['attempt']) for t in present}) > 1:
-        raise ValueError('Mixed revisions or workflow attempts')
+        for trial in present:
+            trial['status'] = 'INVALID_EVIDENCE'
+            trial['error'] = 'Mixed revisions or workflow attempts'
     observed = sum(t['status'] in ('PASS', 'THREE_OF_FOUR_ACCOUNTING_FAILURE',
                                   'OTHER_TERMINAL_FAILURE') for t in trials)
     failures = sum(t['status'] == 'THREE_OF_FOUR_ACCOUNTING_FAILURE' for t in trials)

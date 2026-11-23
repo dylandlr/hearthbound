@@ -41,7 +41,7 @@ class SocialEvidenceTest(unittest.TestCase):
                 data=fixture(); data[field]=data[field].replace(old,new)
                 with self.assertRaises(ValueError): communication_evidence(data)
     def test_delivery_is_not_enough(self):
-        for mutation in ('duplicate','missing','self','cross_world','wrong_source','no_physical','wrong_deltas'):
+        for mutation in ('duplicate','missing','self','cross_world','wrong_source','stale','no_physical','wrong_deltas'):
             with self.subTest(mutation=mutation):
                 data=fixture()
                 if mutation=='duplicate': data['communication_deliveries'][1]=data['communication_deliveries'][0]
@@ -49,6 +49,7 @@ class SocialEvidenceTest(unittest.TestCase):
                 if mutation=='self': data['communication_deliveries'][0]=data['communication_deliveries'][0].replace(f'sender={S}',f'sender={R}')
                 if mutation=='cross_world': data['communication_deliveries'][0]=data['communication_deliveries'][0].replace(f'world={W}',f'world={S}')
                 if mutation=='wrong_source': data['communication_deliveries'][0]=data['communication_deliveries'][0].replace(A,B)
+                if mutation=='stale': data['communication_deliveries'][1]=data['communication_deliveries'][1].replace('observed_tick=10 delivered_tick=11','observed_tick=0 delivered_tick=100')
                 if mutation=='no_physical': data['physical_transfer_verified']=False
                 if mutation=='wrong_deltas': data['destination_after']=2
                 with self.assertRaises(ValueError): communication_evidence(data)
