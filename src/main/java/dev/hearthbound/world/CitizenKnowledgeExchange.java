@@ -1,5 +1,8 @@
 package dev.hearthbound.world;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -155,6 +158,78 @@ public final class CitizenKnowledgeExchange {
         if (!SourceFailureBeliefs.acceptsReport(level, recipient, source, newest))
             return null;
         return newest.copy();
+    }
+
+    /**
+     * Enumerate only this recipient's actually delivered private source reports.
+     * Unlike decisionReport, no public source-coordinate menu is required. EMPTY
+     * reports remain visible so an older AVAILABLE report cannot be resurrected.
+     * Enumeration is not a policy READ event; the consuming policy records that.
+     * Callers must apply their common direct/report observation-age rule.
+     */
+    public static List<CompoundTag> decisionReports(ServerLevel level, Villager recipient) {
+        if (level == null || recipient == null || recipient.level() != level || !citizen(recipient))
+            return List.of();
+        ListTag reports = recipient.getPersistentData().getCompound(ROOT)
+            .getList(ENTRIES, Tag.TAG_COMPOUND);
+        // The real transport never creates a larger inbox. Do not turn edited
+        // or malformed persistent state into an unbounded policy input.
+        if (reports.size() > MAX_REPORTS) return List.of();
+        var newest = new LinkedHashMap<String, CompoundTag>();
+        long now = level.getGameTime();
+        for (int i = 0; i < reports.size(); i++) {
+            CompoundTag report = reports.getCompound(i);
+            BlockPos source = reportedSource(level, report);
+            if (source == null || !report.contains("id", Tag.TAG_STRING)
+                    || report.getString("id").isBlank()
+                    || !report.contains("delivered_tick", Tag.TAG_LONG)
+                    || !report.contains("wheat", Tag.TAG_INT)
+                    || !report.contains("source_revision", Tag.TAG_INT)) continue;
+            long delivered = report.getLong("delivered_tick");
+            long observed = report.getLong("observed_tick");
+            boolean available = "AVAILABLE".equals(report.getString("state"));
+            boolean empty = "EMPTY".equals(report.getString("state"));
+            if (!SourceReportSession.accepts(level, report, delivered)
+                    || !"REPORTED_DIRECT_FORGE_OBSERVATION".equals(report.getString("origin"))
+                    || (!available && !empty)
+                    || (available ? report.getInt("wheat") <= 0 : report.getInt("wheat") != 0)
+                    || !report.hasUUID("recipient")
+                    || !report.getUUID("recipient").equals(recipient.getUUID())
+                    || !report.hasUUID("sender") || report.getUUID("sender").equals(recipient.getUUID())
+                    || report.getInt("source_revision") < 1
+                    || observed < 0 || observed > delivered || delivered > now
+                    || now - delivered > REPORT_TTL_TICKS
+                    || delivered - observed > CitizenSourceKnowledge.FRESH_TICKS) continue;
+            CompoundTag prior = newest.get(report.getString("source"));
+            if (prior == null || observed > prior.getLong("observed_tick")
+                    || (observed == prior.getLong("observed_tick")
+                        && delivered >= prior.getLong("delivered_tick")))
+                newest.put(report.getString("source"), report);
+        }
+        var result = new ArrayList<CompoundTag>();
+        for (CompoundTag report : newest.values()) {
+            if ("AVAILABLE".equals(report.getString("state"))
+                    && !SourceFailureBeliefs.acceptsReport(level, recipient,
+                        reportedSource(level, report), report)) continue;
+            result.add(report.copy());
+        }
+        return List.copyOf(result);
+    }
+
+    /** Parse a canonical same-dimension source key without consulting the world. */
+    static BlockPos reportedSource(ServerLevel level, CompoundTag report) {
+        String prefix = level.dimension().location() + "|";
+        String source = report.getString("source");
+        if (!source.startsWith(prefix)) return null;
+        String[] parts = source.substring(prefix.length()).split(",", -1);
+        if (parts.length != 3) return null;
+        try {
+            BlockPos position = new BlockPos(Integer.parseInt(parts[0]),
+                Integer.parseInt(parts[1]), Integer.parseInt(parts[2]));
+            return key(level, position).equals(source) ? position : null;
+        } catch (NumberFormatException invalid) {
+            return null;
+        }
     }
 
     /** Operator inspection, never pulls current inventory or sender's private data. */

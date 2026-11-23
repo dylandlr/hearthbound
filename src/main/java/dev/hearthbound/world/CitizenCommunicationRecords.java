@@ -293,9 +293,17 @@ public final class CitizenCommunicationRecords {
     /** Called after SableHauling's actual insertion success and claim release. */
     static void physicalCompleted(ServerLevel level, Villager citizen) {
         CompoundTag haul = citizen.getPersistentData().getCompound("hearthbound.haul");
-        CompoundTag receipt = haul.getCompound("reportPolicyDispatch.v1");
-        if (!receipt.hasUUID("communicationDecision")) return; // older/unrelated jobs are uninstrumented
+        CompoundTag legacy = haul.getCompound("reportPolicyDispatch.v1");
+        CompoundTag generic = haul.getCompound("communicationDispatch.v1");
+        boolean hasLegacy = legacy.hasUUID("communicationDecision");
+        boolean hasGeneric = generic.hasUUID("communicationDecision");
+        if (!hasLegacy && !hasGeneric) return; // older/unrelated jobs are uninstrumented
+        CompoundTag receipt = hasGeneric ? generic : legacy;
         record(level, h -> {
+            if (hasLegacy && hasGeneric)
+                throw new IllegalArgumentException("Ambiguous communication assignment receipts");
+            if (hasGeneric && !"REPORT_CUED_DIRECT_RECHECK".equals(receipt.getString("semantics")))
+                throw new IllegalArgumentException("Unsupported communication assignment semantics");
             UUID job = haul.getUUID("jobId");
             CompoundTag binding = h.jobs.get(job);
             if (binding == null) throw new IllegalArgumentException("Missing observed assignment");

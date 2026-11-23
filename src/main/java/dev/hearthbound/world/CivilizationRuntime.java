@@ -158,6 +158,9 @@ public final class CivilizationRuntime {
                 ColonyData::new, STORAGE);
     }
 
+    /** Experimental controllers must reject simultaneous production dispatch. */
+    static boolean enabled(ServerLevel level) { return data(level).enabled; }
+
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("hearthbound-colony")
             .requires(source -> source.hasPermission(2))

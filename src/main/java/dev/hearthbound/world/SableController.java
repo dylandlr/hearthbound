@@ -466,6 +466,10 @@ public final class SableController {
     public static void onLivingTick(LivingEvent.LivingTickEvent event) {
         if (!(event.getEntity() instanceof Villager villager)) return;
         if (!(villager.level() instanceof ServerLevel level)) return;
+        // Explicit disposable-world experiment actors have one action owner.
+        // Its fixed game-tick controller also holds them after the horizon or
+        // session loss; ordinary citizens retain the existing runtime path.
+        if (PrivateCommunicationTrial.controls(villager)) return;
         if (!villager.getPersistentData().getBoolean(MARKER)) return;
         MillExperimentTrace.monitorAuthorizedInput(level, villager);
         if (villager.tickCount % 20 != 0) return;
