@@ -11,7 +11,7 @@ function scoreCitizenParticipation(evidence){
  assert(evidence.audit?.passedLiveAcceptanceMarker===true&&evidence.audit?.fromExplicitReceipt===true,
    "acceptance attestation absent");
  assert(evidence.provenance?.fixtureWorld==="four-citizen-colony"&&
-  evidence.provenance?.fixtureSeed==="hearthbound-four-citizen-v0-3"&&
+  ["hearthbound-four-citizen-v0-3","hearthbound-four-citizen-v0-8-1","hearthbound-four-citizen-v0-8-2"].includes(evidence.provenance?.fixtureSeed)&&
   /^[0-9a-f]{64}$/i.test(evidence.provenance?.logSha256||"")&&
   /^[0-9a-f]{40}$/i.test(evidence.provenance?.commit||"")&&
   /^[0-9]+$/.test(evidence.provenance?.workflowRunId||""),

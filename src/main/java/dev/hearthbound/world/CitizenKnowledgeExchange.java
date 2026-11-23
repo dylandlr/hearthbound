@@ -100,6 +100,12 @@ public final class CitizenKnowledgeExchange {
         return "KNOWLEDGE_SHARE status=DELIVERED source=" + key(level, source)
             + " sender=" + sender.getUUID() + " recipient=" + recipient.getUUID()
             + " observed_tick=" + observed + " delivered_tick=" + delivered
+            + " report_id=" + reportId
+            + " world=" + HearthboundWorldIdentity.get(level)
+            + " observation_session=" + evidence.getUUID("observationSession")
+            + " source_revision=" + evidence.getInt("revision")
+            + " state=" + evidence.getString("state") + " wheat=" + evidence.getInt("wheat")
+            + " channel=EXPLICIT_LOCAL_DIRECT_REPORT"
             + " action_authorized=false";
     }
 

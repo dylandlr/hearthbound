@@ -56,3 +56,7 @@ assert.throws(()=>verifyReceipt(log(payload,{...trace,entries:trace.entries.map(
 assert.throws(()=>verifyReceipt(log(payload,{...trace,learning_authorized:true}),provenance),/scope/);
 assert.throws(()=>verifyReceipt(pass+"\n"+marker(payload),provenance),/citizen trace/);
 console.log("four-citizen aggregate export contract assertions passed");
+
+assert.throws(()=>verifyReceipt(log({...payload,fixture_seed:"hearthbound-four-citizen-v0-8-1"}),provenance),/fixture/);
+assert.equal(verifyReceipt(log({...payload,fixture_seed:"hearthbound-four-citizen-v0-8-1"}),{...provenance,fixtureSeed:"hearthbound-four-citizen-v0-8-1"}).provenance.fixtureSeed,"hearthbound-four-citizen-v0-8-1");
+assert.throws(()=>verifyReceipt(log(payload),{...provenance,fixtureSeed:"unregistered"}),/unregistered/);

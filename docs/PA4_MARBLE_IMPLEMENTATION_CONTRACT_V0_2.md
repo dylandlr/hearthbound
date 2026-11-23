@@ -1,6 +1,14 @@
-# PA4 + MARBLE primary implementation reference: Hearthbound v0.2
+# PA4 + MARBLE + Project Sid implementation contract
 
-Status: **research/evaluation code only**. This is an original Hearthbound adaptation; it is NOT a reproduction of Zhu et al.'s published MultiAgentBench scores and it is NOT autonomous real-Minecraft MARL deployment.
+Status: **research/evaluation contract with scoped live adapters**. The v0.8 adapter records existing explicit report delivery and operator-triggered hauling; society experiments remain offline. This is an original Hearthbound adaptation; it is NOT a reproduction of Zhu et al.'s published MultiAgentBench scores and it is NOT autonomous real-Minecraft MARL deployment.
+
+## v0.8 social-evidence extension
+
+Project Sid is a co-primary design reference alongside MultiAgentBench/MARBLE. The verified sources and PA4 mappings are in [Project Sid and social evidence](PROJECT_SID_SOCIAL_EVIDENCE_V0_8.md). This extends, rather than weakens, the original evidence gates below.
+
+The runtime retains a selected recipient-owned report snapshot in the pre-assignment hauling receipt. Explicit deliveries expose report/world/session IDs and endpoints. `scripts/social_communication_evidence.py` joins these actual fixture records to the accepted job and independently checked physical chest deltas. It rejects cross-world, wrong-recipient, duplicate, timeline and provenance conflicts. Unselected reports have **no measured other-use status**; selection is not proof of causal benefit. No communication is inferred from the colony board.
+
+The four-citizen workflow runs three prespecified seeds in fresh, isolated runners with fail-fast disabled. `scripts/summarize_colony_trials.py` retains all planned trials, distinguishes terminal 3/4 accounting discrepancies from other failures and unknown/infrastructure outcomes, and reports observed-only Wilson intervals plus bounds including unknowns. The fixed arena and three seeds limit generalization. Old failures remain unresolved; retries must retain run attempt identity and never replace the original denominator.
 
 ## Canonical sources and version boundaries
 

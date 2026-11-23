@@ -8,6 +8,9 @@ on:
       - 'src/test/java/dev/hearthbound/civilization/**'
       - 'src/main/java/dev/hearthbound/world/SableController.java'
       - 'scripts/rcon_civilization_four_citizens.py'
+      - 'scripts/summarize_colony_trials.py'
+      - 'scripts/test_social_communication_evidence.py'
+      - 'scripts/test_summarize_colony_trials.py'
       - 'scripts/export-four-citizen-benchmark.js'
       - 'scripts/export-four-citizen-benchmark.test.js'
       - 'scripts/score-verified-citizen-participation.js'
@@ -18,8 +21,33 @@ jobs:
   four-citizen-colony:
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - trial: 0
+            seed: hearthbound-four-citizen-v0-3
+          - trial: 1
+            seed: hearthbound-four-citizen-v0-8-1
+          - trial: 2
+            seed: hearthbound-four-citizen-v0-8-2
+    env:
+      HEARTHBOUND_WORLD_SEED: ${{ matrix.seed }}
+      HEARTHBOUND_TRIAL: ${{ matrix.trial }}
     steps:
       - uses: actions/checkout@v4
+      - name: Register planned fresh-world trial before compilation
+        run: |
+          test ! -e run/four-citizen-colony
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          Path('trial-metadata.json').write_text(json.dumps({
+              'trial': int(os.environ['HEARTHBOUND_TRIAL']),
+              'seed': os.environ['HEARTHBOUND_WORLD_SEED'],
+              'commit': os.environ['GITHUB_SHA'], 'run_id': os.environ['GITHUB_RUN_ID'],
+              'attempt': os.environ['GITHUB_RUN_ATTEMPT'], 'fresh_world': True}))
+          PY
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -46,7 +74,7 @@ jobs:
           set -euo pipefail
           mkdir -p run
           printf 'eula=true\n' > run/eula.txt
-          printf 'online-mode=false\nlevel-name=four-citizen-colony\nlevel-seed=hearthbound-four-citizen-v0-3\nmax-players=2\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties
+          printf 'online-mode=false\nlevel-name=four-citizen-colony\nlevel-seed=%s\nmax-players=2\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' "$HEARTHBOUND_WORLD_SEED" "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties
           gradle --no-daemon runServer > real-four-citizen-server.log 2>&1 &
           pid=$!
           trap 'kill "$pid" 2>/dev/null || true' EXIT
@@ -74,11 +102,31 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: real-four-citizen-colony-evidence
+          name: real-four-citizen-colony-evidence-${{ matrix.trial }}
           path: |
+            trial-metadata.json
+            run/server.properties
             colony-preflight.log
             real-four-citizen-rcon.log
             four-citizen-benchmark-evidence.json
             real-four-citizen-server.log
             run/logs/latest.log
           if-no-files-found: warn
+
+  summarize-world-trials:
+    if: always()
+    needs: four-citizen-colony
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: real-four-citizen-colony-evidence-*
+          path: trial-evidence
+      - name: Retain all planned worlds and report uncertainty
+        if: always()
+        run: python3 scripts/summarize_colony_trials.py trial-evidence colony-reliability.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: colony-reliability-summary-${{ github.run_attempt }}
+          path: colony-reliability.json

@@ -9,6 +9,9 @@ on:
       - 'src/main/java/dev/hearthbound/world/ReportChoiceMlpCommands.java'
       - 'src/main/java/dev/hearthbound/world/ExplicitSourceShareCommands.java'
       - 'scripts/rcon_neural_report_haul.py'
+      - 'scripts/social_communication_evidence.py'
+      - 'scripts/test_social_communication_evidence.py'
+      - 'src/main/java/dev/hearthbound/world/CitizenKnowledgeExchange.java'
       - '.github/workflows/real-neural-report-haul.yml'
 jobs:
   real-neural-report-haul:
@@ -29,6 +32,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python3 -m unittest discover -s scripts -p test_social_communication_evidence.py
           python3 -m py_compile scripts/train_report_choice_mlp.py \
             scripts/rcon_neural_report_haul.py scripts/verify_report_choice_mlp_parity.py
           python3 scripts/train_report_choice_mlp.py \
