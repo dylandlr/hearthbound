@@ -1,0 +1,116 @@
+name: Need-driven Minecraft services
+on:
+  pull_request:
+    paths:
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle.properties'
+      - 'gradle/forge-build-environment.gradle'
+      - 'gradle/force-forge-tool-fallback.init.gradle'
+      - 'src/main/java/dev/hearthbound/civilization/NeedServiceKernel.java'
+      - 'src/main/java/dev/hearthbound/civilization/ServiceValueLearner.java'
+      - 'src/main/java/dev/hearthbound/world/NeedServiceRuntime.java'
+      - 'src/main/java/dev/hearthbound/world/SableController.java'
+      - 'src/main/java/dev/hearthbound/world/SableHauling.java'
+      - 'src/main/java/dev/hearthbound/world/SourceWheatObservation.java'
+      - 'src/main/java/dev/hearthbound/world/SourceReportSession.java'
+      - 'src/test/java/dev/hearthbound/civilization/NeedService*.java'
+      - 'src/test/java/dev/hearthbound/civilization/ServiceValue*.java'
+      - 'scripts/rcon_need_services_acceptance.py'
+      - 'scripts/test_need_services_acceptance.py'
+      - 'scripts/test-civilization-contracts.py'
+      - 'scripts/rcon_private_communication_trial.py'
+      - 'scripts/rcon_two_citizen_haul_acceptance.py'
+      - 'scripts/private_communication_protocol.py'
+      - '.github/workflows/need-services.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Check service lifecycle and evidence admission
+        run: |
+          python3 scripts/test-civilization-contracts.py
+          python3 -m unittest discover -s scripts -p test_need_services_acceptance.py -v
+  live-cycle:
+    needs: contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 38
+    env:
+      HEARTHBOUND_EXPECTED_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+      HEARTHBOUND_RCON_PASSWORD: ci-need-services-disposable-world
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.8'
+      - name: Compile actual Forge sources
+        run: |
+          test "$(git rev-parse HEAD)" = "$HEARTHBOUND_EXPECTED_COMMIT"
+          gradle --no-daemon classes > need-services-build.log 2>&1 || (tail -n 100 need-services-build.log; exit 1)
+      - name: Exercise private requests, physical work, closure, and stopped restart
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p run
+          printf 'eula=true\n' > run/eula.txt
+          printf 'online-mode=false\nlevel-name=need-services-world\nlevel-seed=hearthbound-need-services-v0-20\nmax-players=2\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties
+          service_server_pid=''
+          cleanup() {
+            if [ -n "$service_server_pid" ]; then
+              kill "$service_server_pid" 2>/dev/null || true
+            fi
+          }
+          trap cleanup EXIT
+          boot() {
+            service_log="$1"
+            gradle --no-daemon runServer > "$service_log" 2>&1 &
+            service_server_pid=$!
+            for attempt in $(seq 1 360); do
+              if grep -Eq 'Done \([0-9.]+s\)! For help, type "help"' "$service_log"; then
+                grep -Fq 'Hearthbound bootstrap loaded.' "$service_log"
+                return
+              fi
+              if ! kill -0 "$service_server_pid" 2>/dev/null; then
+                tail -n 100 "$service_log"
+                return 1
+              fi
+              sleep 2
+            done
+            tail -n 100 "$service_log"
+            return 1
+          }
+          boot need-services-first-server.log
+          python3 scripts/rcon_need_services_acceptance.py --phase live | tee need-services-live.log
+          wait "$service_server_pid"
+          service_server_pid=''
+          boot need-services-restart-server.log
+          python3 scripts/rcon_need_services_acceptance.py --phase restart | tee need-services-restart.log
+          wait "$service_server_pid"
+          service_server_pid=''
+          grep -Fq 'NEED_SERVICE_FORGE_ACCEPTANCE_PASS' need-services-restart.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: need-services-live-evidence
+          path: |
+            need-services-*.log
+            run/need-service-acceptance.json
+            run/logs/latest.log
+            run/need-services-world/data/hearthbound_need_services*.dat
+          if-no-files-found: warn

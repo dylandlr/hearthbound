@@ -1,5 +1,21 @@
 # Roadmap and Development Gates
 
+## Current development route: need-driven services
+
+The next integrated delivery is a live, explicitly enabled service controller:
+locally observed shortage → physically carried request → persistent commitment
+→ native physical transfer → closure or safe withdrawal. Reuse the existing
+executor and private knowledge boundary. The small recipient-only PPO diagnostic
+is paused; frozen simulator baselines remain reference evidence.
+
+Follow with several changing work sites and production-linked service learning,
+then evaluate adaptive division of labor across independent worlds. Do not turn
+each internal implementation change into a new full benchmark campaign. The
+three milestone deliverables and their evidence boundaries are defined in
+[Need-driven service architecture v0.20](NEED_DRIVEN_SERVICE_ARCHITECTURE_V0_20.md).
+
+The historical gates below still apply to claims about the corresponding feature.
+
 ## D0 — Design foundation
 Define first-slice behavior, AI policy interface, experiment protocol, Minecraft/Create compatibility strategy and acceptance criteria.
 
