@@ -40,5 +40,6 @@ public final class ServiceJsonPayloadTest {
             } catch (IllegalStateException expected) { }
         }
         System.out.println("PASS service JSON real NBT persistence: large histories, Unicode, legacy saves, malformed data");
+        VillageDataTest.main(args);
     }
 }

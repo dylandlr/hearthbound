@@ -80,5 +80,6 @@ execute positioned 40 101 25 run sable spawn
 tag @e[type=minecraft:villager,name=Sable,x=40,y=101,z=25,distance=..4,limit=1,sort=nearest] add hb_village_7
 hearthbound-village enroll @e[tag=hb_village_7,limit=1]
 hearthbound-village policy adaptive
+hearthbound-village keep-ticking on
 hearthbound-village target 6
 tellraw @a {"text":"Hearthbound village ready: eight citizens, two farm-to-food districts. Run /hearthbound-village start. This demo uses accelerated native crop growth.","color":"gold"}

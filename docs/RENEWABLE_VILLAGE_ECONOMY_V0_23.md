@@ -35,6 +35,13 @@ furnaces and storage. Wheat, flour, dough, bread and filled buckets start at
 zero. The glass enclosure protects the development fixture; it is not housing
 built by the citizens. Native crop growth runs at `randomTickSpeed=400` for a
 bounded demonstration. Normal Minecraft growth uses a different time scale.
+The setup explicitly enables `keep-ticking on`: bounded Forge ticking tickets
+keep the configured districts active without a connected player. This uses
+Forge's native tick scheduler, not direct crop-age writes or generated wheat.
+After stopping and resolving work, `/hearthbound-village keep-ticking off`
+releases this controller's tickets. These tickets and the opt-in setting persist.
+See the [Forge 1.20.1 scheduler patch](https://github.com/MinecraftForge/MinecraftForge/blob/1.20.1/patches/minecraft/net/minecraft/server/level/ServerChunkCache.java.patch)
+and [official ForgeChunkManager API](https://github.com/MinecraftForge/MinecraftForge/blob/1.20.1/src/main/java/net/minecraftforge/common/world/ForgeChunkManager.java).
 
 ```mcfunction
 /hearthbound-village status

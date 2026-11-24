@@ -56,12 +56,12 @@ public final class VillageEconomyRuntime {
         final Map<UUID,Map<String,Long>> cooldowns=new LinkedHashMap<>();
         final Map<String,UUID> leases=new LinkedHashMap<>();
         final List<JsonObject> records=new ArrayList<>();final Map<String,Long> totals=new LinkedHashMap<>();
-        UUID session=UUID.randomUUID(); UUID world; boolean enabled,draining,adaptive=true; int foodTarget=6;
+        UUID session=UUID.randomUUID(); UUID world; boolean enabled,draining,keepTicking,adaptive=true; int foodTarget=6;
         String failure="";
         static Data load(CompoundTag root){Data d=new Data();try{
-            if(!root.getString("failure").isEmpty())throw new IllegalStateException(root.getString("failure"));
             if(root.getInt("schema")!=1||!root.hasUUID("world"))throw new IllegalStateException("Unknown village save");
-            d.world=root.getUUID("world");d.adaptive=root.getBoolean("adaptive");d.foodTarget=root.getInt("foodTarget");
+            d.world=root.getUUID("world");d.adaptive=root.getBoolean("adaptive");d.keepTicking=root.getBoolean("keepTicking");d.foodTarget=root.getInt("foodTarget");
+            if(!root.getString("failure").isEmpty()){d.failure=root.getString("failure");return d;}
             if(d.foodTarget<0||d.foodTarget>64)throw new IllegalStateException("Invalid target");
             District[] districts=GSON.fromJson(ServiceJsonPayload.read(root,"districts"),District[].class);
             if(districts==null||districts.length>4)throw new IllegalStateException("Invalid districts");
@@ -86,7 +86,7 @@ public final class VillageEconomyRuntime {
             CompoundTag leases=root.getCompound("leases");if(leases.getAllKeys().size()>MAX_CITIZENS*2)throw new IllegalStateException("Lease bound");for(String k:leases.getAllKeys())d.leases.put(k,leases.getUUID(k));
         }catch(RuntimeException bad){d.failure="PERSISTENCE_REQUIRES_REVIEW: "+bad.getMessage();}return d;}
         @Override public CompoundTag save(CompoundTag root){root.putInt("schema",1);root.putUUID("world",world);root.putBoolean("adaptive",adaptive);root.putInt("foodTarget",foodTarget);
-            root.putString("failure",failure);
+            root.putString("failure",failure);root.putBoolean("keepTicking",keepTicking);
             ServiceJsonPayload.write(root,"districts",GSON.toJson(districts));ServiceJsonPayload.write(root,"records",GSON.toJson(records));
             ListTag owners=new ListTag();for(UUID id:citizens){CompoundTag c=new CompoundTag();c.putUUID("citizen",id);ServiceJsonPayload.write(c,"outcomes",GSON.toJson(policies.get(id).snapshot()));owners.add(c);}root.put("citizens",owners);
             CompoundTag totals=new CompoundTag();this.totals.forEach(totals::putLong);root.put("totals",totals);
@@ -215,6 +215,7 @@ public final class VillageEconomyRuntime {
         .then(Commands.literal("district").then(Commands.argument("origin",BlockPosArgument.blockPos()).executes(c->configure(c.getSource(),BlockPosArgument.getBlockPos(c,"origin")))))
         .then(Commands.literal("enroll").then(Commands.argument("citizen",EntityArgument.entity()).executes(c->{var e=EntityArgument.getEntity(c,"citizen");return e instanceof Villager v?enroll(c.getSource(),v):fail(c.getSource(),"Requires a Sable citizen");})))
         .then(Commands.literal("policy").then(Commands.literal("adaptive").executes(c->policy(c.getSource(),true))).then(Commands.literal("authored").executes(c->policy(c.getSource(),false))))
+        .then(Commands.literal("keep-ticking").then(Commands.literal("on").executes(c->keepTicking(c.getSource(),true))).then(Commands.literal("off").executes(c->keepTicking(c.getSource(),false))))
         .then(Commands.literal("target").then(Commands.argument("bread",IntegerArgumentType.integer(0,64)).executes(c->{Data d=data(c.getSource().getLevel());d.foodTarget=IntegerArgumentType.getInteger(c,"bread");event(d,c.getSource().getLevel(),"FOOD_TARGET_SET",null).addProperty("target",d.foodTarget);return okay(c.getSource(),"Bread target="+d.foodTarget);})))
         .then(Commands.literal("start").executes(c->start(c.getSource())))
         .then(Commands.literal("drain").executes(c->{Data d=data(c.getSource().getLevel());d.enabled=false;d.draining=true;event(d,c.getSource().getLevel(),"VILLAGE_DRAIN",null);return okay(c.getSource(),"New work stopped; current owned services drain");}))
@@ -227,7 +228,19 @@ public final class VillageEconomyRuntime {
         District district=District.at(d.districts.size(),origin);for(var old:d.districts)if(old.observed().stream().anyMatch(district.observed()::contains))return fail(s,"District overlap");
         for(long p:List.of(district.depot,district.flour,district.water,district.dough,district.furnace,district.pantry))VillageInventory.container(s.getLevel(),BlockPos.of(p));
         if(!MillReservations.isMill(s.getLevel(),BlockPos.of(district.mill))||!s.getLevel().getBlockState(BlockPos.of(district.table)).is(Blocks.CRAFTING_TABLE))return fail(s,"Loaded mill and crafting table required");
-        d.districts.add(district);event(d,s.getLevel(),"DISTRICT_CONFIGURED",null).add("district",GSON.toJsonTree(district));return okay(s,"Public district geometry configured; stock remains private");}
+        d.districts.add(district);if(d.keepTicking)tickTickets(s.getLevel(),district,true);event(d,s.getLevel(),"DISTRICT_CONFIGURED",null).add("district",GSON.toJsonTree(district));return okay(s,"Public district geometry configured; stock remains private");}
+    private static void tickTickets(ServerLevel level,District site,boolean add){
+        BlockPos origin=BlockPos.of(site.origin);
+        // Bounded public geometry: at most 4 x 2 chunks per district. Forge's
+        // forceTicks flag runs native random/block/entity ticks without players.
+        for(int x=origin.getX()>>4;x<=((origin.getX()+43)>>4);x++)for(int z=origin.getZ()>>4;z<=((origin.getZ()+12)>>4);z++)
+            net.minecraftforge.common.world.ForgeChunkManager.forceChunk(level,"hearthbound",origin,x,z,add,true);
+    }
+    private static int keepTicking(CommandSourceStack s,boolean enabled){Data d=data(s.getLevel());
+        if(d.enabled||d.draining||!d.failure.isEmpty()||!d.leases.isEmpty())return fail(s,"Stop and resolve work before changing tick ownership");
+        for(District site:d.districts)tickTickets(s.getLevel(),site,enabled);d.keepTicking=enabled;
+        event(d,s.getLevel(),"DISTRICT_TICKING_CONFIGURED",null).addProperty("enabled",enabled);return okay(s,"Native district ticking="+enabled);
+    }
     private static int enroll(CommandSourceStack s,Villager v){Data d=data(s.getLevel());if(d.enabled||d.draining||d.citizens.size()>=MAX_CITIZENS||v.level()!=s.getLevel())return fail(s,"Stop before enrollment; capacity sixteen");
         if(!v.isAlive()||!v.getPersistentData().getBoolean("hearthbound.sable")||NeedServiceRuntime.controls(v)||PrivateCommunicationTrial.controls(v)||SableHauling.active(v)||v.getPersistentData().contains("hearthbound.civilization.v1"))return fail(s,"Citizen has a different controller or native work");
         if(!d.citizens.add(v.getUUID()))return fail(s,"Citizen already enrolled");d.policies.put(v.getUUID(),new VillageWorkPolicy(v.getUUID()));CompoundTag m=new CompoundTag();m.putBoolean("enrolled",true);m.putString("name",NAMES[d.citizens.size()-1]);m.putDouble("satiety",70);m.putString("phase","IDLE");v.getPersistentData().put(KEY,m);v.setCustomName(Component.literal(m.getString("name")));v.setCustomNameVisible(true);v.setPersistenceRequired();stopMotion(v);event(d,s.getLevel(),"VILLAGER_ENROLLED",v);return okay(s,"Citizen enrolled with every village capability");}
@@ -244,7 +257,7 @@ public final class VillageEconomyRuntime {
         }else stopMotion(v);
     }event(d,s.getLevel(),"VILLAGE_STOPPED",null);return okay(s,"Stopped; unfinished ownership retained");}
     private static String digest(VillageWorkPolicy model){try{return HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(GSON.toJson(model.snapshot()).getBytes(java.nio.charset.StandardCharsets.UTF_8)));}catch(java.security.NoSuchAlgorithmException e){throw new IllegalStateException(e);}}
-    private static int status(CommandSourceStack s){Data d=data(s.getLevel());JsonObject r=new JsonObject();r.addProperty("schema",VillageWorkPolicy.SCHEMA);r.addProperty("enabled",d.enabled);r.addProperty("draining",d.draining);r.addProperty("failure",d.failure);r.addProperty("adaptive",d.adaptive);r.addProperty("food_target",d.foodTarget);r.addProperty("records_total",d.records.size());r.add("totals",GSON.toJsonTree(d.totals));r.add("leases",GSON.toJsonTree(d.leases));r.add("districts",GSON.toJsonTree(d.districts));JsonArray citizens=new JsonArray();int active=0,held=0;
+    private static int status(CommandSourceStack s){Data d=data(s.getLevel());JsonObject r=new JsonObject();r.addProperty("schema",VillageWorkPolicy.SCHEMA);r.addProperty("enabled",d.enabled);r.addProperty("draining",d.draining);r.addProperty("keep_ticking",d.keepTicking);r.addProperty("failure",d.failure);r.addProperty("adaptive",d.adaptive);r.addProperty("food_target",d.foodTarget);r.addProperty("records_total",d.records.size());r.add("totals",GSON.toJsonTree(d.totals));r.add("leases",GSON.toJsonTree(d.leases));r.add("districts",GSON.toJsonTree(d.districts));JsonArray citizens=new JsonArray();int active=0,held=0;
         for(UUID id:d.citizens){JsonObject c=new JsonObject();c.addProperty("citizen",id.toString());c.addProperty("samples",d.policies.get(id).snapshot().size());c.addProperty("learning_digest",digest(d.policies.get(id)));
             if(s.getLevel().getEntity(id)instanceof Villager v){CompoundTag m=memory(v);c.addProperty("loaded",true);c.addProperty("alive",v.isAlive());c.addProperty("name",m.getString("name"));c.addProperty("phase",m.getString("phase"));c.addProperty("kind",m.getString("kind"));c.addProperty("satiety",m.getDouble("satiety"));c.addProperty("active",m.getBoolean("active"));c.addProperty("reason",m.getString("reason"));c.add("cargo",GSON.toJsonTree(VillageInventory.cargoContents(m)));if(m.getBoolean("active"))active++;if("HELD".equals(m.getString("phase")))held++;}else c.addProperty("loaded",false);citizens.add(c);}
         r.addProperty("active",active);r.addProperty("held",held);r.add("citizens",citizens);s.sendSuccess(()->Component.literal("VILLAGE_STATUS "+GSON.toJson(r)),false);return d.failure.isEmpty()?1:0;}

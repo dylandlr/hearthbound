@@ -68,7 +68,7 @@ def native(rcon):
 def setup(rcon,arm):
     rcon.require('function hearthbound:village_setup','Executed')
     rcon.require(COMMAND+' policy '+arm,'VILLAGE_OK')
-    initial=status(rcon); require(len(initial['districts'])==2 and not initial['enabled'],'Incomplete setup')
+    initial=status(rcon); require(len(initial['districts'])==2 and initial['keep_ticking'] and not initial['enabled'],'Incomplete setup')
     power=[]
     for z in (5,27):
         deadline=time.monotonic()+25

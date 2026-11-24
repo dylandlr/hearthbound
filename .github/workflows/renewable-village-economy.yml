@@ -8,6 +8,8 @@ on:
       - 'src/main/java/dev/hearthbound/world/ServiceProductionBridge.java'
       - 'src/main/resources/data/hearthbound/functions/village_setup.mcfunction'
       - 'src/test/java/dev/hearthbound/civilization/VillageWorkPolicyTest.java'
+      - 'src/test/java/dev/hearthbound/world/VillageDataTest.java'
+      - 'build.gradle'
       - 'scripts/*village*'
       - '.github/workflows/renewable-village-economy.yml'
   workflow_dispatch:
