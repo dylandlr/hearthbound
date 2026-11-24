@@ -26,7 +26,8 @@ import rcon_civilization_four_citizens as fixture
 import colony_motor_diagnostics as motor_diagnostics
 from rcon_two_citizen_haul_acceptance import Rcon, exact, packet
 from summarize_colony_reliability import (
-    PLAN, TRIAL_SCHEMA, classified_status, counters, protocol_hash,
+    PLAN, PLAN_SCHEMA, TRIAL_SCHEMA, classified_status, counters, plan_errors,
+    plan_hash, protocol_hash,
 )
 
 READY = re.compile(r'Done \([0-9.]+s\)! For help, type "help"')
@@ -202,7 +203,35 @@ def write_result(path, result):
     temporary.replace(path)
 
 
-def run(repo, trial_id, seed, output, boot_timeout=720):
+def declare(repo, trial_id, seed, output):
+    """Preserve intent before compilation without creating or observing a world."""
+    item = {"trial_id": trial_id, "seed": seed}
+    if item not in PLAN:
+        raise ValueError("Trial is not in the predeclared cohort")
+    commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
+    expected_head = os.environ.get("HEARTHBOUND_EXPECTED_COMMIT")
+    if expected_head and expected_head != commit:
+        raise ValueError("Checkout does not match the requested head commit")
+    document = {
+        "schema": PLAN_SCHEMA, **item,
+        "source_commit": commit, "protocol_sha256": protocol_hash(repo),
+        "github_run_id": os.environ.get("GITHUB_RUN_ID"),
+        "github_run_attempt": os.environ.get("GITHUB_RUN_ATTEMPT"),
+        "level_name": "colony-reliability-" + trial_id,
+        "declaration_phase": "BEFORE_BUILD_PREFLIGHT",
+        "execution_policy": "ONE_ATTEMPT_PER_PLANNED_WORLD",
+        "fresh_world_required": True, "motor_diagnostics_required": True,
+    }
+    invalid = plan_errors(document, item, commit, document["protocol_sha256"])
+    if invalid:
+        raise ValueError("Invalid prospective declaration: " + "; ".join(invalid))
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open("x") as destination:
+        destination.write(json.dumps(document, indent=2, sort_keys=True, allow_nan=False) + "\n")
+    return document
+
+
+def run(repo, trial_id, seed, output, boot_timeout=720, plan_file=None):
     if {"trial_id": trial_id, "seed": seed} not in PLAN:
         raise ValueError("Trial is not in the predeclared cohort")
     output.mkdir(parents=True, exist_ok=False)
@@ -218,6 +247,8 @@ def run(repo, trial_id, seed, output, boot_timeout=720):
         "world": {}, "terminal_snapshot": None,
         "error_type": None, "error": None,
         "motor_diagnostics_required": True,
+        "prospective_plan_required": plan_file is not None,
+        "prospective_plan_sha256": None,
         "motor_diagnostics": {"status": "NOT_REACHED"},
         "legacy_receipt_fixture_seed_is_actual_seed": False,
     }
@@ -233,6 +264,17 @@ def run(repo, trial_id, seed, output, boot_timeout=720):
         expected_head = os.environ.get("HEARTHBOUND_EXPECTED_COMMIT")
         if expected_head and expected_head != commit:
             raise ValueError("Checkout does not match the requested head commit")
+        if plan_file is not None:
+            declaration = json.loads(plan_file.read_text())
+            invalid = plan_errors(declaration, {"trial_id": trial_id, "seed": seed},
+                                  commit, result["protocol_sha256"])
+            if not invalid:
+                for field in ("github_run_id", "github_run_attempt"):
+                    if declaration[field] != result[field]:
+                        invalid.append("workflow identity changed since declaration: " + field)
+            if invalid:
+                raise ValueError("Prospective plan cannot authorize this trial: " + "; ".join(invalid))
+            result["prospective_plan_sha256"] = plan_hash(declaration)
         run_dir.mkdir(exist_ok=True)
         if world_dir.exists():
             raise ValueError("Refusing to reuse an existing world directory")
@@ -352,9 +394,20 @@ def main():
     parser.add_argument("--seed", type=int, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--boot-timeout", type=int, default=720)
+    parser.add_argument("--declare-only", action="store_true",
+                        help="Write the prospective plan to --output without starting build or world")
+    parser.add_argument("--plan-file", type=Path,
+                        help="Validate the pre-build declaration before starting this world")
     args = parser.parse_args()
     repo = Path(__file__).resolve().parents[1]
-    result = run(repo, args.trial_id, args.seed, args.output.resolve(), args.boot_timeout)
+    if args.declare_only:
+        if args.plan_file is not None:
+            parser.error("--declare-only cannot consume --plan-file")
+        document = declare(repo, args.trial_id, args.seed, args.output.resolve())
+        print("COLONY_RELIABILITY_PLAN " + json.dumps(document, sort_keys=True))
+        return
+    result = run(repo, args.trial_id, args.seed, args.output.resolve(), args.boot_timeout,
+                 plan_file=args.plan_file.resolve() if args.plan_file is not None else None)
     raise SystemExit(0 if result["status"] == "PASS"
                      and result["motor_diagnostics"]["status"] == "COMPLETE" else 1)
 

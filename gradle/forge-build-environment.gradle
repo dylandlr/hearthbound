@@ -1,0 +1,108 @@
+import groovy.json.JsonOutput
+import java.security.MessageDigest
+import net.minecraftforge.gradle.common.util.MavenArtifactDownloader
+import net.minecraftforge.gradle.common.util.Utils
+
+// Diagnostic evidence only. These tasks do not change Minecraft dependencies,
+// compiler inputs, policies, or trial clocks.
+def evidenceDirectory = providers.gradleProperty('hearthboundBuildEvidenceDir')
+    .map { file(it) }.orElse(layout.buildDirectory.dir('reports/forge-build').map { it.asFile })
+
+def sha256 = { File artifact ->
+    MessageDigest digest = MessageDigest.getInstance('SHA-256')
+    artifact.withInputStream { stream ->
+        byte[] buffer = new byte[65536]
+        int length
+        while ((length = stream.read(buffer)) != -1) digest.update(buffer, 0, length)
+    }
+    digest.digest().encodeHex().toString()
+}
+
+def writeEvidence = { String name, Map payload ->
+    File directory = evidenceDirectory.get()
+    directory.mkdirs()
+    File destination = new File(directory, name)
+    destination.text = JsonOutput.prettyPrint(JsonOutput.toJson(payload)) + '\n'
+    logger.lifecycle("HEARTHBOUND_BUILD_EVIDENCE ${destination}")
+}
+
+tasks.register('captureHearthboundBuildEnvironment') {
+    group = 'verification'
+    description = 'Record actual resolved build-plugin artifacts and runtime versions.'
+    doLast {
+        def selected = project.buildscript.configurations.classpath.resolvedConfiguration.resolvedArtifacts
+            .findAll {
+                (it.moduleVersion.id.group == 'net.minecraftforge.gradle' && it.name == 'ForgeGradle') ||
+                (it.moduleVersion.id.group == 'org.spongepowered' && it.name == 'mixingradle')
+            }.collect {
+                [group: it.moduleVersion.id.group, name: it.name,
+                 resolved_version: it.moduleVersion.id.version,
+                 artifact_filename: it.file.name, artifact_sha256: sha256(it.file)]
+            }.sort { a, b -> "${a.group}:${a.name}" <=> "${b.group}:${b.name}" }
+        writeEvidence('build-environment.json', [
+            schema: 'hearthbound-forge-build-environment-v1',
+            gradle_version: gradle.gradleVersion,
+            java_runtime_version: System.getProperty('java.runtime.version'),
+            java_vendor: System.getProperty('java.vendor'),
+            configured_java_toolchain_language_version: java.toolchain.languageVersion.get().asInt(),
+            resolved_build_plugins: selected,
+            requested_build_plugins: [
+                ForgeGradle: '[6.0,6.2)', mixingradle: '0.7-SNAPSHOT'
+            ],
+            installer_tools_coordinate: Utils.INSTALLERTOOLS,
+            limits: [
+                immutable_plugin_versions_declared: false,
+                snapshot_timestamp_not_available_from_resolved_module_id: true
+            ]
+        ])
+    }
+}
+
+tasks.register('verifyHearthboundForgeToolFallback') {
+    group = 'verification'
+    description = 'Exercise the actual ForgeGradle installer-tools fallback in an isolated cold build.'
+    mustRunAfter tasks.named('captureHearthboundBuildEnvironment')
+    doLast {
+        def before = repositories.toList()
+        Map result = [
+            schema: 'hearthbound-forge-tool-fallback-v1',
+            installer_tools_coordinate: Utils.INSTALLERTOOLS,
+            repository_names_before: before.collect { it.name },
+            forced_maven_exclusions: project.findProperty('hearthboundForcedInstallerMavenExclusions') ?: [],
+            status: 'FAIL', errors: []
+        ]
+        try {
+            if (result.forced_maven_exclusions.isEmpty()) {
+                throw new GradleException('The diagnostic Maven exclusion init script is required.')
+            }
+            if (Utils.INSTALLERTOOLS != 'net.minecraftforge:installertools:1.4.4:fatjar') {
+                throw new GradleException('Installer-tools coordinate changed; review this regression gate before updating it.')
+            }
+            File artifact = MavenArtifactDownloader.gradle(project, Utils.INSTALLERTOOLS, false)
+            if (artifact == null || !artifact.isFile()) {
+                throw new GradleException('ForgeGradle did not resolve the installer-tools artifact.')
+            }
+            // A manual ForgeGradle lookup writes under forge_gradle, while its
+            // Gradle fallback resolves under modules-2. Do not claim that the
+            // forced path ran if a manual/in-memory cache supplied the file.
+            File fallbackCache = new File(gradle.gradleUserHomeDir, 'caches/modules-2')
+            if (!artifact.canonicalFile.toPath().startsWith(fallbackCache.canonicalFile.toPath())) {
+                throw new GradleException('Installer-tools did not come from the Gradle fallback cache.')
+            }
+            if (repositories.toList() != before) {
+                throw new GradleException('ForgeGradle did not restore the original repository objects and order.')
+            }
+            result.artifact_filename = artifact.name
+            result.artifact_sha256 = sha256(artifact)
+            result.resolution_path = 'forgegradle_non_maven_gradle_fallback'
+            result.repositories_restored = true
+            result.status = 'PASS'
+        } catch (Exception failure) {
+            result.errors.add("${failure.class.name}: ${failure.message}")
+            throw failure
+        } finally {
+            result.repository_names_after = repositories.collect { it.name }
+            writeEvidence('fallback-verification.json', result)
+        }
+    }
+}

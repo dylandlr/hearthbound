@@ -16,6 +16,7 @@ from uuid import UUID
 import colony_motor_diagnostics as motor_diagnostics
 
 TRIAL_SCHEMA = "hearthbound.colony-reliability-trial.v1"
+PLAN_SCHEMA = "hearthbound.colony-reliability-plan.v1"
 SUMMARY_SCHEMA = "hearthbound.colony-reliability-summary.v1"
 PLAN = tuple({"trial_id": f"world-{i:02d}", "seed": 43100 + i}
              for i in range(1, 6))
@@ -25,27 +26,80 @@ TERMINAL_STATUSES = {
     "PASS", "ACCOUNTING_THREE_OF_FOUR", "TASK_ACCOUNTING_MISMATCH",
     "FIXTURE_ASSERTION_FAILURE", "INFRASTRUCTURE_FAILURE", "INVALID_EVIDENCE",
 }
+PROTOCOL_FILES = (
+    "build.gradle",
+    "settings.gradle",
+    "gradle.properties",
+    "gradle/forge-build-environment.gradle",
+    "gradle/force-forge-tool-fallback.init.gradle",
+    "scripts/run_forge_build_preflight.py",
+    "scripts/rcon_civilization_four_citizens.py",
+    "scripts/rcon_two_citizen_haul_acceptance.py",
+    "scripts/run_colony_reliability_trial.py",
+    "scripts/summarize_colony_reliability.py",
+    "scripts/colony_motor_diagnostics.py",
+    "scripts/haul_motor_diagnostics.py",
+    "src/main/java/dev/hearthbound/world/HaulMotorDiagnostics.java",
+    "src/main/java/dev/hearthbound/world/HaulClaims.java",
+    "src/main/java/dev/hearthbound/world/HearthboundWorldIdentity.java",
+    ".github/workflows/real-colony-reliability.yml",
+)
 
 
 def protocol_hash(repo):
-    """Pin the actual fixture, runner, aggregation rules, and cohort workflow."""
-    names = (
-        "scripts/rcon_civilization_four_citizens.py",
-        "scripts/rcon_two_citizen_haul_acceptance.py",
-        "scripts/run_colony_reliability_trial.py",
-        "scripts/summarize_colony_reliability.py",
-        "scripts/colony_motor_diagnostics.py",
-        "scripts/haul_motor_diagnostics.py",
-        "src/main/java/dev/hearthbound/world/HaulMotorDiagnostics.java",
-        "src/main/java/dev/hearthbound/world/HaulClaims.java",
-        "src/main/java/dev/hearthbound/world/HearthboundWorldIdentity.java",
-        ".github/workflows/real-colony-reliability.yml",
-    )
+    """Pin build inputs, fixture, runner, aggregation rules, and cohort workflow."""
     digest = hashlib.sha256()
-    for name in names:
+    for name in PROTOCOL_FILES:
         digest.update(name.encode() + b"\0")
         digest.update((Path(repo) / name).read_bytes() + b"\0")
     return digest.hexdigest()
+
+
+def plan_hash(document):
+    """Bind the complete canonical declaration, including its workflow attempt."""
+    return hashlib.sha256(json.dumps(document, sort_keys=True, separators=(",", ":"),
+                                     allow_nan=False).encode()).hexdigest()
+
+
+def plan_errors(document, expected, expected_commit=None, expected_protocol=None):
+    """Validate prospective intent without treating it as a world observation."""
+    errors = []
+    if not isinstance(document, dict):
+        return ["prospective plan is not an object"]
+    if document.get("schema") != PLAN_SCHEMA:
+        errors.append("wrong prospective plan schema")
+    if (document.get("trial_id") != expected["trial_id"]
+            or type(document.get("seed")) is not int
+            or document.get("seed") != expected["seed"]):
+        errors.append("prospective trial/seed differs from predeclared cohort")
+    if not SHA.fullmatch(str(document.get("source_commit", ""))):
+        errors.append("missing prospective source commit")
+    elif expected_commit and document["source_commit"] != expected_commit:
+        errors.append("prospective source commit differs from requested commit")
+    if not HASH.fullmatch(str(document.get("protocol_sha256", ""))):
+        errors.append("missing prospective protocol hash")
+    elif expected_protocol and document["protocol_sha256"] != expected_protocol:
+        errors.append("prospective protocol differs from checked-out inputs")
+    if document.get("level_name") != "colony-reliability-" + expected["trial_id"]:
+        errors.append("wrong prospective world name")
+    if (document.get("declaration_phase") != "BEFORE_BUILD_PREFLIGHT"
+            or document.get("execution_policy") != "ONE_ATTEMPT_PER_PLANNED_WORLD"
+            or document.get("fresh_world_required") is not True
+            or document.get("motor_diagnostics_required") is not True):
+        errors.append("prospective execution requirements changed")
+    for field in ("github_run_id", "github_run_attempt"):
+        value = document.get(field)
+        if field not in document or (value is not None
+                and (not isinstance(value, str) or not re.fullmatch(r"[1-9][0-9]*", value))):
+            errors.append("invalid prospective workflow identity: " + field)
+    if any(field in document for field in ("world", "world_uuid", "terminal_snapshot",
+                                           "fixture_passed", "observation_window_completed")):
+        errors.append("prospective declaration contains claimed world observations")
+    try:
+        plan_hash(document)
+    except (TypeError, ValueError):
+        errors.append("prospective declaration is not canonical JSON")
+    return errors
 
 
 def wilson(successes, total):
@@ -227,8 +281,10 @@ def result_errors(record, expected, expected_commit=None):
     return errors
 
 
-def summarize(records, plan=PLAN, expected_commit=None, require_motor_diagnostics=False):
+def summarize(records, plan=PLAN, expected_commit=None, require_motor_diagnostics=False,
+              prospective_plans=(), require_prospective_plans=False, expected_protocol=None):
     by_id = {}
+    declarations = {}
     errors = []
     expected_ids = {item["trial_id"] for item in plan}
     for record in records:
@@ -239,21 +295,61 @@ def summarize(records, plan=PLAN, expected_commit=None, require_motor_diagnostic
             errors.append("duplicate trial result: " + trial_id)
         else:
             by_id[trial_id] = record
+    for document in prospective_plans:
+        trial_id = document.get("trial_id") if isinstance(document, dict) else None
+        if not isinstance(trial_id, str) or trial_id not in expected_ids:
+            errors.append("unexpected prospective plan: " + str(trial_id))
+        elif trial_id in declarations:
+            errors.append("duplicate prospective plan: " + trial_id)
+        else:
+            declarations[trial_id] = document
     normalized = []
     world_ids = set()
     commits, protocols = set(), set()
-    motor_diagnostics_required = require_motor_diagnostics or any(
-        record.get("motor_diagnostics_required") is True for record in records)
+    workflow_attempts = set()
+    motor_diagnostics_required = (require_motor_diagnostics or any(
+        record.get("motor_diagnostics_required") is True for record in records) or any(
+        isinstance(document, dict) and document.get("motor_diagnostics_required") is True
+        for document in prospective_plans))
+    plans_required = (require_prospective_plans or bool(prospective_plans) or any(
+        record.get("prospective_plan_required") is True for record in records))
     for item in plan:
+        declaration = declarations.get(item["trial_id"])
+        invalid_plan = (plan_errors(declaration, item, expected_commit, expected_protocol)
+                        if declaration is not None else
+                        ["missing prospective plan"] if plans_required else [])
+        plan_status = ("INVALID" if declaration is not None and invalid_plan else
+                       "VERIFIED" if declaration is not None else
+                       "MISSING" if plans_required else "NOT_REQUIRED_FOR_THIS_REVISION")
+        plan_detail = {"status": plan_status, "errors": invalid_plan}
+        if declaration is not None and not invalid_plan:
+            plan_detail.update(sha256=plan_hash(declaration),
+                               source_commit=declaration["source_commit"],
+                               protocol_sha256=declaration["protocol_sha256"],
+                               github_run_id=declaration["github_run_id"],
+                               github_run_attempt=declaration["github_run_attempt"])
+            commits.add(declaration["source_commit"])
+            protocols.add(declaration["protocol_sha256"])
+            workflow_attempts.add((declaration["github_run_id"], declaration["github_run_attempt"]))
         record = by_id.get(item["trial_id"])
         if record is None:
-            normalized.append({**item, "status": "MISSING_RESULT",
+            normalized.append({**item,
+                               "status": "NOT_RUN" if plan_status == "VERIFIED" else
+                                   "INVALID_EVIDENCE" if declaration is not None else "MISSING_RESULT",
                                "accounting_event_observed": None,
                                "physical_delivery_accounting_event_observed": None,
                                "motor_diagnostics": {"status": "MISSING_TRIAL", "findings": []},
-                               "errors": ["no artifact for planned trial"]})
+                               "prospective_plan": plan_detail,
+                               "errors": ["no trial result; world creation and outcome are unobserved"]
+                                   + invalid_plan})
             continue
-        invalid = result_errors(record, item, expected_commit)
+        invalid = result_errors(record, item, expected_commit) + invalid_plan
+        if declaration is not None and not invalid_plan:
+            if record.get("prospective_plan_sha256") != plan_detail["sha256"]:
+                invalid.append("result is not bound to retained prospective plan")
+            for field in ("source_commit", "protocol_sha256", "github_run_id", "github_run_attempt"):
+                if record.get(field) != declaration[field]:
+                    invalid.append("result differs from prospective plan: " + field)
         world = record.get("world", {})
         world_id = world.get("world_uuid") if isinstance(world, dict) else None
         if world_id:
@@ -279,6 +375,7 @@ def summarize(records, plan=PLAN, expected_commit=None, require_motor_diagnostic
                 physical_delivery_accounting(record["terminal_snapshot"])
                 if eligible else None,
             "errors": invalid,
+            "prospective_plan": plan_detail,
             "motor_diagnostics": {"status": "INVALID_WORLD_PROVENANCE", "findings": []}
                 if invalid else record.get("verified_motor_diagnostics", {
                 "status": "NOT_VERIFIED" if motor_diagnostics_required
@@ -288,6 +385,8 @@ def summarize(records, plan=PLAN, expected_commit=None, require_motor_diagnostic
         errors.append("mixed tested commits")
     if len(protocols) > 1:
         errors.append("mixed protocols")
+    if len(workflow_attempts) > 1:
+        errors.append("mixed prospective workflow runs or attempts")
     # A duplicate, unexpected record, or mixed cohort invalidates the pooled
     # estimate instead of quietly dropping evidence until the number improves.
     if errors:
@@ -308,6 +407,7 @@ def summarize(records, plan=PLAN, expected_commit=None, require_motor_diagnostic
                             for item in normalized)
     physical_unknown = total - physical_assessed
     motor_counts = Counter(item["motor_diagnostics"]["status"] for item in normalized)
+    plan_counts = Counter(item["prospective_plan"]["status"] for item in normalized)
     motor_flags = Counter(flag for item in normalized
                           if item["motor_diagnostics"]["status"] == "VERIFIED_COMPLETE"
                           for finding in item["motor_diagnostics"].get("findings", [])
@@ -319,6 +419,15 @@ def summarize(records, plan=PLAN, expected_commit=None, require_motor_diagnostic
         "statuses": dict(sorted(count.items())),
         "terminal_diagnostic_patterns": dict(sorted(diagnostic_counts.items())),
         "all_trials_passed": not errors and count["PASS"] == total,
+        "prospective_plans": {
+            "required_for_cohort": plans_required,
+            "planned_worlds": total,
+            "statuses": dict(sorted(plan_counts.items())),
+            "all_required_plans_verified": not plans_required
+                or (not errors and plan_counts["VERIFIED"] == total),
+            "declarations_are_world_observations": False,
+            "no_result_outcomes_remain_unknown": True,
+        },
         "post_window_motor_diagnostics": {
             "required_for_cohort": motor_diagnostics_required,
             "planned_worlds": total,
@@ -374,8 +483,19 @@ def main():
     parser.add_argument("--expected-commit")
     parser.add_argument("--require-motor-diagnostics", action="store_true",
                         help="Trusted workflow requirement; artifact flags cannot disable this gate")
+    parser.add_argument("--require-prospective-plans", action="store_true",
+                        help="Require declarations retained before build setup for every planned world")
     args = parser.parse_args()
     records = []
+    plans = []
+    for path in sorted(args.directory.rglob("trial-plan.json")):
+        try:
+            document = json.loads(path.read_text())
+            if not isinstance(document, dict):
+                raise ValueError("prospective plan is not an object")
+            plans.append(document)
+        except (OSError, ValueError) as error:
+            plans.append({"trial_id": "UNREADABLE " + str(path) + ": " + str(error)})
     for path in sorted(args.directory.rglob("trial-result.json")):
         try:
             record = json.loads(path.read_text())
@@ -410,12 +530,18 @@ def main():
             # A corrupt additional artifact could hide a duplicate trial.
             # Preserve it as a cohort error and invalidate pooled estimation.
             records.append({"trial_id": "UNREADABLE " + str(path) + ": " + str(error)})
+    plans_required = args.require_prospective_plans or bool(plans) or any(
+        record.get("prospective_plan_required") is True for record in records)
+    expected_protocol = protocol_hash(Path(__file__).resolve().parents[1]) if plans_required else None
     result = summarize(records, expected_commit=args.expected_commit,
-                       require_motor_diagnostics=args.require_motor_diagnostics)
+                       require_motor_diagnostics=args.require_motor_diagnostics,
+                       prospective_plans=plans, require_prospective_plans=plans_required,
+                       expected_protocol=expected_protocol)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
     print(json.dumps(result, indent=2, sort_keys=True))
     raise SystemExit(0 if result["all_trials_passed"]
+                     and result["prospective_plans"]["all_required_plans_verified"]
                      and result["post_window_motor_diagnostics"]["all_required_worlds_verified"] else 1)
 
 

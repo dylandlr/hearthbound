@@ -31,6 +31,19 @@ repositories {
     maven { url = 'https://maven.createmod.net' }
     maven { url = 'https://maven.ithundxr.dev/mirror' }
     maven { url = 'https://raw.githubusercontent.com/Fuzss/modresources/main/maven/' }
+    // ForgeGradle tries Maven URLs itself before its Gradle fallback. That
+    // fallback excludes Maven repositories, so give this exact tool family a
+    // non-Maven route to the same official artifact; see the cold-build gate.
+    ivy {
+        name = 'HearthboundForgeInstallerToolsFallback'
+        url = 'https://maven.minecraftforge.net'
+        patternLayout {
+            artifact '[organisation]/[module]/[revision]/[artifact]-[revision](-[classifier]).[ext]'
+            m2compatible = true
+        }
+        metadataSources { artifact() }
+        content { includeModule('net.minecraftforge', 'installertools') }
+    }
 }
 mixin {
     add sourceSets.main, 'hearthbound.refmap.json'
@@ -50,3 +63,5 @@ dependencies {
 }
 tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
 jar { manifest { attributes(['Specification-Title': 'hearthbound', 'Implementation-Title': 'hearthbound', 'Implementation-Version': project.version, 'MixinConfigs': 'hearthbound.mixins.json']) } }
+
+apply from: 'gradle/forge-build-environment.gradle'

@@ -5,6 +5,10 @@ on:
       - 'feat/real-mill-outcome-probe-v0-15-6'
   pull_request:
     paths:
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle.properties'
+      - 'gradle/forge-build-environment.gradle'
       - 'src/main/java/dev/hearthbound/world/**'
       - 'src/main/java/dev/hearthbound/evidence/OutcomeLedger.java'
       - 'src/main/java/dev/hearthbound/evidence/VerifiedMillLearning.java'

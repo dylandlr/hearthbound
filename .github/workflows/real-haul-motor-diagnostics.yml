@@ -2,6 +2,12 @@ name: Real Forge read-only haul and chunk diagnostics
 on:
   pull_request:
     paths:
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle.properties'
+      - 'gradle/forge-build-environment.gradle'
+      - 'gradle/force-forge-tool-fallback.init.gradle'
+      - 'scripts/run_forge_build_preflight.py'
       - 'src/main/java/dev/hearthbound/world/HaulMotorDiagnostics.java'
       - 'src/main/java/dev/hearthbound/world/SableController.java'
       - 'src/main/java/dev/hearthbound/world/SableHauling.java'
@@ -38,9 +44,9 @@ jobs:
         run: python3 -m unittest discover -s scripts -p test_haul_motor_diagnostics.py -v
       - name: Compile actual Forge and test sources
         run: >-
-          gradle --no-daemon compileJava compileTestJava
-          > haul-motor-diagnostics/preflight.log 2>&1
-          || (tail -n 120 haul-motor-diagnostics/preflight.log; exit 1)
+          python3 scripts/run_forge_build_preflight.py
+          --output haul-motor-diagnostics/build
+          --log haul-motor-diagnostics/preflight.log
       - name: Observe blocked cargo, recovery, and controlled chunk suspension
         env:
           HEARTHBOUND_RCON_PASSWORD: ci-haul-motor-diagnostics

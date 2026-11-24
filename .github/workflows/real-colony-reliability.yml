@@ -2,6 +2,12 @@ name: Real Forge independent-world colony reliability
 on:
   pull_request:
     paths:
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle.properties'
+      - 'gradle/forge-build-environment.gradle'
+      - 'gradle/force-forge-tool-fallback.init.gradle'
+      - 'scripts/run_forge_build_preflight.py'
       - 'src/main/java/dev/hearthbound/civilization/**'
       - 'src/main/java/dev/hearthbound/world/CivilizationRuntime.java'
       - 'src/main/java/dev/hearthbound/world/SableController.java'
@@ -40,6 +46,13 @@ jobs:
         with:
           # Record and test the actual proposed revision, not an implicit merge ref.
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Preserve each planned world before build or dependency setup
+        env:
+          HEARTHBOUND_EXPECTED_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: >-
+          python3 scripts/run_colony_reliability_trial.py
+          --trial-id '${{ matrix.trial }}' --seed '${{ matrix.seed }}'
+          --declare-only --output 'reliability-plans/${{ matrix.trial }}/trial-plan.json'
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -53,13 +66,18 @@ jobs:
           python3 -m unittest discover -s scripts -p 'test_colony_motor_diagnostics.py'
           python3 -m unittest discover -s scripts -p 'test_haul_motor_diagnostics.py'
       - name: Compile Forge and test sources
-        run: gradle --no-daemon compileJava compileTestJava > reliability-preflight.log 2>&1 || (tail -n 120 reliability-preflight.log; exit 1)
+        env:
+          HEARTHBOUND_EXPECTED_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: >-
+          python3 scripts/run_forge_build_preflight.py
+          --output 'reliability-build/${{ matrix.trial }}' --log reliability-preflight.log
       - name: Run one untouched fixture in a new world and server process
         env:
           HEARTHBOUND_EXPECTED_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
         run: >-
           python3 scripts/run_colony_reliability_trial.py
           --trial-id '${{ matrix.trial }}' --seed '${{ matrix.seed }}'
+          --plan-file 'reliability-plans/${{ matrix.trial }}/trial-plan.json'
           --output 'reliability/${{ matrix.trial }}'
       - uses: actions/upload-artifact@v4
         if: always()
@@ -67,6 +85,8 @@ jobs:
           name: colony-reliability-${{ matrix.trial }}
           path: |
             reliability/${{ matrix.trial }}/
+            reliability-plans/${{ matrix.trial }}/
+            reliability-build/${{ matrix.trial }}/
             reliability-preflight.log
           if-no-files-found: warn
   summary:
@@ -89,6 +109,7 @@ jobs:
           python3 scripts/summarize_colony_reliability.py reliability-downloads
           --expected-commit "$HEARTHBOUND_EXPECTED_COMMIT"
           --require-motor-diagnostics
+          --require-prospective-plans
           --output colony-reliability-summary.json
       - uses: actions/upload-artifact@v4
         if: always()

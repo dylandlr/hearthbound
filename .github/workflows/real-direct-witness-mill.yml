@@ -5,6 +5,10 @@ on:
       - 'feat/direct-witness-hauling-v0-16-0'
   pull_request:
     paths:
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle.properties'
+      - 'gradle/forge-build-environment.gradle'
       - 'src/main/java/dev/hearthbound/world/DirectSourceWitnessBridge.java'
       - 'src/main/java/dev/hearthbound/evidence/DirectSourceWitnessContract.java'
       - 'src/main/java/dev/hearthbound/world/SableController.java'

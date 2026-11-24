@@ -4,17 +4,20 @@ import copy
 import gzip
 import hashlib
 import json
+import os
 from pathlib import Path
 import struct
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
-from run_colony_reliability_trial import NbtReader, world_evidence
+from run_colony_reliability_trial import NbtReader, declare, run, world_evidence
 from summarize_colony_reliability import (
-    PLAN, TRIAL_SCHEMA, accounting_three_of_four, classified_status,
-    counters, diagnostic_flags, physical_delivery_accounting, summarize, wilson,
+    PLAN, PLAN_SCHEMA, PROTOCOL_FILES, TRIAL_SCHEMA, accounting_three_of_four, classified_status,
+    counters, diagnostic_flags, physical_delivery_accounting, plan_hash, protocol_hash,
+    summarize, wilson,
 )
 
 COMMIT = "a" * 40
@@ -50,6 +53,17 @@ def record(item, done=4, assigned=0):
             "world_uuid": "00000000-0000-0000-0000-" + str(item["seed"]).zfill(12),
             "level_dat_sha256": HASH, "world_identity_sha256": HASH,
         },
+    }
+
+
+def prospective_plan(item):
+    return {
+        "schema": PLAN_SCHEMA, **item, "source_commit": COMMIT, "protocol_sha256": HASH,
+        "github_run_id": "12345", "github_run_attempt": "1",
+        "level_name": "colony-reliability-" + item["trial_id"],
+        "declaration_phase": "BEFORE_BUILD_PREFLIGHT",
+        "execution_policy": "ONE_ATTEMPT_PER_PLANNED_WORLD",
+        "fresh_world_required": True, "motor_diagnostics_required": True,
     }
 
 
@@ -350,6 +364,180 @@ class CohortTests(unittest.TestCase):
                          {"assigned": 1, "done": 3})
 
 
+class ProspectivePlanTests(unittest.TestCase):
+    def setUp(self):
+        self.plans = [prospective_plan(item) for item in PLAN]
+        self.records = [record(item) for item in PLAN]
+        for result, document in zip(self.records, self.plans):
+            self.bind(result, document)
+
+    @staticmethod
+    def bind(result, document):
+        result.update(prospective_plan_required=True,
+                      prospective_plan_sha256=plan_hash(document),
+                      github_run_id=document["github_run_id"],
+                      github_run_attempt=document["github_run_attempt"])
+
+    def summarize(self, records=None, plans=None):
+        return summarize(self.records if records is None else records,
+                         prospective_plans=self.plans if plans is None else plans,
+                         expected_commit=COMMIT, expected_protocol=HASH,
+                         require_prospective_plans=True)
+
+    def test_verified_plans_do_not_redefine_original_events(self):
+        self.records[0] = record(PLAN[0], done=3, assigned=1)
+        self.bind(self.records[0], self.plans[0])
+        result = self.summarize()
+        self.assertEqual(result["statuses"], {"ACCOUNTING_THREE_OF_FOUR": 1, "PASS": 4})
+        self.assertEqual(result["three_of_four_accounting_event"]["frequency_among_assessable"], 0.2)
+        self.assertEqual(result["prospective_plans"]["statuses"], {"VERIFIED": 5})
+        self.assertTrue(result["prospective_plans"]["all_required_plans_verified"])
+        self.assertTrue(result["post_window_motor_diagnostics"]["required_for_cohort"])
+
+    def test_precompile_failure_is_unknown_with_a_plan_and_no_fabricated_world(self):
+        result = self.summarize(records=self.records[:4])
+        self.assertEqual(result["planned_trials"], 5)
+        self.assertEqual(result["received_unique_trials"], 4)
+        self.assertEqual(result["statuses"], {"NOT_RUN": 1, "PASS": 4})
+        row = result["trials"][-1]
+        self.assertEqual(row["prospective_plan"]["status"], "VERIFIED")
+        self.assertNotIn("world_uuid", row)
+        self.assertNotIn("terminal_snapshot", row)
+        for key in ("three_of_four_accounting_event", "physical_delivery_accounting_event"):
+            self.assertEqual(result[key]["unknown_trials"], 1)
+            self.assertEqual(result[key]["planned_cohort_missingness_bounds"], [0.0, 0.2])
+        self.assertFalse(result["all_trials_passed"])
+
+    def test_all_builds_can_fail_without_any_negative_event_or_created_world(self):
+        result = self.summarize(records=[])
+        self.assertEqual(result["statuses"], {"NOT_RUN": 5})
+        self.assertEqual(result["source_commits"], [COMMIT])
+        self.assertEqual(result["protocol_hashes"], [HASH])
+        event = result["three_of_four_accounting_event"]
+        self.assertEqual((event["observed"], event["assessable_trials"], event["unknown_trials"]), (0, 0, 5))
+        self.assertIsNone(event["frequency_among_assessable"])
+        self.assertIsNone(event["wilson_95_interval_among_assessable"])
+
+    def test_trusted_plan_gate_cannot_be_disabled_by_result_flags(self):
+        for item in self.records:
+            item["prospective_plan_required"] = False
+        result = self.summarize(plans=[])
+        self.assertEqual(result["statuses"], {"INVALID_EVIDENCE": 5})
+        self.assertEqual(result["three_of_four_accounting_event"]["unknown_trials"], 5)
+        self.assertEqual(result["prospective_plans"]["statuses"], {"MISSING": 5})
+
+    def test_invalid_plan_never_promotes_an_observed_or_unstarted_world(self):
+        changes = (
+            ("schema", "other"), ("seed", 43102), ("source_commit", "f" * 40),
+            ("protocol_sha256", "e" * 64), ("level_name", "reused-world"),
+            ("declaration_phase", "AFTER_OUTCOME"), ("execution_policy", "RETRY_UNTIL_PASS"),
+            ("fresh_world_required", False), ("motor_diagnostics_required", False),
+            ("github_run_attempt", "0"), ("world_uuid", "invented-before-world-creation"),
+            ("extra", float("nan")),
+        )
+        for field, value in changes:
+            with self.subTest(field=field):
+                plans = copy.deepcopy(self.plans)
+                plans[0][field] = value
+                result = self.summarize(plans=plans)
+                self.assertEqual(result["statuses"], {"INVALID_EVIDENCE": 1, "PASS": 4})
+                self.assertEqual(result["three_of_four_accounting_event"]["unknown_trials"], 1)
+                self.assertFalse(result["prospective_plans"]["all_required_plans_verified"])
+                missing = self.summarize(records=self.records[1:], plans=plans)
+                self.assertEqual(missing["trials"][0]["status"], "INVALID_EVIDENCE")
+
+    def test_result_must_bind_the_retained_plan_and_workflow_attempt(self):
+        for field, value in (("prospective_plan_sha256", "c" * 64),
+                             ("github_run_id", "999"), ("github_run_attempt", "2")):
+            with self.subTest(field=field):
+                records = copy.deepcopy(self.records)
+                records[0][field] = value
+                result = self.summarize(records=records)
+                self.assertEqual(result["statuses"], {"INVALID_EVIDENCE": 1, "PASS": 4})
+                self.assertEqual(result["three_of_four_accounting_event"]["unknown_trials"], 1)
+
+    def test_duplicate_extra_and_mixed_attempt_plans_invalidate_cohort(self):
+        for extra in (copy.deepcopy(self.plans[0]), {"trial_id": "unexpected-world"}):
+            result = self.summarize(plans=self.plans + [extra])
+            self.assertTrue(result["cohort_errors"])
+            self.assertEqual(result["three_of_four_accounting_event"]["unknown_trials"], 5)
+        for field, value in (("github_run_id", "999"), ("github_run_attempt", "2")):
+            plans, records = copy.deepcopy(self.plans), copy.deepcopy(self.records)
+            plans[0][field] = value
+            self.bind(records[0], plans[0])
+            result = self.summarize(records=records, plans=plans)
+            self.assertIn("mixed prospective workflow runs or attempts", result["cohort_errors"])
+            self.assertEqual(result["three_of_four_accounting_event"]["unknown_trials"], 5)
+
+
+class DeclarationTests(unittest.TestCase):
+    def test_exclusive_declaration_creates_no_world_and_preserves_first_plan(self):
+        with tempfile.TemporaryDirectory() as temporary, \
+                patch.dict(os.environ, {"HEARTHBOUND_EXPECTED_COMMIT": COMMIT}, clear=True), \
+                patch("run_colony_reliability_trial.subprocess.check_output", return_value=COMMIT), \
+                patch("run_colony_reliability_trial.protocol_hash", return_value=HASH):
+            root = Path(temporary)
+            path = root / "declarations/trial-plan.json"
+            document = declare(root, "world-01", 43101, path)
+            self.assertEqual(document["source_commit"], COMMIT)
+            self.assertFalse((root / "run").exists())
+            self.assertNotIn("world", document)
+            self.assertNotIn("world_uuid", document)
+            original = path.read_bytes()
+            with self.assertRaises(FileExistsError):
+                declare(root, "world-01", 43101, path)
+            self.assertEqual(path.read_bytes(), original)
+
+    def test_wrong_commit_is_rejected_before_writing_a_plan(self):
+        with tempfile.TemporaryDirectory() as temporary, \
+                patch.dict(os.environ, {"HEARTHBOUND_EXPECTED_COMMIT": "f" * 40}, clear=True), \
+                patch("run_colony_reliability_trial.subprocess.check_output", return_value=COMMIT):
+            path = Path(temporary) / "trial-plan.json"
+            with self.assertRaisesRegex(ValueError, "requested head"):
+                declare(Path(temporary), "world-01", 43101, path)
+            self.assertFalse(path.exists())
+
+    def test_invalid_plan_blocks_server_start_without_fabricating_an_outcome(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(os.environ, {}, clear=True), \
+                patch("run_colony_reliability_trial.subprocess.check_output", return_value=COMMIT), \
+                patch("run_colony_reliability_trial.protocol_hash", return_value=HASH), \
+                patch("run_colony_reliability_trial.subprocess.Popen") as process, \
+                patch("builtins.print"):
+            root = Path(temporary)
+            document = prospective_plan(PLAN[0])
+            document["source_commit"] = "e" * 40
+            path = root / "trial-plan.json"
+            path.write_text(json.dumps(document))
+            result = run(root, "world-01", 43101, root / "result", plan_file=path)
+            process.assert_not_called()
+            self.assertFalse((root / "run").exists())
+            self.assertFalse(result["observation_window_completed"])
+            self.assertEqual(result["world"], {})
+            self.assertIsNone(result["terminal_snapshot"])
+            self.assertEqual(result["status"], "INFRASTRUCTURE_FAILURE")
+
+    def test_build_configuration_and_helper_changes_alter_protocol_hash(self):
+        build_inputs = (
+            "build.gradle", "settings.gradle", "gradle.properties",
+            "gradle/forge-build-environment.gradle", "gradle/force-forge-tool-fallback.init.gradle",
+            "scripts/run_forge_build_preflight.py",
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name in PROTOCOL_FILES:
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("synthetic protocol input " + name)
+            original = protocol_hash(root)
+            for name in build_inputs:
+                with self.subTest(name=name):
+                    path = root / name
+                    saved = path.read_bytes()
+                    path.write_bytes(saved + b" changed build input")
+                    self.assertNotEqual(protocol_hash(root), original)
+                    path.write_bytes(saved)
+
+
 def nbt_string(text):
     encoded = text.encode()
     return struct.pack(">H", len(encoded)) + encoded
@@ -388,6 +576,35 @@ class PersistenceTests(unittest.TestCase):
 
 
 class ArtifactTests(unittest.TestCase):
+    def test_cli_preserves_precompile_plans_and_rejects_an_unreadable_plan(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary)
+            protocol = protocol_hash(Path(__file__).resolve().parents[1])
+            for item in PLAN:
+                directory = path / item["trial_id"] / "plans"
+                directory.mkdir(parents=True)
+                document = prospective_plan(item)
+                document["protocol_sha256"] = protocol
+                (directory / "trial-plan.json").write_text(json.dumps(document))
+            script = Path(__file__).with_name("summarize_colony_reliability.py")
+            command = [sys.executable, str(script), str(path), "--expected-commit", COMMIT,
+                       "--require-prospective-plans", "--require-motor-diagnostics",
+                       "--output", str(path / "summary.json")]
+            incomplete = subprocess.run(command, capture_output=True, text=True)
+            self.assertEqual(incomplete.returncode, 1, incomplete.stderr)
+            summary = json.loads((path / "summary.json").read_text())
+            self.assertEqual(summary["statuses"], {"NOT_RUN": 5})
+            self.assertEqual(summary["prospective_plans"]["statuses"], {"VERIFIED": 5})
+            self.assertEqual(summary["three_of_four_accounting_event"]["unknown_trials"], 5)
+            self.assertEqual(summary["post_window_motor_diagnostics"]["statuses"], {"MISSING_TRIAL": 5})
+            (path / "world-01/plans/trial-plan.json").write_text("{truncated")
+            unreadable = subprocess.run(command, capture_output=True, text=True)
+            self.assertEqual(unreadable.returncode, 1, unreadable.stderr)
+            summary = json.loads((path / "summary.json").read_text())
+            self.assertFalse(summary["prospective_plans"]["all_required_plans_verified"])
+            self.assertEqual(summary["three_of_four_accounting_event"]["unknown_trials"], 5)
+            self.assertTrue(any("UNREADABLE" in error for error in summary["cohort_errors"]))
+
     def test_cli_checks_artifact_integrity_and_unreadable_extras(self):
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary)

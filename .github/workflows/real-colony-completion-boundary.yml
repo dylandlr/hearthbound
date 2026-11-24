@@ -2,6 +2,10 @@ name: Real Forge colony completion with dispatch disabled
 on:
   pull_request:
     paths:
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle.properties'
+      - 'gradle/forge-build-environment.gradle'
       - 'src/main/java/dev/hearthbound/civilization/**'
       - 'src/test/java/dev/hearthbound/civilization/**'
       - 'src/main/java/dev/hearthbound/world/CivilizationRuntime.java'

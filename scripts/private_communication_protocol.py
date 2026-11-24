@@ -32,6 +32,9 @@ POSITIONS = ((5.5, 101.0, 7.5), (12.5, 101.0, 7.5),
              (14.5, 101.0, 10.5), (12.5, 101.0, 12.5))
 DIMENSION = "minecraft:overworld"
 PROTOCOL_FILES = (
+    "build.gradle", "settings.gradle", "gradle.properties",
+    "gradle/forge-build-environment.gradle", "gradle/force-forge-tool-fallback.init.gradle",
+    "scripts/run_forge_build_preflight.py",
     "scripts/private_communication_protocol.py",
     "scripts/rcon_private_communication_trial.py",
     "scripts/run_private_communication_trial.py",

@@ -1,0 +1,17 @@
+import org.gradle.api.artifacts.repositories.MavenArtifactRepository
+
+// Diagnostic CI only: exclude the observed failing tool from every project
+// Maven repository. ForgeGradle's manual Maven lookup honors these filters.
+// Buildscript/plugin repositories and all other Minecraft artifacts are intact.
+gradle.beforeProject { project ->
+    project.ext.hearthboundForcedInstallerMavenExclusions = []
+    def configured = Collections.newSetFromMap(new IdentityHashMap())
+    project.repositories.withType(MavenArtifactRepository).configureEach { repository ->
+        // ForgeGradle removes and re-adds these same repository objects. Do not
+        // try to reconfigure a repository that has already been used.
+        if (configured.add(repository)) {
+            repository.content { excludeModule('net.minecraftforge', 'installertools') }
+            project.ext.hearthboundForcedInstallerMavenExclusions.add(repository.name)
+        }
+    }
+}

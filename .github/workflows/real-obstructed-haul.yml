@@ -2,6 +2,10 @@ name: Real Forge blocked-route hauling recovery
 on:
   pull_request:
     paths:
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle.properties'
+      - 'gradle/forge-build-environment.gradle'
       - 'scripts/rcon_obstructed_haul_acceptance.py'
       - 'scripts/test_rcon_obstructed_haul_acceptance.py'
       - '.github/workflows/real-obstructed-haul.yml'
