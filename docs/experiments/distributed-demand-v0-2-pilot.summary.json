@@ -1,0 +1,3188 @@
+{
+  "protocol": {
+    "schema": "hearthbound.distributed-demand-learning.v0.1",
+    "origin": "ABSTRACT_SIMULATOR_ONLY",
+    "pilot_only": true,
+    "training_seeds": [
+      17,
+      23,
+      41
+    ],
+    "episodes_per_training_seed": 160,
+    "heldout_world_seeds": [
+      9500000,
+      9500001,
+      9500002,
+      9500003,
+      9500004,
+      9500005,
+      9500006,
+      9500007,
+      9500008,
+      9500009,
+      9500010,
+      9500011
+    ],
+    "agents": 4,
+    "horizon_ticks": 160,
+    "gamma_per_tick": 0.98,
+    "personal_reward_weight": 0.25,
+    "training_communication": "local",
+    "training_demand_schedule": "alternate recurring, shutdown by episode",
+    "evaluation_demand": [
+      "recurring",
+      "shutdown"
+    ],
+    "evaluation_slots": [
+      [
+        "trained",
+        "local"
+      ],
+      [
+        "trained",
+        "no_messages"
+      ],
+      [
+        "trained",
+        "unread"
+      ],
+      [
+        "trained",
+        "instant"
+      ],
+      [
+        "trained",
+        "no_relay"
+      ],
+      [
+        "untrained",
+        "local"
+      ],
+      [
+        "scripted_local",
+        "local"
+      ],
+      [
+        "random",
+        "local"
+      ],
+      [
+        "scripted_local",
+        "no_messages"
+      ],
+      [
+        "scripted_local",
+        "unread"
+      ],
+      [
+        "scripted_local",
+        "instant"
+      ]
+    ],
+    "observation_contract": {
+      "schema": "hearthbound.distributed-demand.v0.2",
+      "features": [
+        "time_remaining",
+        "idle",
+        "cargo_a",
+        "cargo_b",
+        "travel_cost",
+        "local_peers",
+        "local_workers",
+        "shareable",
+        "at_depot",
+        "depot_travel",
+        "depot_known",
+        "depot_a",
+        "depot_b",
+        "depot_age",
+        "depot_report",
+        "workshop_1_at",
+        "workshop_1_travel",
+        "workshop_1_known",
+        "workshop_1_stock_a",
+        "workshop_1_stock_b",
+        "workshop_1_need_a",
+        "workshop_1_need_b",
+        "workshop_1_order_age",
+        "workshop_1_deadline_remaining",
+        "workshop_1_age",
+        "workshop_1_report",
+        "workshop_2_at",
+        "workshop_2_travel",
+        "workshop_2_known",
+        "workshop_2_stock_a",
+        "workshop_2_stock_b",
+        "workshop_2_need_a",
+        "workshop_2_need_b",
+        "workshop_2_order_age",
+        "workshop_2_deadline_remaining",
+        "workshop_2_age",
+        "workshop_2_report"
+      ],
+      "actions": [
+        "WAIT",
+        "GO_DEPOT",
+        "GO_WORKSHOP_1",
+        "GO_WORKSHOP_2",
+        "PICK_A",
+        "PICK_B",
+        "DROP",
+        "WORK",
+        "SHARE"
+      ],
+      "source_manifest": {
+        "distributed_demand_env.py": "b359effc665f3d0eb7d862fe5727e570b3fa7ee9da407a96eaf3c85be115c5df",
+        "train_distributed_demand.py": "4b86933292c9426ec476eb9b8053857b5846316a377800bbec4141124e7ebd52"
+      }
+    },
+    "training_settings": {
+      "algorithm": "shared-independent-Double-DQN",
+      "hidden_units": 64,
+      "batch_size": 32,
+      "replay_start": 64,
+      "replay_capacity": 20000,
+      "replay_trim": 2000,
+      "target_update_interval": 200,
+      "adam_rate": 0.001,
+      "epsilon_initial": 0.9,
+      "epsilon_final": 0.08,
+      "epsilon_decay_fraction": 0.8,
+      "updates_per_world_tick": 1,
+      "gradient_norm_clip": 5.0,
+      "huber_delta": 1.0
+    },
+    "numpy_version": "2.3.5",
+    "primary_metric": "completed simulated work-order units",
+    "primary_comparison": "recurring: frozen trained local minus same initialization untrained local",
+    "information_comparison": "recurring: frozen trained local minus frozen trained unread",
+    "mechanism_comparison": "same observation-only heuristic local versus unread/no-messages",
+    "planned_evaluation_slots": 792,
+    "independent_units": "crossed training seed and world seed; citizens and ticks are not replicates",
+    "repeated_script_and_random_rows_are_not_independent_replications": true,
+    "roles_are_observational": true,
+    "learned_specialization_established": false,
+    "delivery_reward": 0,
+    "occupation_reward": 0,
+    "recurrent_network": false,
+    "centralized_critic": false,
+    "forge_control_enabled": false,
+    "minecraft_worlds": 0,
+    "confirmatory_study": false,
+    "uncertainty": "exploratory crossed bootstrap; few training seeds"
+  },
+  "protocol_sha256": "df1003963561c356811154586d8b115afbbe5b741731762b91fe6ff3ae2ad5d3",
+  "training": [
+    {
+      "training_seed": 17,
+      "trained_sha256": "eb05b7dcc271682892880bb7733e87c617b3dbbf06389779c0beaeb2c5efe27a",
+      "initial_sha256": "a8f04d3bbc130ae306729df51944f1d8940012e7a8bd54b0cf281cb2f9a7e275",
+      "episodes": 160,
+      "world_ticks": 25600,
+      "agent_ticks": 102400,
+      "decisions": 47624,
+      "training_products": 1697,
+      "optimizer_updates": 25546,
+      "mean_huber_loss": 0.09145142003194576,
+      "training_world_seed_manifest_sha256": "4b53a070e752d55312664ddb0fe6ff2b23a4d738f8be84be82d879578a891bf3",
+      "by_demand": {
+        "recurring": {
+          "episodes": 80,
+          "products": 1171
+        },
+        "shutdown": {
+          "episodes": 80,
+          "products": 526
+        }
+      }
+    },
+    {
+      "training_seed": 23,
+      "trained_sha256": "3256ea540c203373b8662dc32e16387eb12a3c596041fb1d3e67bca30bab728c",
+      "initial_sha256": "b85876617a03aa399f6d67899467585aca9729e14230fe59e3bd16dd91790715",
+      "episodes": 160,
+      "world_ticks": 25600,
+      "agent_ticks": 102400,
+      "decisions": 47804,
+      "training_products": 1738,
+      "optimizer_updates": 25560,
+      "mean_huber_loss": 0.10087523643563416,
+      "training_world_seed_manifest_sha256": "25832d95fcdc39ec2e443f8d1d27ce18237a9679215d6850559d822fe341e207",
+      "by_demand": {
+        "recurring": {
+          "episodes": 80,
+          "products": 1204
+        },
+        "shutdown": {
+          "episodes": 80,
+          "products": 534
+        }
+      }
+    },
+    {
+      "training_seed": 41,
+      "trained_sha256": "70337374fb6f341fabd4356d558a539d56c64a25f062f9713ee79142c7e76693",
+      "initial_sha256": "37c97c38d68d68999993b2d33d8629e7188a6245e40d6a7ad3f6486cd8c3ae3d",
+      "episodes": 160,
+      "world_ticks": 25600,
+      "agent_ticks": 102400,
+      "decisions": 47192,
+      "training_products": 1761,
+      "optimizer_updates": 25547,
+      "mean_huber_loss": 0.10170844838126887,
+      "training_world_seed_manifest_sha256": "1421d9020f380b8dd448a1bd2c4b669417c229e3157613476933a9e5bbb47ce9",
+      "by_demand": {
+        "recurring": {
+          "episodes": 80,
+          "products": 1225
+        },
+        "shutdown": {
+          "episodes": 80,
+          "products": 536
+        }
+      }
+    }
+  ],
+  "evaluation_weights_frozen": true,
+  "summary": {
+    "recurring": {
+      "conditions": {
+        "trained:local": {
+          "planned": 36,
+          "retained": 36,
+          "valid": 36,
+          "failed": 0,
+          "missing": 0,
+          "mean_products_valid_only": 18.22222222222222,
+          "per_training_seed_mean_products": {
+            "17": 20.0,
+            "23": 16.916666666666668,
+            "41": 17.75
+          },
+          "mean_counts_valid_only": {
+            "attempts": 59.94444444444444,
+            "delivered": 23.77777777777778,
+            "forwarded": 0.9722222222222222,
+            "cross_site_deliveries": 23.77777777777778,
+            "read_report_inputs": 124.16666666666667,
+            "travel_ticks": 329.1388888888889,
+            "work_ticks": 36.52777777777778,
+            "empty_trips": 36.19444444444444,
+            "loaded_trips": 46.833333333333336,
+            "empty_trips_with_report_delivery": 5.972222222222222,
+            "loaded_trips_with_report_delivery": 6.916666666666667,
+            "empty_travel_ticks": 146.55555555555554,
+            "loaded_travel_ticks": 182.58333333333334,
+            "demand_issued": 34.916666666666664,
+            "demand_expired": 14.11111111111111,
+            "demand_pending": 2.5,
+            "demand_reserved": 0.08333333333333333,
+            "late_completed": 0.3333333333333333,
+            "work_denials": 4.944444444444445,
+            "pickup_denials": 0.0,
+            "drop_denials": 0.2777777777777778,
+            "drops_without_current_need": 14.166666666666666
+          },
+          "mean_phase_counts_valid_only": {
+            "early": {
+              "produced": 9.38888888888889,
+              "attempts": 29.916666666666668,
+              "work_ticks": 18.77777777777778,
+              "travel_ticks": 182.08333333333334,
+              "empty_travel_ticks": 81.16666666666667,
+              "loaded_travel_ticks": 100.91666666666667,
+              "empty_trips": 20.444444444444443,
+              "loaded_trips": 26.88888888888889,
+              "empty_trips_with_report_delivery": 2.9722222222222223,
+              "loaded_trips_with_report_delivery": 3.5833333333333335,
+              "drops_without_current_need": 8.027777777777779
+            },
+            "late": {
+              "produced": 8.833333333333334,
+              "attempts": 30.02777777777778,
+              "work_ticks": 17.75,
+              "travel_ticks": 147.05555555555554,
+              "empty_travel_ticks": 65.38888888888889,
+              "loaded_travel_ticks": 81.66666666666667,
+              "empty_trips": 15.75,
+              "loaded_trips": 19.944444444444443,
+              "empty_trips_with_report_delivery": 3.0,
+              "loaded_trips_with_report_delivery": 3.3333333333333335,
+              "drops_without_current_need": 6.138888888888889
+            },
+            "quiet": {
+              "produced": 6.25,
+              "attempts": 18.416666666666668,
+              "work_ticks": 12.416666666666666,
+              "travel_ticks": 96.08333333333333,
+              "empty_travel_ticks": 41.25,
+              "loaded_travel_ticks": 54.833333333333336,
+              "empty_trips": 9.833333333333334,
+              "loaded_trips": 12.88888888888889,
+              "empty_trips_with_report_delivery": 1.9722222222222223,
+              "loaded_trips_with_report_delivery": 2.1944444444444446,
+              "drops_without_current_need": 3.8055555555555554
+            }
+          },
+          "mean_activity_by_half_valid_only": [
+            {
+              "produced": 9.38888888888889,
+              "personal_cost": 1.661719363389166,
+              "action_counts": {
+                "WAIT": 54.69444444444444,
+                "GO_DEPOT": 20.333333333333332,
+                "GO_WORKSHOP_1": 13.694444444444445,
+                "GO_WORKSHOP_2": 13.305555555555555,
+                "PICK_A": 12.555555555555555,
+                "PICK_B": 4.805555555555555,
+                "DROP": 15.027777777777779,
+                "WORK": 11.527777777777779,
+                "SHARE": 29.916666666666668
+              }
+            },
+            {
+              "produced": 8.833333333333334,
+              "personal_cost": 1.5340543939783335,
+              "action_counts": {
+                "WAIT": 103.36111111111111,
+                "GO_DEPOT": 15.333333333333334,
+                "GO_WORKSHOP_1": 9.36111111111111,
+                "GO_WORKSHOP_2": 11.0,
+                "PICK_A": 5.722222222222222,
+                "PICK_B": 3.4444444444444446,
+                "DROP": 9.833333333333334,
+                "WORK": 11.722222222222221,
+                "SHARE": 30.02777777777778
+              }
+            }
+          ]
+        },
+        "trained:no_messages": {
+          "planned": 36,
+          "retained": 36,
+          "valid": 36,
+          "failed": 0,
+          "missing": 0,
+          "mean_products_valid_only": 17.166666666666668,
+          "per_training_seed_mean_products": {
+            "17": 17.416666666666668,
+            "23": 13.5,
+            "41": 20.583333333333332
+          },
+          "mean_counts_valid_only": {
+            "attempts": 44.111111111111114,
+            "delivered": 0.0,
+            "forwarded": 0.0,
+            "cross_site_deliveries": 0.0,
+            "read_report_inputs": 0.0,
+            "travel_ticks": 294.97222222222223,
+            "work_ticks": 34.44444444444444,
+            "empty_trips": 33.166666666666664,
+            "loaded_trips": 42.138888888888886,
+            "empty_trips_with_report_delivery": 0.0,
+            "loaded_trips_with_report_delivery": 0.0,
+            "empty_travel_ticks": 132.77777777777777,
+            "loaded_travel_ticks": 162.19444444444446,
+            "demand_issued": 34.916666666666664,
+            "demand_expired": 14.527777777777779,
+            "demand_pending": 3.111111111111111,
+            "demand_reserved": 0.1111111111111111,
+            "late_completed": 0.5277777777777778,
+            "work_denials": 4.444444444444445,
+            "pickup_denials": 0.0,
+            "drop_denials": 0.08333333333333333,
+            "drops_without_current_need": 13.333333333333334
+          },
+          "mean_phase_counts_valid_only": {
+            "early": {
+              "produced": 9.555555555555555,
+              "attempts": 23.61111111111111,
+              "work_ticks": 19.11111111111111,
+              "travel_ticks": 171.05555555555554,
+              "empty_travel_ticks": 76.38888888888889,
+              "loaded_travel_ticks": 94.66666666666667,
+              "empty_trips": 19.86111111111111,
+              "loaded_trips": 25.27777777777778,
+              "empty_trips_with_report_delivery": 0.0,
+              "loaded_trips_with_report_delivery": 0.0,
+              "drops_without_current_need": 8.055555555555555
+            },
+            "late": {
+              "produced": 7.611111111111111,
+              "attempts": 20.5,
+              "work_ticks": 15.333333333333334,
+              "travel_ticks": 123.91666666666667,
+              "empty_travel_ticks": 56.388888888888886,
+              "loaded_travel_ticks": 67.52777777777777,
+              "empty_trips": 13.305555555555555,
+              "loaded_trips": 16.86111111111111,
+              "empty_trips_with_report_delivery": 0.0,
+              "loaded_trips_with_report_delivery": 0.0,
+              "drops_without_current_need": 5.277777777777778
+            },
+            "quiet": {
+              "produced": 5.055555555555555,
+              "attempts": 13.166666666666666,
+              "work_ticks": 10.222222222222221,
+              "travel_ticks": 79.75,
+              "empty_travel_ticks": 36.166666666666664,
+              "loaded_travel_ticks": 43.583333333333336,
+              "empty_trips": 8.277777777777779,
+              "loaded_trips": 11.11111111111111,
+              "empty_trips_with_report_delivery": 0.0,
+              "loaded_trips_with_report_delivery": 0.0,
+              "drops_without_current_need": 3.111111111111111
+            }
+          },
+          "mean_activity_by_half_valid_only": [
+            {
+              "produced": 9.555555555555555,
+              "personal_cost": 1.571084365552656,
+              "action_counts": {
+                "WAIT": 70.38888888888889,
+                "GO_DEPOT": 20.194444444444443,
+                "GO_WORKSHOP_1": 12.305555555555555,
+                "GO_WORKSHOP_2": 12.63888888888889,
+                "PICK_A": 12.583333333333334,
+                "PICK_B": 5.25,
+                "DROP": 15.222222222222221,
+                "WORK": 12.333333333333334,
+                "SHARE": 23.61111111111111
+              }
+            },
+            {
+              "produced": 7.611111111111111,
+              "personal_cost": 1.3388800711639464,
+              "action_counts": {
+                "WAIT": 142.44444444444446,
+                "GO_DEPOT": 13.222222222222221,
+                "GO_WORKSHOP_1": 7.111111111111111,
+                "GO_WORKSHOP_2": 9.833333333333334,
+                "PICK_A": 5.111111111111111,
+                "PICK_B": 2.6666666666666665,
+                "DROP": 8.36111111111111,
+                "WORK": 9.38888888888889,
+                "SHARE": 20.5
+              }
+            }
+          ]
+        },
+        "trained:unread": {
+          "planned": 36,
+          "retained": 36,
+          "valid": 36,
+          "failed": 0,
+          "missing": 0,
+          "mean_products_valid_only": 17.305555555555557,
+          "per_training_seed_mean_products": {
+            "17": 18.0,
+            "23": 13.583333333333334,
+            "41": 20.333333333333332
+          },
+          "mean_counts_valid_only": {
+            "attempts": 57.611111111111114,
+            "delivered": 24.194444444444443,
+            "forwarded": 0.6944444444444444,
+            "cross_site_deliveries": 24.194444444444443,
+            "read_report_inputs": 0.0,
+            "travel_ticks": 301.94444444444446,
+            "work_ticks": 34.611111111111114,
+            "empty_trips": 34.55555555555556,
+            "loaded_trips": 43.083333333333336,
+            "empty_trips_with_report_delivery": 6.583333333333333,
+            "loaded_trips_with_report_delivery": 5.916666666666667,
+            "empty_travel_ticks": 136.97222222222223,
+            "loaded_travel_ticks": 164.97222222222223,
+            "demand_issued": 34.916666666666664,
+            "demand_expired": 14.25,
+            "demand_pending": 3.361111111111111,
+            "demand_reserved": 0.0,
+            "late_completed": 0.5277777777777778,
+            "work_denials": 4.5,
+            "pickup_denials": 0.0,
+            "drop_denials": 0.08333333333333333,
+            "drops_without_current_need": 13.38888888888889
+          },
+          "mean_phase_counts_valid_only": {
+            "early": {
+              "produced": 9.305555555555555,
+              "attempts": 31.333333333333332,
+              "work_ticks": 18.666666666666668,
+              "travel_ticks": 168.05555555555554,
+              "empty_travel_ticks": 74.25,
+              "loaded_travel_ticks": 93.80555555555556,
+              "empty_trips": 19.22222222222222,
+              "loaded_trips": 25.22222222222222,
+              "empty_trips_with_report_delivery": 3.3055555555555554,
+              "loaded_trips_with_report_delivery": 3.361111111111111,
+              "drops_without_current_need": 7.805555555555555
+            },
+            "late": {
+              "produced": 8.0,
+              "attempts": 26.27777777777778,
+              "work_ticks": 15.944444444444445,
+              "travel_ticks": 133.88888888888889,
+              "empty_travel_ticks": 62.72222222222222,
+              "loaded_travel_ticks": 71.16666666666667,
+              "empty_trips": 15.333333333333334,
+              "loaded_trips": 17.86111111111111,
+              "empty_trips_with_report_delivery": 3.2777777777777777,
+              "loaded_trips_with_report_delivery": 2.5555555555555554,
+              "drops_without_current_need": 5.583333333333333
+            },
+            "quiet": {
+              "produced": 5.305555555555555,
+              "attempts": 17.25,
+              "work_ticks": 10.527777777777779,
+              "travel_ticks": 87.33333333333333,
+              "empty_travel_ticks": 40.416666666666664,
+              "loaded_travel_ticks": 46.916666666666664,
+              "empty_trips": 9.555555555555555,
+              "loaded_trips": 11.916666666666666,
+              "empty_trips_with_report_delivery": 2.111111111111111,
+              "loaded_trips_with_report_delivery": 1.3888888888888888,
+              "drops_without_current_need": 3.25
+            }
+          },
+          "mean_activity_by_half_valid_only": [
+            {
+              "produced": 9.305555555555555,
+              "personal_cost": 1.6352739874368476,
+              "action_counts": {
+                "WAIT": 67.22222222222223,
+                "GO_DEPOT": 19.805555555555557,
+                "GO_WORKSHOP_1": 12.472222222222221,
+                "GO_WORKSHOP_2": 12.166666666666666,
+                "PICK_A": 12.194444444444445,
+                "PICK_B": 5.111111111111111,
+                "DROP": 14.694444444444445,
+                "WORK": 12.083333333333334,
+                "SHARE": 31.333333333333332
+              }
+            },
+            {
+              "produced": 8.0,
+              "personal_cost": 1.4327888024269937,
+              "action_counts": {
+                "WAIT": 124.33333333333333,
+                "GO_DEPOT": 14.694444444444445,
+                "GO_WORKSHOP_1": 7.694444444444445,
+                "GO_WORKSHOP_2": 10.805555555555555,
+                "PICK_A": 5.722222222222222,
+                "PICK_B": 3.0833333333333335,
+                "DROP": 8.972222222222221,
+                "WORK": 9.722222222222221,
+                "SHARE": 26.27777777777778
+              }
+            }
+          ]
+        },
+        "trained:instant": {
+          "planned": 36,
+          "retained": 36,
+          "valid": 36,
+          "failed": 0,
+          "missing": 0,
+          "mean_products_valid_only": 6.638888888888889,
+          "per_training_seed_mean_products": {
+            "17": 4.5,
+            "23": 4.083333333333333,
+            "41": 11.333333333333334
+          },
+          "mean_counts_valid_only": {
+            "attempts": 33.333333333333336,
+            "delivered": 14.63888888888889,
+            "forwarded": 0.0,
+            "cross_site_deliveries": 14.63888888888889,
+            "read_report_inputs": 0.0,
+            "travel_ticks": 198.25,
+            "work_ticks": 13.277777777777779,
+            "empty_trips": 16.305555555555557,
+            "loaded_trips": 35.833333333333336,
+            "empty_trips_with_report_delivery": 1.8055555555555556,
+            "loaded_trips_with_report_delivery": 4.861111111111111,
+            "empty_travel_ticks": 62.083333333333336,
+            "loaded_travel_ticks": 136.16666666666666,
+            "demand_issued": 34.916666666666664,
+            "demand_expired": 23.555555555555557,
+            "demand_pending": 4.722222222222222,
+            "demand_reserved": 0.0,
+            "late_completed": 0.1388888888888889,
+            "work_denials": 4.666666666666667,
+            "pickup_denials": 0.0,
+            "drop_denials": 0.027777777777777776,
+            "drops_without_current_need": 4.305555555555555
+          },
+          "mean_phase_counts_valid_only": {
+            "early": {
+              "produced": 3.7777777777777777,
+              "attempts": 19.0,
+              "work_ticks": 7.638888888888889,
+              "travel_ticks": 108.52777777777777,
+              "empty_travel_ticks": 35.72222222222222,
+              "loaded_travel_ticks": 72.80555555555556,
+              "empty_trips": 9.75,
+              "loaded_trips": 20.11111111111111,
+              "empty_trips_with_report_delivery": 1.1666666666666667,
+              "loaded_trips_with_report_delivery": 3.3055555555555554,
+              "drops_without_current_need": 2.4166666666666665
+            },
+            "late": {
+              "produced": 2.861111111111111,
+              "attempts": 14.333333333333334,
+              "work_ticks": 5.638888888888889,
+              "travel_ticks": 89.72222222222223,
+              "empty_travel_ticks": 26.36111111111111,
+              "loaded_travel_ticks": 63.361111111111114,
+              "empty_trips": 6.555555555555555,
+              "loaded_trips": 15.722222222222221,
+              "empty_trips_with_report_delivery": 0.6388888888888888,
+              "loaded_trips_with_report_delivery": 1.5555555555555556,
+              "drops_without_current_need": 1.8888888888888888
+            },
+            "quiet": {
+              "produced": 1.8888888888888888,
+              "attempts": 9.555555555555555,
+              "work_ticks": 3.75,
+              "travel_ticks": 62.94444444444444,
+              "empty_travel_ticks": 20.02777777777778,
+              "loaded_travel_ticks": 42.916666666666664,
+              "empty_trips": 4.833333333333333,
+              "loaded_trips": 10.805555555555555,
+              "empty_trips_with_report_delivery": 0.4722222222222222,
+              "loaded_trips_with_report_delivery": 0.9444444444444444,
+              "drops_without_current_need": 1.3611111111111112
+            }
+          },
+          "mean_activity_by_half_valid_only": [
+            {
+              "produced": 3.7777777777777777,
+              "personal_cost": 1.2599524260218293,
+              "action_counts": {
+                "WAIT": 168.55555555555554,
+                "GO_DEPOT": 13.75,
+                "GO_WORKSHOP_1": 8.75,
+                "GO_WORKSHOP_2": 7.361111111111111,
+                "PICK_A": 5.444444444444445,
+                "PICK_B": 2.1944444444444446,
+                "DROP": 5.472222222222222,
+                "WORK": 7.027777777777778,
+                "SHARE": 19.0
+              }
+            },
+            {
+              "produced": 2.861111111111111,
+              "personal_cost": 1.1173787607746106,
+              "action_counts": {
+                "WAIT": 202.13888888888889,
+                "GO_DEPOT": 9.86111111111111,
+                "GO_WORKSHOP_1": 4.138888888888889,
+                "GO_WORKSHOP_2": 8.277777777777779,
+                "PICK_A": 1.9722222222222223,
+                "PICK_B": 1.1111111111111112,
+                "DROP": 3.5833333333333335,
+                "WORK": 4.277777777777778,
+                "SHARE": 14.333333333333334
+              }
+            }
+          ]
+        },
+        "trained:no_relay": {
+          "planned": 36,
+          "retained": 36,
+          "valid": 36,
+          "failed": 0,
+          "missing": 0,
+          "mean_products_valid_only": 17.97222222222222,
+          "per_training_seed_mean_products": {
+            "17": 19.5,
+            "23": 14.75,
+            "41": 19.666666666666668
+          },
+          "mean_counts_valid_only": {
+            "attempts": 48.25,
+            "delivered": 25.444444444444443,
+            "forwarded": 0.0,
+            "cross_site_deliveries": 25.444444444444443,
+            "read_report_inputs": 124.66666666666667,
+            "travel_ticks": 327.75,
+            "work_ticks": 35.97222222222222,
+            "empty_trips": 36.44444444444444,
+            "loaded_trips": 46.44444444444444,
+            "empty_trips_with_report_delivery": 6.666666666666667,
+            "loaded_trips_with_report_delivery": 7.361111111111111,
+            "empty_travel_ticks": 146.97222222222223,
+            "loaded_travel_ticks": 180.77777777777777,
+            "demand_issued": 34.916666666666664,
+            "demand_expired": 14.0,
+            "demand_pending": 2.9166666666666665,
+            "demand_reserved": 0.027777777777777776,
+            "late_completed": 0.5,
+            "work_denials": 4.5,
+            "pickup_denials": 0.0,
+            "drop_denials": 0.2222222222222222,
+            "drops_without_current_need": 14.777777777777779
+          },
+          "mean_phase_counts_valid_only": {
+            "early": {
+              "produced": 9.305555555555555,
+              "attempts": 25.52777777777778,
+              "work_ticks": 18.694444444444443,
+              "travel_ticks": 181.13888888888889,
+              "empty_travel_ticks": 79.44444444444444,
+              "loaded_travel_ticks": 101.69444444444444,
+              "empty_trips": 20.38888888888889,
+              "loaded_trips": 26.944444444444443,
+              "empty_trips_with_report_delivery": 3.3333333333333335,
+              "loaded_trips_with_report_delivery": 3.5277777777777777,
+              "drops_without_current_need": 7.944444444444445
+            },
+            "late": {
+              "produced": 8.666666666666666,
+              "attempts": 22.72222222222222,
+              "work_ticks": 17.27777777777778,
+              "travel_ticks": 146.61111111111111,
+              "empty_travel_ticks": 67.52777777777777,
+              "loaded_travel_ticks": 79.08333333333333,
+              "empty_trips": 16.055555555555557,
+              "loaded_trips": 19.5,
+              "empty_trips_with_report_delivery": 3.3333333333333335,
+              "loaded_trips_with_report_delivery": 3.8333333333333335,
+              "drops_without_current_need": 6.833333333333333
+            },
+            "quiet": {
+              "produced": 6.194444444444445,
+              "attempts": 13.972222222222221,
+              "work_ticks": 12.277777777777779,
+              "travel_ticks": 96.83333333333333,
+              "empty_travel_ticks": 45.05555555555556,
+              "loaded_travel_ticks": 51.77777777777778,
+              "empty_trips": 10.333333333333334,
+              "loaded_trips": 12.63888888888889,
+              "empty_trips_with_report_delivery": 2.3055555555555554,
+              "loaded_trips_with_report_delivery": 2.388888888888889,
+              "drops_without_current_need": 4.055555555555555
+            }
+          },
+          "mean_activity_by_half_valid_only": [
+            {
+              "produced": 9.305555555555555,
+              "personal_cost": 1.6188976076002228,
+              "action_counts": {
+                "WAIT": 59.47222222222222,
+                "GO_DEPOT": 20.52777777777778,
+                "GO_WORKSHOP_1": 13.88888888888889,
+                "GO_WORKSHOP_2": 12.916666666666666,
+                "PICK_A": 12.694444444444445,
+                "PICK_B": 5.027777777777778,
+                "DROP": 15.11111111111111,
+                "WORK": 11.722222222222221,
+                "SHARE": 25.52777777777778
+              }
+            },
+            {
+              "produced": 8.666666666666666,
+              "personal_cost": 1.4524385057162492,
+              "action_counts": {
+                "WAIT": 111.52777777777777,
+                "GO_DEPOT": 15.13888888888889,
+                "GO_WORKSHOP_1": 9.083333333333334,
+                "GO_WORKSHOP_2": 11.333333333333334,
+                "PICK_A": 6.166666666666667,
+                "PICK_B": 3.111111111111111,
+                "DROP": 10.416666666666666,
+                "WORK": 10.777777777777779,
+                "SHARE": 22.72222222222222
+              }
+            }
+          ]
+        },
+        "untrained:local": {
+          "planned": 36,
+          "retained": 36,
+          "valid": 36,
+          "failed": 0,
+          "missing": 0,
+          "mean_products_valid_only": 1.3888888888888888,
+          "per_training_seed_mean_products": {
+            "17": 4.166666666666667,
+            "23": 0.0,
+            "41": 0.0
+          },
+          "mean_counts_valid_only": {
+            "attempts": 31.805555555555557,
+            "delivered": 9.916666666666666,
+            "forwarded": 0.5277777777777778,
+            "cross_site_deliveries": 9.916666666666666,
+            "read_report_inputs": 50.69444444444444,
+            "travel_ticks": 421.6111111111111,
+            "work_ticks": 2.7777777777777777,
+            "empty_trips": 26.25,
+            "loaded_trips": 58.94444444444444,
+            "empty_trips_with_report_delivery": 2.1666666666666665,
+            "loaded_trips_with_report_delivery": 3.1944444444444446,
+            "empty_travel_ticks": 162.61111111111111,
+            "loaded_travel_ticks": 259.0,
+            "demand_issued": 34.916666666666664,
+            "demand_expired": 28.305555555555557,
+            "demand_pending": 5.222222222222222,
+            "demand_reserved": 0.0,
+            "late_completed": 0.0,
+            "work_denials": 0.3055555555555556,
+            "pickup_denials": 0.0,
+            "drop_denials": 0.1388888888888889,
+            "drops_without_current_need": 2.8333333333333335
+          },
+          "mean_phase_counts_valid_only": {
+            "early": {
+              "produced": 0.4166666666666667,
+              "attempts": 17.416666666666668,
+              "work_ticks": 0.8333333333333334,
+              "travel_ticks": 206.08333333333334,
+              "empty_travel_ticks": 80.61111111111111,
+              "loaded_travel_ticks": 125.47222222222223,
+              "empty_trips": 14.166666666666666,
+              "loaded_trips": 29.0,
+              "empty_trips_with_report_delivery": 1.6944444444444444,
+              "loaded_trips_with_report_delivery": 1.8333333333333333,
+              "drops_without_current_need": 1.7222222222222223
+            },
+            "late": {
+              "produced": 0.9722222222222222,
+              "attempts": 14.38888888888889,
+              "work_ticks": 1.9444444444444444,
+              "travel_ticks": 215.52777777777777,
+              "empty_travel_ticks": 82.0,
+              "loaded_travel_ticks": 133.52777777777777,
+              "empty_trips": 12.083333333333334,
+              "loaded_trips": 29.944444444444443,
+              "empty_trips_with_report_delivery": 0.4722222222222222,
+              "loaded_trips_with_report_delivery": 1.3611111111111112,
+              "drops_without_current_need": 1.1111111111111112
+            },
+            "quiet": {
+              "produced": 0.6666666666666666,
+              "attempts": 10.472222222222221,
+              "work_ticks": 1.3333333333333333,
+              "travel_ticks": 143.16666666666666,
+              "empty_travel_ticks": 53.25,
+              "loaded_travel_ticks": 89.91666666666667,
+              "empty_trips": 7.777777777777778,
+              "loaded_trips": 19.38888888888889,
+              "empty_trips_with_report_delivery": 0.2222222222222222,
+              "loaded_trips_with_report_delivery": 1.0,
+              "drops_without_current_need": 0.6388888888888888
+            }
+          },
+          "mean_activity_by_half_valid_only": [
+            {
+              "produced": 0.4166666666666667,
+              "personal_cost": 1.496146958127751,
+              "action_counts": {
+                "WAIT": 88.13888888888889,
+                "GO_DEPOT": 11.75,
+                "GO_WORKSHOP_1": 16.5,
+                "GO_WORKSHOP_2": 14.916666666666666,
+                "PICK_A": 4.583333333333333,
+                "PICK_B": 0.0,
+                "DROP": 2.888888888888889,
+                "WORK": 0.4722222222222222,
+                "SHARE": 17.416666666666668
+              }
+            },
+            {
+              "produced": 0.9722222222222222,
+              "personal_cost": 1.4930603915986111,
+              "action_counts": {
+                "WAIT": 84.52777777777777,
+                "GO_DEPOT": 9.88888888888889,
+                "GO_WORKSHOP_1": 20.0,
+                "GO_WORKSHOP_2": 12.13888888888889,
+                "PICK_A": 1.6944444444444444,
+                "PICK_B": 0.0,
+                "DROP": 1.6666666666666667,
+                "WORK": 1.2222222222222223,
+                "SHARE": 14.38888888888889
+              }
+            }
+          ]
+        },
+        "scripted_local:local": {
+          "planned": 36,
+          "retained": 36,
+          "valid": 36,
+          "failed": 0,
+          "missing": 0,
+          "mean_products_valid_only": 20.25,
+          "per_training_seed_mean_products": {
+            "17": 20.25,
+            "23": 20.25,
+            "41": 20.25
+          },
+          "mean_counts_valid_only": {
+            "attempts": 110.66666666666667,
+            "delivered": 26.833333333333332,
+            "forwarded": 0.3333333333333333,
+            "cross_site_deliveries": 26.833333333333332,
+            "read_report_inputs": 180.5,
+            "travel_ticks": 317.4166666666667,
+            "work_ticks": 40.583333333333336,
+            "empty_trips": 51.75,
+            "loaded_trips": 24.416666666666668,
+            "empty_trips_with_report_delivery": 10.0,
+            "loaded_trips_with_report_delivery": 4.0,
+            "empty_travel_ticks": 231.66666666666666,
+            "loaded_travel_ticks": 85.75,
+            "demand_issued": 34.916666666666664,
+            "demand_expired": 10.75,
+            "demand_pending": 3.8333333333333335,
+            "demand_reserved": 0.08333333333333333,
+            "late_completed": 0.8333333333333334,
+            "work_denials": 19.666666666666668,
+            "pickup_denials": 0.0,
+            "drop_denials": 0.0,
+            "drops_without_current_need": 10.666666666666666
+          },
+          "mean_phase_counts_valid_only": {
+            "early": {
+              "produced": 11.0,
+              "attempts": 63.916666666666664,
+              "work_ticks": 22.25,
+              "travel_ticks": 163.83333333333334,
+              "empty_travel_ticks": 111.83333333333333,
+              "loaded_travel_ticks": 52.0,
+              "empty_trips": 27.75,
+              "loaded_trips": 14.833333333333334,
+              "empty_trips_with_report_delivery": 6.833333333333333,
+              "loaded_trips_with_report_delivery": 3.0,
+              "drops_without_current_need": 6.166666666666667
+            },
+            "late": {
+              "produced": 9.25,
+              "attempts": 46.75,
+              "work_ticks": 18.333333333333332,
+              "travel_ticks": 153.58333333333334,
+              "empty_travel_ticks": 119.83333333333333,
+              "loaded_travel_ticks": 33.75,
+              "empty_trips": 24.0,
+              "loaded_trips": 9.583333333333334,
+              "empty_trips_with_report_delivery": 3.1666666666666665,
+              "loaded_trips_with_report_delivery": 1.0,
+              "drops_without_current_need": 4.5
+            },
+            "quiet": {
+              "produced": 6.333333333333333,
+              "attempts": 29.666666666666668,
+              "work_ticks": 12.75,
+              "travel_ticks": 102.16666666666667,
+              "empty_travel_ticks": 81.16666666666667,
+              "loaded_travel_ticks": 21.0,
+              "empty_trips": 16.416666666666668,
+              "loaded_trips": 6.0,
+              "empty_trips_with_report_delivery": 1.9166666666666667,
+              "loaded_trips_with_report_delivery": 0.5833333333333334,
+              "drops_without_current_need": 2.5833333333333335
+            }
+          },
+          "mean_activity_by_half_valid_only": [
+            {
+              "produced": 11.0,
+              "personal_cost": 2.041887260154169,
+              "action_counts": {
+                "WAIT": 28.833333333333332,
+                "GO_DEPOT": 17.833333333333332,
+                "GO_WORKSHOP_1": 13.25,
+                "GO_WORKSHOP_2": 11.5,
+                "PICK_A": 8.0,
+                "PICK_B": 7.416666666666667,
+                "DROP": 14.833333333333334,
+                "WORK": 22.166666666666668,
+                "SHARE": 63.916666666666664
+              }
+            },
+            {
+              "produced": 9.25,
+              "personal_cost": 1.781888920537414,
+              "action_counts": {
+                "WAIT": 74.0,
+                "GO_DEPOT": 12.25,
+                "GO_WORKSHOP_1": 10.333333333333334,
+                "GO_WORKSHOP_2": 11.0,
+                "PICK_A": 3.0,
+                "PICK_B": 6.0,
+                "DROP": 9.583333333333334,
+                "WORK": 17.833333333333332,
+                "SHARE": 46.75
+              }
+            }
+          ]
+        },
+        "random:local": {
+          "planned": 36,
+          "retained": 36,
+          "valid": 36,
+          "failed": 0,
+          "missing": 0,
+          "mean_products_valid_only": 8.416666666666666,
+          "per_training_seed_mean_products": {
+            "17": 8.416666666666666,
+            "23": 8.416666666666666,
+            "41": 8.416666666666666
+          },
+          "mean_counts_valid_only": {
+            "attempts": 13.583333333333334,
+            "delivered": 7.333333333333333,
+            "forwarded": 0.16666666666666666,
+            "cross_site_deliveries": 7.333333333333333,
+            "read_report_inputs": 16.916666666666668,
+            "travel_ticks": 527.6666666666666,
+            "work_ticks": 16.916666666666668,
+            "empty_trips": 71.5,
+            "loaded_trips": 43.0,
+            "empty_trips_with_report_delivery": 3.6666666666666665,
+            "loaded_trips_with_report_delivery": 2.75,
+            "empty_travel_ticks": 343.5833333333333,
+            "loaded_travel_ticks": 184.08333333333334,
+            "demand_issued": 34.916666666666664,
+            "demand_expired": 22.25,
+            "demand_pending": 4.166666666666667,
+            "demand_reserved": 0.08333333333333333,
+            "late_completed": 0.08333333333333333,
+            "work_denials": 0.08333333333333333,
+            "pickup_denials": 0.0,
+            "drop_denials": 0.0,
+            "drops_without_current_need": 6.666666666666667
+          },
+          "mean_phase_counts_valid_only": {
+            "early": {
+              "produced": 3.0,
+              "attempts": 7.416666666666667,
+              "work_ticks": 6.083333333333333,
+              "travel_ticks": 265.5,
+              "empty_travel_ticks": 176.5,
+              "loaded_travel_ticks": 89.0,
+              "empty_trips": 37.416666666666664,
+              "loaded_trips": 21.333333333333332,
+              "empty_trips_with_report_delivery": 2.3333333333333335,
+              "loaded_trips_with_report_delivery": 0.9166666666666666,
+              "drops_without_current_need": 2.5833333333333335
+            },
+            "late": {
+              "produced": 5.416666666666667,
+              "attempts": 6.166666666666667,
+              "work_ticks": 10.833333333333334,
+              "travel_ticks": 262.1666666666667,
+              "empty_travel_ticks": 167.08333333333334,
+              "loaded_travel_ticks": 95.08333333333333,
+              "empty_trips": 34.083333333333336,
+              "loaded_trips": 21.666666666666668,
+              "empty_trips_with_report_delivery": 1.3333333333333333,
+              "loaded_trips_with_report_delivery": 1.8333333333333333,
+              "drops_without_current_need": 4.083333333333333
+            },
+            "quiet": {
+              "produced": 3.9166666666666665,
+              "attempts": 4.0,
+              "work_ticks": 7.916666666666667,
+              "travel_ticks": 177.33333333333334,
+              "empty_travel_ticks": 111.66666666666667,
+              "loaded_travel_ticks": 65.66666666666667,
+              "empty_trips": 22.166666666666668,
+              "loaded_trips": 14.916666666666666,
+              "empty_trips_with_report_delivery": 1.0,
+              "loaded_trips_with_report_delivery": 1.1666666666666667,
+              "drops_without_current_need": 2.5833333333333335
+            }
+          },
+          "mean_activity_by_half_valid_only": [
+            {
+              "produced": 3.0,
+              "personal_cost": 1.6156075800270868,
+              "action_counts": {
+                "WAIT": 28.583333333333332,
+                "GO_DEPOT": 19.333333333333332,
+                "GO_WORKSHOP_1": 19.583333333333332,
+                "GO_WORKSHOP_2": 19.833333333333332,
+                "PICK_A": 3.0,
+                "PICK_B": 4.0,
+                "DROP": 5.333333333333333,
+                "WORK": 3.1666666666666665,
+                "SHARE": 7.416666666666667
+              }
+            },
+            {
+              "produced": 5.416666666666667,
+              "personal_cost": 1.6007472329308048,
+              "action_counts": {
+                "WAIT": 27.833333333333332,
+                "GO_DEPOT": 18.5,
+                "GO_WORKSHOP_1": 18.75,
+                "GO_WORKSHOP_2": 18.5,
+                "PICK_A": 2.8333333333333335,
+                "PICK_B": 3.6666666666666665,
+                "DROP": 6.5,
+                "WORK": 5.416666666666667,
+                "SHARE": 6.166666666666667
+              }
+            }
+          ]
+        },
+        "scripted_local:no_messages": {
+          "planned": 36,
+          "retained": 36,
+          "valid": 36,
+          "failed": 0,
+          "missing": 0,
+          "mean_products_valid_only": 26.166666666666668,
+          "per_training_seed_mean_products": {
+            "17": 26.166666666666668,
+            "23": 26.166666666666668,
+            "41": 26.166666666666668
+          },
+          "mean_counts_valid_only": {
+            "attempts": 92.41666666666667,
+            "delivered": 0.0,
+            "forwarded": 0.0,
+            "cross_site_deliveries": 0.0,
+            "read_report_inputs": 0.0,
+            "travel_ticks": 367.6666666666667,
+            "work_ticks": 52.416666666666664,
+            "empty_trips": 55.916666666666664,
+            "loaded_trips": 30.5,
+            "empty_trips_with_report_delivery": 0.0,
+            "loaded_trips_with_report_delivery": 0.0,
+            "empty_travel_ticks": 262.5,
+            "loaded_travel_ticks": 105.16666666666667,
+            "demand_issued": 34.916666666666664,
+            "demand_expired": 7.25,
+            "demand_pending": 1.4166666666666667,
+            "demand_reserved": 0.08333333333333333,
+            "late_completed": 1.25,
+            "work_denials": 10.666666666666666,
+            "pickup_denials": 0.0,
+            "drop_denials": 0.0,
+            "drops_without_current_need": 9.666666666666666
+          },
+          "mean_phase_counts_valid_only": {
+            "early": {
+              "produced": 13.25,
+              "attempts": 45.833333333333336,
+              "work_ticks": 26.583333333333332,
+              "travel_ticks": 192.33333333333334,
+              "empty_travel_ticks": 135.5,
+              "loaded_travel_ticks": 56.833333333333336,
+              "empty_trips": 31.083333333333332,
+              "loaded_trips": 16.666666666666668,
+              "empty_trips_with_report_delivery": 0.0,
+              "loaded_trips_with_report_delivery": 0.0,
+              "drops_without_current_need": 4.083333333333333
+            },
+            "late": {
+              "produced": 12.916666666666666,
+              "attempts": 46.583333333333336,
+              "work_ticks": 25.833333333333332,
+              "travel_ticks": 175.33333333333334,
+              "empty_travel_ticks": 127.0,
+              "loaded_travel_ticks": 48.333333333333336,
+              "empty_trips": 24.833333333333332,
+              "loaded_trips": 13.833333333333334,
+              "empty_trips_with_report_delivery": 0.0,
+              "loaded_trips_with_report_delivery": 0.0,
+              "drops_without_current_need": 5.583333333333333
+            },
+            "quiet": {
+              "produced": 8.5,
+              "attempts": 32.25,
+              "work_ticks": 17.083333333333332,
+              "travel_ticks": 119.5,
+              "empty_travel_ticks": 85.91666666666667,
+              "loaded_travel_ticks": 33.583333333333336,
+              "empty_trips": 16.75,
+              "loaded_trips": 9.666666666666666,
+              "empty_trips_with_report_delivery": 0.0,
+              "loaded_trips_with_report_delivery": 0.0,
+              "drops_without_current_need": 3.6666666666666665
+            }
+          },
+          "mean_activity_by_half_valid_only": [
+            {
+              "produced": 13.25,
+              "personal_cost": 1.908775045622495,
+              "action_counts": {
+                "WAIT": 17.5,
+                "GO_DEPOT": 17.916666666666668,
+                "GO_WORKSHOP_1": 15.333333333333334,
+                "GO_WORKSHOP_2": 14.5,
+                "PICK_A": 8.416666666666666,
+                "PICK_B": 8.666666666666666,
+                "DROP": 15.833333333333334,
+                "WORK": 18.166666666666668,
+                "SHARE": 45.833333333333336
+              }
+            },
+            {
+              "produced": 12.916666666666666,
+              "personal_cost": 1.863496488784082,
+              "action_counts": {
+                "WAIT": 38.666666666666664,
+                "GO_DEPOT": 14.166666666666666,
+                "GO_WORKSHOP_1": 13.5,
+                "GO_WORKSHOP_2": 11.0,
+                "PICK_A": 5.833333333333333,
+                "PICK_B": 7.666666666666667,
+                "DROP": 14.25,
+                "WORK": 18.75,
+                "SHARE": 46.583333333333336
+              }
+            }
+          ]
+        },
+        "scripted_local:unread": {
+          "planned": 36,
+          "retained": 36,
+          "valid": 36,
+          "failed": 0,
+          "missing": 0,
+          "mean_products_valid_only": 21.5,
+          "per_training_seed_mean_products": {
+            "17": 21.5,
+            "23": 21.5,
+            "41": 21.5
+          },
+          "mean_counts_valid_only": {
+            "attempts": 116.5,
+            "delivered": 33.333333333333336,
+            "forwarded": 1.3333333333333333,
+            "cross_site_deliveries": 33.333333333333336,
+            "read_report_inputs": 0.0,
+            "travel_ticks": 333.1666666666667,
+            "work_ticks": 43.0,
+            "empty_trips": 54.083333333333336,
+            "loaded_trips": 24.416666666666668,
+            "empty_trips_with_report_delivery": 13.333333333333334,
+            "loaded_trips_with_report_delivery": 2.5,
+            "empty_travel_ticks": 248.41666666666666,
+            "loaded_travel_ticks": 84.75,
+            "demand_issued": 34.916666666666664,
+            "demand_expired": 10.916666666666666,
+            "demand_pending": 2.5,
+            "demand_reserved": 0.0,
+            "late_completed": 0.8333333333333334,
+            "work_denials": 12.5,
+            "pickup_denials": 0.0,
+            "drop_denials": 0.0,
+            "drops_without_current_need": 9.083333333333334
+          },
+          "mean_phase_counts_valid_only": {
+            "early": {
+              "produced": 11.333333333333334,
+              "attempts": 64.08333333333333,
+              "work_ticks": 22.833333333333332,
+              "travel_ticks": 181.25,
+              "empty_travel_ticks": 133.08333333333334,
+              "loaded_travel_ticks": 48.166666666666664,
+              "empty_trips": 29.083333333333332,
+              "loaded_trips": 14.25,
+              "empty_trips_with_report_delivery": 8.333333333333334,
+              "loaded_trips_with_report_delivery": 1.4166666666666667,
+              "drops_without_current_need": 5.083333333333333
+            },
+            "late": {
+              "produced": 10.166666666666666,
+              "attempts": 52.416666666666664,
+              "work_ticks": 20.166666666666668,
+              "travel_ticks": 151.91666666666666,
+              "empty_travel_ticks": 115.33333333333333,
+              "loaded_travel_ticks": 36.583333333333336,
+              "empty_trips": 25.0,
+              "loaded_trips": 10.166666666666666,
+              "empty_trips_with_report_delivery": 5.0,
+              "loaded_trips_with_report_delivery": 1.0833333333333333,
+              "drops_without_current_need": 4.0
+            },
+            "quiet": {
+              "produced": 7.166666666666667,
+              "attempts": 34.833333333333336,
+              "work_ticks": 14.166666666666666,
+              "travel_ticks": 103.5,
+              "empty_travel_ticks": 79.58333333333333,
+              "loaded_travel_ticks": 23.916666666666668,
+              "empty_trips": 16.916666666666668,
+              "loaded_trips": 6.333333333333333,
+              "empty_trips_with_report_delivery": 3.25,
+              "loaded_trips_with_report_delivery": 0.6666666666666666,
+              "drops_without_current_need": 3.1666666666666665
+            }
+          },
+          "mean_activity_by_half_valid_only": [
+            {
+              "produced": 11.333333333333334,
+              "personal_cost": 2.0515797890521137,
+              "action_counts": {
+                "WAIT": 17.333333333333332,
+                "GO_DEPOT": 16.166666666666668,
+                "GO_WORKSHOP_1": 14.083333333333334,
+                "GO_WORKSHOP_2": 13.083333333333334,
+                "PICK_A": 7.666666666666667,
+                "PICK_B": 6.583333333333333,
+                "DROP": 14.0,
+                "WORK": 17.75,
+                "SHARE": 64.08333333333333
+              }
+            },
+            {
+              "produced": 10.166666666666666,
+              "personal_cost": 1.8152720855123532,
+              "action_counts": {
+                "WAIT": 68.75,
+                "GO_DEPOT": 12.75,
+                "GO_WORKSHOP_1": 11.833333333333334,
+                "GO_WORKSHOP_2": 10.583333333333334,
+                "PICK_A": 4.833333333333333,
+                "PICK_B": 5.416666666666667,
+                "DROP": 10.25,
+                "WORK": 16.25,
+                "SHARE": 52.416666666666664
+              }
+            }
+          ]
+        },
+        "scripted_local:instant": {
+          "planned": 36,
+          "retained": 36,
+          "valid": 36,
+          "failed": 0,
+          "missing": 0,
+          "mean_products_valid_only": 29.833333333333332,
+          "per_training_seed_mean_products": {
+            "17": 29.833333333333332,
+            "23": 29.833333333333332,
+            "41": 29.833333333333332
+          },
+          "mean_counts_valid_only": {
+            "attempts": 84.0,
+            "delivered": 22.5,
+            "forwarded": 0.0,
+            "cross_site_deliveries": 22.5,
+            "read_report_inputs": 0.0,
+            "travel_ticks": 251.91666666666666,
+            "work_ticks": 59.666666666666664,
+            "empty_trips": 35.416666666666664,
+            "loaded_trips": 36.166666666666664,
+            "empty_trips_with_report_delivery": 8.333333333333334,
+            "loaded_trips_with_report_delivery": 3.8333333333333335,
+            "empty_travel_ticks": 124.58333333333333,
+            "loaded_travel_ticks": 127.33333333333333,
+            "demand_issued": 34.916666666666664,
+            "demand_expired": 3.6666666666666665,
+            "demand_pending": 1.4166666666666667,
+            "demand_reserved": 0.0,
+            "late_completed": 2.0,
+            "work_denials": 21.416666666666668,
+            "pickup_denials": 0.0,
+            "drop_denials": 0.0,
+            "drops_without_current_need": 13.416666666666666
+          },
+          "mean_phase_counts_valid_only": {
+            "early": {
+              "produced": 15.416666666666666,
+              "attempts": 45.416666666666664,
+              "work_ticks": 31.083333333333332,
+              "travel_ticks": 138.66666666666666,
+              "empty_travel_ticks": 67.08333333333333,
+              "loaded_travel_ticks": 71.58333333333333,
+              "empty_trips": 19.166666666666668,
+              "loaded_trips": 20.75,
+              "empty_trips_with_report_delivery": 5.75,
+              "loaded_trips_with_report_delivery": 3.0,
+              "drops_without_current_need": 5.416666666666667
+            },
+            "late": {
+              "produced": 14.416666666666666,
+              "attempts": 38.583333333333336,
+              "work_ticks": 28.583333333333332,
+              "travel_ticks": 113.25,
+              "empty_travel_ticks": 57.5,
+              "loaded_travel_ticks": 55.75,
+              "empty_trips": 16.25,
+              "loaded_trips": 15.416666666666666,
+              "empty_trips_with_report_delivery": 2.5833333333333335,
+              "loaded_trips_with_report_delivery": 0.8333333333333334,
+              "drops_without_current_need": 8.0
+            },
+            "quiet": {
+              "produced": 9.333333333333334,
+              "attempts": 25.5,
+              "work_ticks": 18.583333333333332,
+              "travel_ticks": 77.33333333333333,
+              "empty_travel_ticks": 40.333333333333336,
+              "loaded_travel_ticks": 37.0,
+              "empty_trips": 11.333333333333334,
+              "loaded_trips": 10.166666666666666,
+              "empty_trips_with_report_delivery": 1.75,
+              "loaded_trips_with_report_delivery": 0.5,
+              "drops_without_current_need": 5.25
+            }
+          },
+          "mean_activity_by_half_valid_only": [
+            {
+              "produced": 15.416666666666666,
+              "personal_cost": 1.8246709588676164,
+              "action_counts": {
+                "WAIT": 53.666666666666664,
+                "GO_DEPOT": 19.166666666666668,
+                "GO_WORKSHOP_1": 10.416666666666666,
+                "GO_WORKSHOP_2": 10.333333333333334,
+                "PICK_A": 10.333333333333334,
+                "PICK_B": 10.416666666666666,
+                "DROP": 19.166666666666668,
+                "WORK": 26.916666666666668,
+                "SHARE": 45.416666666666664
+              }
+            },
+            {
+              "produced": 14.416666666666666,
+              "personal_cost": 1.6408316146666406,
+              "action_counts": {
+                "WAIT": 96.41666666666667,
+                "GO_DEPOT": 16.25,
+                "GO_WORKSHOP_1": 6.75,
+                "GO_WORKSHOP_2": 8.666666666666666,
+                "PICK_A": 7.166666666666667,
+                "PICK_B": 8.916666666666666,
+                "DROP": 16.916666666666668,
+                "WORK": 24.333333333333332,
+                "SHARE": 38.583333333333336
+              }
+            }
+          ]
+        }
+      },
+      "paired_production_differences": {
+        "trained_local_minus_trained:no_messages": {
+          "complete": true,
+          "mean_difference": 1.0555555555555556,
+          "exploratory_crossed_bootstrap_95_interval": [
+            -2.75,
+            4.445138888888885
+          ],
+          "per_training_seed_mean_difference": [
+            2.5833333333333335,
+            3.4166666666666665,
+            -2.8333333333333335
+          ]
+        },
+        "trained_local_minus_trained:unread": {
+          "complete": true,
+          "mean_difference": 0.9166666666666666,
+          "exploratory_crossed_bootstrap_95_interval": [
+            -2.445138888888889,
+            4.056249999999996
+          ],
+          "per_training_seed_mean_difference": [
+            2.0,
+            3.3333333333333335,
+            -2.5833333333333335
+          ]
+        },
+        "trained_local_minus_trained:instant": {
+          "complete": true,
+          "mean_difference": 11.583333333333334,
+          "exploratory_crossed_bootstrap_95_interval": [
+            6.832638888888889,
+            16.083333333333332
+          ],
+          "per_training_seed_mean_difference": [
+            15.5,
+            12.833333333333334,
+            6.416666666666667
+          ]
+        },
+        "trained_local_minus_trained:no_relay": {
+          "complete": true,
+          "mean_difference": 0.25,
+          "exploratory_crossed_bootstrap_95_interval": [
+            -2.0555555555555554,
+            2.5006944444444406
+          ],
+          "per_training_seed_mean_difference": [
+            0.5,
+            2.1666666666666665,
+            -1.9166666666666667
+          ]
+        },
+        "trained_local_minus_untrained:local": {
+          "complete": true,
+          "mean_difference": 16.833333333333332,
+          "exploratory_crossed_bootstrap_95_interval": [
+            14.833333333333334,
+            18.945138888888884
+          ],
+          "per_training_seed_mean_difference": [
+            15.833333333333334,
+            16.916666666666668,
+            17.75
+          ]
+        },
+        "trained_local_minus_scripted_local:local": {
+          "complete": true,
+          "mean_difference": -2.0277777777777777,
+          "exploratory_crossed_bootstrap_95_interval": [
+            -5.000694444444444,
+            0.75
+          ],
+          "per_training_seed_mean_difference": [
+            -0.25,
+            -3.3333333333333335,
+            -2.5
+          ]
+        },
+        "trained_local_minus_random:local": {
+          "complete": true,
+          "mean_difference": 9.805555555555555,
+          "exploratory_crossed_bootstrap_95_interval": [
+            7.333333333333333,
+            12.306249999999997
+          ],
+          "per_training_seed_mean_difference": [
+            11.583333333333334,
+            8.5,
+            9.333333333333334
+          ]
+        },
+        "trained_local_minus_scripted_local:no_messages": {
+          "complete": true,
+          "mean_difference": -7.944444444444445,
+          "exploratory_crossed_bootstrap_95_interval": [
+            -11.055555555555555,
+            -4.805555555555555
+          ],
+          "per_training_seed_mean_difference": [
+            -6.166666666666667,
+            -9.25,
+            -8.416666666666666
+          ]
+        },
+        "trained_local_minus_scripted_local:unread": {
+          "complete": true,
+          "mean_difference": -3.2777777777777777,
+          "exploratory_crossed_bootstrap_95_interval": [
+            -5.805555555555555,
+            -0.9437500000000038
+          ],
+          "per_training_seed_mean_difference": [
+            -1.5,
+            -4.583333333333333,
+            -3.75
+          ]
+        },
+        "trained_local_minus_scripted_local:instant": {
+          "complete": true,
+          "mean_difference": -11.61111111111111,
+          "exploratory_crossed_bootstrap_95_interval": [
+            -14.417361111111111,
+            -8.72152777777778
+          ],
+          "per_training_seed_mean_difference": [
+            -9.833333333333334,
+            -12.916666666666666,
+            -12.083333333333334
+          ]
+        },
+        "scripted_local_minus_scripted:no_messages": {
+          "complete": true,
+          "mean_difference": -5.916666666666667,
+          "exploratory_crossed_bootstrap_95_interval": [
+            -7.833333333333333,
+            -3.9166666666666665
+          ],
+          "per_training_seed_mean_difference": [
+            -5.916666666666667,
+            -5.916666666666667,
+            -5.916666666666667
+          ]
+        },
+        "scripted_local_minus_scripted:unread": {
+          "complete": true,
+          "mean_difference": -1.25,
+          "exploratory_crossed_bootstrap_95_interval": [
+            -3.5,
+            0.8354166666666554
+          ],
+          "per_training_seed_mean_difference": [
+            -1.25,
+            -1.25,
+            -1.25
+          ]
+        },
+        "scripted_local_minus_scripted:instant": {
+          "complete": true,
+          "mean_difference": -9.583333333333334,
+          "exploratory_crossed_bootstrap_95_interval": [
+            -12.416666666666666,
+            -6.833333333333333
+          ],
+          "per_training_seed_mean_difference": [
+            -9.583333333333334,
+            -9.583333333333334,
+            -9.583333333333334
+          ]
+        }
+      }
+    },
+    "shutdown": {
+      "conditions": {
+        "trained:local": {
+          "planned": 36,
+          "retained": 36,
+          "valid": 36,
+          "failed": 0,
+          "missing": 0,
+          "mean_products_valid_only": 9.38888888888889,
+          "per_training_seed_mean_products": {
+            "17": 9.5,
+            "23": 9.0,
+            "41": 9.666666666666666
+          },
+          "mean_counts_valid_only": {
+            "attempts": 55.388888888888886,
+            "delivered": 22.13888888888889,
+            "forwarded": 0.8333333333333334,
+            "cross_site_deliveries": 22.13888888888889,
+            "read_report_inputs": 120.77777777777777,
+            "travel_ticks": 315.1666666666667,
+            "work_ticks": 18.77777777777778,
+            "empty_trips": 29.27777777777778,
+            "loaded_trips": 50.416666666666664,
+            "empty_trips_with_report_delivery": 5.138888888888889,
+            "loaded_trips_with_report_delivery": 6.916666666666667,
+            "empty_travel_ticks": 118.63888888888889,
+            "loaded_travel_ticks": 196.52777777777777,
+            "demand_issued": 17.5,
+            "demand_expired": 8.11111111111111,
+            "demand_pending": 0.0,
+            "demand_reserved": 0.0,
+            "late_completed": 0.2777777777777778,
+            "work_denials": 2.138888888888889,
+            "pickup_denials": 0.0,
+            "drop_denials": 0.19444444444444445,
+            "drops_without_current_need": 11.666666666666666
+          },
+          "mean_phase_counts_valid_only": {
+            "early": {
+              "produced": 9.38888888888889,
+              "attempts": 29.916666666666668,
+              "work_ticks": 18.77777777777778,
+              "travel_ticks": 182.08333333333334,
+              "empty_travel_ticks": 81.16666666666667,
+              "loaded_travel_ticks": 100.91666666666667,
+              "empty_trips": 20.444444444444443,
+              "loaded_trips": 26.88888888888889,
+              "empty_trips_with_report_delivery": 2.9722222222222223,
+              "loaded_trips_with_report_delivery": 3.5833333333333335,
+              "drops_without_current_need": 8.027777777777779
+            },
+            "late": {
+              "produced": 0.0,
+              "attempts": 25.47222222222222,
+              "work_ticks": 0.0,
+              "travel_ticks": 133.08333333333334,
+              "empty_travel_ticks": 37.47222222222222,
+              "loaded_travel_ticks": 95.61111111111111,
+              "empty_trips": 8.833333333333334,
+              "loaded_trips": 23.52777777777778,
+              "empty_trips_with_report_delivery": 2.1666666666666665,
+              "loaded_trips_with_report_delivery": 3.3333333333333335,
+              "drops_without_current_need": 3.638888888888889
+            },
+            "quiet": {
+              "produced": 0.0,
+              "attempts": 13.722222222222221,
+              "work_ticks": 0.0,
+              "travel_ticks": 88.19444444444444,
+              "empty_travel_ticks": 22.13888888888889,
+              "loaded_travel_ticks": 66.05555555555556,
+              "empty_trips": 5.083333333333333,
+              "loaded_trips": 16.416666666666668,
+              "empty_trips_with_report_delivery": 1.3333333333333333,
+              "loaded_trips_with_report_delivery": 1.8611111111111112,
+              "drops_without_current_need": 1.8333333333333333
+            }
+          },
+          "mean_activity_by_half_valid_only": [
+            {
+              "produced": 9.38888888888889,
+              "personal_cost": 1.661719363389166,
+              "action_counts": {
+                "WAIT": 54.69444444444444,
+                "GO_DEPOT": 20.333333333333332,
+                "GO_WORKSHOP_1": 13.694444444444445,
+                "GO_WORKSHOP_2": 13.305555555555555,
+                "PICK_A": 12.555555555555555,
+                "PICK_B": 4.805555555555555,
+                "DROP": 15.027777777777779,
+                "WORK": 11.527777777777779,
+                "SHARE": 29.916666666666668
+              }
+            },
+            {
+              "produced": 0.0,
+              "personal_cost": 1.3406492938020824,
+              "action_counts": {
+                "WAIT": 153.22222222222223,
+                "GO_DEPOT": 13.527777777777779,
+                "GO_WORKSHOP_1": 10.777777777777779,
+                "GO_WORKSHOP_2": 8.055555555555555,
+                "PICK_A": 4.055555555555555,
+                "PICK_B": 0.3888888888888889,
+                "DROP": 3.7777777777777777,
+                "WORK": 0.0,
+                "SHARE": 25.47222222222222
+              }
+            }
+          ]
+        },
+        "trained:no_messages": {
+          "planned": 36,
+          "retained": 36,
+          "valid": 36,
+          "failed": 0,
+          "missing": 0,
+          "mean_products_valid_only": 9.555555555555555,
+          "per_training_seed_mean_products": {
+            "17": 9.666666666666666,
+            "23": 7.25,
+            "41": 11.75
+          },
+          "mean_counts_valid_only": {
+            "attempts": 40.833333333333336,
+            "delivered": 0.0,
+            "forwarded": 0.0,
+            "cross_site_deliveries": 0.0,
+            "read_report_inputs": 0.0,
+            "travel_ticks": 292.27777777777777,
+            "work_ticks": 19.11111111111111,
+            "empty_trips": 29.22222222222222,
+            "loaded_trips": 42.77777777777778,
+            "empty_trips_with_report_delivery": 0.0,
+            "loaded_trips_with_report_delivery": 0.0,
+            "empty_travel_ticks": 121.44444444444444,
+            "loaded_travel_ticks": 170.83333333333334,
+            "demand_issued": 17.5,
+            "demand_expired": 7.944444444444445,
+            "demand_pending": 0.0,
+            "demand_reserved": 0.0,
+            "late_completed": 0.3333333333333333,
+            "work_denials": 2.7777777777777777,
+            "pickup_denials": 0.0,
+            "drop_denials": 0.027777777777777776,
+            "drops_without_current_need": 11.333333333333334
+          },
+          "mean_phase_counts_valid_only": {
+            "early": {
+              "produced": 9.555555555555555,
+              "attempts": 23.61111111111111,
+              "work_ticks": 19.11111111111111,
+              "travel_ticks": 171.05555555555554,
+              "empty_travel_ticks": 76.38888888888889,
+              "loaded_travel_ticks": 94.66666666666667,
+              "empty_trips": 19.86111111111111,
+              "loaded_trips": 25.27777777777778,
+              "empty_trips_with_report_delivery": 0.0,
+              "loaded_trips_with_report_delivery": 0.0,
+              "drops_without_current_need": 8.055555555555555
+            },
+            "late": {
+              "produced": 0.0,
+              "attempts": 17.22222222222222,
+              "work_ticks": 0.0,
+              "travel_ticks": 121.22222222222223,
+              "empty_travel_ticks": 45.05555555555556,
+              "loaded_travel_ticks": 76.16666666666667,
+              "empty_trips": 9.36111111111111,
+              "loaded_trips": 17.5,
+              "empty_trips_with_report_delivery": 0.0,
+              "loaded_trips_with_report_delivery": 0.0,
+              "drops_without_current_need": 3.2777777777777777
+            },
+            "quiet": {
+              "produced": 0.0,
+              "attempts": 9.0,
+              "work_ticks": 0.0,
+              "travel_ticks": 82.86111111111111,
+              "empty_travel_ticks": 33.05555555555556,
+              "loaded_travel_ticks": 49.80555555555556,
+              "empty_trips": 6.638888888888889,
+              "loaded_trips": 11.583333333333334,
+              "empty_trips_with_report_delivery": 0.0,
+              "loaded_trips_with_report_delivery": 0.0,
+              "drops_without_current_need": 1.5
+            }
+          },
+          "mean_activity_by_half_valid_only": [
+            {
+              "produced": 9.555555555555555,
+              "personal_cost": 1.571084365552656,
+              "action_counts": {
+                "WAIT": 70.38888888888889,
+                "GO_DEPOT": 20.194444444444443,
+                "GO_WORKSHOP_1": 12.305555555555555,
+                "GO_WORKSHOP_2": 12.63888888888889,
+                "PICK_A": 12.583333333333334,
+                "PICK_B": 5.25,
+                "DROP": 15.222222222222221,
+                "WORK": 12.333333333333334,
+                "SHARE": 23.61111111111111
+              }
+            },
+            {
+              "produced": 0.0,
+              "personal_cost": 1.2141477652496326,
+              "action_counts": {
+                "WAIT": 174.58333333333334,
+                "GO_DEPOT": 9.694444444444445,
+                "GO_WORKSHOP_1": 8.0,
+                "GO_WORKSHOP_2": 9.166666666666666,
+                "PICK_A": 3.2777777777777777,
+                "PICK_B": 0.4166666666666667,
+                "DROP": 3.2777777777777777,
+                "WORK": 0.0,
+                "SHARE": 17.22222222222222
+              }
+            }
+          ]
+        },
+        "trained:unread": {
+          "planned": 36,
+          "retained": 36,
+          "valid": 36,
+          "failed": 0,
+          "missing": 0,
+          "mean_products_valid_only": 9.36111111111111,
+          "per_training_seed_mean_products": {
+            "17": 9.583333333333334,
+            "23": 7.583333333333333,
+            "41": 10.916666666666666
+          },
+          "mean_counts_valid_only": {
+            "attempts": 56.583333333333336,
+            "delivered": 23.0,
+            "forwarded": 0.8888888888888888,
+            "cross_site_deliveries": 23.0,
+            "read_report_inputs": 0.0,
+            "travel_ticks": 290.8888888888889,
+            "work_ticks": 18.72222222222222,
+            "empty_trips": 30.22222222222222,
+            "loaded_trips": 41.638888888888886,
+            "empty_trips_with_report_delivery": 5.555555555555555,
+            "loaded_trips_with_report_delivery": 6.722222222222222,
+            "empty_travel_ticks": 128.11111111111111,
+            "loaded_travel_ticks": 162.77777777777777,
+            "demand_issued": 17.5,
+            "demand_expired": 8.13888888888889,
+            "demand_pending": 0.0,
+            "demand_reserved": 0.0,
+            "late_completed": 0.3888888888888889,
+            "work_denials": 2.7222222222222223,
+            "pickup_denials": 0.0,
+            "drop_denials": 0.027777777777777776,
+            "drops_without_current_need": 11.555555555555555
+          },
+          "mean_phase_counts_valid_only": {
+            "early": {
+              "produced": 9.305555555555555,
+              "attempts": 31.333333333333332,
+              "work_ticks": 18.666666666666668,
+              "travel_ticks": 168.05555555555554,
+              "empty_travel_ticks": 74.25,
+              "loaded_travel_ticks": 93.80555555555556,
+              "empty_trips": 19.22222222222222,
+              "loaded_trips": 25.22222222222222,
+              "empty_trips_with_report_delivery": 3.3055555555555554,
+              "loaded_trips_with_report_delivery": 3.361111111111111,
+              "drops_without_current_need": 7.805555555555555
+            },
+            "late": {
+              "produced": 0.05555555555555555,
+              "attempts": 25.25,
+              "work_ticks": 0.05555555555555555,
+              "travel_ticks": 122.83333333333333,
+              "empty_travel_ticks": 53.861111111111114,
+              "loaded_travel_ticks": 68.97222222222223,
+              "empty_trips": 11.0,
+              "loaded_trips": 16.416666666666668,
+              "empty_trips_with_report_delivery": 2.25,
+              "loaded_trips_with_report_delivery": 3.361111111111111,
+              "drops_without_current_need": 3.75
+            },
+            "quiet": {
+              "produced": 0.0,
+              "attempts": 13.61111111111111,
+              "work_ticks": 0.0,
+              "travel_ticks": 81.80555555555556,
+              "empty_travel_ticks": 39.44444444444444,
+              "loaded_travel_ticks": 42.361111111111114,
+              "empty_trips": 7.444444444444445,
+              "loaded_trips": 10.194444444444445,
+              "empty_trips_with_report_delivery": 1.5277777777777777,
+              "loaded_trips_with_report_delivery": 1.75,
+              "drops_without_current_need": 1.7222222222222223
+            }
+          },
+          "mean_activity_by_half_valid_only": [
+            {
+              "produced": 9.305555555555555,
+              "personal_cost": 1.6352739874368476,
+              "action_counts": {
+                "WAIT": 67.22222222222223,
+                "GO_DEPOT": 19.805555555555557,
+                "GO_WORKSHOP_1": 12.472222222222221,
+                "GO_WORKSHOP_2": 12.166666666666666,
+                "PICK_A": 12.194444444444445,
+                "PICK_B": 5.111111111111111,
+                "DROP": 14.694444444444445,
+                "WORK": 12.083333333333334,
+                "SHARE": 31.333333333333332
+              }
+            },
+            {
+              "produced": 0.05555555555555555,
+              "personal_cost": 1.3029272262040938,
+              "action_counts": {
+                "WAIT": 164.11111111111111,
+                "GO_DEPOT": 9.972222222222221,
+                "GO_WORKSHOP_1": 8.666666666666666,
+                "GO_WORKSHOP_2": 8.777777777777779,
+                "PICK_A": 3.2777777777777777,
+                "PICK_B": 0.7222222222222222,
+                "DROP": 3.75,
+                "WORK": 0.0,
+                "SHARE": 25.25
+              }
+            }
+          ]
+        },
+        "trained:instant": {
+          "planned": 36,
+          "retained": 36,
+          "valid": 36,
+          "failed": 0,
+          "missing": 0,
+          "mean_products_valid_only": 3.861111111111111,
+          "per_training_seed_mean_products": {
+            "17": 3.0,
+            "23": 3.1666666666666665,
+            "41": 5.416666666666667
+          },
+          "mean_counts_valid_only": {
+            "attempts": 29.944444444444443,
+            "delivered": 14.777777777777779,
+            "forwarded": 0.0,
+            "cross_site_deliveries": 14.777777777777779,
+            "read_report_inputs": 0.0,
+            "travel_ticks": 169.22222222222223,
+            "work_ticks": 7.722222222222222,
+            "empty_trips": 10.472222222222221,
+            "loaded_trips": 35.52777777777778,
+            "empty_trips_with_report_delivery": 1.3055555555555556,
+            "loaded_trips_with_report_delivery": 5.055555555555555,
+            "empty_travel_ticks": 39.833333333333336,
+            "loaded_travel_ticks": 129.38888888888889,
+            "demand_issued": 17.5,
+            "demand_expired": 13.63888888888889,
+            "demand_pending": 0.0,
+            "demand_reserved": 0.0,
+            "late_completed": 0.08333333333333333,
+            "work_denials": 3.1666666666666665,
+            "pickup_denials": 0.0,
+            "drop_denials": 0.0,
+            "drops_without_current_need": 2.5277777777777777
+          },
+          "mean_phase_counts_valid_only": {
+            "early": {
+              "produced": 3.7777777777777777,
+              "attempts": 19.0,
+              "work_ticks": 7.638888888888889,
+              "travel_ticks": 108.52777777777777,
+              "empty_travel_ticks": 35.72222222222222,
+              "loaded_travel_ticks": 72.80555555555556,
+              "empty_trips": 9.75,
+              "loaded_trips": 20.11111111111111,
+              "empty_trips_with_report_delivery": 1.1666666666666667,
+              "loaded_trips_with_report_delivery": 3.3055555555555554,
+              "drops_without_current_need": 2.4166666666666665
+            },
+            "late": {
+              "produced": 0.08333333333333333,
+              "attempts": 10.944444444444445,
+              "work_ticks": 0.08333333333333333,
+              "travel_ticks": 60.69444444444444,
+              "empty_travel_ticks": 4.111111111111111,
+              "loaded_travel_ticks": 56.583333333333336,
+              "empty_trips": 0.7222222222222222,
+              "loaded_trips": 15.416666666666666,
+              "empty_trips_with_report_delivery": 0.1388888888888889,
+              "loaded_trips_with_report_delivery": 1.75,
+              "drops_without_current_need": 0.1111111111111111
+            },
+            "quiet": {
+              "produced": 0.0,
+              "attempts": 7.194444444444445,
+              "work_ticks": 0.0,
+              "travel_ticks": 38.27777777777778,
+              "empty_travel_ticks": 3.2222222222222223,
+              "loaded_travel_ticks": 35.05555555555556,
+              "empty_trips": 0.5,
+              "loaded_trips": 10.444444444444445,
+              "empty_trips_with_report_delivery": 0.1388888888888889,
+              "loaded_trips_with_report_delivery": 1.1944444444444444,
+              "drops_without_current_need": 0.05555555555555555
+            }
+          },
+          "mean_activity_by_half_valid_only": [
+            {
+              "produced": 3.7777777777777777,
+              "personal_cost": 1.2599524260218293,
+              "action_counts": {
+                "WAIT": 168.55555555555554,
+                "GO_DEPOT": 13.75,
+                "GO_WORKSHOP_1": 8.75,
+                "GO_WORKSHOP_2": 7.361111111111111,
+                "PICK_A": 5.444444444444445,
+                "PICK_B": 2.1944444444444446,
+                "DROP": 5.472222222222222,
+                "WORK": 7.027777777777778,
+                "SHARE": 19.0
+              }
+            },
+            {
+              "produced": 0.08333333333333333,
+              "personal_cost": 0.9422452540988798,
+              "action_counts": {
+                "WAIT": 247.94444444444446,
+                "GO_DEPOT": 6.611111111111111,
+                "GO_WORKSHOP_1": 7.888888888888889,
+                "GO_WORKSHOP_2": 1.6388888888888888,
+                "PICK_A": 0.2222222222222222,
+                "PICK_B": 0.0,
+                "DROP": 0.1111111111111111,
+                "WORK": 0.0,
+                "SHARE": 10.944444444444445
+              }
+            }
+          ]
+        },
+        "trained:no_relay": {
+          "planned": 36,
+          "retained": 36,
+          "valid": 36,
+          "failed": 0,
+          "missing": 0,
+          "mean_products_valid_only": 9.38888888888889,
+          "per_training_seed_mean_products": {
+            "17": 10.25,
+            "23": 7.5,
+            "41": 10.416666666666666
+          },
+          "mean_counts_valid_only": {
+            "attempts": 44.94444444444444,
+            "delivered": 22.444444444444443,
+            "forwarded": 0.0,
+            "cross_site_deliveries": 22.444444444444443,
+            "read_report_inputs": 114.44444444444444,
+            "travel_ticks": 310.80555555555554,
+            "work_ticks": 18.77777777777778,
+            "empty_trips": 29.333333333333332,
+            "loaded_trips": 48.583333333333336,
+            "empty_trips_with_report_delivery": 5.5,
+            "loaded_trips_with_report_delivery": 7.166666666666667,
+            "empty_travel_ticks": 119.38888888888889,
+            "loaded_travel_ticks": 191.41666666666666,
+            "demand_issued": 17.5,
+            "demand_expired": 8.11111111111111,
+            "demand_pending": 0.0,
+            "demand_reserved": 0.0,
+            "late_completed": 0.4722222222222222,
+            "work_denials": 2.3333333333333335,
+            "pickup_denials": 0.0,
+            "drop_denials": 0.19444444444444445,
+            "drops_without_current_need": 11.722222222222221
+          },
+          "mean_phase_counts_valid_only": {
+            "early": {
+              "produced": 9.305555555555555,
+              "attempts": 25.52777777777778,
+              "work_ticks": 18.694444444444443,
+              "travel_ticks": 181.13888888888889,
+              "empty_travel_ticks": 79.44444444444444,
+              "loaded_travel_ticks": 101.69444444444444,
+              "empty_trips": 20.38888888888889,
+              "loaded_trips": 26.944444444444443,
+              "empty_trips_with_report_delivery": 3.3333333333333335,
+              "loaded_trips_with_report_delivery": 3.5277777777777777,
+              "drops_without_current_need": 7.944444444444445
+            },
+            "late": {
+              "produced": 0.08333333333333333,
+              "attempts": 19.416666666666668,
+              "work_ticks": 0.08333333333333333,
+              "travel_ticks": 129.66666666666666,
+              "empty_travel_ticks": 39.94444444444444,
+              "loaded_travel_ticks": 89.72222222222223,
+              "empty_trips": 8.944444444444445,
+              "loaded_trips": 21.63888888888889,
+              "empty_trips_with_report_delivery": 2.1666666666666665,
+              "loaded_trips_with_report_delivery": 3.638888888888889,
+              "drops_without_current_need": 3.7777777777777777
+            },
+            "quiet": {
+              "produced": 0.0,
+              "attempts": 10.88888888888889,
+              "work_ticks": 0.0,
+              "travel_ticks": 88.30555555555556,
+              "empty_travel_ticks": 26.416666666666668,
+              "loaded_travel_ticks": 61.888888888888886,
+              "empty_trips": 5.694444444444445,
+              "loaded_trips": 14.722222222222221,
+              "empty_trips_with_report_delivery": 1.3888888888888888,
+              "loaded_trips_with_report_delivery": 1.8888888888888888,
+              "drops_without_current_need": 2.0
+            }
+          },
+          "mean_activity_by_half_valid_only": [
+            {
+              "produced": 9.305555555555555,
+              "personal_cost": 1.6188976076002228,
+              "action_counts": {
+                "WAIT": 59.47222222222222,
+                "GO_DEPOT": 20.52777777777778,
+                "GO_WORKSHOP_1": 13.88888888888889,
+                "GO_WORKSHOP_2": 12.916666666666666,
+                "PICK_A": 12.694444444444445,
+                "PICK_B": 5.027777777777778,
+                "DROP": 15.11111111111111,
+                "WORK": 11.722222222222221,
+                "SHARE": 25.52777777777778
+              }
+            },
+            {
+              "produced": 0.08333333333333333,
+              "personal_cost": 1.269036785975324,
+              "action_counts": {
+                "WAIT": 162.94444444444446,
+                "GO_DEPOT": 12.333333333333334,
+                "GO_WORKSHOP_1": 9.333333333333334,
+                "GO_WORKSHOP_2": 8.916666666666666,
+                "PICK_A": 3.75,
+                "PICK_B": 0.25,
+                "DROP": 3.888888888888889,
+                "WORK": 0.0,
+                "SHARE": 19.416666666666668
+              }
+            }
+          ]
+        },
+        "untrained:local": {
+          "planned": 36,
+          "retained": 36,
+          "valid": 36,
+          "failed": 0,
+          "missing": 0,
+          "mean_products_valid_only": 0.4166666666666667,
+          "per_training_seed_mean_products": {
+            "17": 1.25,
+            "23": 0.0,
+            "41": 0.0
+          },
+          "mean_counts_valid_only": {
+            "attempts": 26.75,
+            "delivered": 8.11111111111111,
+            "forwarded": 0.4166666666666667,
+            "cross_site_deliveries": 8.11111111111111,
+            "read_report_inputs": 42.27777777777778,
+            "travel_ticks": 415.30555555555554,
+            "work_ticks": 0.8333333333333334,
+            "empty_trips": 22.88888888888889,
+            "loaded_trips": 59.44444444444444,
+            "empty_trips_with_report_delivery": 1.75,
+            "loaded_trips_with_report_delivery": 2.9166666666666665,
+            "empty_travel_ticks": 143.91666666666666,
+            "loaded_travel_ticks": 271.3888888888889,
+            "demand_issued": 17.5,
+            "demand_expired": 17.083333333333332,
+            "demand_pending": 0.0,
+            "demand_reserved": 0.0,
+            "late_completed": 0.0,
+            "work_denials": 0.05555555555555555,
+            "pickup_denials": 0.0,
+            "drop_denials": 0.05555555555555555,
+            "drops_without_current_need": 2.1944444444444446
+          },
+          "mean_phase_counts_valid_only": {
+            "early": {
+              "produced": 0.4166666666666667,
+              "attempts": 17.416666666666668,
+              "work_ticks": 0.8333333333333334,
+              "travel_ticks": 206.08333333333334,
+              "empty_travel_ticks": 80.61111111111111,
+              "loaded_travel_ticks": 125.47222222222223,
+              "empty_trips": 14.166666666666666,
+              "loaded_trips": 29.0,
+              "empty_trips_with_report_delivery": 1.6944444444444444,
+              "loaded_trips_with_report_delivery": 1.8333333333333333,
+              "drops_without_current_need": 1.7222222222222223
+            },
+            "late": {
+              "produced": 0.0,
+              "attempts": 9.333333333333334,
+              "work_ticks": 0.0,
+              "travel_ticks": 209.22222222222223,
+              "empty_travel_ticks": 63.30555555555556,
+              "loaded_travel_ticks": 145.91666666666666,
+              "empty_trips": 8.722222222222221,
+              "loaded_trips": 30.444444444444443,
+              "empty_trips_with_report_delivery": 0.05555555555555555,
+              "loaded_trips_with_report_delivery": 1.0833333333333333,
+              "drops_without_current_need": 0.4722222222222222
+            },
+            "quiet": {
+              "produced": 0.0,
+              "attempts": 6.0,
+              "work_ticks": 0.0,
+              "travel_ticks": 138.13888888888889,
+              "empty_travel_ticks": 37.333333333333336,
+              "loaded_travel_ticks": 100.80555555555556,
+              "empty_trips": 4.944444444444445,
+              "loaded_trips": 20.25,
+              "empty_trips_with_report_delivery": 0.0,
+              "loaded_trips_with_report_delivery": 0.75,
+              "drops_without_current_need": 0.1388888888888889
+            }
+          },
+          "mean_activity_by_half_valid_only": [
+            {
+              "produced": 0.4166666666666667,
+              "personal_cost": 1.496146958127751,
+              "action_counts": {
+                "WAIT": 88.13888888888889,
+                "GO_DEPOT": 11.75,
+                "GO_WORKSHOP_1": 16.5,
+                "GO_WORKSHOP_2": 14.916666666666666,
+                "PICK_A": 4.583333333333333,
+                "PICK_B": 0.0,
+                "DROP": 2.888888888888889,
+                "WORK": 0.4722222222222222,
+                "SHARE": 17.416666666666668
+              }
+            },
+            {
+              "produced": 0.0,
+              "personal_cost": 1.4088820536631266,
+              "action_counts": {
+                "WAIT": 100.25,
+                "GO_DEPOT": 8.222222222222221,
+                "GO_WORKSHOP_1": 19.25,
+                "GO_WORKSHOP_2": 11.694444444444445,
+                "PICK_A": 0.7222222222222222,
+                "PICK_B": 0.0,
+                "DROP": 0.4722222222222222,
+                "WORK": 0.0,
+                "SHARE": 9.333333333333334
+              }
+            }
+          ]
+        },
+        "scripted_local:local": {
+          "planned": 36,
+          "retained": 36,
+          "valid": 36,
+          "failed": 0,
+          "missing": 0,
+          "mean_products_valid_only": 11.25,
+          "per_training_seed_mean_products": {
+            "17": 11.25,
+            "23": 11.25,
+            "41": 11.25
+          },
+          "mean_counts_valid_only": {
+            "attempts": 81.41666666666667,
+            "delivered": 19.833333333333332,
+            "forwarded": 0.3333333333333333,
+            "cross_site_deliveries": 19.833333333333332,
+            "read_report_inputs": 139.5,
+            "travel_ticks": 254.58333333333334,
+            "work_ticks": 22.5,
+            "empty_trips": 40.166666666666664,
+            "loaded_trips": 15.416666666666666,
+            "empty_trips_with_report_delivery": 7.5,
+            "loaded_trips_with_report_delivery": 3.0,
+            "empty_travel_ticks": 200.83333333333334,
+            "loaded_travel_ticks": 53.75,
+            "demand_issued": 17.5,
+            "demand_expired": 6.25,
+            "demand_pending": 0.0,
+            "demand_reserved": 0.0,
+            "late_completed": 0.25,
+            "work_denials": 10.916666666666666,
+            "pickup_denials": 0.0,
+            "drop_denials": 0.0,
+            "drops_without_current_need": 6.75
+          },
+          "mean_phase_counts_valid_only": {
+            "early": {
+              "produced": 11.0,
+              "attempts": 63.916666666666664,
+              "work_ticks": 22.25,
+              "travel_ticks": 163.83333333333334,
+              "empty_travel_ticks": 111.83333333333333,
+              "loaded_travel_ticks": 52.0,
+              "empty_trips": 27.75,
+              "loaded_trips": 14.833333333333334,
+              "empty_trips_with_report_delivery": 6.833333333333333,
+              "loaded_trips_with_report_delivery": 3.0,
+              "drops_without_current_need": 6.166666666666667
+            },
+            "late": {
+              "produced": 0.25,
+              "attempts": 17.5,
+              "work_ticks": 0.25,
+              "travel_ticks": 90.75,
+              "empty_travel_ticks": 89.0,
+              "loaded_travel_ticks": 1.75,
+              "empty_trips": 12.416666666666666,
+              "loaded_trips": 0.5833333333333334,
+              "empty_trips_with_report_delivery": 0.6666666666666666,
+              "loaded_trips_with_report_delivery": 0.0,
+              "drops_without_current_need": 0.5833333333333334
+            },
+            "quiet": {
+              "produced": 0.0,
+              "attempts": 9.5,
+              "work_ticks": 0.0,
+              "travel_ticks": 59.75,
+              "empty_travel_ticks": 59.75,
+              "loaded_travel_ticks": 0.0,
+              "empty_trips": 8.0,
+              "loaded_trips": 0.0,
+              "empty_trips_with_report_delivery": 0.0,
+              "loaded_trips_with_report_delivery": 0.0,
+              "drops_without_current_need": 0.0
+            }
+          },
+          "mean_activity_by_half_valid_only": [
+            {
+              "produced": 11.0,
+              "personal_cost": 2.041887260154169,
+              "action_counts": {
+                "WAIT": 28.833333333333332,
+                "GO_DEPOT": 17.833333333333332,
+                "GO_WORKSHOP_1": 13.25,
+                "GO_WORKSHOP_2": 11.5,
+                "PICK_A": 8.0,
+                "PICK_B": 7.416666666666667,
+                "DROP": 14.833333333333334,
+                "WORK": 22.166666666666668,
+                "SHARE": 63.916666666666664
+              }
+            },
+            {
+              "produced": 0.25,
+              "personal_cost": 1.1089608223388643,
+              "action_counts": {
+                "WAIT": 210.91666666666666,
+                "GO_DEPOT": 0.0,
+                "GO_WORKSHOP_1": 6.916666666666667,
+                "GO_WORKSHOP_2": 6.083333333333333,
+                "PICK_A": 0.0,
+                "PICK_B": 0.0,
+                "DROP": 0.5833333333333334,
+                "WORK": 0.0,
+                "SHARE": 17.5
+              }
+            }
+          ]
+        },
+        "random:local": {
+          "planned": 36,
+          "retained": 36,
+          "valid": 36,
+          "failed": 0,
+          "missing": 0,
+          "mean_products_valid_only": 3.0833333333333335,
+          "per_training_seed_mean_products": {
+            "17": 3.0833333333333335,
+            "23": 3.0833333333333335,
+            "41": 3.0833333333333335
+          },
+          "mean_counts_valid_only": {
+            "attempts": 16.0,
+            "delivered": 8.333333333333334,
+            "forwarded": 0.25,
+            "cross_site_deliveries": 8.333333333333334,
+            "read_report_inputs": 20.166666666666668,
+            "travel_ticks": 536.0833333333334,
+            "work_ticks": 6.166666666666667,
+            "empty_trips": 72.08333333333333,
+            "loaded_trips": 45.333333333333336,
+            "empty_trips_with_report_delivery": 4.416666666666667,
+            "loaded_trips_with_report_delivery": 2.5833333333333335,
+            "empty_travel_ticks": 343.4166666666667,
+            "loaded_travel_ticks": 192.66666666666666,
+            "demand_issued": 17.5,
+            "demand_expired": 14.416666666666666,
+            "demand_pending": 0.0,
+            "demand_reserved": 0.0,
+            "late_completed": 0.08333333333333333,
+            "work_denials": 0.08333333333333333,
+            "pickup_denials": 0.0,
+            "drop_denials": 0.0,
+            "drops_without_current_need": 8.833333333333334
+          },
+          "mean_phase_counts_valid_only": {
+            "early": {
+              "produced": 3.0,
+              "attempts": 7.416666666666667,
+              "work_ticks": 6.083333333333333,
+              "travel_ticks": 265.5,
+              "empty_travel_ticks": 176.5,
+              "loaded_travel_ticks": 89.0,
+              "empty_trips": 37.416666666666664,
+              "loaded_trips": 21.333333333333332,
+              "empty_trips_with_report_delivery": 2.3333333333333335,
+              "loaded_trips_with_report_delivery": 0.9166666666666666,
+              "drops_without_current_need": 2.5833333333333335
+            },
+            "late": {
+              "produced": 0.08333333333333333,
+              "attempts": 8.583333333333334,
+              "work_ticks": 0.08333333333333333,
+              "travel_ticks": 270.5833333333333,
+              "empty_travel_ticks": 166.91666666666666,
+              "loaded_travel_ticks": 103.66666666666667,
+              "empty_trips": 34.666666666666664,
+              "loaded_trips": 24.0,
+              "empty_trips_with_report_delivery": 2.0833333333333335,
+              "loaded_trips_with_report_delivery": 1.6666666666666667,
+              "drops_without_current_need": 6.25
+            },
+            "quiet": {
+              "produced": 0.0,
+              "attempts": 5.75,
+              "work_ticks": 0.0,
+              "travel_ticks": 181.75,
+              "empty_travel_ticks": 108.41666666666667,
+              "loaded_travel_ticks": 73.33333333333333,
+              "empty_trips": 22.666666666666668,
+              "loaded_trips": 17.25,
+              "empty_trips_with_report_delivery": 1.5,
+              "loaded_trips_with_report_delivery": 0.9166666666666666,
+              "drops_without_current_need": 4.166666666666667
+            }
+          },
+          "mean_activity_by_half_valid_only": [
+            {
+              "produced": 3.0,
+              "personal_cost": 1.6156075800270868,
+              "action_counts": {
+                "WAIT": 28.583333333333332,
+                "GO_DEPOT": 19.333333333333332,
+                "GO_WORKSHOP_1": 19.583333333333332,
+                "GO_WORKSHOP_2": 19.833333333333332,
+                "PICK_A": 3.0,
+                "PICK_B": 4.0,
+                "DROP": 5.333333333333333,
+                "WORK": 3.1666666666666665,
+                "SHARE": 7.416666666666667
+              }
+            },
+            {
+              "produced": 0.08333333333333333,
+              "personal_cost": 1.6196887470399846,
+              "action_counts": {
+                "WAIT": 28.333333333333332,
+                "GO_DEPOT": 20.083333333333332,
+                "GO_WORKSHOP_1": 19.666666666666668,
+                "GO_WORKSHOP_2": 18.916666666666668,
+                "PICK_A": 2.4166666666666665,
+                "PICK_B": 3.75,
+                "DROP": 6.25,
+                "WORK": 0.0,
+                "SHARE": 8.583333333333334
+              }
+            }
+          ]
+        },
+        "scripted_local:no_messages": {
+          "planned": 36,
+          "retained": 36,
+          "valid": 36,
+          "failed": 0,
+          "missing": 0,
+          "mean_products_valid_only": 13.333333333333334,
+          "per_training_seed_mean_products": {
+            "17": 13.333333333333334,
+            "23": 13.333333333333334,
+            "41": 13.333333333333334
+          },
+          "mean_counts_valid_only": {
+            "attempts": 66.0,
+            "delivered": 0.0,
+            "forwarded": 0.0,
+            "cross_site_deliveries": 0.0,
+            "read_report_inputs": 0.0,
+            "travel_ticks": 290.6666666666667,
+            "work_ticks": 26.666666666666668,
+            "empty_trips": 44.333333333333336,
+            "loaded_trips": 17.083333333333332,
+            "empty_trips_with_report_delivery": 0.0,
+            "loaded_trips_with_report_delivery": 0.0,
+            "empty_travel_ticks": 231.58333333333334,
+            "loaded_travel_ticks": 59.083333333333336,
+            "demand_issued": 17.5,
+            "demand_expired": 4.166666666666667,
+            "demand_pending": 0.0,
+            "demand_reserved": 0.0,
+            "late_completed": 1.0833333333333333,
+            "work_denials": 4.833333333333333,
+            "pickup_denials": 0.0,
+            "drop_denials": 0.0,
+            "drops_without_current_need": 5.333333333333333
+          },
+          "mean_phase_counts_valid_only": {
+            "early": {
+              "produced": 13.25,
+              "attempts": 45.833333333333336,
+              "work_ticks": 26.583333333333332,
+              "travel_ticks": 192.33333333333334,
+              "empty_travel_ticks": 135.5,
+              "loaded_travel_ticks": 56.833333333333336,
+              "empty_trips": 31.083333333333332,
+              "loaded_trips": 16.666666666666668,
+              "empty_trips_with_report_delivery": 0.0,
+              "loaded_trips_with_report_delivery": 0.0,
+              "drops_without_current_need": 4.083333333333333
+            },
+            "late": {
+              "produced": 0.08333333333333333,
+              "attempts": 20.166666666666668,
+              "work_ticks": 0.08333333333333333,
+              "travel_ticks": 98.33333333333333,
+              "empty_travel_ticks": 96.08333333333333,
+              "loaded_travel_ticks": 2.25,
+              "empty_trips": 13.25,
+              "loaded_trips": 0.4166666666666667,
+              "empty_trips_with_report_delivery": 0.0,
+              "loaded_trips_with_report_delivery": 0.0,
+              "drops_without_current_need": 1.25
+            },
+            "quiet": {
+              "produced": 0.0,
+              "attempts": 12.666666666666666,
+              "work_ticks": 0.0,
+              "travel_ticks": 65.83333333333333,
+              "empty_travel_ticks": 65.83333333333333,
+              "loaded_travel_ticks": 0.0,
+              "empty_trips": 8.833333333333334,
+              "loaded_trips": 0.0,
+              "empty_trips_with_report_delivery": 0.0,
+              "loaded_trips_with_report_delivery": 0.0,
+              "drops_without_current_need": 0.0
+            }
+          },
+          "mean_activity_by_half_valid_only": [
+            {
+              "produced": 13.25,
+              "personal_cost": 1.908775045622495,
+              "action_counts": {
+                "WAIT": 17.5,
+                "GO_DEPOT": 17.916666666666668,
+                "GO_WORKSHOP_1": 15.333333333333334,
+                "GO_WORKSHOP_2": 14.5,
+                "PICK_A": 8.416666666666666,
+                "PICK_B": 8.666666666666666,
+                "DROP": 15.833333333333334,
+                "WORK": 18.166666666666668,
+                "SHARE": 45.833333333333336
+              }
+            },
+            {
+              "produced": 0.08333333333333333,
+              "personal_cost": 1.1601136339543536,
+              "action_counts": {
+                "WAIT": 200.16666666666666,
+                "GO_DEPOT": 0.0,
+                "GO_WORKSHOP_1": 7.5,
+                "GO_WORKSHOP_2": 6.166666666666667,
+                "PICK_A": 0.0,
+                "PICK_B": 0.0,
+                "DROP": 1.25,
+                "WORK": 0.0,
+                "SHARE": 20.166666666666668
+              }
+            }
+          ]
+        },
+        "scripted_local:unread": {
+          "planned": 36,
+          "retained": 36,
+          "valid": 36,
+          "failed": 0,
+          "missing": 0,
+          "mean_products_valid_only": 11.5,
+          "per_training_seed_mean_products": {
+            "17": 11.5,
+            "23": 11.5,
+            "41": 11.5
+          },
+          "mean_counts_valid_only": {
+            "attempts": 97.33333333333333,
+            "delivered": 30.666666666666668,
+            "forwarded": 1.25,
+            "cross_site_deliveries": 30.666666666666668,
+            "read_report_inputs": 0.0,
+            "travel_ticks": 273.25,
+            "work_ticks": 23.0,
+            "empty_trips": 42.583333333333336,
+            "loaded_trips": 14.25,
+            "empty_trips_with_report_delivery": 13.0,
+            "loaded_trips_with_report_delivery": 1.5833333333333333,
+            "empty_travel_ticks": 224.41666666666666,
+            "loaded_travel_ticks": 48.833333333333336,
+            "demand_issued": 17.5,
+            "demand_expired": 6.0,
+            "demand_pending": 0.0,
+            "demand_reserved": 0.0,
+            "late_completed": 0.3333333333333333,
+            "work_denials": 6.25,
+            "pickup_denials": 0.0,
+            "drop_denials": 0.0,
+            "drops_without_current_need": 5.333333333333333
+          },
+          "mean_phase_counts_valid_only": {
+            "early": {
+              "produced": 11.333333333333334,
+              "attempts": 64.08333333333333,
+              "work_ticks": 22.833333333333332,
+              "travel_ticks": 181.25,
+              "empty_travel_ticks": 133.08333333333334,
+              "loaded_travel_ticks": 48.166666666666664,
+              "empty_trips": 29.083333333333332,
+              "loaded_trips": 14.25,
+              "empty_trips_with_report_delivery": 8.333333333333334,
+              "loaded_trips_with_report_delivery": 1.4166666666666667,
+              "drops_without_current_need": 5.083333333333333
+            },
+            "late": {
+              "produced": 0.16666666666666666,
+              "attempts": 33.25,
+              "work_ticks": 0.16666666666666666,
+              "travel_ticks": 92.0,
+              "empty_travel_ticks": 91.33333333333333,
+              "loaded_travel_ticks": 0.6666666666666666,
+              "empty_trips": 13.5,
+              "loaded_trips": 0.0,
+              "empty_trips_with_report_delivery": 4.666666666666667,
+              "loaded_trips_with_report_delivery": 0.16666666666666666,
+              "drops_without_current_need": 0.25
+            },
+            "quiet": {
+              "produced": 0.0,
+              "attempts": 18.583333333333332,
+              "work_ticks": 0.0,
+              "travel_ticks": 61.916666666666664,
+              "empty_travel_ticks": 61.916666666666664,
+              "loaded_travel_ticks": 0.0,
+              "empty_trips": 8.083333333333334,
+              "loaded_trips": 0.0,
+              "empty_trips_with_report_delivery": 2.6666666666666665,
+              "loaded_trips_with_report_delivery": 0.0,
+              "drops_without_current_need": 0.0
+            }
+          },
+          "mean_activity_by_half_valid_only": [
+            {
+              "produced": 11.333333333333334,
+              "personal_cost": 2.0515797890521137,
+              "action_counts": {
+                "WAIT": 17.333333333333332,
+                "GO_DEPOT": 16.166666666666668,
+                "GO_WORKSHOP_1": 14.083333333333334,
+                "GO_WORKSHOP_2": 13.083333333333334,
+                "PICK_A": 7.666666666666667,
+                "PICK_B": 6.583333333333333,
+                "DROP": 14.0,
+                "WORK": 17.75,
+                "SHARE": 64.08333333333333
+              }
+            },
+            {
+              "produced": 0.16666666666666666,
+              "personal_cost": 1.2700586574705872,
+              "action_counts": {
+                "WAIT": 194.33333333333334,
+                "GO_DEPOT": 0.0,
+                "GO_WORKSHOP_1": 7.916666666666667,
+                "GO_WORKSHOP_2": 5.583333333333333,
+                "PICK_A": 0.0,
+                "PICK_B": 0.0,
+                "DROP": 0.25,
+                "WORK": 0.0,
+                "SHARE": 33.25
+              }
+            }
+          ]
+        },
+        "scripted_local:instant": {
+          "planned": 36,
+          "retained": 36,
+          "valid": 36,
+          "failed": 0,
+          "missing": 0,
+          "mean_products_valid_only": 15.666666666666666,
+          "per_training_seed_mean_products": {
+            "17": 15.666666666666666,
+            "23": 15.666666666666666,
+            "41": 15.666666666666666
+          },
+          "mean_counts_valid_only": {
+            "attempts": 48.0,
+            "delivered": 16.583333333333332,
+            "forwarded": 0.0,
+            "cross_site_deliveries": 16.583333333333332,
+            "read_report_inputs": 0.0,
+            "travel_ticks": 139.66666666666666,
+            "work_ticks": 31.333333333333332,
+            "empty_trips": 19.166666666666668,
+            "loaded_trips": 20.75,
+            "empty_trips_with_report_delivery": 5.75,
+            "loaded_trips_with_report_delivery": 3.1666666666666665,
+            "empty_travel_ticks": 67.08333333333333,
+            "loaded_travel_ticks": 72.58333333333333,
+            "demand_issued": 17.5,
+            "demand_expired": 1.8333333333333333,
+            "demand_pending": 0.0,
+            "demand_reserved": 0.0,
+            "late_completed": 1.0833333333333333,
+            "work_denials": 11.25,
+            "pickup_denials": 0.0,
+            "drop_denials": 0.0,
+            "drops_without_current_need": 7.0
+          },
+          "mean_phase_counts_valid_only": {
+            "early": {
+              "produced": 15.416666666666666,
+              "attempts": 45.416666666666664,
+              "work_ticks": 31.083333333333332,
+              "travel_ticks": 138.66666666666666,
+              "empty_travel_ticks": 67.08333333333333,
+              "loaded_travel_ticks": 71.58333333333333,
+              "empty_trips": 19.166666666666668,
+              "loaded_trips": 20.75,
+              "empty_trips_with_report_delivery": 5.75,
+              "loaded_trips_with_report_delivery": 3.0,
+              "drops_without_current_need": 5.416666666666667
+            },
+            "late": {
+              "produced": 0.25,
+              "attempts": 2.5833333333333335,
+              "work_ticks": 0.25,
+              "travel_ticks": 1.0,
+              "empty_travel_ticks": 0.0,
+              "loaded_travel_ticks": 1.0,
+              "empty_trips": 0.0,
+              "loaded_trips": 0.0,
+              "empty_trips_with_report_delivery": 0.0,
+              "loaded_trips_with_report_delivery": 0.16666666666666666,
+              "drops_without_current_need": 1.5833333333333333
+            },
+            "quiet": {
+              "produced": 0.0,
+              "attempts": 0.0,
+              "work_ticks": 0.0,
+              "travel_ticks": 0.0,
+              "empty_travel_ticks": 0.0,
+              "loaded_travel_ticks": 0.0,
+              "empty_trips": 0.0,
+              "loaded_trips": 0.0,
+              "empty_trips_with_report_delivery": 0.0,
+              "loaded_trips_with_report_delivery": 0.0,
+              "drops_without_current_need": 0.0
+            }
+          },
+          "mean_activity_by_half_valid_only": [
+            {
+              "produced": 15.416666666666666,
+              "personal_cost": 1.8246709588676164,
+              "action_counts": {
+                "WAIT": 53.666666666666664,
+                "GO_DEPOT": 19.166666666666668,
+                "GO_WORKSHOP_1": 10.416666666666666,
+                "GO_WORKSHOP_2": 10.333333333333334,
+                "PICK_A": 10.333333333333334,
+                "PICK_B": 10.416666666666666,
+                "DROP": 19.166666666666668,
+                "WORK": 26.916666666666668,
+                "SHARE": 45.416666666666664
+              }
+            },
+            {
+              "produced": 0.25,
+              "personal_cost": 0.6730591158236893,
+              "action_counts": {
+                "WAIT": 314.5833333333333,
+                "GO_DEPOT": 0.0,
+                "GO_WORKSHOP_1": 0.0,
+                "GO_WORKSHOP_2": 0.0,
+                "PICK_A": 0.0,
+                "PICK_B": 0.0,
+                "DROP": 1.5833333333333333,
+                "WORK": 0.0,
+                "SHARE": 2.5833333333333335
+              }
+            }
+          ]
+        }
+      },
+      "paired_production_differences": {
+        "trained_local_minus_trained:no_messages": {
+          "complete": true,
+          "mean_difference": -0.16666666666666666,
+          "exploratory_crossed_bootstrap_95_interval": [
+            -2.1944444444444446,
+            1.9173611111111073
+          ],
+          "per_training_seed_mean_difference": [
+            -0.16666666666666666,
+            1.75,
+            -2.0833333333333335
+          ]
+        },
+        "trained_local_minus_trained:unread": {
+          "complete": true,
+          "mean_difference": 0.027777777777777776,
+          "exploratory_crossed_bootstrap_95_interval": [
+            -1.3618055555555555,
+            1.8340277777777738
+          ],
+          "per_training_seed_mean_difference": [
+            -0.08333333333333333,
+            1.4166666666666667,
+            -1.25
+          ]
+        },
+        "trained_local_minus_trained:instant": {
+          "complete": true,
+          "mean_difference": 5.527777777777778,
+          "exploratory_crossed_bootstrap_95_interval": [
+            3.75,
+            7.361111111111111
+          ],
+          "per_training_seed_mean_difference": [
+            6.5,
+            5.833333333333333,
+            4.25
+          ]
+        },
+        "trained_local_minus_trained:no_relay": {
+          "complete": true,
+          "mean_difference": 0.0,
+          "exploratory_crossed_bootstrap_95_interval": [
+            -1.3333333333333333,
+            1.445138888888885
+          ],
+          "per_training_seed_mean_difference": [
+            -0.75,
+            1.5,
+            -0.75
+          ]
+        },
+        "trained_local_minus_untrained:local": {
+          "complete": true,
+          "mean_difference": 8.972222222222221,
+          "exploratory_crossed_bootstrap_95_interval": [
+            7.666666666666667,
+            10.277777777777779
+          ],
+          "per_training_seed_mean_difference": [
+            8.25,
+            9.0,
+            9.666666666666666
+          ]
+        },
+        "trained_local_minus_scripted_local:local": {
+          "complete": true,
+          "mean_difference": -1.8611111111111112,
+          "exploratory_crossed_bootstrap_95_interval": [
+            -3.1944444444444446,
+            -0.5833333333333334
+          ],
+          "per_training_seed_mean_difference": [
+            -1.75,
+            -2.25,
+            -1.5833333333333333
+          ]
+        },
+        "trained_local_minus_random:local": {
+          "complete": true,
+          "mean_difference": 6.305555555555555,
+          "exploratory_crossed_bootstrap_95_interval": [
+            4.9437500000000005,
+            7.63958333333333
+          ],
+          "per_training_seed_mean_difference": [
+            6.416666666666667,
+            5.916666666666667,
+            6.583333333333333
+          ]
+        },
+        "trained_local_minus_scripted_local:no_messages": {
+          "complete": true,
+          "mean_difference": -3.9444444444444446,
+          "exploratory_crossed_bootstrap_95_interval": [
+            -5.25,
+            -2.777083333333337
+          ],
+          "per_training_seed_mean_difference": [
+            -3.8333333333333335,
+            -4.333333333333333,
+            -3.6666666666666665
+          ]
+        },
+        "trained_local_minus_scripted_local:unread": {
+          "complete": true,
+          "mean_difference": -2.111111111111111,
+          "exploratory_crossed_bootstrap_95_interval": [
+            -3.472916666666667,
+            -0.8055555555555556
+          ],
+          "per_training_seed_mean_difference": [
+            -2.0,
+            -2.5,
+            -1.8333333333333333
+          ]
+        },
+        "trained_local_minus_scripted_local:instant": {
+          "complete": true,
+          "mean_difference": -6.277777777777778,
+          "exploratory_crossed_bootstrap_95_interval": [
+            -7.916666666666667,
+            -4.749305555555559
+          ],
+          "per_training_seed_mean_difference": [
+            -6.166666666666667,
+            -6.666666666666667,
+            -6.0
+          ]
+        },
+        "scripted_local_minus_scripted:no_messages": {
+          "complete": true,
+          "mean_difference": -2.0833333333333335,
+          "exploratory_crossed_bootstrap_95_interval": [
+            -3.1666666666666665,
+            -1.1666666666666667
+          ],
+          "per_training_seed_mean_difference": [
+            -2.0833333333333335,
+            -2.0833333333333335,
+            -2.0833333333333335
+          ]
+        },
+        "scripted_local_minus_scripted:unread": {
+          "complete": true,
+          "mean_difference": -0.25,
+          "exploratory_crossed_bootstrap_95_interval": [
+            -1.3333333333333333,
+            0.75
+          ],
+          "per_training_seed_mean_difference": [
+            -0.25,
+            -0.25,
+            -0.25
+          ]
+        },
+        "scripted_local_minus_scripted:instant": {
+          "complete": true,
+          "mean_difference": -4.416666666666667,
+          "exploratory_crossed_bootstrap_95_interval": [
+            -5.585416666666666,
+            -3.4166666666666665
+          ],
+          "per_training_seed_mean_difference": [
+            -4.416666666666667,
+            -4.416666666666667,
+            -4.416666666666667
+          ]
+        }
+      }
+    },
+    "shutdown_minus_recurring_trained_local": {
+      "second_half_production": {
+        "complete": true,
+        "mean_difference": -8.833333333333334,
+        "exploratory_crossed_bootstrap_95_interval": [
+          -11.0,
+          -6.888888888888889
+        ],
+        "per_training_seed_mean_difference": [
+          -10.5,
+          -7.916666666666667,
+          -8.083333333333334
+        ]
+      },
+      "second_half_share_decisions": {
+        "complete": true,
+        "mean_difference": -4.555555555555555,
+        "exploratory_crossed_bootstrap_95_interval": [
+          -11.475694444444443,
+          2.0
+        ],
+        "per_training_seed_mean_difference": [
+          -1.5,
+          -6.25,
+          -5.916666666666667
+        ]
+      },
+      "second_half_travel_decisions": {
+        "complete": true,
+        "mean_difference": -3.3333333333333335,
+        "exploratory_crossed_bootstrap_95_interval": [
+          -10.5,
+          5.670138888888871
+        ],
+        "per_training_seed_mean_difference": [
+          -6.5,
+          -8.916666666666666,
+          5.416666666666667
+        ]
+      },
+      "quiet_window_travel_ticks": {
+        "complete": true,
+        "mean_difference": -7.888888888888889,
+        "exploratory_crossed_bootstrap_95_interval": [
+          -35.75277777777778,
+          28.445833333333177
+        ],
+        "per_training_seed_mean_difference": [
+          -24.25,
+          -29.666666666666668,
+          30.25
+        ]
+      },
+      "quiet_window_share_attempts": {
+        "complete": true,
+        "mean_difference": -4.694444444444445,
+        "exploratory_crossed_bootstrap_95_interval": [
+          -11.972916666666666,
+          0.834027777777774
+        ],
+        "per_training_seed_mean_difference": [
+          -3.4166666666666665,
+          -3.1666666666666665,
+          -7.5
+        ]
+      },
+      "interpretation": "Changed workload and policy response together; not proof of a profession or service benefit"
+    }
+  },
+  "learned_specialization_established": false,
+  "forge_control_enabled": false,
+  "minecraft_worlds": 0,
+  "confirmatory_study": false,
+  "base_commit": "ce38dfa878da71bc2fe17623652fee7690d35d5a",
+  "validation": {
+    "scheduled_evaluation_slots": 792,
+    "valid_evaluation_slots": 792,
+    "failed_evaluation_slots": 0,
+    "missing_evaluation_slots": 0,
+    "unique_run_ids": 792,
+    "material_conservation_violations": 0,
+    "demand_conservation_violations": 0,
+    "mechanism_and_learner_tests_passed": 34,
+    "optimizer_updates": 76653,
+    "source_hashes_match": true,
+    "saved_parameter_hashes_match": true
+  },
+  "mechanism_probe": {
+    "schema": "hearthbound.distributed-information-mechanism.v0.1",
+    "source_sha256": {
+      "distributed_demand_env.py": "b359effc665f3d0eb7d862fe5727e570b3fa7ee9da407a96eaf3c85be115c5df",
+      "probe_distributed_information.py": "909fa93b937a980fa08e91aa2d97dd37f4d5f2cde648ce0fdbea71e2b960b781"
+    },
+    "seed": 386201,
+    "horizon_ticks": 20,
+    "cases": [
+      {
+        "destination": 1,
+        "required_kind": 0
+      },
+      {
+        "destination": 1,
+        "required_kind": 1
+      },
+      {
+        "destination": 2,
+        "required_kind": 0
+      },
+      {
+        "destination": 2,
+        "required_kind": 1
+      }
+    ],
+    "protocols": [
+      "local",
+      "unread",
+      "no_messages"
+    ],
+    "unknown_material_fallback": "A",
+    "scripted_roles": true,
+    "learned_controller": false,
+    "emergent_occupation_evidence": false,
+    "minecraft_worlds": 0,
+    "interpretation": "Constructed paired mechanism demonstration, not independent-world learning evidence",
+    "planned": 12,
+    "valid": 12,
+    "failed": 0,
+    "outputs_by_protocol": {
+      "local": 4,
+      "unread": 2,
+      "no_messages": 2
+    }
+  },
+  "raw_evidence_sha256": {
+    "learning/examples-17.json": "57c0a59fb4f94d38b50110e6681f4ab81aeb6790fcd08b67ddc0f1f6e3800085",
+    "learning/examples-23.json": "a08771189f3ad2f6e919b79dbb28a4b1cc85de5e77a2463a278506430baa1a2f",
+    "learning/examples-41.json": "ce22edf0d99697753f66f4c21e51de927eeb276e926f74b16aebd5c93bd00d12",
+    "learning/outcomes.jsonl": "7f0ecd33e0b5c7b87000febad80ed3e6a9d7d00470adc55bb92322cc806597ee",
+    "learning/protocol.json": "df1003963561c356811154586d8b115afbbe5b741731762b91fe6ff3ae2ad5d3",
+    "learning/report.json": "1a9127a982a7b6b6e55aff32d456997cd9427519b5a131591857afaf5ac3a04f",
+    "learning/trained-17.json": "7ee8bd13bfaef1842af96c59da1a1537a6a5135fdeb1bf655adab45b37ed5ce5",
+    "learning/trained-23.json": "74509318d966a194a1f6d3ad0c7360af5b85e67e07820d0d46b2e7155fe4fdf7",
+    "learning/trained-41.json": "9deba72adf690758f949fd3425e124b008b87c88a21d9fc48faecbed2b98160d",
+    "learning/training.json": "db088db8c27ba4f7ec6f2652f4ce7bbbff00cbcc9cbc55648f8caaf62cba9d05",
+    "learning/untrained-17.json": "bc916da004dedae6a941b9687e517210254a6256b900435d9bbdf0c19bf66440",
+    "learning/untrained-23.json": "1949dea5dd5267d7e6598e8235eb84f7d7ecaf5729a724a2cae12ef4dc10b658",
+    "learning/untrained-41.json": "4d3bcffad94da60f4cfab605d32daf0ade8a0454f62dc4e569c56bbac18af51b",
+    "mechanism/mechanism.json": "742d89bac88bf2902a8bbde1879091c2df2aa420388ede6c3194b3105701a8da"
+  },
+  "interpretation": {
+    "trained_better_than_initial_in_this_pilot": true,
+    "trained_beats_scripted": false,
+    "scripted_balanced_mechanism_demonstrated": true,
+    "learned_communication_benefit_established": false,
+    "dedicated_courier_emergence_demonstrated": false,
+    "need_sensitive_service_adaptation_established": false,
+    "all_seed_outcomes_retained": true,
+    "instant_information_is_distribution_shift": true,
+    "repeated_script_and_random_rows_are_not_new_independent_worlds": true,
+    "limits": [
+      "Three training seeds and twelve heldout world seeds only; exploratory crossed intervals",
+      "Readable versus unread advantage changes sign across training seeds and its interval includes zero",
+      "Engineered balanced fixtures prescribe the carrier, resident, and supplier roles",
+      "Trip-linked delivery establishes physical carriage, not purpose, recipient benefit, or profession",
+      "Substantial travel and sharing persist after shutdown demand has drained",
+      "The scripted policy produces more with blocked transport than with its sharing rule",
+      "Map, actions, masks, and report scheduler differ from v0.1; this is not a single-factor comparison",
+      "No recurrent model, centralized critic, invented contracts, wages, or live Forge policy integration"
+    ]
+  }
+}

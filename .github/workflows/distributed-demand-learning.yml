@@ -1,0 +1,69 @@
+name: Recurring demand and information (simulator only)
+on:
+  pull_request:
+    paths:
+      - 'scripts/distributed_demand_env.py'
+      - 'scripts/train_distributed_demand.py'
+      - 'scripts/probe_distributed_information.py'
+      - 'scripts/test*distributed*.py'
+      - 'docs/DISTRIBUTED_INFORMATION_DEMAND_V0_18.md'
+      - '.github/workflows/distributed-demand-learning.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contracts-and-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install numpy==2.3.5
+      - name: Test physical work, private demand, and learning
+        run: python -m unittest discover -s scripts -p 'test*distributed*.py' -v
+      - name: Retain balanced scripted mechanism fixtures
+        run: >-
+          python scripts/probe_distributed_information.py
+          --output run/distributed-demand-mechanism/mechanism.json
+      - name: Exercise training and all frozen evaluation conditions
+        run: >-
+          python scripts/train_distributed_demand.py
+          --episodes 8 --training-seeds 101 --worlds 2
+          --evaluation-seed-start 73020 --agents 4 --horizon 32
+          --output-dir run/distributed-demand-ci
+      - name: Verify every planned outcome and both conservation ledgers
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('run/distributed-demand-ci/report.json').read_text())
+          assert report['evaluation_weights_frozen'] is True
+          assert report['forge_control_enabled'] is False
+          assert report['minecraft_worlds'] == 0
+          assert report['learned_specialization_established'] is False
+          assert len(report['runs']) == report['protocol']['planned_evaluation_slots'] == 44
+          assert len({row['run_id'] for row in report['runs']}) == 44
+          assert all(row['status'] == 'valid' for row in report['runs'])
+          assert all(row['conservation_residual_A'] == row['conservation_residual_B']
+                     == row['demand_residual'] == 0 for row in report['runs'])
+          assert all(row['optimizer_updates'] > 0 for row in report['training'])
+          probe = json.loads(Path('run/distributed-demand-mechanism/mechanism.json').read_text())
+          assert probe['planned'] == probe['valid'] == 12
+          assert probe['failed'] == 0 and probe['scripted_roles'] is True
+          assert probe['emergent_occupation_evidence'] is False
+          print('Synthetic mechanism and learning integrity passed; no occupation claimed.')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: distributed-demand-simulator-evidence
+          path: |
+            run/distributed-demand-ci/
+            run/distributed-demand-mechanism/
+          if-no-files-found: warn
