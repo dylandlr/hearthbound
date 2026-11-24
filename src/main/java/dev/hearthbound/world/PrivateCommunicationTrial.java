@@ -7,6 +7,8 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import dev.hearthbound.civilization.BoundedSourceDiscovery;
+import dev.hearthbound.civilization.CommunicationNetworkPolicy;
+import dev.hearthbound.civilization.CommunicationNetworkPolicy.Arm;
 import dev.hearthbound.civilization.PrivateCommunicationPolicy;
 import dev.hearthbound.civilization.PrivateCommunicationPolicy.Knowledge;
 import dev.hearthbound.civilization.PrivateCommunicationPolicy.KnowledgeBook;
@@ -50,8 +52,10 @@ import net.minecraftforge.fml.common.Mod;
 @Mod.EventBusSubscriber(modid = "hearthbound", bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class PrivateCommunicationTrial {
     public static final String SCHEMA = "hearthbound.private-communication-trial.v1";
+    public static final String NETWORK_SCHEMA = "hearthbound.communication-network-trial.v1";
     private static final String MARKER = "hearthbound.private_communication_trial.v1";
     private static final String PREFIX = "COMMUNICATION_TRIAL_V1 ";
+    private static final String NETWORK_PREFIX = "COMMUNICATION_NETWORK_TRIAL_V1 ";
     private static final int MAX_RECORDS = 4096;
     private static final Map<ServerLevel, Trial> TRIALS = new WeakHashMap<>();
     private static final List<String> COUNTERS = List.of("idle_opportunities", "motor_ticks",
@@ -62,9 +66,9 @@ public final class PrivateCommunicationTrial {
         "outer_probes", "outer_inspections", "rechecks", "assignment_attempts", "send_attempts");
     private PrivateCommunicationTrial() {}
 
-    private enum Arm { NO_MESSAGES, DIRECT }
     private static final class Actor {
         final int slot;
+        final int physicalSeat;
         final UUID citizen;
         final double[] initial;
         final boolean initialNoAi;
@@ -75,8 +79,9 @@ public final class PrivateCommunicationTrial {
         final Map<String, Long> maxima = new LinkedHashMap<>();
         final Set<UUID> completed = new HashSet<>();
         RoundBudget budget;
-        Actor(int slot, Villager citizen) {
+        Actor(int slot, int physicalSeat, Villager citizen) {
             this.slot = slot;
+            this.physicalSeat = physicalSeat;
             this.citizen = citizen.getUUID();
             this.initial = new double[] {citizen.getX(), citizen.getY(), citizen.getZ()};
             this.initialNoAi = citizen.isNoAi();
@@ -91,6 +96,8 @@ public final class PrivateCommunicationTrial {
         final int horizon;
         final BlockPos destination;
         final UUID world, episode;
+        final List<Integer> seatMap;
+        final String blockId, trialId;
         final Actor[] actors = new Actor[PrivateCommunicationPolicy.WORKERS];
         final BoundedSourceDiscovery discovery = new BoundedSourceDiscovery();
         final List<JsonObject> records = new ArrayList<>();
@@ -98,11 +105,18 @@ public final class PrivateCommunicationTrial {
         String status = "CONFIGURED";
         long start = -1, end = -1, rounds, recordCapacityDenials;
         Trial(ServerLevel level, Arm arm, long seed, int horizon, BlockPos destination) {
+            this(level, arm, seed, horizon, destination, null, null, null);
+        }
+        Trial(ServerLevel level, Arm arm, long seed, int horizon, BlockPos destination,
+              List<Integer> seatMap, String blockId, String trialId) {
             PrivateCommunicationPolicy.validateHorizon(horizon);
             this.arm = arm; this.seed = seed; this.horizon = horizon;
+            this.seatMap = seatMap == null ? null : List.copyOf(seatMap);
+            this.blockId = blockId; this.trialId = trialId;
             this.destination = destination.immutable();
             world = HearthboundWorldIdentity.get(level); episode = SourceReportSession.episode(level);
         }
+        boolean networkQualification() { return seatMap != null; }
     }
 
     /** A sticky explicit marker prevents default control after stop/restart. */
@@ -158,7 +172,19 @@ public final class PrivateCommunicationTrial {
         row.addProperty("tick", level.getGameTime());
         row.addProperty("relative_tick", trial.start < 0 ? -1 : level.getGameTime() - trial.start);
         row.addProperty("slot", actor.slot); row.addProperty("citizen", actor.citizen.toString());
+        if (trial.networkQualification()) {
+            networkContext(row, trial);
+            row.addProperty("round", trial.rounds);
+            row.addProperty("physical_seat", actor.physicalSeat);
+        }
         return row;
+    }
+    private static void networkContext(JsonObject row, Trial trial) {
+        row.addProperty("world", trial.world.toString()); row.addProperty("episode", trial.episode.toString());
+        row.addProperty("arm", trial.arm.name());
+        row.addProperty("block_id", trial.blockId); row.addProperty("trial_id", trial.trialId);
+        row.addProperty("design_sha256", CommunicationNetworkPolicy.DESIGN_SHA256);
+        row.addProperty("qualification_only", true);
     }
     private static void record(Trial trial, JsonObject row) {
         if (trial.records.size() >= MAX_RECORDS) {
@@ -232,6 +258,10 @@ public final class PrivateCommunicationTrial {
     }
 
     private static void communicate(ServerLevel level, Trial trial, Actor actor, Villager sender) {
+        if (trial.networkQualification()) {
+            communicateNetwork(level, trial, actor, sender);
+            return;
+        }
         long begun = System.nanoTime(), now = level.getGameTime();
         List<Knowledge> own = actor.direct.ownDirect(now).stream()
             .filter(item -> now - item.observedTick() <= CitizenSourceKnowledge.FRESH_TICKS)
@@ -256,14 +286,80 @@ public final class PrivateCommunicationTrial {
         actor.add("communication_elapsed_ns", System.nanoTime() - begun);
     }
 
+    private static void communicateNetwork(ServerLevel level, Trial trial, Actor actor, Villager sender) {
+        long begun = System.nanoTime(), now = level.getGameTime();
+        List<Knowledge> own = actor.direct.ownDirect(now).stream()
+            .filter(item -> now - item.observedTick() <= CitizenSourceKnowledge.FRESH_TICKS)
+            .sorted(Comparator.comparingInt((Knowledge item) -> item.source().x())
+                .thenComparingInt(item -> item.source().y()).thenComparingInt(item -> item.source().z())).toList();
+        int peerSlot = CommunicationNetworkPolicy.recipientSlot(actor.slot, trial.rounds);
+        Actor peer = trial.actors[peerSlot];
+        Villager recipient = citizen(level, peer);
+        JsonObject row = event(level, trial, actor, own.isEmpty() ? "SEND_OPPORTUNITY" : "SEND");
+        row.addProperty("recipient_slot", peerSlot); row.addProperty("recipient_seat", peer.physicalSeat);
+        row.addProperty("recipient", recipient.getUUID().toString());
+        JsonArray edge = new JsonArray(); edge.add(Math.min(actor.slot, peerSlot)); edge.add(Math.max(actor.slot, peerSlot));
+        row.add("permission_edge", edge);
+        JsonArray route = new JsonArray(); route.add(sender.getUUID().toString()); route.add(recipient.getUUID().toString());
+        row.add("route", route);
+        if (own.isEmpty()) {
+            row.addProperty("edge_allowed", trial.arm.permits(actor.slot, peerSlot));
+            row.addProperty("edge_decision", "NOT_ATTEMPTED_NO_PAYLOAD");
+            row.addProperty("route_semantics", "PROPOSED_DIRECT_RECIPIENT");
+            row.addProperty("charged_send_budget", 0);
+            row.addProperty("result", "NO_ELIGIBLE_DIRECT_EVIDENCE");
+            for (String key : List.of("attempt_id", "source", "source_observation_owner", "observed_tick",
+                    "source_revision", "claimed_wheat", "source_state", "observation_world", "observation_episode"))
+                row.add(key, JsonNull.INSTANCE);
+        } else {
+            Knowledge chosen = own.get((int) (trial.rounds % own.size()));
+            BlockPos source = block(chosen.source());
+            CompoundTag evidence = CitizenSourceKnowledge.directEvidence(level, source, sender);
+            if (evidence == null || evidence.getLong("observed_tick") != chosen.observedTick()
+                    || evidence.getInt("wheat") != chosen.wheat()
+                    || !evidence.getString("state").equals(chosen.state().name())
+                    || evidence.getInt("revision") < 1
+                    || !evidence.hasUUID("observationWorld") || !evidence.getUUID("observationWorld").equals(trial.world)
+                    || !evidence.hasUUID("observationSession") || !evidence.getUUID("observationSession").equals(trial.episode))
+                throw new IllegalStateException("Outgoing payload does not match the sender's native direct evidence");
+            String permission = CommunicationNetworkPolicy.chargeAndCheck(trial.arm, actor.slot, trial.rounds, actor.budget);
+            actor.add("send_attempts", 1);
+            row.addProperty("edge_allowed", permission.equals("ALLOWED"));
+            row.addProperty("edge_decision", permission);
+            row.addProperty("route_semantics", "ATTEMPTED_DIRECT_RECIPIENT");
+            row.addProperty("charged_send_budget", 1);
+            row.add("source", xyz(source));
+            row.addProperty("source_observation_owner", sender.getUUID().toString());
+            row.addProperty("observed_tick", evidence.getLong("observed_tick"));
+            row.addProperty("source_revision", evidence.getInt("revision"));
+            row.addProperty("claimed_wheat", evidence.getInt("wheat"));
+            row.addProperty("source_state", evidence.getString("state"));
+            row.addProperty("observation_world", evidence.getUUID("observationWorld").toString());
+            row.addProperty("observation_episode", evidence.getUUID("observationSession").toString());
+            if (!permission.equals("ALLOWED")) {
+                UUID attempt = CitizenCommunicationRecords.sendAttempt(level, source, sender, recipient);
+                CitizenCommunicationRecords.rejected(level, attempt, permission);
+                row.addProperty("attempt_id", attempt.toString());
+                row.addProperty("result", "REJECTED_" + permission);
+            } else {
+                var receipt = CitizenKnowledgeExchange.shareWithReceipt(level, source, sender, recipient);
+                row.addProperty("attempt_id", receipt.attempt().toString());
+                row.addProperty("result", receipt.result());
+            }
+        }
+        record(trial, row);
+        actor.add("communication_elapsed_ns", System.nanoTime() - begun);
+    }
+
     private static void decide(ServerLevel level, Trial trial, Actor actor, Villager citizen) {
         long begun = System.nanoTime(), now = level.getGameTime();
         UUID decision = UUID.randomUUID();
         KnowledgeBook menu = new KnowledgeBook();
         for (Knowledge own : actor.direct.ownDirect(now)) menu.remember(own, now);
         Map<String, CompoundTag> readReports = new LinkedHashMap<>();
-        if (trial.arm == Arm.DIRECT) {
-            for (CompoundTag report : CitizenKnowledgeExchange.decisionReports(level, citizen)) {
+        if (trial.arm.reportsExposedToDecisions()) {
+            for (CompoundTag report : CommunicationNetworkPolicy.policyReports(trial.arm,
+                    () -> CitizenKnowledgeExchange.decisionReports(level, citizen))) {
                 BlockPos source = CitizenKnowledgeExchange.reportedSource(level, report);
                 long observed = report.getLong("observed_tick");
                 if (source == null || observed > now || now - observed > PrivateCommunicationPolicy.MAX_AGE_TICKS)
@@ -298,6 +394,8 @@ public final class PrivateCommunicationTrial {
         row.add("source", xyz(source)); row.addProperty("mode", choice.kind());
         row.addProperty("evidence_observed_tick", choice.evidence().observedTick());
         if (choice.reportCued()) {
+            if (!trial.arm.reportsExposedToDecisions())
+                throw new IllegalStateException("Policy-inaccessible report cannot cue a job");
             if (!readReports.containsKey(choice.evidence().reportId()))
                 throw new IllegalStateException("Chosen report was not actually read");
             row.addProperty("report_id", choice.evidence().reportId());
@@ -422,9 +520,12 @@ public final class PrivateCommunicationTrial {
     }
 
     private static JsonObject common(ServerLevel level, Trial trial, String kind) {
-        JsonObject result = new JsonObject(); result.addProperty("schema", SCHEMA); result.addProperty("kind", kind);
+        JsonObject result = new JsonObject();
+        result.addProperty("schema", trial.networkQualification() ? NETWORK_SCHEMA : SCHEMA);
+        result.addProperty("kind", kind);
         result.addProperty("world", trial.world.toString()); result.addProperty("episode", trial.episode.toString());
         result.addProperty("dimension", level.dimension().location().toString()); result.addProperty("read_only", true);
+        if (trial.networkQualification()) networkContext(result, trial);
         return result;
     }
     private static JsonObject audit(ServerLevel level, Trial trial) {
@@ -441,10 +542,21 @@ public final class PrivateCommunicationTrial {
         JsonArray errors = new JsonArray(); trial.errors.forEach(errors::add); result.add("errors", errors);
         result.add("destination", xyz(trial.destination)); result.addProperty("cadence_ticks", 20);
         result.addProperty("max_records", MAX_RECORDS); result.addProperty("causal_benefit_established", false);
+        if (trial.networkQualification()) {
+            JsonArray seats = new JsonArray(); trial.seatMap.forEach(seats::add); result.add("slot_to_seat", seats);
+            JsonArray edges = new JsonArray();
+            for (List<Integer> edge : trial.arm.undirectedEdges()) {
+                JsonArray pair = new JsonArray(); edge.forEach(pair::add); edges.add(pair);
+            }
+            result.add("undirected_permission_edges", edges);
+            result.addProperty("transport_enabled", trial.arm.transportEnabled());
+            result.addProperty("reports_exposed_to_decisions", trial.arm.reportsExposedToDecisions());
+        }
         return result;
     }
-    private static JsonObject actor(ServerLevel level, Actor actor) {
+    private static JsonObject actor(ServerLevel level, Trial trial, Actor actor) {
         JsonObject result = new JsonObject(); result.addProperty("slot", actor.slot);
+        if (trial.networkQualification()) result.addProperty("physical_seat", actor.physicalSeat);
         result.addProperty("citizen", actor.citizen.toString()); JsonArray initial = new JsonArray();
         for (double coordinate : actor.initial) initial.add(coordinate); result.add("initial_position", initial);
         result.addProperty("initial_no_ai", actor.initialNoAi); result.addProperty("policy_id", "SCRIPTED_PRIVATE_NEAREST_V1");
@@ -468,7 +580,7 @@ public final class PrivateCommunicationTrial {
     private static JsonObject page(ServerLevel level, Trial trial, String kind, int offset) {
         JsonObject root = common(level, trial, kind); JsonArray rows = new JsonArray();
         List<JsonObject> all = kind.equals("actors")
-            ? java.util.Arrays.stream(trial.actors).filter(java.util.Objects::nonNull).map(a -> actor(level, a)).toList()
+            ? java.util.Arrays.stream(trial.actors).filter(java.util.Objects::nonNull).map(a -> actor(level, trial, a)).toList()
             : trial.records;
         int end = Math.min(all.size(), offset + (kind.equals("actors") ? 1 : 2));
         for (int i = offset; i < end; i++) rows.add(all.get(i));
@@ -477,7 +589,8 @@ public final class PrivateCommunicationTrial {
         return root;
     }
     private static int reply(CommandSourceStack source, JsonObject result) {
-        source.sendSuccess(() -> Component.literal(PREFIX + result), false); return 1;
+        String prefix = NETWORK_SCHEMA.equals(result.get("schema").getAsString()) ? NETWORK_PREFIX : PREFIX;
+        source.sendSuccess(() -> Component.literal(prefix + result), false); return 1;
     }
     private static int configure(CommandSourceStack source, String arm, long seed, int horizon, BlockPos destination) {
         ServerLevel level = source.getLevel();
@@ -486,7 +599,23 @@ public final class PrivateCommunicationTrial {
             throw new IllegalStateException("Production colony dispatch must be disabled before configuration");
         if (!level.hasChunkAt(destination) || level.getBlockEntity(destination) == null)
             throw new IllegalArgumentException("Trial destination must be a loaded inventory block entity");
-        Trial trial = new Trial(level, Arm.valueOf(arm), seed, horizon, destination);
+        Trial trial = new Trial(level, CommunicationNetworkPolicy.legacyArm(arm), seed, horizon, destination);
+        TRIALS.put(level, trial); return reply(source, audit(level, trial));
+    }
+    private static int configureNetwork(CommandSourceStack source, String arm, long seed, int horizon,
+                                        BlockPos destination, String seats, String blockId, String trialId) {
+        ServerLevel level = source.getLevel();
+        if (TRIALS.containsKey(level)) throw new IllegalStateException("One trial per fresh dimension/session");
+        if (CivilizationRuntime.enabled(level))
+            throw new IllegalStateException("Production colony dispatch must be disabled before configuration");
+        if (!level.dimension().location().toString().equals("minecraft:overworld")
+                || !level.hasChunkAt(destination) || level.getBlockEntity(destination) == null)
+            throw new IllegalArgumentException("Network qualification requires a loaded overworld destination");
+        CommunicationNetworkPolicy.validateQualification(level.getSeed(), horizon, point(destination));
+        Trial trial = new Trial(level, Arm.valueOf(arm), seed, horizon, destination,
+            CommunicationNetworkPolicy.seatMap(seats),
+            CommunicationNetworkPolicy.qualificationIdentity(blockId),
+            CommunicationNetworkPolicy.qualificationIdentity(trialId));
         TRIALS.put(level, trial); return reply(source, audit(level, trial));
     }
     private static int enroll(CommandSourceStack source, int slot, net.minecraft.world.entity.Entity entity) {
@@ -501,7 +630,14 @@ public final class PrivateCommunicationTrial {
             throw new IllegalArgumentException("Enrollment requires a fresh marked idle citizen in this dimension");
         for (Actor actor : trial.actors) if (actor != null && actor.citizen.equals(citizen.getUUID()))
             throw new IllegalArgumentException("Duplicate citizen enrollment");
-        trial.actors[slot] = new Actor(slot, citizen);
+        int seat = trial.networkQualification() ? trial.seatMap.get(slot) : slot;
+        if (trial.networkQualification()) {
+            var expected = CommunicationNetworkPolicy.seatPosition(seat);
+            if (!citizen.isNoAi() || citizen.getX() != expected.x() || citizen.getY() != expected.y()
+                    || citizen.getZ() != expected.z())
+                throw new IllegalArgumentException("Network actor must start frozen at its declared physical seat");
+        }
+        trial.actors[slot] = new Actor(slot, seat, citizen);
         citizen.getPersistentData().putBoolean(MARKER, true);
         citizen.getNavigation().stop(); citizen.setNoAi(true);
         return reply(source, audit(level, trial));
@@ -537,6 +673,22 @@ public final class PrivateCommunicationTrial {
                                 .executes(ctx -> configure(ctx.getSource(), StringArgumentType.getString(ctx, "arm"),
                                     LongArgumentType.getLong(ctx, "policy_seed"), IntegerArgumentType.getInteger(ctx, "horizon"),
                                     BlockPosArgument.getLoadedBlockPos(ctx, "destination"))))))))
+            .then(Commands.literal("configure-network")
+                .then(Commands.argument("arm", StringArgumentType.word())
+                    .then(Commands.argument("policy_seed", LongArgumentType.longArg())
+                        .then(Commands.argument("horizon", IntegerArgumentType.integer(600, 600))
+                            .then(Commands.argument("destination", BlockPosArgument.blockPos())
+                                .then(Commands.argument("seat_map", StringArgumentType.word())
+                                    .then(Commands.argument("block_id", StringArgumentType.word())
+                                        .then(Commands.argument("trial_id", StringArgumentType.word())
+                                            .executes(ctx -> configureNetwork(ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "arm"),
+                                                LongArgumentType.getLong(ctx, "policy_seed"),
+                                                IntegerArgumentType.getInteger(ctx, "horizon"),
+                                                BlockPosArgument.getLoadedBlockPos(ctx, "destination"),
+                                                StringArgumentType.getString(ctx, "seat_map"),
+                                                StringArgumentType.getString(ctx, "block_id"),
+                                                StringArgumentType.getString(ctx, "trial_id")))))))))))
             .then(Commands.literal("enroll").then(Commands.argument("slot", IntegerArgumentType.integer(0, 3))
                 .then(Commands.argument("citizen", EntityArgument.entity())
                     .executes(ctx -> enroll(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "slot"),

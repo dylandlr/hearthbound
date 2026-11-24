@@ -42,6 +42,7 @@ PROTOCOL_FILES = (
     "scripts/test_private_communication_pilot.py",
     ".github/workflows/real-private-communication-pilot.yml",
     "src/main/java/dev/hearthbound/civilization/PrivateCommunicationPolicy.java",
+    "src/main/java/dev/hearthbound/civilization/CommunicationNetworkPolicy.java",
     "src/main/java/dev/hearthbound/civilization/BoundedSourceDiscovery.java",
     "src/main/java/dev/hearthbound/civilization/CommunicationJournal.java",
     "src/main/java/dev/hearthbound/world/PrivateCommunicationTrial.java",
