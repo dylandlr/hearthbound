@@ -9,6 +9,8 @@ on:
       - 'gradle/force-forge-tool-fallback.init.gradle'
       - 'scripts/run_forge_build_preflight.py'
       - 'src/main/java/dev/hearthbound/world/HaulMotorDiagnostics.java'
+      - 'src/main/java/dev/hearthbound/world/PrivateCommunicationTrial.java'
+      - 'src/main/java/dev/hearthbound/civilization/CommunicationNetworkPolicy.java'
       - 'src/main/java/dev/hearthbound/world/SableController.java'
       - 'src/main/java/dev/hearthbound/world/SableHauling.java'
       - 'src/main/java/dev/hearthbound/world/HaulClaims.java'

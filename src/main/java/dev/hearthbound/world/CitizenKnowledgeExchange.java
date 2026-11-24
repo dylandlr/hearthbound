@@ -40,9 +40,22 @@ public final class CitizenKnowledgeExchange {
      * Transfer is explicit, range checked and never re-samples world truth.
      */
     public static String share(ServerLevel level, BlockPos source, Villager sender, Villager recipient) {
+        return shareWithReceipt(level, source, sender, recipient).result();
+    }
+
+    /** Exact identity of the one recorded attempt; does not add another send. */
+    record ShareReceipt(UUID attempt, String result) {}
+
+    static ShareReceipt shareWithReceipt(ServerLevel level, BlockPos source,
+                                        Villager sender, Villager recipient) {
         if (level == null || source == null || sender == null || recipient == null)
             throw new IllegalArgumentException("missing exchange arguments");
         UUID attempt = CitizenCommunicationRecords.sendAttempt(level, source, sender, recipient);
+        return new ShareReceipt(attempt, shareAttempt(level, source, sender, recipient, attempt));
+    }
+
+    private static String shareAttempt(ServerLevel level, BlockPos source,
+                                       Villager sender, Villager recipient, UUID attempt) {
         if (!citizen(sender) || !citizen(recipient) || sender.getUUID().equals(recipient.getUUID()))
             return rejected(level, attempt, "INVALID_PARTICIPANTS");
         if (sender.level() != level || recipient.level() != level ||

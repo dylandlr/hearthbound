@@ -1,0 +1,111 @@
+name: Real Forge six-arm communication qualification
+on:
+  pull_request:
+    paths:
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle.properties'
+      - 'gradle/**'
+      - 'scripts/run_forge_build_preflight.py'
+      - 'src/main/java/dev/hearthbound/civilization/**'
+      - 'src/test/java/dev/hearthbound/civilization/**'
+      - 'src/main/java/dev/hearthbound/world/PrivateCommunicationTrial.java'
+      - 'src/main/java/dev/hearthbound/world/CitizenKnowledgeExchange.java'
+      - 'src/main/java/dev/hearthbound/world/CitizenCommunicationRecords.java'
+      - 'src/main/java/dev/hearthbound/world/CitizenSourceKnowledge.java'
+      - 'src/main/java/dev/hearthbound/world/SourceReportSession.java'
+      - 'src/main/java/dev/hearthbound/world/SourceWheatObservation.java'
+      - 'src/main/java/dev/hearthbound/world/SableController.java'
+      - 'src/main/java/dev/hearthbound/world/SableHauling.java'
+      - 'src/main/java/dev/hearthbound/world/HaulClaims.java'
+      - 'scripts/*network_qualification*.py'
+      - 'scripts/*private_communication*.py'
+      - 'scripts/run_colony_reliability_trial.py'
+      - 'scripts/rcon_two_citizen_haul_acceptance.py'
+      - 'scripts/communication_preregistration.py'
+      - 'docs/experiments/communication-v1.design.json'
+      - '.github/workflows/real-network-qualification.yml'
+permissions:
+  contents: read
+jobs:
+  world:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      HEARTHBOUND_EXPECTED_COMMIT: ${{ github.event.pull_request.head.sha }}
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - {trial: qual-no-messages}
+          - {trial: qual-direct}
+          - {trial: qual-direct-unread}
+          - {trial: qual-star}
+          - {trial: qual-chain}
+          - {trial: qual-cycle}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Preserve each qualification slot before dependency setup
+        run: >-
+          python3 scripts/network_qualification_protocol.py
+          --trial-id '${{ matrix.trial }}'
+          --output 'network-qualification/${{ matrix.trial }}/planned-trial.json'
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.8'}
+      - name: Check network semantics, evidence validation, and frozen design
+        run: |
+          test "$(git rev-parse HEAD)" = "$HEARTHBOUND_EXPECTED_COMMIT"
+          python3 -m unittest discover -s scripts -p test_network_qualification.py -v
+          python3 scripts/test-civilization-contracts.py
+          python3 scripts/test_communication_preregistration.py
+          python3 scripts/communication_preregistration.py validate docs/experiments/communication-v1.design.json
+      - name: Compile production and test Java once
+        run: >-
+          python3 scripts/run_forge_build_preflight.py
+          --output network-qualification-build
+          --log network-qualification-preflight.log
+      - name: Observe one qualification horizon in a fresh world
+        run: >-
+          python3 scripts/run_network_qualification.py
+          --trial-id '${{ matrix.trial }}'
+          --output 'network-qualification/${{ matrix.trial }}'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: network-qualification-${{ matrix.trial }}
+          path: |
+            network-qualification/${{ matrix.trial }}/
+            network-qualification-build/
+            network-qualification-preflight.log
+          if-no-files-found: warn
+  summary:
+    needs: world
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: network-qualification-qual-*
+          path: network-qualification-downloads
+      - name: Retain all six slots and distinguish validity from capability coverage
+        env:
+          HEARTHBOUND_EXPECTED_COMMIT: ${{ github.event.pull_request.head.sha }}
+        run: >-
+          python3 scripts/summarize_network_qualification.py network-qualification-downloads
+          --expected-commit "$HEARTHBOUND_EXPECTED_COMMIT"
+          --output network-qualification-summary.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: network-qualification-summary
+          path: network-qualification-summary.json
+          if-no-files-found: error
