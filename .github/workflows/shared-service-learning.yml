@@ -1,0 +1,133 @@
+name: Shared neural service learning
+on:
+  pull_request:
+    paths:
+      - 'src/main/java/dev/hearthbound/civilization/**'
+      - 'src/main/java/dev/hearthbound/world/NeedServiceRuntime.java'
+      - 'src/main/resources/data/hearthbound/policies/**'
+      - 'src/test/java/dev/hearthbound/civilization/**'
+      - 'scripts/*service*policy*'
+      - 'scripts/service_option_env.py'
+      - 'scripts/rcon_shared_service_acceptance.py'
+      - 'scripts/test_shared_service_acceptance.py'
+      - 'scripts/summarize_shared_service_live.py'
+      - 'docs/evidence/shared-service-learning-v0-22/parity.tsv'
+      - '.github/workflows/shared-service-learning.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install numpy==2.3.5
+      - run: |
+          python3 scripts/test-civilization-contracts.py
+          python3 -m unittest discover -s scripts -p test_service_policy.py -v
+          python3 -m unittest discover -s scripts -p test_shared_service_acceptance.py -v
+  live:
+    needs: contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        arm: [neural, untrained, authored]
+        world: [22001, 22002]
+    env:
+      HEARTHBOUND_EXPECTED_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+      HEARTHBOUND_RCON_PASSWORD: ci-shared-service-disposable-world
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install numpy==2.3.5
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.8'
+      - name: Compile actual Forge and persistence contracts
+        run: |
+          test "$(git rev-parse HEAD)" = "$HEARTHBOUND_EXPECTED_COMMIT"
+          gradle --no-daemon classes servicePersistenceContracts > shared-service-build.log 2>&1 || (tail -n 100 shared-service-build.log; exit 1)
+      - name: Run fixed-budget comparison and restart
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p run
+          printf 'eula=true\n' > run/eula.txt
+          printf 'online-mode=false\nlevel-name=shared-service-world\nlevel-seed=%s\nmax-players=2\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' '${{ matrix.world }}' "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties
+          service_server_pid=''
+          cleanup() { if [ -n "$service_server_pid" ]; then kill "$service_server_pid" 2>/dev/null || true; fi; }
+          trap cleanup EXIT
+          boot() {
+            service_log="$1"
+            gradle --no-daemon runServer > "$service_log" 2>&1 &
+            service_server_pid=$!
+            for attempt in $(seq 1 360); do
+              if grep -Eq 'Done \([0-9.]+s\)! For help, type "help"' "$service_log"; then
+                grep -Fq 'Hearthbound bootstrap loaded.' "$service_log"
+                return
+              fi
+              if ! kill -0 "$service_server_pid" 2>/dev/null; then tail -n 100 "$service_log"; return 1; fi
+              sleep 2
+            done
+            tail -n 100 "$service_log"
+            return 1
+          }
+          boot shared-service-first-server.log
+          python3 scripts/rcon_shared_service_acceptance.py --phase live --arm '${{ matrix.arm }}' --world '${{ matrix.world }}' | tee shared-service-live.log
+          wait "$service_server_pid"
+          service_server_pid=''
+          boot shared-service-restart-server.log
+          python3 scripts/rcon_shared_service_acceptance.py --phase restart --arm '${{ matrix.arm }}' --world '${{ matrix.world }}' | tee shared-service-restart.log
+          wait "$service_server_pid"
+          service_server_pid=''
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shared-service-${{ matrix.world }}-${{ matrix.arm }}
+          path: |
+            shared-service-*.log
+            run/shared-service-acceptance.json
+            run/logs/latest.log
+            run/shared-service-world/data/hearthbound_need_services*.dat
+            run/shared-service-world/data/hearthbound_mill*.dat
+          if-no-files-found: warn
+  summary:
+    if: always()
+    needs: [contracts, live]
+    runs-on: ubuntu-latest
+    env:
+      HEARTHBOUND_EXPECTED_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: shared-service-*
+          path: shared-live-evidence
+      - name: Retain every slot and require both neural demand responses
+        run: python3 scripts/summarize_shared_service_live.py --input shared-live-evidence --output shared-live-summary.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shared-service-cohort-summary
+          path: shared-live-summary.json

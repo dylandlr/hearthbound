@@ -1,0 +1,47 @@
+{
+  "planned_slots": 216,
+  "completed_slots": 216,
+  "independent_evaluation_worlds": 24,
+  "training_seeds": 3,
+  "per_seed": [
+    {
+      "seed": 11,
+      "mean_output": {
+        "trained": 7.666666666666667,
+        "untrained": 6.541666666666667,
+        "authored": 6.541666666666667
+      }
+    },
+    {
+      "seed": 29,
+      "mean_output": {
+        "trained": 7.541666666666667,
+        "untrained": 0.0,
+        "authored": 6.541666666666667
+      }
+    },
+    {
+      "seed": 47,
+      "mean_output": {
+        "trained": 7.791666666666667,
+        "untrained": 0.0,
+        "authored": 6.541666666666667
+      }
+    }
+  ],
+  "mean_output": {
+    "trained": 7.666666666666667,
+    "untrained": 2.1805555555555554,
+    "authored": 6.541666666666667
+  },
+  "trained_minus_authored_world_block_mean": 1.125,
+  "conditional_world_bootstrap_95": [
+    0.5555555555555555,
+    1.611111111111111
+  ],
+  "bootstrap_seed": 22022,
+  "bootstrap_resamples": 10000,
+  "uncertainty_scope": "24 worlds, averaged over these three fixed trained networks; not uncertainty over all training runs",
+  "receipt_origin": "SYNTHETIC",
+  "live_claim": false
+}

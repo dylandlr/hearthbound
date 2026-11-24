@@ -29,7 +29,7 @@ public final class ServiceValueLearner {
     public static final double DURATION_SCALE = 1200., TIME_COST_PER_TICK = .001;
     public enum Kind { SUPPLY_WHEAT, OBSERVE_BUFFER, CARRY_REQUEST, WAIT }
     public enum Outcome {
-        VERIFIED_TRANSFER, VERIFIED_OBSERVATION, VERIFIED_REQUEST_DELIVERY, VERIFIED_WAIT,
+        VERIFIED_TRANSFER, VERIFIED_OBSERVATION, VERIFIED_REQUEST_DELIVERY, VERIFIED_SOURCE_OBSERVATION, VERIFIED_WAIT,
         VERIFIED_NO_CARGO_CANCEL, VERIFIED_FAILURE_NO_CARGO;
         public boolean completed() { return this != VERIFIED_NO_CARGO_CANCEL && this != VERIFIED_FAILURE_NO_CARGO; }
     }
@@ -65,7 +65,7 @@ public final class ServiceValueLearner {
                     || !Double.isFinite(personalCost) || personalCost < 0 || personalCost > 1000
                     || (outcome == Outcome.VERIFIED_TRANSFER && (kind != Kind.SUPPLY_WHEAT || job == null))
                     || (outcome == Outcome.VERIFIED_OBSERVATION && kind != Kind.OBSERVE_BUFFER)
-                    || (outcome == Outcome.VERIFIED_REQUEST_DELIVERY && kind != Kind.CARRY_REQUEST)
+                    || ((outcome == Outcome.VERIFIED_REQUEST_DELIVERY || outcome == Outcome.VERIFIED_SOURCE_OBSERVATION) && kind != Kind.CARRY_REQUEST)
                     || (outcome == Outcome.VERIFIED_WAIT && kind != Kind.WAIT))
                 throw new IllegalArgumentException("Invalid independently settled service outcome");
         }

@@ -9,6 +9,7 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import dev.hearthbound.civilization.NeedServiceKernel;
 import dev.hearthbound.civilization.CitizenServiceLearning;
 import dev.hearthbound.civilization.ServiceValueLearner;
+import dev.hearthbound.civilization.FrozenServicePolicy;
 import dev.hearthbound.civilization.ServiceValueLearner.Candidate;
 import dev.hearthbound.civilization.ServiceValueLearner.Kind;
 import dev.hearthbound.civilization.ServiceValueLearner.Outcome;
@@ -60,7 +61,10 @@ public final class NeedServiceRuntime {
     private static final String STORAGE = "hearthbound_need_services_v1";
     private static final String MEMORY = "hearthbound.need_services.v1";
     private static final String HAUL = "hearthbound.haul";
-    private static final String POLICY = "PRIVATE_CONTEXTUAL_SERVICE_RLS_V1";
+    private enum Selector { PRIVATE_RLS, AUTHORED, UNTRAINED, NEURAL }
+    private static String policy(ServiceData d) {
+        return d.selector == Selector.PRIVATE_RLS ? "PRIVATE_CONTEXTUAL_SERVICE_RLS_V1" : "SHARED_SERVICE_V0_22_" + d.selector;
+    }
     private static final int MAX_SITES = 8, MAX_CITIZENS = 16, MAX_RECORDS = 4096;
     private static final long NEED_TTL = 600, LEASE_TICKS = 1200;
     private static final Gson GSON = new Gson();
@@ -94,6 +98,9 @@ public final class NeedServiceRuntime {
         String failure = "";
         UUID session;
         boolean enabled;
+        Selector selector = Selector.PRIVATE_RLS;
+        String modelHash = "";
+        FrozenServicePolicy model;
         long assigned, transfers, cancelled, capacityDenials, productionJobs, outputUnits;
 
         static ServiceData load(CompoundTag root) {
@@ -101,6 +108,12 @@ public final class NeedServiceRuntime {
             try {
                 if (root.getInt("schema") != 1 && root.getInt("schema") != 2)
                     throw new IllegalStateException("Unknown service schema");
+                if (root.contains("selector")) d.selector = Selector.valueOf(root.getString("selector"));
+                d.modelHash = root.getString("model_sha256");
+                if (d.selector == Selector.NEURAL || d.selector == Selector.UNTRAINED) {
+                    d.model = FrozenServicePolicy.resource(d.selector == Selector.NEURAL);
+                    if (!d.model.sha256().equals(d.modelHash)) throw new IllegalStateException("Frozen service model changed since save");
+                } else if (!d.modelHash.isEmpty()) throw new IllegalStateException("Unexpected model hash for authored/private selector");
                 ListTag buffers = root.getList("buffers", Tag.TAG_COMPOUND);
                 if (buffers.size() > MAX_SITES) throw new IllegalStateException("Too many buffer sites");
                 for (int i = 0; i < buffers.size(); i++) {
@@ -158,6 +171,7 @@ public final class NeedServiceRuntime {
 
         @Override public CompoundTag save(CompoundTag root) {
             root.putInt("schema", 2);
+            root.putString("selector", selector.name()); root.putString("model_sha256", modelHash);
             ListTag buffers = new ListTag();
             for (Buffer b : this.buffers.values()) {
                 CompoundTag entry = new CompoundTag(); entry.putLong("position", b.position);
@@ -247,7 +261,7 @@ public final class NeedServiceRuntime {
         JsonObject r = new JsonObject(); r.addProperty("sequence", d.records.size() + 1);
         r.addProperty("type", type); r.addProperty("tick", level.getGameTime());
         id(r, "citizen", citizen == null ? null : citizen.getUUID()); id(r, "request", request); id(r, "job", job);
-        r.addProperty("policy", POLICY); id(r, "session", d.session);
+        r.addProperty("policy", policy(d)); id(r, "session", d.session);
         if (citizen != null) {
             r.addProperty("x", citizen.getX()); r.addProperty("y", citizen.getY()); r.addProperty("z", citizen.getZ());
         }
@@ -694,7 +708,7 @@ public final class NeedServiceRuntime {
             }
         }
         double sourceDistance = d.sources.stream().mapToDouble(pos -> distance(citizen, pos)).min().orElse(Double.POSITIVE_INFINITY);
-        for (Buffer b : d.buffers.values()) if (b.target > 0 && distance(citizen, b.position) < sourceDistance
+        for (Buffer b : d.buffers.values()) if (b.target > 0 && (d.selector != Selector.PRIVATE_RLS || distance(citizen, b.position) < sourceDistance)
                 && ownNeed(d, citizen, needId(d, b.position), now) == null) {
             Candidate c = candidate(d, citizen, "observe:" + b.position, Kind.OBSERVE_BUFFER, null, Math.sqrt(distance(citizen, b.position)), .6);
             offers.add(new Offer(c, null, null, b.position));
@@ -702,14 +716,33 @@ public final class NeedServiceRuntime {
         Candidate wait = candidate(d, citizen, "wait", Kind.WAIT, null, 0, 0);
         offers.add(new Offer(wait, null, null, citizen.blockPosition().asLong()));
         CitizenServiceLearning learning = learner(d, citizen.getUUID());
-        Candidate selected = learning.choose(offers.stream().map(Offer::candidate).toList());
+        offers.sort(Comparator.comparing(o -> o.candidate().id()));
+        List<Candidate> menu = offers.stream().map(Offer::candidate).toList();
+        double[][] inputs = FrozenServicePolicy.encode(menu);
+        Map<String, Double> effective = new LinkedHashMap<>();
+        for (int i = 0; i < menu.size(); i++) {
+            Candidate c = menu.get(i);
+            double value = switch (d.selector) {
+                case PRIVATE_RLS -> learning.score(c).total();
+                case AUTHORED -> c.authoredPrior() - .3 * c.features().values().get(2);
+                case UNTRAINED, NEURAL -> d.model.value(inputs[i]);
+            };
+            effective.put(c.id(), value);
+        }
+        Candidate selected = menu.stream().min(Comparator.<Candidate>comparingDouble(c -> -effective.get(c.id()))
+            .thenComparing(Candidate::id)).orElseThrow();
         JsonObject record = event(d, level, "POLICY_DECISION", citizen, selected.needId(), null);
         record.addProperty("selected", selected.id()); record.addProperty("selected_kind", selected.kind().name());
+        record.addProperty("model_sha256", d.modelHash); record.addProperty("actor_schema", FrozenServicePolicy.SCHEMA);
+        record.addProperty("frozen", d.selector != Selector.PRIVATE_RLS);
+        record.addProperty("shadow_rls", d.selector != Selector.PRIVATE_RLS);
         JsonArray scores = new JsonArray();
         for (Offer offer : offers) {
             var score = learning.score(offer.candidate()); JsonObject e = new JsonObject();
             e.addProperty("id", offer.candidate().id()); e.addProperty("kind", offer.candidate().kind().name());
-            e.addProperty("total", score.total()); e.addProperty("authored_prior", score.authoredPrior());
+            e.addProperty("total", effective.get(offer.candidate().id())); e.addProperty("authored_prior", score.authoredPrior());
+            e.addProperty("shadow_rls_total", score.total());
+            if (d.selector != Selector.PRIVATE_RLS) e.add("actor_input", GSON.toJsonTree(inputs[offers.indexOf(offer)]));
             e.addProperty("production_estimate", score.learnedProductionUnits()); e.addProperty("duration_estimate", score.estimatedDurationTicks());
             e.addProperty("personal_cost", score.estimatedPersonalCost()); e.addProperty("success_estimate", score.estimatedSuccess());
             e.addProperty("service_samples", score.serviceSamples()); e.addProperty("production_samples", score.productionSamples());
@@ -781,6 +814,10 @@ public final class NeedServiceRuntime {
                     r.addProperty("reason", buffer != null && buffer.target == 0 ? "OPERATOR_CONFIGURATION_GOAL_WITHDRAWN" : "OWN_REQUEST_CLOSED_OR_EXPIRED");
                     d.cancelled++; settleService(d, level, citizen, Outcome.VERIFIED_NO_CARGO_CANCEL); idle(citizen, now + 40); return true;
                 }
+                if (d.selector != Selector.PRIVATE_RLS && !localSources(d, level, citizen).isEmpty()) {
+                    event(d, level, "CARRY_SOURCE_OBSERVED", citizen, selected.need().id(), null);
+                    settleService(d, level, citizen, Outcome.VERIFIED_SOURCE_OBSERVATION); idle(citizen, now); return true;
+                }
                 if (carryRequest(d, level, citizen, selected)) {
                     event(d, level, "REQUEST_CARRY_FINISHED", citizen, selected.need().id(), null);
                     settleService(d, level, citizen, Outcome.VERIFIED_REQUEST_DELIVERY); idle(citizen, now + 40); return true;
@@ -805,6 +842,11 @@ public final class NeedServiceRuntime {
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("hearthbound-services").requires(source -> source.hasPermission(2))
+            .then(Commands.literal("policy")
+                .then(Commands.literal("private").executes(c -> selectPolicy(c.getSource(), Selector.PRIVATE_RLS)))
+                .then(Commands.literal("authored").executes(c -> selectPolicy(c.getSource(), Selector.AUTHORED)))
+                .then(Commands.literal("untrained").executes(c -> selectPolicy(c.getSource(), Selector.UNTRAINED)))
+                .then(Commands.literal("neural").executes(c -> selectPolicy(c.getSource(), Selector.NEURAL))))
             .then(Commands.literal("configure-buffer").then(Commands.argument("position", BlockPosArgument.blockPos())
                 .then(Commands.argument("target", IntegerArgumentType.integer(1, 64)).executes(ctx -> configureBuffer(ctx.getSource(),
                     BlockPosArgument.getBlockPos(ctx, "position"), IntegerArgumentType.getInteger(ctx, "target"), false)))))
@@ -848,6 +890,27 @@ public final class NeedServiceRuntime {
         JsonObject r = event(d, source.getLevel(), "OPERATOR_CONFIGURATION", null, needId(d, pos.asLong()), null);
         r.addProperty("reason", target == 0 ? "GOAL_WITHDRAWN" : "BUFFER_TARGET_SET"); r.add("site", position(pos.asLong())); r.addProperty("target", target);
         return okay(source, "Public buffer target configured; inventory has not been observed");
+    }
+
+    private static int selectPolicy(CommandSourceStack source, Selector selector) {
+        ServiceData d = data(source.getLevel());
+        if (!d.failure.isEmpty()) return fail(source, d.failure);
+        if (d.enabled || d.kernel.commitments().stream().anyMatch(Commitment::active)
+                || d.learners.values().stream().anyMatch(l -> l.active() != null))
+            return fail(source, "Stop and reconcile all options before changing policy");
+        for (UUID id : d.enrolled) {
+            if (!(source.getLevel().getEntity(id) instanceof Villager citizen) || SableHauling.active(citizen)
+                    || memory(citizen).contains(ServiceProductionBridge.CARGO))
+                return fail(source, "Policy changes require every enrolled owner loaded and free of cargo");
+        }
+        FrozenServicePolicy model;
+        try { model = selector == Selector.NEURAL || selector == Selector.UNTRAINED
+            ? FrozenServicePolicy.resource(selector == Selector.NEURAL) : null; }
+        catch (RuntimeException invalid) { return fail(source, "Invalid frozen policy: " + invalid.getMessage()); }
+        d.selector = selector; d.model = model; d.modelHash = model == null ? "" : model.sha256();
+        JsonObject record = event(d, source.getLevel(), "POLICY_CONFIGURED", null, null, null);
+        record.addProperty("model_sha256", d.modelHash); record.addProperty("actor_schema", FrozenServicePolicy.SCHEMA);
+        return okay(source, "Service selector=" + policy(d) + "; frozen weights=" + d.modelHash);
     }
 
     private static int configureMill(CommandSourceStack source, BlockPos machine, BlockPos output, int target) {
@@ -924,7 +987,7 @@ public final class NeedServiceRuntime {
         for (Villager citizen : citizens) {
             CompoundTag m = memory(citizen); m.putUUID("session", d.session); m.remove("sent"); saveMemory(citizen, m); idle(citizen, level.getGameTime());
         }
-        event(d, level, "SERVICE_STARTED", null, null, null); return okay(source, "Local need services enabled after idle-owner revalidation; selector=" + POLICY);
+        event(d, level, "SERVICE_STARTED", null, null, null); return okay(source, "Local need services enabled after idle-owner revalidation; selector=" + policy(d));
     }
 
     private static int stop(CommandSourceStack source) {
@@ -1002,11 +1065,13 @@ public final class NeedServiceRuntime {
         r.addProperty("records_total", d.records.size()); r.addProperty("capacity_denials", d.capacityDenials);
         r.addProperty("production_jobs", d.productionJobs); r.addProperty("output_units", d.outputUnits);
         r.addProperty("production_credits", productionSamples); r.addProperty("production_credit_count", productionSamples);
-        r.addProperty("learning_mode", "PRIVATE_RLS_WITH_AUTHORED_PRIORS"); r.addProperty("learner_ready", productionSamples > 0);
+        r.addProperty("learning_mode", d.selector == Selector.PRIVATE_RLS ? "PRIVATE_RLS_WITH_AUTHORED_PRIORS" : "FROZEN_SELECTOR_WITH_PRIVATE_RLS_AUDIT");
+        r.addProperty("model_sha256", d.modelHash); r.addProperty("actor_schema", FrozenServicePolicy.SCHEMA);
+        r.addProperty("frozen", d.selector != Selector.PRIVATE_RLS); r.addProperty("neural_weight_updates", 0); r.addProperty("learner_ready", productionSamples > 0);
         r.addProperty("learning_cost_updates", serviceSamples); r.addProperty("learning_production_updates", productionSamples);
         r.addProperty("cost_updates", serviceSamples);
         JsonArray errors = new JsonArray(); if (!d.failure.isEmpty()) errors.add(d.failure); r.add("errors", errors);
-        r.addProperty("policy", POLICY); r.addProperty("failure", d.failure); id(r, "session", d.session); r.add("citizens", citizens);
+        r.addProperty("policy", policy(d)); r.addProperty("failure", d.failure); id(r, "session", d.session); r.add("citizens", citizens);
         source.sendSuccess(() -> Component.literal("NEED_SERVICES_STATUS " + GSON.toJson(r)), false); return d.failure.isEmpty() ? 1 : 0;
     }
 
