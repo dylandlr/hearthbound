@@ -187,6 +187,14 @@ public final class MillExperimentTrace {
         return started;
     }
 
+    /** Retain audit fields but retire this owner before another citizen reuses the mill. */
+    public static void finalized(Villager citizen, UUID job) {
+        CompoundTag trace = citizen.getPersistentData().getCompound(KEY);
+        if (!trace.hasUUID("jobId") || !trace.getUUID("jobId").equals(job))
+            throw new IllegalStateException("Cannot retire a foreign mill trace");
+        trace.putString("phase", "FINALIZED"); trace.putLong("finalizedTick", citizen.level().getGameTime());
+    }
+
     public static UUID jobId(Villager citizen) {
         return citizen.getPersistentData().getCompound(KEY).getUUID("jobId");
     }

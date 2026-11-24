@@ -129,7 +129,7 @@ public final class ServiceValueLearner {
         this.scope = Objects.requireNonNull(scope);
         // Transparent engineering priors, present even before any learned sample.
         duration.weights[0] = 20. / DURATION_SCALE;
-        duration.weights[2] = 256. / DURATION_SCALE; // Four ticks per estimated block, up to64 blocks.
+        duration.weights[2] = 256. / DURATION_SCALE; // Four ticks per estimated block, up to 64 blocks.
         success.weights[0] = .5;
     }
     private static void bounded(String value) {
@@ -167,7 +167,12 @@ public final class ServiceValueLearner {
         double ticks = Math.max(0., Math.min(24000., duration.predict(x) * DURATION_SCALE));
         double personal = Math.max(0., cost.predict(x));
         double completion = Math.max(0., Math.min(1., success.predict(x)));
-        double produced = production.isEmpty() ? 0. : Math.max(0., output.predict(x));
+        // The current production evidence contract admits only material supply.
+        // Shared context/bias weights must not invent productive credit for
+        // observing, waiting or sending a request. Future communication value
+        // needs a separate, grounded downstream-feedback contract.
+        double produced = candidate.kind() != Kind.SUPPLY_WHEAT || production.isEmpty()
+            ? 0. : Math.max(0., output.predict(x));
         double value = completion * (candidate.authoredPrior() + produced) - TIME_COST_PER_TICK * ticks - personal;
         return new Score(candidate.id(), candidate.authoredPrior(), produced, ticks, personal,
             completion, value, services.size(), production.size());

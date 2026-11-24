@@ -1,0 +1,122 @@
+name: Production services and private learning
+on:
+  pull_request:
+    paths:
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle.properties'
+      - 'gradle/**'
+      - 'src/main/java/dev/hearthbound/civilization/**'
+      - 'src/main/java/dev/hearthbound/world/NeedServiceRuntime.java'
+      - 'src/main/java/dev/hearthbound/world/ServiceProductionBridge.java'
+      - 'src/main/java/dev/hearthbound/world/Mill*.java'
+      - 'src/main/java/dev/hearthbound/world/Sable*.java'
+      - 'src/main/java/dev/hearthbound/world/CitizenSourceKnowledge.java'
+      - 'src/main/java/dev/hearthbound/world/Source*.java'
+      - 'src/main/java/dev/hearthbound/mixins/**'
+      - 'src/test/java/dev/hearthbound/civilization/**'
+      - 'scripts/rcon_production_services_acceptance.py'
+      - 'scripts/test_production_services_acceptance.py'
+      - 'scripts/rcon_need_services_acceptance.py'
+      - 'scripts/test_need_services_acceptance.py'
+      - 'scripts/test-civilization-contracts.py'
+      - 'scripts/rcon_private_communication_trial.py'
+      - 'scripts/rcon_two_citizen_haul_acceptance.py'
+      - 'scripts/private_communication_protocol.py'
+      - '.github/workflows/production-services.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Verify production contracts and evidence admission
+        run: |
+          python3 scripts/test-civilization-contracts.py
+          python3 -m unittest discover -s scripts -p test_production_services_acceptance.py -v
+  live-production:
+    needs: contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      HEARTHBOUND_EXPECTED_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+      HEARTHBOUND_RCON_PASSWORD: ci-production-services-disposable-world
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.8'
+      - name: Compile actual Forge sources
+        run: |
+          test "$(git rev-parse HEAD)" = "$HEARTHBOUND_EXPECTED_COMMIT"
+          gradle --no-daemon classes > production-services-build.log 2>&1 || (tail -n 100 production-services-build.log; exit 1)
+      - name: Run production, completed restart, and held processing restart
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p run
+          printf 'eula=true\n' > run/eula.txt
+          printf 'online-mode=false\nlevel-name=production-services-world\nlevel-seed=hearthbound-production-services-v0-21\nmax-players=2\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties
+          production_server_pid=''
+          cleanup() {
+            if [ -n "$production_server_pid" ]; then
+              kill "$production_server_pid" 2>/dev/null || true
+            fi
+          }
+          trap cleanup EXIT
+          boot() {
+            production_log="$1"
+            gradle --no-daemon runServer > "$production_log" 2>&1 &
+            production_server_pid=$!
+            for attempt in $(seq 1 360); do
+              if grep -Eq 'Done \([0-9.]+s\)! For help, type "help"' "$production_log"; then
+                grep -Fq 'Hearthbound bootstrap loaded.' "$production_log"
+                return
+              fi
+              if ! kill -0 "$production_server_pid" 2>/dev/null; then
+                tail -n 100 "$production_log"
+                return 1
+              fi
+              sleep 2
+            done
+            tail -n 100 "$production_log"
+            return 1
+          }
+          boot production-services-first-server.log
+          python3 scripts/rcon_production_services_acceptance.py --phase live | tee production-services-live.log
+          wait "$production_server_pid"
+          production_server_pid=''
+          boot production-services-clean-restart-server.log
+          python3 scripts/rcon_production_services_acceptance.py --phase restart-and-hold | tee production-services-clean-restart.log
+          wait "$production_server_pid"
+          production_server_pid=''
+          boot production-services-held-restart-server.log
+          python3 scripts/rcon_production_services_acceptance.py --phase held-restart | tee production-services-held-restart.log
+          wait "$production_server_pid"
+          production_server_pid=''
+          grep -Fq 'PRODUCTION_SERVICE_FORGE_ACCEPTANCE_PASS' production-services-held-restart.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: production-services-live-evidence
+          path: |
+            production-services-*.log
+            run/production-service-acceptance.json
+            run/logs/latest.log
+            run/production-services-world/data/hearthbound_need_services*.dat
+            run/production-services-world/data/hearthbound_mill*.dat
+          if-no-files-found: warn

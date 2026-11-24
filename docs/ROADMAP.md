@@ -2,14 +2,19 @@
 
 ## Current development route: need-driven services
 
-The next integrated delivery is a live, explicitly enabled service controller:
-locally observed shortage → physically carried request → persistent commitment
-→ native physical transfer → closure or safe withdrawal. Reuse the existing
-executor and private knowledge boundary. The small recipient-only PPO diagnostic
-is paused; frozen simulator baselines remain reference evidence.
+The v0.20 service controller completed its scoped live storage acceptance on
+`4c0d6d058d5b38ec3e791f7f115e92063d0dd559`: locally observed shortage → physically
+carried request → persistent commitment → native physical transfer → target
+closure. The current v0.21 work extends the same executor and private knowledge
+boundary through actual Create processing, output custody, final flour delivery,
+and per-citizen learning. See [the production contract](PRODUCTION_SERVICE_LEARNING_V0_21.md)
+and [playtest](PRODUCTION_SERVICE_PLAYTEST_V0_21.md) for its validation status.
+The small recipient-only PPO diagnostic is paused; frozen simulator baselines
+remain reference evidence.
 
-Follow with several changing work sites and production-linked service learning,
-then evaluate adaptive division of labor across independent worlds. Do not turn
+Follow with several changing work sites, bounded shared-policy neural training,
+and a matched frozen/authored comparison, then evaluate adaptive division of
+labor across independent worlds. Do not turn
 each internal implementation change into a new full benchmark campaign. The
 three milestone deliverables and their evidence boundaries are defined in
 [Need-driven service architecture v0.20](NEED_DRIVEN_SERVICE_ARCHITECTURE_V0_20.md).
