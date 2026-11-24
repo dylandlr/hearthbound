@@ -14,6 +14,8 @@ class EvidenceTests(unittest.TestCase):
         function=(root/'data/hearthbound/functions/village_setup.mcfunction').read_text()
         self.assertIn('hearthbound-village keep-ticking on',function)
         self.assertEqual(function.count('run sable spawn'),8)
+        self.assertIn('fill 0 99 0 48 99 44 minecraft:stone_bricks',function)
+        self.assertEqual(function.count('minecraft:sea_lantern'),2)
 
     def fixture(self):
         return dict(inventories=[dict(role='depot',path='Items',items={SEED:64}),
@@ -58,6 +60,13 @@ class EvidenceTests(unittest.TestCase):
         self.assertLess(m.score(offer,True)['total'],old['total'])
         self.assertEqual(PrivateModel().count,[0]*8)
         with self.assertRaises(AssertionError): m.learn(dict(job='j'))
+
+    def test_control_and_adaptive_priors_match_even_for_long_routes(self):
+        m=PrivateModel()
+        for kind in KINDS:
+            for distance in (0,16,64,128,4096):
+                o=dict(id='a',kind=kind,distance=distance,deficit=1,hunger=.5,age=0)
+                self.assertAlmostEqual(m.score(o,True)['total'],m.score(o,False)['total'])
 
 
 if __name__=='__main__': unittest.main()

@@ -51,8 +51,8 @@ class PrivateModel:
         value = VALUES[k] * (.5 + .5 * o['deficit'])
         if o['kind'] == 'EAT_BREAD': value *= .5 + o['hunger']
         if o['kind'] == 'OBSERVE': value = .65 + .3 * o['age']
-        ticks = max(0, sum(a*b for a, b in zip(self.weights[k][0], x)) * 1200) if adaptive else PRIORS[k] + 6*o['distance']
-        cost = max(0, sum(a*b for a, b in zip(self.weights[k][1], x))) if adaptive else .01*o['distance']
+        ticks = max(0, sum(a*b for a, b in zip(self.weights[k][0], x)) * 1200) if adaptive else PRIORS[k] + 384*x[1]
+        cost = max(0, sum(a*b for a, b in zip(self.weights[k][1], x))) if adaptive else .64*x[1]
         success = (self.success[k]+3) / (self.count[k]+3) if adaptive else 1.
         total = 0. if o['kind'] == 'WAIT' else success*value - .001*ticks - .25*cost
         if o['kind'] == 'OBSERVE': total = max(.03, total)
@@ -88,7 +88,7 @@ def validate_history(rows, adaptive):
             require(math.dist([row['x'], row['y'], row['z']], [p+.5 for p in pos]) <= 16+1e-9, 'Remote stock observation')
             facts[fact['id']] = fact; books[actor][fact['position']] = (fact['id'], 0)
         elif kind == 'FACTS_SENT':
-            require(row['packet'] not in packets and len(row['facts']) <= 8 and 0 < row['distance'] <= 12, 'Invalid local packet')
+            require(row['packet'] not in packets and len(row['facts']) <= 8 and 0 <= row['distance'] <= 12, 'Invalid local packet')
             sends_per_tick[(actor, now)] += 1; require(sends_per_tick[(actor, now)] <= 2, 'Peer budget exceeded')
             for known in row['facts']:
                 fact = known['fact']; require(facts.get(fact['id']) == fact, 'Invented/revised peer fact')

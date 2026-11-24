@@ -20,7 +20,7 @@ Minecraft functionality.
 
 Use a **new disposable creative world** with Minecraft 1.20.1, Forge 47.4.10,
 Create 6.0.8 and the matching Hearthbound build. The setup function clears
-`x=0..48, y=100..104, z=0..44`; do not run it over an existing settlement.
+`x=0..48, y=99..104, z=0..44`; do not run it over an existing settlement.
 
 ```mcfunction
 /function hearthbound:village_setup
@@ -35,6 +35,8 @@ furnaces and storage. Wheat, flour, dough, bread and filled buckets start at
 zero. The glass enclosure protects the development fixture; it is not housing
 built by the citizens. Native crop growth runs at `randomTickSpeed=400` for a
 bounded demonstration. Normal Minecraft growth uses a different time scale.
+The elevated wells have a solid floor, and the plots have lamps so terrain above
+the enclosure cannot remove the light needed for native growth.
 The setup explicitly enables `keep-ticking on`: bounded Forge ticking tickets
 keep the configured districts active without a connected player. This uses
 Forge's native tick scheduler, not direct crop-age writes or generated wheat.
@@ -105,7 +107,8 @@ arbiter can refuse a privately proposed conflicting job; it does not discover
 candidate jobs for the citizens. Refusals remain failed outcomes with cost.
 
 The `authored` control has identical sensing, communications, recipes and native
-executors but uses the fixed duration/cost priors for selection. Both modes
+executors but uses the fixed duration/cost priors for selection, with identical
+bounded distance features and identical initial scores. Both modes
 record private outcomes; control updates are shadow-only. Every decision logs
 its complete private offer menu and scores. A separate Python implementation
 replays the actual scores and selection from each citizen's own preceding

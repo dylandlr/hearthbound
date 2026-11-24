@@ -35,6 +35,10 @@ public final class VillageWorkPolicyTest {
         reject(()->new Outcome(new UUID(0,90),OWNER,Kind.BAKE_BREAD,List.of(1.,0.,1.,.5),0,20,0,true,""));
         reject(()->new Outcome(new UUID(0,91),OWNER,Kind.WAIT,List.of(1.,Double.NaN,1.,.5),0,20,0,true,""));
         var tied=new VillageWorkPolicy(OWNER);check(tied.choose(List.of(offer("b",Kind.OBSERVE),offer("a",Kind.OBSERVE)),true).id().equals("a"));
+        for(double distance:List.of(0.,16.,64.,128.,4096.))for(Kind kind:Kind.values()){
+            var far=new Offer("far",OWNER,kind,distance,1,0,.5,"private-fact",0,0);
+            close(tied.score(far,true).total(),tied.score(far,false).total());
+        }
         System.out.println("PASS VillageWorkPolicy: numerical RLS, changed ranking, fixed control, ownership, idempotency, corruption rejection, exact replay");
     }
 }

@@ -62,8 +62,8 @@ public final class VillageWorkPolicy {
         double value=VALUES[k]*(.5+.5*offer.deficit());
         if(offer.kind()==Kind.EAT_BREAD)value*=.5+offer.hunger();
         if(offer.kind()==Kind.OBSERVE)value=.65+.3*offer.age();
-        double ticks=adaptive?Math.max(0,duration[k].predict(x)*1200):PRIOR_TICKS[k]+6*offer.distance();
-        double c=adaptive?Math.max(0,cost[k].predict(x)):.01*offer.distance();
+        double ticks=adaptive?Math.max(0,duration[k].predict(x)*1200):PRIOR_TICKS[k]+384*x[1];
+        double c=adaptive?Math.max(0,cost[k].predict(x)):.64*x[1];
         double success=adaptive?(successes[k]+3.)/(counts[k]+3.):1;
         // Observation optimism is explicitly authored, not a productivity reward.
         double total=offer.kind()==Kind.WAIT?0:success*value-.001*ticks-.25*c;

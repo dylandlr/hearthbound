@@ -1,4 +1,4 @@
-# Disposable creative-world village demo. Clears x=0..48, y=100..104, z=0..44.
+# Disposable creative-world village demo. Clears x=0..48, y=99..104, z=0..44.
 # Run once in a NEW world, then /hearthbound-village start. Native crop growth is accelerated 400/3.
 gamerule doMobSpawning false
 gamerule mobGriefing false
@@ -10,6 +10,7 @@ weather clear
 forceload add 0 0 48 44
 fill 0 104 0 48 104 44 minecraft:glass
 fill 0 100 0 48 103 44 minecraft:air
+fill 0 99 0 48 99 44 minecraft:stone_bricks
 fill 0 100 0 48 100 44 minecraft:stone_bricks
 fill 0 101 0 48 103 0 minecraft:glass
 fill 0 101 44 48 103 44 minecraft:glass
@@ -26,6 +27,7 @@ setblock 36 101 5 minecraft:furnace[facing=north]{Items:[{Slot:1b,id:"minecraft:
 setblock 42 101 5 minecraft:chest replace
 fill 26 100 10 27 100 11 minecraft:water
 setblock 4 100 8 minecraft:water
+setblock 4 101 8 minecraft:sea_lantern
 setblock 5 100 9 minecraft:farmland[moisture=7]
 setblock 5 101 9 minecraft:wheat[age=0]
 setblock 6 100 9 minecraft:farmland[moisture=7]
@@ -58,6 +60,7 @@ setblock 36 101 27 minecraft:furnace[facing=north]{Items:[{Slot:1b,id:"minecraft
 setblock 42 101 27 minecraft:chest replace
 fill 26 100 32 27 100 33 minecraft:water
 setblock 4 100 30 minecraft:water
+setblock 4 101 30 minecraft:sea_lantern
 setblock 5 100 31 minecraft:farmland[moisture=7]
 setblock 5 101 31 minecraft:wheat[age=0]
 setblock 6 100 31 minecraft:farmland[moisture=7]
