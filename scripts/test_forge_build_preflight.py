@@ -42,14 +42,20 @@ def environment():
 
 
 def fallback():
-    exclusions = [{"name": "HearthboundForgeInstallerToolsFallback",
-                   "mapped_installer_excluded": True, "unmapped_installer_excluded": False}]
+    exclusions = [
+        {"name": "MavenRepo", "mapped_installer_excluded": True,
+         "unmapped_installer_excluded": True, "non_target_installer_excluded": False},
+        {"name": "HearthboundForgeInstallerToolsFallback", "mapped_installer_excluded": True,
+         "unmapped_installer_excluded": False, "non_target_installer_excluded": False},
+    ]
     return {
         "schema": "hearthbound-forge-tool-fallback-v1", "status": "PASS",
         "forced_maven_exclusions": ["MavenRepo"], "repositories_restored": True,
         "resolution_path": "forgegradle_non_maven_gradle_fallback", "artifact_sha256": HASH,
         "mapped_repository_filter": repository_policy(), "mapped_exclusions_before": exclusions,
         "mapped_exclusions_after": exclusions, "mapped_version_exclusions_verified": True,
+        "non_target_installer_coordinate": "net.minecraftforge:installertools:1.3.2:fatjar",
+        "non_target_maven_eligibility_verified": True,
     }
 
 
@@ -131,8 +137,22 @@ class BuildPreflightTests(unittest.TestCase):
         self.assertFalse(result["limits"]["dependency_outage_established"])
 
     def test_source_error_is_not_promoted_to_dependency_failure(self):
-        log = "Could not resolve noise\nsrc/Thing.java:41: error: cannot find symbol\n"
-        self.assertEqual(failure_status(log), "SOURCE_COMPILATION_FAILURE")
+        for source in ("src/Thing.java", str(self.root / "src/main/java/Thing.java")):
+            with self.subTest(source=source):
+                log = f"Could not resolve noise\n{source}:41: error: cannot find symbol\n"
+                self.assertEqual(failure_status(log, root=self.root), "SOURCE_COMPILATION_FAILURE")
+
+    def test_generated_compiler_errors_do_not_hide_the_mcp_dependency_failure(self):
+        log = ("Could not download MCP Config dependency: net.minecraftforge:installertools:1.3.2:fatjar\n"
+               f"{self.root}/build/tmp/.cache/expanded/mcp/client/Start.java:5: error: package net.minecraft.client.main does not exist\n"
+               "Compilation failed; see the compiler error output for details.\n")
+        self.assertEqual(failure_status(log, root=self.root), "DEPENDENCY_RESOLUTION_FAILURE")
+
+    def test_generic_or_external_compiler_error_does_not_establish_project_source_failure(self):
+        for log in ("Compilation failed; see the compiler error output for details.\n",
+                    "/unrelated/cache/src/Thing.java:5: error: cannot find symbol\n"):
+            with self.subTest(log=log):
+                self.assertEqual(failure_status(log, root=self.root), "BUILD_FAILURE")
 
     def test_success_without_resolved_artifact_evidence_fails_gate(self):
         self.emit_environment = False
@@ -163,6 +183,22 @@ class BuildPreflightTests(unittest.TestCase):
         code, result = self.execute(force_fallback=True)
         self.assertEqual((code, result["status"]), (2, "EVIDENCE_INCOMPLETE"))
         self.assertTrue(any("before and after" in error for error in result["evidence_errors"]))
+
+    def test_forced_filter_blocking_other_installer_version_cannot_pass(self):
+        self.emit_fallback = True
+        self.fallback_override = fallback()
+        self.fallback_override["mapped_exclusions_before"][0]["non_target_installer_excluded"] = True
+        code, result = self.execute(force_fallback=True)
+        self.assertEqual((code, result["status"]), (2, "EVIDENCE_INCOMPLETE"))
+        self.assertTrue(any("1.3.2 eligible" in error for error in result["evidence_errors"]))
+
+    def test_non_target_positive_control_requires_every_forced_maven_repository(self):
+        self.emit_fallback = True
+        self.fallback_override = fallback()
+        self.fallback_override["forced_maven_exclusions"].append("unprobed-maven")
+        code, result = self.execute(force_fallback=True)
+        self.assertEqual((code, result["status"]), (2, "EVIDENCE_INCOMPLETE"))
+        self.assertTrue(any("1.3.2 eligible" in error for error in result["evidence_errors"]))
 
     def test_success_with_upstream_repeated_callback_enabled_cannot_pass(self):
         self.environment_override = environment()

@@ -40,11 +40,17 @@ def write_json(path, value):
     Path(path).write_text(json.dumps(value, indent=2, sort_keys=True) + "\n")
 
 
-def failure_status(log):
-    # Source errors take precedence if dependency noise appears in the same log.
-    if re.search(r"\.java:\d+: error:|Compilation failed; see the compiler error output", log):
-        return "SOURCE_COMPILATION_FAILURE"
-    if re.search(r"Could not resolve|Cannot resolve external dependency|Could not find .*_mapped_|no repositories are defined", log):
+def failure_status(log, root=ROOT):
+    # Only errors in this project's src tree establish a source failure. Forge's
+    # generated/cache Start.java may fail after an MCP tool dependency is absent.
+    root = Path(root).resolve()
+    for match in re.finditer(r"(?m)^([^\r\n]+\.java):\d+:\s+error:", log):
+        path = Path(match.group(1).strip())
+        if not path.is_absolute():
+            path = root / path
+        if path.resolve().is_relative_to(root / "src"):
+            return "SOURCE_COMPILATION_FAILURE"
+    if re.search(r"Could not resolve|Cannot resolve external dependency|Could not find .*_mapped_|no repositories are defined|Could not download MCP Config dependency", log):
         return "DEPENDENCY_RESOLUTION_FAILURE"
     return "BUILD_FAILURE"
 
@@ -85,9 +91,11 @@ def environment_errors(environment):
 def fallback_errors(fallback):
     if not isinstance(fallback, dict) or fallback.get("schema") != "hearthbound-forge-tool-fallback-v1":
         return ["Missing or invalid forced fallback verification."]
+    forced = fallback.get("forced_maven_exclusions")
     if (fallback.get("status") != "PASS" or fallback.get("repositories_restored") is not True
             or fallback.get("resolution_path") != "forgegradle_non_maven_gradle_fallback"
-            or not fallback.get("forced_maven_exclusions")
+            or not isinstance(forced, list) or not forced
+            or any(not isinstance(name, str) or not name for name in forced)
             or not HASH_RE.fullmatch(str(fallback.get("artifact_sha256", "")))):
         return ["The actual ForgeGradle fallback and repository restoration were not verified."]
     errors = mapped_policy_errors(fallback.get("mapped_repository_filter"))
@@ -101,6 +109,13 @@ def fallback_errors(fallback):
                        and repo.get("unmapped_installer_excluded") is False
                        for repo in before if isinstance(repo, dict))):
         errors.append("Actual mapped-version exclusions and fallback eligibility must be verified before and after resolution.")
+    probes = [repo for repo in before if isinstance(repo, dict) and repo.get("name") in forced] if isinstance(before, list) else []
+    if (fallback.get("non_target_installer_coordinate") != "net.minecraftforge:installertools:1.3.2:fatjar"
+            or fallback.get("non_target_maven_eligibility_verified") is not True
+            or len(probes) != len(forced) or {repo.get("name") for repo in probes} != set(forced)
+            or any(repo.get("unmapped_installer_excluded") is not True
+                   or repo.get("non_target_installer_excluded") is not False for repo in probes)):
+        errors.append("The forced Maven filter must exclude only installer-tools 1.4.4 while keeping MCP tool 1.3.2 eligible before and after resolution.")
     return errors
 
 
@@ -239,7 +254,7 @@ def run_preflight(output, log_path=None, force_fallback=False, require_empty_cac
         with log_path.open("w") as stream:
             exit_code = run_build(command, root, stream, timeout_seconds)
         result["build_exit_code"] = exit_code
-        result["status"] = "PASS" if exit_code == 0 else failure_status(log_path.read_text(errors="replace"))
+        result["status"] = "PASS" if exit_code == 0 else failure_status(log_path.read_text(errors="replace"), root=root)
     except subprocess.TimeoutExpired as error:
         result["status"] = "TIMED_OUT"
         result["errors"].append(f"{type(error).__name__}: {error}")

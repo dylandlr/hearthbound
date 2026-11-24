@@ -74,8 +74,9 @@ The `Forge cold dependency setup` workflow runs two independent, cache-disabled
 build jobs, each with one preflight invocation:
 
 1. Normal cold resolution followed by actual Forge and test compilation.
-2. A diagnostic cold build that excludes only installer-tools from every project
-   Maven repository. The actual ForgeGradle helper must resolve that tool through
+2. A diagnostic cold build that excludes only installer-tools version 1.4.4 from
+   every project Maven repository. The separate MCP tool version 1.3.2 remains
+   eligible. The actual ForgeGradle helper must resolve the targeted tool through
    the Gradle fallback, produce an artifact under the Gradle modules cache, and
    leave the original repository objects and order intact. The public upstream
    content-filter inspector checks the actual filters before and after that
@@ -164,6 +165,39 @@ fallback, and the retained log does not establish its HTTP failure cause.
 Neither the filter correction nor a later passing build resolves that separate
 uncertainty by itself.
 
+## Retained third-source diagnostic scope failure
+
+At source `d64e1ff27cf26e3d8ba030296e96ea55c3b4ce3e`, the
+[forced cold job](https://github.com/dylandlr/hearthbound/actions/runs/45316093557/job/138183179292)
+verified the actual fallback successfully before later compilation failed.
+The separate [ordinary cold job](https://github.com/dylandlr/hearthbound/actions/runs/45316093557/job/138183179577)
+passed production and test compilation; its
+[artifact](https://github.com/dylandlr/hearthbound/actions/runs/45316093557/artifacts/14885194953)
+retains that first outcome.
+The [artifact](https://github.com/dylandlr/hearthbound/actions/runs/45316093557/artifacts/14885581847)
+has ZIP SHA-256
+`9e7e28257c8a2bfb3f11a2d7b79d9af4ecf9900ce276f5d9bb00ce4d955f8022`.
+The installer-tools 1.4.4 artifact resolved through Gradle's non-Maven fallback;
+its SHA-256 is
+`3de0f0899c060b6f5aa79d4d9d79063ca9029cfefa19e792cb222782f754184d`.
+All ten repository object identities and their order were restored, and all
+eight external mapped-version filter tables were preserved.
+
+The diagnostic's module-wide Maven exclusion also blocked
+`net.minecraftforge:installertools:1.3.2:fatjar`. This is a separate dependency
+of [MCPRuntime](https://github.com/MinecraftForge/ForgeGradle/blob/14206fa010c92f79ccf61e3bd9bd0d1aedce9a9c/src/mcp/java/net/minecraftforge/gradle/mcp/util/MCPRuntime.java),
+which deliberately calls the manual-only downloader. Its missing-tool exception
+preceded generated `Start.java` and mapped Forge compilation errors. Preserve
+the emitted `SOURCE_COMPILATION_FAILURE` result and this independently inspected
+earlier cause; the full forced build did not pass.
+
+The next diagnostic correction excludes the exact targeted 1.4.4 version and
+checks that the non-target 1.3.2 tool remains eligible in the affected Maven
+repositories before and after fallback. Future classification requires an actual
+project source path to label a project compilation error; downstream generated
+source errors cannot hide an explicit dependency failure. This change receives
+its own source and first-outcome cohort, preserving the earlier failed build.
+
 ## Continuing the original accounting and active-haul investigation
 
 The original five trials remain `world-01` through `world-05`, with seeds
@@ -227,6 +261,42 @@ force-loaded, repaired, or rescored by the post-window diagnostic. This directly
 records an active-carrying stall with absent entity ticking in this new world.
 It does not retrospectively establish the cause of the older archived stall,
 and the accounting-only reliability question remains open.
+
+The completed second-source cohort retained three passing worlds, this physical
+failure, and one `NOT_RUN` slot. `world-03` timed out during its single 1,200-second
+dependency setup attempt; its
+[archived snapshot](https://github.com/dylandlr/hearthbound/actions/runs/45313501320/artifacts/14885880107)
+contains repeated Maven Central HTTP 429 responses. Minecraft never started.
+Its wrapper explicitly records `log_finalized=false` and a null internal log
+digest because complete Gradle daemon shutdown was not independently verified.
+The ZIP checksum protects the archived bytes; it does not prove log finality.
+
+The [retained summary](https://github.com/dylandlr/hearthbound/actions/runs/45313501320/artifacts/14886190173)
+replays exactly from the frozen source. Both accounting event estimators are
+0 observed / 4 assessable / 1 unknown / 5 planned. The descriptive Wilson 95%
+interval among assessable worlds is 0–48.99%; all-planned missingness bounds are
+0–20%. This is not a 0-of-5 observation. All four executed worlds have complete
+four-citizen, three-round diagnostics; the unrun world's diagnostics stay missing.
+The event definition, full fixture window, and frozen scores are unchanged.
+
+### Preserved unavailable actor after original completion
+
+The third source's `world-02` retains an original passing score: four physical
+deliveries, DONE=4, and no claims. Its
+[artifact](https://github.com/dylandlr/hearthbound/actions/runs/45316093591/artifacts/14885527504)
+identifies native world `c08ad349-20bc-45c6-a96d-091a6c4507c9`. The strict
+post-window motor capture is nevertheless `CAPTURE_INCOMPLETE`.
+
+Retained citizen `b9411ab4-5b00-464c-a2d6-9e962490a4dd` was observed at world
+tick 149 with `alive=true`, then at tick 170 with `alive=false`. Both observed
+snapshots report a completed, inactive job and no cargo tag. At tick 190 the
+exact UUID returns `NOT_LOADED_IN_DIMENSION`; all three native haul-field probes
+return `No entity was found`. The archive retains 11 observed snapshots, one
+unavailable snapshot, 21 valid native probes, and three unavailable probes.
+The cause of death or subsequent disappearance is not established. Unavailable
+observations are not empty-cargo measurements, and they do not replace the
+earlier observations. The original score remains frozen while the complete
+diagnostic gate correctly fails.
 
 ## Research foundation and validation boundary
 

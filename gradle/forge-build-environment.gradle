@@ -15,6 +15,8 @@ def forgeClass = { String name ->
 def installerToolsCoordinate = {
     forgeClass('net.minecraftforge.gradle.common.util.Utils').getField('INSTALLERTOOLS').get(null).toString()
 }
+// The same module's MCP Config tool must retain its ordinary Maven eligibility.
+def nonTargetInstallerToolsCoordinate = 'net.minecraftforge:installertools:1.3.2:fatjar'
 def mappedFilterPolicy = {
     def flag = forgeClass('net.minecraftforge.gradle.common.util.EnvironmentChecks').getField('FILTER_REPOS').get(null)
     Class generatedRepositoryType = forgeClass('net.minecraftforge.artifactural.gradle.GradleRepositoryAdapter')
@@ -33,6 +35,7 @@ def inspectMappedExclusions = {
     def from = artifact.getMethod('from', String)
     def mapped = from.invoke(null, 'net.minecraftforge:installertools:1.4.4_mapped_official_1.20.1:fatjar')
     def unmapped = from.invoke(null, installerToolsCoordinate())
+    def nonTarget = from.invoke(null, nonTargetInstallerToolsCoordinate)
     def inspector = forgeClass('net.minecraftforge.artifactural.gradle.RepositoryContentUtils')
         .getMethod('contentFilterExcludes', org.gradle.api.artifacts.repositories.ArtifactRepository, identifier)
     // The public upstream inspector reads (and freezes) the actual filters.
@@ -40,7 +43,8 @@ def inspectMappedExclusions = {
     repositories.findAll { !generatedRepositoryType.isInstance(it) }.collect {
         [name: it.name,
          mapped_installer_excluded: inspector.invoke(null, it, mapped),
-         unmapped_installer_excluded: inspector.invoke(null, it, unmapped)]
+         unmapped_installer_excluded: inspector.invoke(null, it, unmapped),
+         non_target_installer_excluded: inspector.invoke(null, it, nonTarget)]
     }
 }
 
@@ -105,6 +109,7 @@ tasks.register('verifyHearthboundForgeToolFallback') {
         Map result = [
             schema: 'hearthbound-forge-tool-fallback-v1',
             installer_tools_coordinate: coordinate,
+            non_target_installer_coordinate: nonTargetInstallerToolsCoordinate,
             mapped_repository_filter: mappedFilterPolicy(),
             repository_names_before: before.collect { it.name },
             forced_maven_exclusions: project.findProperty('hearthboundForcedInstallerMavenExclusions') ?: [],
@@ -126,6 +131,13 @@ tasks.register('verifyHearthboundForgeToolFallback') {
             if (result.mapped_exclusions_before.any { !it.mapped_installer_excluded } ||
                 fallbackBefore == null || fallbackBefore.unmapped_installer_excluded) {
                 throw new GradleException('Mapped versions must remain excluded while the ordinary installer tool remains eligible in the fallback.')
+            }
+            def forcedMavenProbes = result.mapped_exclusions_before.findAll {
+                result.forced_maven_exclusions.contains(it.name)
+            }
+            if (forcedMavenProbes.size() != result.forced_maven_exclusions.size() ||
+                forcedMavenProbes.any { !it.unmapped_installer_excluded || it.non_target_installer_excluded }) {
+                throw new GradleException('Only installer-tools 1.4.4 may be excluded by the diagnostic Maven filter; MCP tool 1.3.2 must remain eligible.')
             }
             Class downloader = forgeClass('net.minecraftforge.gradle.common.util.MavenArtifactDownloader')
             File artifact = (File) downloader.getMethod('gradle', org.gradle.api.Project, String, Boolean.TYPE)
@@ -157,6 +169,7 @@ tasks.register('verifyHearthboundForgeToolFallback') {
             result.resolution_path = 'forgegradle_non_maven_gradle_fallback'
             result.repositories_restored = true
             result.mapped_version_exclusions_verified = true
+            result.non_target_maven_eligibility_verified = true
             result.status = 'PASS'
         } catch (Exception failure) {
             result.errors.add("${failure.class.name}: ${failure.message}")
