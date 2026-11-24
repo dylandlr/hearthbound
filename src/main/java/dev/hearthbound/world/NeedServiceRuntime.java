@@ -952,7 +952,7 @@ public final class NeedServiceRuntime {
         if (!d.failure.isEmpty()) return fail(source, d.failure);
         if (d.enabled || CivilizationRuntime.enabled(level)) return fail(source, "Stop service and legacy colony dispatch before enrollment");
         if (citizen.level() != level || !citizen.getPersistentData().getBoolean("hearthbound.sable")) return fail(source, "Requires a Sable-marked citizen in this dimension");
-        if (citizen.getPersistentData().contains("hearthbound.private_communication_trial.v1")
+        if (VillageEconomyRuntime.controls(citizen) || citizen.getPersistentData().contains("hearthbound.private_communication_trial.v1")
                 || citizen.getPersistentData().contains("hearthbound.civilization.v1") || SableHauling.active(citizen))
             return fail(source, "Citizen belongs to another controller or has an unresolved native motor");
         if (!d.enrolled.contains(citizen.getUUID()) && d.enrolled.size() >= MAX_CITIZENS) { d.capacityDenials++; d.setDirty(); return fail(source, "Enrollment capacity exhausted"); }
