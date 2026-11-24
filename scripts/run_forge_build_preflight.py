@@ -109,13 +109,34 @@ def fallback_errors(fallback):
                        and repo.get("unmapped_installer_excluded") is False
                        for repo in before if isinstance(repo, dict))):
         errors.append("Actual mapped-version exclusions and fallback eligibility must be verified before and after resolution.")
-    probes = [repo for repo in before if isinstance(repo, dict) and repo.get("name") in forced] if isinstance(before, list) else []
+    policy = fallback.get("mapped_repository_filter")
+    external = policy.get("external_repositories") if isinstance(policy, dict) else None
+    table_names = [repo.get("name") for repo in before if isinstance(repo, dict)] if isinstance(before, list) else []
+    external_names = [repo.get("name") for repo in external if isinstance(repo, dict)] if isinstance(external, list) else []
+    complete_table = (isinstance(before, list) and isinstance(external, list) and bool(before) and bool(external)
+                      and len(table_names) == len(before) and len(external_names) == len(external)
+                      and all(isinstance(name, str) and name for name in table_names + external_names)
+                      and len(set(table_names)) == len(table_names)
+                      and len(set(external_names)) == len(external_names)
+                      and set(table_names) == set(external_names))
+    if not complete_table:
+        errors.append("The inspection table must contain every mapped-policy external repository exactly once.")
+    probes = [repo for repo in before if isinstance(repo, dict) and repo.get("repository_type") == "maven"] if isinstance(before, list) else []
+    if (not complete_table or len(set(forced)) != len(forced)
+            or {repo.get("name") for repo in probes} != set(forced)
+            or any(repo.get("repository_type") != "maven"
+                   or not isinstance(repo.get("repository_url"), str) or not repo["repository_url"]
+                   or repo.get("unmapped_installer_excluded") is not True
+                   or type(repo.get("non_target_installer_excluded")) is not bool for repo in probes)):
+        errors.append("Every forced Maven repository must be registered exactly once, cover every actual Maven row, and retain its URL, non-target filter state and target 1.4.4 exclusion before and after resolution.")
+    official = [repo for repo in probes if repo.get("repository_type") == "maven"
+                and isinstance(repo.get("repository_url"), str)
+                and repo["repository_url"].rstrip("/") == "https://maven.minecraftforge.net"]
     if (fallback.get("non_target_installer_coordinate") != "net.minecraftforge:installertools:1.3.2:fatjar"
-            or fallback.get("non_target_maven_eligibility_verified") is not True
-            or len(probes) != len(forced) or {repo.get("name") for repo in probes} != set(forced)
-            or any(repo.get("unmapped_installer_excluded") is not True
-                   or repo.get("non_target_installer_excluded") is not False for repo in probes)):
-        errors.append("The forced Maven filter must exclude only installer-tools 1.4.4 while keeping MCP tool 1.3.2 eligible before and after resolution.")
+            or fallback.get("official_forge_maven_eligibility_verified") is not True
+            or not official or fallback.get("official_forge_maven_repositories") != [repo.get("name") for repo in official]
+            or any(repo.get("non_target_installer_excluded") is not False for repo in official)):
+        errors.append("The actual official Forge Maven endpoint must keep MCP tool 1.3.2 eligible before and after resolution; an Ivy repository cannot satisfy this control.")
     return errors
 
 

@@ -1,5 +1,7 @@
 import groovy.json.JsonOutput
 import java.security.MessageDigest
+import org.gradle.api.artifacts.repositories.IvyArtifactRepository
+import org.gradle.api.artifacts.repositories.MavenArtifactRepository
 
 // Diagnostic evidence only. These tasks do not change Minecraft dependencies,
 // compiler inputs, policies, or trial clocks.
@@ -41,7 +43,11 @@ def inspectMappedExclusions = {
     // The public upstream inspector reads (and freezes) the actual filters.
     // The fallback must survive re-adding those already-used repositories.
     repositories.findAll { !generatedRepositoryType.isInstance(it) }.collect {
+        boolean maven = it instanceof MavenArtifactRepository
+        boolean ivy = it instanceof IvyArtifactRepository
         [name: it.name,
+         repository_type: maven ? 'maven' : (ivy ? 'ivy' : 'other'),
+         repository_url: (maven || ivy) ? it.url.toString() : null,
          mapped_installer_excluded: inspector.invoke(null, it, mapped),
          unmapped_installer_excluded: inspector.invoke(null, it, unmapped),
          non_target_installer_excluded: inspector.invoke(null, it, nonTarget)]
@@ -127,17 +133,39 @@ tasks.register('verifyHearthboundForgeToolFallback') {
                 throw new GradleException('Mapped-version filtering must be applied exactly once per external repository.')
             }
             result.mapped_exclusions_before = inspectMappedExclusions()
+            def externalNames = result.mapped_repository_filter.external_repositories.collect { it.name }
+            def inspectedNames = result.mapped_exclusions_before.collect { it.name }
+            if (externalNames.toSet().size() != externalNames.size() ||
+                inspectedNames.toSet().size() != inspectedNames.size() ||
+                inspectedNames.toSet() != externalNames.toSet()) {
+                throw new GradleException('The inspection table must contain every external repository exactly once.')
+            }
             def fallbackBefore = result.mapped_exclusions_before.find { it.name == 'HearthboundForgeInstallerToolsFallback' }
             if (result.mapped_exclusions_before.any { !it.mapped_installer_excluded } ||
                 fallbackBefore == null || fallbackBefore.unmapped_installer_excluded) {
                 throw new GradleException('Mapped versions must remain excluded while the ordinary installer tool remains eligible in the fallback.')
             }
             def forcedMavenProbes = result.mapped_exclusions_before.findAll {
-                result.forced_maven_exclusions.contains(it.name)
+                it.repository_type == 'maven'
             }
-            if (forcedMavenProbes.size() != result.forced_maven_exclusions.size() ||
-                forcedMavenProbes.any { !it.unmapped_installer_excluded || it.non_target_installer_excluded }) {
-                throw new GradleException('Only installer-tools 1.4.4 may be excluded by the diagnostic Maven filter; MCP tool 1.3.2 must remain eligible.')
+            def actualMavenNames = forcedMavenProbes.collect { it.name }
+            if (result.forced_maven_exclusions.toSet().size() != result.forced_maven_exclusions.size() ||
+                result.forced_maven_exclusions.toSet() != actualMavenNames.toSet()) {
+                throw new GradleException('The diagnostic exclusions must register every actual Maven repository exactly once.')
+            }
+            def officialForgeMaven = forcedMavenProbes.findAll {
+                it.repository_type == 'maven' &&
+                    it.repository_url?.replaceAll('/+$', '') == 'https://maven.minecraftforge.net'
+            }
+            result.official_forge_maven_repositories = officialForgeMaven.collect { it.name }
+            if (forcedMavenProbes.any { !it.unmapped_installer_excluded }) {
+                throw new GradleException('Every forced Maven repository must exclude installer-tools 1.4.4.')
+            }
+            // ForgeGradle intentionally excludes the whole Forge group from
+            // its Mojang/Central repositories. Preserve those restrictions;
+            // the manual-only MCP lookup needs the actual Forge Maven endpoint.
+            if (officialForgeMaven.isEmpty() || officialForgeMaven.any { it.non_target_installer_excluded }) {
+                throw new GradleException('The official Forge Maven repository must remain eligible for MCP tool 1.3.2.')
             }
             Class downloader = forgeClass('net.minecraftforge.gradle.common.util.MavenArtifactDownloader')
             File artifact = (File) downloader.getMethod('gradle', org.gradle.api.Project, String, Boolean.TYPE)
@@ -169,7 +197,7 @@ tasks.register('verifyHearthboundForgeToolFallback') {
             result.resolution_path = 'forgegradle_non_maven_gradle_fallback'
             result.repositories_restored = true
             result.mapped_version_exclusions_verified = true
-            result.non_target_maven_eligibility_verified = true
+            result.official_forge_maven_eligibility_verified = true
             result.status = 'PASS'
         } catch (Exception failure) {
             result.errors.add("${failure.class.name}: ${failure.message}")

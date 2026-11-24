@@ -191,12 +191,49 @@ preceded generated `Start.java` and mapped Forge compilation errors. Preserve
 the emitted `SOURCE_COMPILATION_FAILURE` result and this independently inspected
 earlier cause; the full forced build did not pass.
 
-The next diagnostic correction excludes the exact targeted 1.4.4 version and
-checks that the non-target 1.3.2 tool remains eligible in the affected Maven
-repositories before and after fallback. Future classification requires an actual
-project source path to label a project compilation error; downstream generated
-source errors cannot hide an explicit dependency failure. This change receives
-its own source and first-outcome cohort, preserving the earlier failed build.
+The fourth source narrowed the exclusion to the exact targeted 1.4.4 version,
+but its added 1.3.2 eligibility assertion was too broad, as recorded below.
+It also corrected future classification to require an actual project source
+path to label a project compilation error; downstream generated source errors
+cannot hide an explicit dependency failure. The preceding emitted classification
+and failed build remain unchanged.
+
+## Retained fourth-source positive-control assertion failure
+
+At source `bac9cb402ae5eb7edb45dfc313ff8072c42c4ed3`, the
+[forced job](https://github.com/dylandlr/hearthbound/actions/runs/45317676006/job/138188344167)
+failed its new positive-control assertion before calling the actual fallback.
+Its [artifact](https://github.com/dylandlr/hearthbound/actions/runs/45317676006/artifacts/14886007080)
+has ZIP SHA-256
+`ff601afad853074dd6fb4a423d276987496de9fce0e98cf4790d4112c8d96233`.
+The actual inspector found 1.4.4 excluded from all seven Maven repositories,
+and 1.3.2 eligible in five but excluded in `maven5` and `MavenRepo2`. This
+artifact does not establish helper execution or full forced compilation.
+The separate [ordinary cold job](https://github.com/dylandlr/hearthbound/actions/runs/45317676006/job/138188344668)
+passed production and test compilation, with its
+[first artifact](https://github.com/dylandlr/hearthbound/actions/runs/45317676006/artifacts/14886331361)
+retained independently of the failed diagnostic.
+
+Those two non-target exclusions are intentional upstream policy. The pinned
+[UserDevPlugin](https://github.com/MinecraftForge/ForgeGradle/blob/14206fa010c92f79ccf61e3bd9bd0d1aedce9a9c/src/userdev/java/net/minecraftforge/gradle/userdev/UserDevPlugin.java)
+attaches Mojang Maven and an additional Maven Central with
+[Utils.filterForge](https://github.com/MinecraftForge/ForgeGradle/blob/14206fa010c92f79ccf61e3bd9bd0d1aedce9a9c/src/common/java/net/minecraftforge/gradle/common/util/Utils.java),
+which excludes the whole `net.minecraftforge` group there. Requiring those
+repositories to serve a Forge tool would remove a legitimate restriction.
+Mapping the fourth artifact's dynamic repository names to those policies is
+an inference from pinned repository creation order; that artifact recorded
+names and filter results, but not public repository types and URLs.
+
+The corrected check records public repository types and URLs. Every affected
+Maven repository must exclude the targeted 1.4.4 version; the actual official
+Forge **Maven** repository must permit the separate manual-only 1.3.2 lookup.
+The Ivy fallback alone cannot satisfy that positive control. Every repository's
+full filter table, including intentional non-target exclusions, must match
+before and after the actual helper. This assertion correction has its own
+source and first-outcome cohort. No earlier failure is rerun or relabelled.
+The complete table must cover the mapped-policy repository list exactly, and
+the forced-exclusion list must cover every actual Maven row exactly. Duplicate,
+omitted, or unprobed repositories cannot satisfy the gate.
 
 ## Continuing the original accounting and active-haul investigation
 
@@ -297,6 +334,21 @@ The cause of death or subsequent disappearance is not established. Unavailable
 observations are not empty-cargo measurements, and they do not replace the
 earlier observations. The original score remains frozen while the complete
 diagnostic gate correctly fails.
+
+All five original third-source fixture scores passed. Both accounting event
+estimators are 0 observed / 5 assessable / 0 unknown, with descriptive Wilson
+95% interval 0–43.45%. The strict summary nevertheless fails because only four
+of the five diagnostic captures are complete. Across the five worlds, the
+archives contain 59 observed snapshots plus one unavailable snapshot, and 117
+valid native probes plus three unavailable probes. These repeated citizen
+observations are diagnostics, not independent world replicates.
+
+A separate [third-source direct-witness job](https://github.com/dylandlr/hearthbound/actions/runs/45316093612/job/138183178850)
+reached its 360-by-2-second readiness deadline while still in MCP setup, before
+server readiness or RCON. Its
+[sparse artifact](https://github.com/dylandlr/hearthbound/actions/runs/45316093612/artifacts/14886895407)
+establishes a pre-runtime timeout; it does not establish the underlying reason
+for slow or stalled setup. Later successes cannot resolve that cause by themselves.
 
 ## Research foundation and validation boundary
 

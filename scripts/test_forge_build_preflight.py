@@ -12,7 +12,7 @@ import time
 import unittest
 from unittest.mock import patch
 
-from run_forge_build_preflight import BUILD_INPUTS, failure_status, run_build, run_preflight, signal_build
+from run_forge_build_preflight import BUILD_INPUTS, failure_status, fallback_errors, run_build, run_preflight, signal_build
 
 COMMIT = "a" * 40
 HASH = "b" * 64
@@ -22,7 +22,11 @@ def repository_policy():
     return {
         "policy": "exclude-mapped-versions-once-v1", "version_pattern": ".*_mapped_.*",
         "upstream_repeated_filter_enabled": False, "generated_repositories_exempt": True,
-        "external_repositories": [{"name": "HearthboundForgeInstallerToolsFallback", "applications": 1}],
+        "external_repositories": [
+            {"name": "MavenRepo", "applications": 1},
+            {"name": "Mojang", "applications": 1},
+            {"name": "HearthboundForgeInstallerToolsFallback", "applications": 1},
+        ],
     }
 
 
@@ -44,18 +48,24 @@ def environment():
 def fallback():
     exclusions = [
         {"name": "MavenRepo", "mapped_installer_excluded": True,
+         "repository_type": "maven", "repository_url": "https://maven.minecraftforge.net/",
          "unmapped_installer_excluded": True, "non_target_installer_excluded": False},
+        {"name": "Mojang", "mapped_installer_excluded": True,
+         "repository_type": "maven", "repository_url": "https://libraries.minecraft.net/",
+         "unmapped_installer_excluded": True, "non_target_installer_excluded": True},
         {"name": "HearthboundForgeInstallerToolsFallback", "mapped_installer_excluded": True,
+         "repository_type": "ivy", "repository_url": "https://maven.minecraftforge.net",
          "unmapped_installer_excluded": False, "non_target_installer_excluded": False},
     ]
     return {
         "schema": "hearthbound-forge-tool-fallback-v1", "status": "PASS",
-        "forced_maven_exclusions": ["MavenRepo"], "repositories_restored": True,
+        "forced_maven_exclusions": ["MavenRepo", "Mojang"], "repositories_restored": True,
         "resolution_path": "forgegradle_non_maven_gradle_fallback", "artifact_sha256": HASH,
         "mapped_repository_filter": repository_policy(), "mapped_exclusions_before": exclusions,
         "mapped_exclusions_after": exclusions, "mapped_version_exclusions_verified": True,
         "non_target_installer_coordinate": "net.minecraftforge:installertools:1.3.2:fatjar",
-        "non_target_maven_eligibility_verified": True,
+        "official_forge_maven_eligibility_verified": True,
+        "official_forge_maven_repositories": ["MavenRepo"],
     }
 
 
@@ -168,7 +178,7 @@ class BuildPreflightTests(unittest.TestCase):
         self.assertIn("--init-script", command)
         self.assertLess(command.index("verifyHearthboundForgeToolFallback"), command.index("compileJava"))
 
-    def test_forced_path_with_complete_evidence_retains_the_verification(self):
+    def test_forced_path_preserves_legitimate_unrelated_repository_group_exclusions(self):
         self.emit_fallback = True
         code, result = self.execute(force_fallback=True)
         self.assertEqual((code, result["status"]), (0, "PASS"))
@@ -184,7 +194,7 @@ class BuildPreflightTests(unittest.TestCase):
         self.assertEqual((code, result["status"]), (2, "EVIDENCE_INCOMPLETE"))
         self.assertTrue(any("before and after" in error for error in result["evidence_errors"]))
 
-    def test_forced_filter_blocking_other_installer_version_cannot_pass(self):
+    def test_forced_filter_blocking_official_maven_non_target_version_cannot_pass(self):
         self.emit_fallback = True
         self.fallback_override = fallback()
         self.fallback_override["mapped_exclusions_before"][0]["non_target_installer_excluded"] = True
@@ -192,13 +202,56 @@ class BuildPreflightTests(unittest.TestCase):
         self.assertEqual((code, result["status"]), (2, "EVIDENCE_INCOMPLETE"))
         self.assertTrue(any("1.3.2 eligible" in error for error in result["evidence_errors"]))
 
+    def test_ivy_control_cannot_replace_a_missing_official_forge_maven_endpoint(self):
+        self.emit_fallback = True
+        self.fallback_override = fallback()
+        self.fallback_override["mapped_exclusions_before"][0]["repository_url"] = "https://unrelated.example/maven"
+        code, result = self.execute(force_fallback=True)
+        self.assertEqual((code, result["status"]), (2, "EVIDENCE_INCOMPLETE"))
+        self.assertTrue(any("Ivy repository cannot" in error for error in result["evidence_errors"]))
+
+    def test_target_version_must_remain_excluded_in_every_forced_maven_repository(self):
+        self.emit_fallback = True
+        self.fallback_override = fallback()
+        self.fallback_override["mapped_exclusions_before"][1]["unmapped_installer_excluded"] = False
+        code, result = self.execute(force_fallback=True)
+        self.assertEqual((code, result["status"]), (2, "EVIDENCE_INCOMPLETE"))
+        self.assertTrue(any("Every forced Maven" in error for error in result["evidence_errors"]))
+
     def test_non_target_positive_control_requires_every_forced_maven_repository(self):
         self.emit_fallback = True
         self.fallback_override = fallback()
         self.fallback_override["forced_maven_exclusions"].append("unprobed-maven")
         code, result = self.execute(force_fallback=True)
         self.assertEqual((code, result["status"]), (2, "EVIDENCE_INCOMPLETE"))
-        self.assertTrue(any("1.3.2 eligible" in error for error in result["evidence_errors"]))
+        self.assertTrue(any("Every forced Maven" in error for error in result["evidence_errors"]))
+
+    def test_omitted_maven_registration_cannot_hide_a_target_version_leak(self):
+        self.emit_fallback = True
+        self.fallback_override = fallback()
+        self.fallback_override["forced_maven_exclusions"].remove("Mojang")
+        self.fallback_override["mapped_exclusions_before"][1]["unmapped_installer_excluded"] = False
+        code, result = self.execute(force_fallback=True)
+        self.assertEqual((code, result["status"]), (2, "EVIDENCE_INCOMPLETE"))
+        self.assertTrue(any("cover every actual Maven row" in error for error in result["evidence_errors"]))
+
+    def test_truncated_actual_table_cannot_hide_an_external_repository(self):
+        self.emit_fallback = True
+        self.fallback_override = fallback()
+        self.fallback_override["forced_maven_exclusions"].remove("Mojang")
+        self.fallback_override["mapped_exclusions_before"].pop(1)
+        code, result = self.execute(force_fallback=True)
+        self.assertEqual((code, result["status"]), (2, "EVIDENCE_INCOMPLETE"))
+        self.assertTrue(any("every mapped-policy external repository" in error for error in result["evidence_errors"]))
+
+    def test_duplicate_repository_names_cannot_satisfy_completeness(self):
+        duplicate_registration = fallback()
+        duplicate_registration["forced_maven_exclusions"].append("Mojang")
+        self.assertTrue(any("registered exactly once" in error for error in fallback_errors(duplicate_registration)))
+        duplicate_table = fallback()
+        duplicate_table["mapped_exclusions_before"].append(duplicate_table["mapped_exclusions_before"][1].copy())
+        duplicate_table["mapped_repository_filter"]["external_repositories"].append({"name": "Mojang", "applications": 1})
+        self.assertTrue(any("external repository exactly once" in error for error in fallback_errors(duplicate_table)))
 
     def test_success_with_upstream_repeated_callback_enabled_cannot_pass(self):
         self.environment_override = environment()
