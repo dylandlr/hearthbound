@@ -1,0 +1,126 @@
+name: Renewable village economy
+on:
+  pull_request:
+    paths:
+      - 'src/main/java/dev/hearthbound/civilization/VillageWorkPolicy.java'
+      - 'src/main/java/dev/hearthbound/world/Village*.java'
+      - 'src/main/java/dev/hearthbound/world/SableController.java'
+      - 'src/main/java/dev/hearthbound/world/ServiceProductionBridge.java'
+      - 'src/main/resources/data/hearthbound/functions/village_setup.mcfunction'
+      - 'src/test/java/dev/hearthbound/civilization/VillageWorkPolicyTest.java'
+      - 'scripts/*village*'
+      - '.github/workflows/renewable-village-economy.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          python3 scripts/test-civilization-contracts.py
+          python3 -m unittest discover -s scripts -p test_village_economy_evidence.py -v
+  live:
+    needs: contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        arm: [adaptive, authored]
+        world: [23001, 23002]
+    env:
+      HEARTHBOUND_EXPECTED_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+      HEARTHBOUND_RCON_PASSWORD: ci-village-disposable-world
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.8'
+      - name: Compile actual Forge and persistence contracts
+        run: |
+          test "$(git rev-parse HEAD)" = "$HEARTHBOUND_EXPECTED_COMMIT"
+          gradle --no-daemon classes servicePersistenceContracts > village-build.log 2>&1 || (tail -n 100 village-build.log; exit 1)
+      - name: Run eight-citizen economy and restart
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p run
+          printf 'eula=true\n' > run/eula.txt
+          printf 'online-mode=false\nlevel-name=village-world\nlevel-seed=%s\nmax-players=2\nenable-rcon=true\nrcon.port=25575\nrcon.password=%s\n' '${{ matrix.world }}' "$HEARTHBOUND_RCON_PASSWORD" > run/server.properties
+          village_server_pid=''
+          cleanup() { if [ -n "$village_server_pid" ]; then kill "$village_server_pid" 2>/dev/null || true; fi; }
+          trap cleanup EXIT
+          boot() {
+            village_log="$1"
+            gradle --no-daemon runServer > "$village_log" 2>&1 &
+            village_server_pid=$!
+            for attempt in $(seq 1 360); do
+              if grep -Eq 'Done \([0-9.]+s\)! For help, type "help"' "$village_log"; then
+                grep -Fq 'Hearthbound bootstrap loaded.' "$village_log"
+                return
+              fi
+              if ! kill -0 "$village_server_pid" 2>/dev/null; then tail -n 100 "$village_log"; return 1; fi
+              sleep 2
+            done
+            tail -n 100 "$village_log"
+            return 1
+          }
+          boot village-first-server.log
+          python3 scripts/rcon_village_economy_acceptance.py --phase live --arm '${{ matrix.arm }}' --world '${{ matrix.world }}' | tee village-live.log
+          wait "$village_server_pid"
+          village_server_pid=''
+          boot village-restart-server.log
+          python3 scripts/rcon_village_economy_acceptance.py --phase restart --arm '${{ matrix.arm }}' --world '${{ matrix.world }}' | tee village-restart.log
+          wait "$village_server_pid"
+          village_server_pid=''
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: village-${{ matrix.world }}-${{ matrix.arm }}
+          path: |
+            village-*.log
+            run/village-acceptance.json
+            run/logs/latest.log
+            run/village-world/data/hearthbound_village*.dat
+            run/village-world/data/hearthbound_mill*.dat
+          if-no-files-found: warn
+  summary:
+    if: always()
+    needs: [contracts, live]
+    runs-on: ubuntu-latest
+    env:
+      HEARTHBOUND_EXPECTED_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: village-*
+          path: village-evidence
+      - run: python3 scripts/summarize_village_economy.py --input village-evidence --output village-summary.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: village-cohort-summary
+          path: village-summary.json

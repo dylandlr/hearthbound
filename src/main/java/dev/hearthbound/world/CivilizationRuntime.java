@@ -703,7 +703,8 @@ public final class CivilizationRuntime {
     /** Called for idle, marked citizens on the authoritative server thread. */
     public static boolean tick(ServerLevel level, Villager citizen) {
         ColonyData board = data(level);
-        if (!board.enabled || !CitizenSourceKnowledge.isCitizen(citizen))
+        if (!board.enabled || !CitizenSourceKnowledge.isCitizen(citizen)
+                || VillageEconomyRuntime.controls(citizen) || NeedServiceRuntime.controls(citizen))
             return false;
         String dimension = level.dimension().location().toString();
         UUID citizenId = citizen.getUUID();

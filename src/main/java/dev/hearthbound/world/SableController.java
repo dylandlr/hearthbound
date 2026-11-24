@@ -58,6 +58,7 @@ public final class SableController {
         CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
         CivilizationRuntime.register(dispatcher);
         NeedServiceRuntime.register(dispatcher);
+        VillageEconomyRuntime.register(dispatcher);
         HaulMotorDiagnostics.register(dispatcher);
         // Separate permission-2 inspection command; never modifies Minecraft.
         dispatcher.register(Commands.literal("hearthbound-pickup-journal")
@@ -121,7 +122,7 @@ public final class SableController {
                                     ctx.getSource().sendFailure(Component.literal("No executor Sable within 16 blocks"));
                                     return 0;
                                 }
-                                if (NeedServiceRuntime.controls(executor)) {
+                                if (NeedServiceRuntime.controls(executor) || VillageEconomyRuntime.controls(executor)) {
                                     ctx.getSource().sendFailure(Component.literal("Citizen is owned by need services; direct hauling is unavailable."));
                                     return 0;
                                 }
@@ -148,7 +149,7 @@ public final class SableController {
                                 source.sendFailure(Component.literal("No Sable within 16 blocks."));
                                 return 0;
                             }
-                            if (NeedServiceRuntime.controls(sable)) {
+                            if (NeedServiceRuntime.controls(sable) || VillageEconomyRuntime.controls(sable)) {
                                 source.sendFailure(Component.literal("Citizen is owned by need services; direct hauling is unavailable."));
                                 return 0;
                             }
@@ -478,6 +479,7 @@ public final class SableController {
         if (!(villager.level() instanceof ServerLevel level)) return;
         // The service owner ticks its own native motor and settles the exact
         // completion immediately; its sticky marker also fences restored jobs.
+        if (VillageEconomyRuntime.tick(level, villager)) return;
         if (NeedServiceRuntime.tick(level, villager)) return;
         // Explicit disposable-world experiment actors have one action owner.
         // Its fixed game-tick controller also holds them after the horizon or

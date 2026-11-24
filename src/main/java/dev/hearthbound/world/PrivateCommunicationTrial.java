@@ -135,7 +135,7 @@ public final class PrivateCommunicationTrial {
     private static Villager citizen(ServerLevel level, Actor actor) {
         if (level.getEntity(actor.citizen) instanceof Villager citizen && citizen.level() == level
                 && citizen.isAlive() && CitizenSourceKnowledge.isCitizen(citizen)
-                && !NeedServiceRuntime.controls(citizen)
+                && !NeedServiceRuntime.controls(citizen) && !VillageEconomyRuntime.controls(citizen)
                 && citizen.getPersistentData().getBoolean(MARKER))
             return citizen;
         throw new IllegalStateException("Original enrolled citizen unavailable: slot " + actor.slot);
@@ -630,7 +630,7 @@ public final class PrivateCommunicationTrial {
             throw new IllegalStateException("Enrollment closed or slot already occupied");
         if (!(entity instanceof Villager citizen) || citizen.level() != level || !citizen.isAlive()
                 || !CitizenSourceKnowledge.isCitizen(citizen) || citizen.getPersistentData().getBoolean(MARKER)
-                || NeedServiceRuntime.controls(citizen)
+                || NeedServiceRuntime.controls(citizen) || VillageEconomyRuntime.controls(citizen)
                 || citizen.getPersistentData().contains("hearthbound.haul")
                 || citizen.getPersistentData().contains("hearthbound.source_knowledge.v1")
                 || citizen.getPersistentData().contains("hearthbound.citizen_reports.v1"))
@@ -655,7 +655,7 @@ public final class PrivateCommunicationTrial {
         for (Actor actor : trial.actors) {
             if (actor == null) throw new IllegalStateException("Four original actors must be enrolled");
             Villager citizen = citizen(level, actor);
-            if (NeedServiceRuntime.controls(citizen) || !citizen.isNoAi() || SableHauling.active(citizen)
+            if (NeedServiceRuntime.controls(citizen) || VillageEconomyRuntime.controls(citizen) || !citizen.isNoAi() || SableHauling.active(citizen)
                     || citizen.getPersistentData().contains("hearthbound.haul")
                     || citizen.getPersistentData().contains("hearthbound.source_knowledge.v1")
                     || citizen.getPersistentData().contains("hearthbound.citizen_reports.v1")
