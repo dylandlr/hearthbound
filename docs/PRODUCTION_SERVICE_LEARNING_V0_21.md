@@ -50,6 +50,12 @@ Stopping before pickup can cancel a proven empty native job. Stopping during pro
 
 Minecraft entity NBT, block inventories, and SavedData are not a single transactional database. Mutation intents and held restart states provide fail-closed handling; this change does not claim arbitrary power-loss atomicity across chunk saves. Clean completed restart and unresolved processing restart are separate acceptance cases.
 
+SavedData schema 2 stores the kernel, event history, and private learner JSON
+as UTF-8 byte arrays. Growing histories can exceed NBT's modified-UTF string
+limit; schema-1 string saves remain readable. Invalid encodings or unexpected
+payload types fail closed. The real-NBT `servicePersistenceContracts` gate
+round-trips large histories and Unicode without truncating retained evidence.
+
 ## Acceptance and claim boundaries
 
 The dedicated live scenario uses two equally capable citizens, one public wheat source, a powered real Create millstone, and a separate flour destination. After start, the fixture issues no movement, handoff, pickup, processing, output-collection, or completion commands. It requires multiple batches through the same mill, independent native inventory witnesses, a received-request-to-production chain, actual private learner updates, subsequent scored decisions, and a natural target-closure window. It also checks completed save/restart and a separate held-processing save/restart with an unpowered mill.

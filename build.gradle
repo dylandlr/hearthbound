@@ -91,3 +91,10 @@ tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
 jar { manifest { attributes(['Specification-Title': 'hearthbound', 'Implementation-Title': 'hearthbound', 'Implementation-Version': project.version, 'MixinConfigs': 'hearthbound.mixins.json']) } }
 
 apply from: 'gradle/forge-build-environment.gradle'
+
+tasks.register('servicePersistenceContracts', JavaExec) {
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.hearthbound.world.ServiceJsonPayloadTest'
+    enableAssertions = true
+}

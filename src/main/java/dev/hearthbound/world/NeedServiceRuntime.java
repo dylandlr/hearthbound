@@ -99,7 +99,8 @@ public final class NeedServiceRuntime {
         static ServiceData load(CompoundTag root) {
             ServiceData d = new ServiceData();
             try {
-                if (root.getInt("schema") != 1) throw new IllegalStateException("Unknown service schema");
+                if (root.getInt("schema") != 1 && root.getInt("schema") != 2)
+                    throw new IllegalStateException("Unknown service schema");
                 ListTag buffers = root.getList("buffers", Tag.TAG_COMPOUND);
                 if (buffers.size() > MAX_SITES) throw new IllegalStateException("Too many buffer sites");
                 for (int i = 0; i < buffers.size(); i++) {
@@ -130,12 +131,12 @@ public final class NeedServiceRuntime {
                 for (int i = 0; i < learners.size(); i++) {
                     CompoundTag entry = learners.getCompound(i);
                     if (!entry.hasUUID("citizen") || !d.enrolled.contains(entry.getUUID("citizen"))
-                            || d.savedLearners.putIfAbsent(entry.getUUID("citizen"), entry.getString("snapshot")) != null)
+                            || d.savedLearners.putIfAbsent(entry.getUUID("citizen"), ServiceJsonPayload.read(entry, "snapshot")) != null)
                         throw new IllegalStateException("Invalid private learning owner");
                 }
-                d.savedKernel = root.getString("kernel");
+                d.savedKernel = ServiceJsonPayload.read(root, "kernel");
                 if (d.savedKernel.isBlank()) throw new IllegalStateException("Missing service kernel");
-                JsonArray records = GSON.fromJson(root.getString("records"), JsonArray.class);
+                JsonArray records = GSON.fromJson(ServiceJsonPayload.read(root, "records"), JsonArray.class);
                 if (records == null || records.size() > MAX_RECORDS)
                     throw new IllegalStateException("Invalid service records");
                 for (var e : records) d.records.add(e.getAsJsonObject());
@@ -156,7 +157,7 @@ public final class NeedServiceRuntime {
         }
 
         @Override public CompoundTag save(CompoundTag root) {
-            root.putInt("schema", 1);
+            root.putInt("schema", 2);
             ListTag buffers = new ListTag();
             for (Buffer b : this.buffers.values()) {
                 CompoundTag entry = new CompoundTag(); entry.putLong("position", b.position);
@@ -173,11 +174,12 @@ public final class NeedServiceRuntime {
             for (UUID citizen : enrolled) {
                 String snapshot = learners.containsKey(citizen) ? GSON.toJson(learners.get(citizen).snapshot()) : savedLearners.get(citizen);
                 if (snapshot == null) continue;
-                CompoundTag entry = new CompoundTag(); entry.putUUID("citizen", citizen); entry.putString("snapshot", snapshot); learning.add(entry);
+                CompoundTag entry = new CompoundTag(); entry.putUUID("citizen", citizen);
+                ServiceJsonPayload.write(entry, "snapshot", snapshot); learning.add(entry);
             }
             root.put("learners", learning);
-            root.putString("kernel", kernel == null ? (savedKernel == null ? "" : savedKernel) : GSON.toJson(kernel.snapshot()));
-            root.putString("records", GSON.toJson(records));
+            ServiceJsonPayload.write(root, "kernel", kernel == null ? (savedKernel == null ? "" : savedKernel) : GSON.toJson(kernel.snapshot()));
+            ServiceJsonPayload.write(root, "records", GSON.toJson(records));
             root.putLong("assigned", assigned); root.putLong("transfers", transfers);
             root.putLong("cancelled", cancelled); root.putLong("capacityDenials", capacityDenials);
             root.putLong("productionJobs", productionJobs); root.putLong("outputUnits", outputUnits);

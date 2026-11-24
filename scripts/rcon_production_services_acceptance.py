@@ -189,7 +189,11 @@ def setup(rcon):
     commands = (
         "gamerule doMobSpawning false", "gamerule doDaylightCycle false",
         "gamerule doWeatherCycle false", "time set 6000", "weather clear",
-        "forceload add 0 0 47 15", "fill 0 100 0 44 105 6 minecraft:air",
+        "forceload add 0 0 47 15",
+        # Install the roof before excavating: unsupported natural gravel/sand
+        # above the cleared corridor must not fall onto stationary citizens.
+        "fill 0 104 0 44 104 6 minecraft:stone",
+        "fill 0 100 0 44 103 6 minecraft:air",
         "fill 0 100 0 44 100 6 minecraft:stone",
         "fill 0 101 0 44 103 0 minecraft:stone", "fill 0 101 6 44 103 6 minecraft:stone",
         "fill 0 101 0 0 103 6 minecraft:stone", "fill 44 101 0 44 103 6 minecraft:stone",
@@ -211,15 +215,20 @@ def setup(rcon):
             break
         require(time.monotonic() < power_deadline, "Real mill did not receive kinetic power")
         time.sleep(.5)
+    spawn_witnesses = []
     for tag, x in (("hb_production_a", 3), ("hb_production_b", 35)):
+        for y in (101, 102, 103):
+            spawn_witnesses.append(rcon.require(f"execute if block {x} {y} 2 minecraft:air", "Test passed"))
         rcon.require(f"execute positioned {x} 101 2 run sable spawn", "Sable spawned")
         selector = f"@e[type=minecraft:villager,name=Sable,x={x},y=101,z=2,distance=..4,limit=1,sort=nearest]"
         rcon.require(f"tag {selector} add {tag}", "Added tag")
+        spawn_witnesses.append(rcon.require(f"data get entity @e[tag={tag},limit=1] Health", "20.0f"))
         rcon.require(f"{COMMAND} enroll @e[tag={tag},limit=1]", "NEED_SERVICES_OK")
     rcon.require(f"{COMMAND} configure-mill {xyz(MILL)} {xyz(BUFFER)} {TARGET}", "NEED_SERVICES_OK")
     rcon.require(f"{COMMAND} configure-source {xyz(SOURCE)}", "NEED_SERVICES_OK")
     return {"source": inventory(rcon, SOURCE, allowed={"minecraft:wheat"}),
-            "buffer": inventory(rcon, BUFFER), "power": speed}
+            "buffer": inventory(rcon, BUFFER), "power": speed,
+            "spawn_witnesses": spawn_witnesses, "roof_installed_before_excavation": True}
 
 
 def output_witnesses(rcon, jobs, items):
@@ -274,6 +283,8 @@ def run_live(rcon, result):
     deadline = time.monotonic() + DEADLINE_SECONDS
     while True:
         current = status(rcon)
+        require(all(c.get("loaded") for c in current.get("citizens", []))
+                and len(current.get("citizens", [])) == 2, "A fixture citizen disappeared during production")
         require(current["held"] == 0, "A live productive service became unresolved")
         if current["output_units"] >= TARGET and current["active_commitments"] == 0:
             break
@@ -335,6 +346,8 @@ def verify_restart_and_hold(rcon, result):
     completed_transfers = current["transfers"]
     while True:
         pending = status(rcon)
+        require(all(c.get("loaded") for c in pending.get("citizens", []))
+                and len(pending.get("citizens", [])) == 2, "A fixture citizen disappeared before pending input")
         require(pending["production_jobs"] == current["production_jobs"], "Unpowered machine produced credited output")
         if pending["transfers"] == completed_transfers + 1:
             break
@@ -414,8 +427,11 @@ def main():
             result.update(status="failed", failed_phase=args.phase,
                           error=type(failure).__name__ + ": " + str(failure))
             try:
-                result["failure_status"] = status(rcon)
+                result["failure_status"] = response_json(rcon.run(COMMAND + " status"), "NEED_SERVICES_STATUS")
                 result["failure_records"] = records(rcon, result["failure_status"]["records_total"])
+                result["failure_native_citizens"] = {
+                    tag: rcon.run(f"data get entity @e[tag={tag},limit=1]")
+                    for tag in ("hb_production_a", "hb_production_b")}
             except Exception as capture_failure:
                 result["capture_failure"] = str(capture_failure)
             raise

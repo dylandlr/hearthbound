@@ -17,6 +17,17 @@ GitHub workflow. No live production result is claimed until that workflow and
 its retained inventories have been inspected. Update this section with the
 exact checked revision and run after validation.
 
+The first live run at `99b68fd` is retained as a failure:
+https://github.com/dylandlr/hearthbound/actions/runs/45479379392.
+Its recipient selected the reported production request, then died from
+suffocation before delivering wheat. The server also logged oversized NBT
+strings while saving the growing history. Follow-up changes install a stable
+roof before excavating the disposable fixture, retain spawn clearance/health
+witnesses, detect missing actors immediately, and encode JSON histories as UTF-8
+byte arrays. Actual Minecraft NBT tests cover payloads beyond 65,535 bytes,
+Unicode, existing string saves, and malformed data. These changes do not turn
+the failed world into a success or resolve the broader reliability gate.
+
 ## What the player can watch
 
 Two citizens have identical capabilities. One starts near a flour buffer and
