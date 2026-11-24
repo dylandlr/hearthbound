@@ -9,6 +9,12 @@ closure. The current v0.21 work extends the same executor and private knowledge
 boundary through actual Create processing, output custody, final flour delivery,
 and per-citizen learning. See [the production contract](PRODUCTION_SERVICE_LEARNING_V0_21.md)
 and [playtest](PRODUCTION_SERVICE_PLAYTEST_V0_21.md) for its validation status.
+At `17c3c353`, four real Create batches delivered four flour and two seeds;
+both citizens produced output and updated their private models. Completed
+restart and held unfinished-input restart passed. The broader legacy colony
+reliability gate remains unresolved because citizens can fall from its elevated
+fixture after completing delivery. This is still a bounded engineering pilot;
+no policy-performance or emergent-occupation claim is promoted.
 The small recipient-only PPO diagnostic is paused; frozen simulator baselines
 remain reference evidence.
 
