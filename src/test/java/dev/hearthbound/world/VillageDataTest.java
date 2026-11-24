@@ -29,6 +29,7 @@ public final class VillageDataTest {
         root=fixture();var owners=root.getList("citizens",10);owners.add(owners.getCompound(0).copy());check(!VillageEconomyRuntime.Data.load(root).failure.isEmpty());
         root=fixture();ServiceJsonPayload.write(root,"records","[{\"sequence\":2}]");var bad=VillageEconomyRuntime.Data.load(root);check(!bad.failure.isEmpty());
         var fenced=VillageEconomyRuntime.Data.load(bad.save(new CompoundTag()));check(fenced.failure.equals(bad.failure));check(!fenced.enabled);
+        check(ServiceJsonPayload.read(bad.save(new CompoundTag()),"records").equals("[{\"sequence\":2}]"));
         System.out.println("PASS VillageDataTest: native NBT replay, stopped reload, retained leases, private cache reset, corruption fence");
     }
 }

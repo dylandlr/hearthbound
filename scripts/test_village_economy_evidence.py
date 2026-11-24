@@ -1,10 +1,20 @@
 """Adversarial replay/accounting contracts; constructed data are not live evidence."""
 import copy
+import json
+from pathlib import Path
 import unittest
 from village_economy_evidence import *
 
 
 class EvidenceTests(unittest.TestCase):
+    def test_shipped_setup_is_an_enabled_minecraft_data_pack(self):
+        root=Path(__file__).resolve().parents[1]/'src/main/resources'
+        metadata=json.loads((root/'pack.mcmeta').read_text())
+        self.assertEqual(metadata['pack']['pack_format'],15)
+        function=(root/'data/hearthbound/functions/village_setup.mcfunction').read_text()
+        self.assertIn('hearthbound-village keep-ticking on',function)
+        self.assertEqual(function.count('run sable spawn'),8)
+
     def fixture(self):
         return dict(inventories=[dict(role='depot',path='Items',items={SEED:64}),
                                 dict(role='water',path='Items',items={BUCKET:8}),

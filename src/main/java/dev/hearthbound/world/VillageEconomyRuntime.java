@@ -58,10 +58,11 @@ public final class VillageEconomyRuntime {
         final List<JsonObject> records=new ArrayList<>();final Map<String,Long> totals=new LinkedHashMap<>();
         UUID session=UUID.randomUUID(); UUID world; boolean enabled,draining,keepTicking,adaptive=true; int foodTarget=6;
         String failure="";
+        CompoundTag rejectedSnapshot;
         static Data load(CompoundTag root){Data d=new Data();try{
             if(root.getInt("schema")!=1||!root.hasUUID("world"))throw new IllegalStateException("Unknown village save");
             d.world=root.getUUID("world");d.adaptive=root.getBoolean("adaptive");d.keepTicking=root.getBoolean("keepTicking");d.foodTarget=root.getInt("foodTarget");
-            if(!root.getString("failure").isEmpty()){d.failure=root.getString("failure");return d;}
+            if(!root.getString("failure").isEmpty()){d.failure=root.getString("failure");d.rejectedSnapshot=root.copy();return d;}
             if(d.foodTarget<0||d.foodTarget>64)throw new IllegalStateException("Invalid target");
             District[] districts=GSON.fromJson(ServiceJsonPayload.read(root,"districts"),District[].class);
             if(districts==null||districts.length>4)throw new IllegalStateException("Invalid districts");
@@ -84,8 +85,10 @@ public final class VillageEconomyRuntime {
             }
             CompoundTag totals=root.getCompound("totals");for(String k:totals.getAllKeys()){long n=totals.getLong(k);if(n<0)throw new IllegalStateException("Negative total");d.totals.put(k,n);}
             CompoundTag leases=root.getCompound("leases");if(leases.getAllKeys().size()>MAX_CITIZENS*2)throw new IllegalStateException("Lease bound");for(String k:leases.getAllKeys())d.leases.put(k,leases.getUUID(k));
-        }catch(RuntimeException bad){d.failure="PERSISTENCE_REQUIRES_REVIEW: "+bad.getMessage();}return d;}
-        @Override public CompoundTag save(CompoundTag root){root.putInt("schema",1);root.putUUID("world",world);root.putBoolean("adaptive",adaptive);root.putInt("foodTarget",foodTarget);
+        }catch(RuntimeException bad){d.failure="PERSISTENCE_REQUIRES_REVIEW: "+bad.getMessage();d.rejectedSnapshot=root.copy();}return d;}
+        @Override public CompoundTag save(CompoundTag root){
+            if(rejectedSnapshot!=null){CompoundTag retained=rejectedSnapshot.copy();retained.putString("failure",failure);return retained;}
+            root.putInt("schema",1);root.putUUID("world",world);root.putBoolean("adaptive",adaptive);root.putInt("foodTarget",foodTarget);
             root.putString("failure",failure);root.putBoolean("keepTicking",keepTicking);
             ServiceJsonPayload.write(root,"districts",GSON.toJson(districts));ServiceJsonPayload.write(root,"records",GSON.toJson(records));
             ListTag owners=new ListTag();for(UUID id:citizens){CompoundTag c=new CompoundTag();c.putUUID("citizen",id);ServiceJsonPayload.write(c,"outcomes",GSON.toJson(policies.get(id).snapshot()));owners.add(c);}root.put("citizens",owners);
@@ -224,7 +227,13 @@ public final class VillageEconomyRuntime {
         .then(Commands.literal("records").then(Commands.argument("offset",IntegerArgumentType.integer(0)).executes(c->records(c.getSource(),IntegerArgumentType.getInteger(c,"offset"))))));}
     static int fail(CommandSourceStack s,String reason){s.sendFailure(Component.literal("VILLAGE_DENIED "+reason));return 0;}
     static int okay(CommandSourceStack s,String message){s.sendSuccess(()->Component.literal("VILLAGE_OK "+message),false);return 1;}
-    private static int configure(CommandSourceStack s,BlockPos origin){Data d=data(s.getLevel());if(d.enabled||d.draining||!d.leases.isEmpty()||d.districts.size()>=4)return fail(s,"Stop and reconcile before configuring at most four districts");
+    private static boolean unresolved(Data d,ServerLevel level){
+        if(!d.failure.isEmpty()||!d.leases.isEmpty())return true;
+        for(UUID id:d.citizens){if(!(level.getEntity(id)instanceof Villager v))return true;CompoundTag m=memory(v);
+            if(m.getBoolean("active")||"HELD".equals(m.getString("phase"))||m.contains("cargo")||m.contains(ServiceProductionBridge.CARGO)||SableHauling.active(v))return true;
+        }return false;
+    }
+    private static int configure(CommandSourceStack s,BlockPos origin){Data d=data(s.getLevel());if(d.enabled||d.draining||unresolved(d,s.getLevel())||d.districts.size()>=4)return fail(s,"Stop and reconcile before configuring at most four districts");
         District district=District.at(d.districts.size(),origin);for(var old:d.districts)if(old.observed().stream().anyMatch(district.observed()::contains))return fail(s,"District overlap");
         for(long p:List.of(district.depot,district.flour,district.water,district.dough,district.furnace,district.pantry))VillageInventory.container(s.getLevel(),BlockPos.of(p));
         if(!MillReservations.isMill(s.getLevel(),BlockPos.of(district.mill))||!s.getLevel().getBlockState(BlockPos.of(district.table)).is(Blocks.CRAFTING_TABLE))return fail(s,"Loaded mill and crafting table required");
@@ -237,14 +246,14 @@ public final class VillageEconomyRuntime {
             net.minecraftforge.common.world.ForgeChunkManager.forceChunk(level,"hearthbound",origin,x,z,add,true);
     }
     private static int keepTicking(CommandSourceStack s,boolean enabled){Data d=data(s.getLevel());
-        if(d.enabled||d.draining||!d.failure.isEmpty()||!d.leases.isEmpty())return fail(s,"Stop and resolve work before changing tick ownership");
+        if(d.enabled||d.draining||unresolved(d,s.getLevel()))return fail(s,"Stop and resolve work before changing tick ownership");
         for(District site:d.districts)tickTickets(s.getLevel(),site,enabled);d.keepTicking=enabled;
         event(d,s.getLevel(),"DISTRICT_TICKING_CONFIGURED",null).addProperty("enabled",enabled);return okay(s,"Native district ticking="+enabled);
     }
     private static int enroll(CommandSourceStack s,Villager v){Data d=data(s.getLevel());if(d.enabled||d.draining||d.citizens.size()>=MAX_CITIZENS||v.level()!=s.getLevel())return fail(s,"Stop before enrollment; capacity sixteen");
-        if(!v.isAlive()||!v.getPersistentData().getBoolean("hearthbound.sable")||NeedServiceRuntime.controls(v)||PrivateCommunicationTrial.controls(v)||SableHauling.active(v)||v.getPersistentData().contains("hearthbound.civilization.v1"))return fail(s,"Citizen has a different controller or native work");
+        if(!d.failure.isEmpty()||!v.isAlive()||v.getPersistentData().contains(KEY)||!v.getPersistentData().getBoolean("hearthbound.sable")||NeedServiceRuntime.controls(v)||PrivateCommunicationTrial.controls(v)||SableHauling.active(v)||v.getPersistentData().contains("hearthbound.civilization.v1"))return fail(s,"Citizen has existing ownership or native work");
         if(!d.citizens.add(v.getUUID()))return fail(s,"Citizen already enrolled");d.policies.put(v.getUUID(),new VillageWorkPolicy(v.getUUID()));CompoundTag m=new CompoundTag();m.putBoolean("enrolled",true);m.putString("name",NAMES[d.citizens.size()-1]);m.putDouble("satiety",70);m.putString("phase","IDLE");v.getPersistentData().put(KEY,m);v.setCustomName(Component.literal(m.getString("name")));v.setCustomNameVisible(true);v.setPersistenceRequired();stopMotion(v);event(d,s.getLevel(),"VILLAGER_ENROLLED",v);return okay(s,"Citizen enrolled with every village capability");}
-    private static int policy(CommandSourceStack s,boolean adaptive){Data d=data(s.getLevel());if(d.enabled||d.draining||!d.leases.isEmpty())return fail(s,"Stop and resolve work before policy change");d.adaptive=adaptive;event(d,s.getLevel(),"POLICY_CONFIGURED",null);return okay(s,"Selector="+(adaptive?"private contextual cost learning":"authored utility control"));}
+    private static int policy(CommandSourceStack s,boolean adaptive){Data d=data(s.getLevel());if(d.enabled||d.draining||unresolved(d,s.getLevel()))return fail(s,"Stop and resolve work before policy change");d.adaptive=adaptive;event(d,s.getLevel(),"POLICY_CONFIGURED",null);return okay(s,"Selector="+(adaptive?"private contextual cost learning":"authored utility control"));}
     private static int start(CommandSourceStack s){Data d=data(s.getLevel());if(!d.failure.isEmpty()||d.enabled||d.draining||!d.leases.isEmpty()||d.districts.isEmpty()||d.citizens.isEmpty()||CivilizationRuntime.enabled(s.getLevel()))return fail(s,"Village cannot start with unresolved work, missing setup or competing dispatch: "+d.failure);
         for(UUID id:d.citizens){if(!(s.getLevel().getEntity(id)instanceof Villager v)||!v.isAlive()||memory(v).getBoolean("active")||SableHauling.active(v)||memory(v).contains("cargo"))return fail(s,"Every citizen must be loaded and free of unresolved custody");}
         d.session=UUID.randomUUID();d.books.clear();d.sent.clear();d.cooldowns.clear();d.enabled=true;

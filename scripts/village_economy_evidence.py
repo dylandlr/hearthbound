@@ -205,6 +205,7 @@ def validate_physical(rows, before, after, totals):
     require(inventory[DOUGH]+expected['dough_baked']==expected['dough_prepared'], 'Dough balance failed')
     require(inventory[BREAD]+expected['meals']==expected['bread_baked'], 'Bread balance failed')
     require(inventory[BUCKET]+inventory[WATER]==8, 'Bucket conservation failed')
+    require(inventory[WATER]+expected['flour_crafted']==expected['water_filled'], 'Filled-water accounting failed')
     require(inventory[SEED]==64+expected['crop_seeds_generated']+expected['mill_seeds_generated']-expected['crops_replanted'], 'Seed balance failed')
     require(all(not i['items'] for i in after['inventories'] if i['path'] in ('InputInventory.Items','OutputInventory.Items')), 'Unresolved mill inventory')
     require(all(not set(i['items'])-{ 'minecraft:coal' } for i in after['inventories'] if i['role']=='furnace'), 'Unresolved furnace material')
