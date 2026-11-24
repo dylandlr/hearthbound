@@ -44,6 +44,9 @@ TICKET_RECEIPT_POLICY = "EXACT_NATIVE_SUCCESS_CHUNK_AND_DIMENSION"
 PROBE_GAP_TICKS = 40
 PROBE_POLL_SECONDS, PROBE_MAX_POLLS = 0.25, 60
 PROTOCOL_FILES = (
+    "build.gradle", "settings.gradle", "gradle.properties",
+    "gradle/forge-build-environment.gradle", "gradle/force-forge-tool-fallback.init.gradle",
+    "scripts/run_forge_build_preflight.py",
     "scripts/haul_motor_diagnostics.py", "scripts/rcon_haul_motor_diagnostics.py",
     "scripts/test_haul_motor_diagnostics.py", ".github/workflows/real-haul-motor-diagnostics.yml",
     "scripts/rcon_obstructed_haul_acceptance.py", "scripts/rcon_two_citizen_haul_acceptance.py",

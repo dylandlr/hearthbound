@@ -2,6 +2,10 @@ name: Real Forge two-citizen hauling acceptance
 on:
   pull_request:
     paths:
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle.properties'
+      - 'gradle/forge-build-environment.gradle'
       - 'scripts/rcon_two_citizen_haul_acceptance.py'
       - 'scripts/test_rcon_two_citizen_haul_acceptance.py'
       - '.github/workflows/real-two-citizen-haul.yml'

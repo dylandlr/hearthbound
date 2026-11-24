@@ -11,9 +11,35 @@ plugins {
     id 'eclipse'
     id 'idea'
     id 'maven-publish'
-    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
+    id 'net.minecraftforge.gradle' version '6.0.54'
 }
 apply plugin: 'org.spongepowered.mixin'
+
+// ForgeGradle 6.0.54 re-adds existing repository objects in its tool fallback.
+// Its default all() callback then tries to mutate their frozen content filters.
+// Use the supported opt-out and preserve the same exclusion once per object.
+def forgePluginLoader = project.plugins.getPlugin('net.minecraftforge.gradle').getClass().getClassLoader()
+def generatedRepositoryType = forgePluginLoader.loadClass('net.minecraftforge.artifactural.gradle.GradleRepositoryAdapter')
+def upstreamRepoFilter = forgePluginLoader.loadClass('net.minecraftforge.gradle.common.util.EnvironmentChecks')
+    .getField('FILTER_REPOS').get(null)
+if (upstreamRepoFilter.getClass().getMethod('isEnabled').invoke(upstreamRepoFilter)) {
+    throw new GradleException('Set net.minecraftforge.gradle.filter.repos=false; Hearthbound preserves its rule with an idempotent callback.')
+}
+def mappedFilterApplications = new IdentityHashMap()
+ext.hearthboundMappedRepositoryFilterApplications = mappedFilterApplications
+def installMappedFilterOnce = { repository ->
+    if (!generatedRepositoryType.isInstance(repository) && !mappedFilterApplications.containsKey(repository)) {
+        repository.content { excludeVersionByRegex('.*', '.*', '.*_mapped_.*') }
+        mappedFilterApplications.put(repository, 1)
+    }
+}
+// Preserve ForgeGradle's existing-only handling for IDE DownloadSources tasks.
+if (gradle.startParameter.taskNames.any { it.endsWith('DownloadSources') }) {
+    repositories.each(installMappedFilterOnce)
+} else {
+    repositories.all(installMappedFilterOnce)
+}
+
 group = mod_group_id
 version = mod_version
 base { archivesName = mod_id }
@@ -31,6 +57,19 @@ repositories {
     maven { url = 'https://maven.createmod.net' }
     maven { url = 'https://maven.ithundxr.dev/mirror' }
     maven { url = 'https://raw.githubusercontent.com/Fuzss/modresources/main/maven/' }
+    // ForgeGradle tries Maven URLs itself before its Gradle fallback. That
+    // fallback excludes Maven repositories, so give this exact tool family a
+    // non-Maven route to the same official artifact; see the cold-build gate.
+    ivy {
+        name = 'HearthboundForgeInstallerToolsFallback'
+        url = 'https://maven.minecraftforge.net'
+        patternLayout {
+            artifact '[organisation]/[module]/[revision]/[artifact]-[revision](-[classifier]).[ext]'
+            m2compatible = true
+        }
+        metadataSources { artifact() }
+        content { includeModule('net.minecraftforge', 'installertools') }
+    }
 }
 mixin {
     add sourceSets.main, 'hearthbound.refmap.json'
@@ -50,3 +89,5 @@ dependencies {
 }
 tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
 jar { manifest { attributes(['Specification-Title': 'hearthbound', 'Implementation-Title': 'hearthbound', 'Implementation-Version': project.version, 'MixinConfigs': 'hearthbound.mixins.json']) } }
+
+apply from: 'gradle/forge-build-environment.gradle'

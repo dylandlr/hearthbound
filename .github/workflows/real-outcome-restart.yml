@@ -5,6 +5,10 @@ on:
       - 'test/real-outcome-restart-v0-15-7'
   pull_request:
     paths:
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle.properties'
+      - 'gradle/forge-build-environment.gradle'
       - 'scripts/rcon_sable_first_mill.py'
       - 'scripts/rcon_outcome_restart_acceptance.py'
       - 'scripts/outcome_restart_identity.py'

@@ -1,0 +1,56 @@
+name: Forge cold dependency setup
+on:
+  pull_request:
+    paths:
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle.properties'
+      - 'gradle/**'
+      - 'src/**'
+      - 'scripts/run_forge_build_preflight.py'
+      - 'scripts/test_forge_build_preflight.py'
+      - '.github/workflows/forge-build-setup.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  cold-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [ordinary, forced-installer-fallback]
+    env:
+      HEARTHBOUND_EXPECTED_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.8'
+          cache-disabled: true
+      - name: Check first-attempt evidence and failure retention
+        run: python3 -m unittest discover -s scripts -p test_forge_build_preflight.py -v
+      - name: Compile once from an empty dependency cache
+        shell: bash
+        env:
+          GRADLE_USER_HOME: ${{ runner.temp }}/hearthbound-cold-${{ matrix.mode }}
+        run: |
+          set -euo pipefail
+          extra=()
+          if [ '${{ matrix.mode }}' = 'forced-installer-fallback' ]; then
+            extra+=(--force-forge-tool-fallback)
+          fi
+          python3 scripts/run_forge_build_preflight.py \
+            --output 'forge-build-setup/${{ matrix.mode }}' \
+            --require-empty-gradle-cache "${extra[@]}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: forge-build-setup-${{ matrix.mode }}
+          path: forge-build-setup/${{ matrix.mode }}/
+          if-no-files-found: error

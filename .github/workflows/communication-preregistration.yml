@@ -1,0 +1,26 @@
+name: Offline communication experiment preregistration
+on:
+  pull_request:
+    paths:
+      - 'scripts/communication_preregistration.py'
+      - 'scripts/test_communication_preregistration.py'
+      - 'docs/COMMUNICATION_EXPERIMENT_PREREGISTRATION_V1.md'
+      - 'docs/experiments/communication-v1.design.json'
+      - '.github/workflows/communication-preregistration.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate-offline-design:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify controls, counterbalance, denominators, and execution refusal
+        run: python3 scripts/test_communication_preregistration.py
+      - name: Validate the frozen 144-world design manifest
+        run: >-
+          python3 scripts/communication_preregistration.py validate
+          docs/experiments/communication-v1.design.json
