@@ -1,5 +1,16 @@
 # Swappable Colony Intelligence Architecture
 
+## Active implementation direction
+
+The v0.20 development route is a Minecraft-facing hierarchical service controller:
+private witnessed needs and delivered requests feed persistent options, while the
+existing native motor owns navigation, pickup, delivery, and recovery. Learning
+moves toward service selection, execution cost, partners, and independently
+verified productive value. See
+[Need-driven service architecture v0.20](NEED_DRIVEN_SERVICE_ARCHITECTURE_V0_20.md)
+for the implementation milestones and the distinction between authored skills,
+live lifecycle behavior, learned coordination, and emergent occupations.
+
 ## Separation of responsibilities
 Minecraft server owns state and validates changes. Citizens use identical observation schemas and bounded action choices regardless of intelligence backend. The action executor handles inventory reservations, pathing, execution, failure and persistence.
 
