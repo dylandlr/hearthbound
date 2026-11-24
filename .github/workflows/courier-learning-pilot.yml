@@ -1,0 +1,59 @@
+name: Physical information learning (simulator only)
+on:
+  pull_request:
+    paths:
+      - 'scripts/courier_economy_env.py'
+      - 'scripts/train_courier_economy.py'
+      - 'scripts/test_courier_economy_env.py'
+      - 'scripts/test_train_courier_economy.py'
+      - 'docs/NEED_DRIVEN_OCCUPATIONS_V0_17.md'
+      - '.github/workflows/courier-learning-pilot.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contracts-and-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install numpy==2.3.5
+      - name: Test private information, physical relay, and neural learning
+        run: python -m unittest discover -s scripts -p 'test*courier*.py' -v
+      - name: Exercise the complete checkpoint and evaluation path
+        run: >-
+          python scripts/train_courier_economy.py
+          --episodes 8 --training-seeds 101 --worlds 2
+          --agents 2 --horizon 32
+          --output-dir run/courier-ci-smoke
+      - name: Verify all planned outcomes and conservation
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('run/courier-ci-smoke/report.json').read_text())
+          assert report['evaluation_weights_frozen'] is True
+          assert report['forge_control_enabled'] is False
+          assert report['minecraft_worlds'] == 0
+          assert report['learned_specialization_established'] is False
+          assert len(report['runs']) == report['protocol']['planned_evaluation_slots'] == 16
+          assert all(row['status'] == 'valid' for row in report['runs'])
+          assert len({row['run_id'] for row in report['runs']}) == 16
+          assert all(row['conservation_residual_A'] == row['conservation_residual_B'] == 0
+                     for row in report['runs'])
+          assert all(row['optimizer_updates'] > 0 for row in report['training'])
+          print('Simulator integrity passed; no learning superiority or occupation required.')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: courier-simulator-smoke-evidence
+          path: run/courier-ci-smoke/
+          if-no-files-found: warn

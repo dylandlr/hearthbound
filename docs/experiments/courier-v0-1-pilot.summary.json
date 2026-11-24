@@ -1,0 +1,514 @@
+{
+  "protocol": {
+    "schema": "hearthbound.courier-learning.v0.1",
+    "origin": "ABSTRACT_SIMULATOR_ONLY",
+    "pilot_only": true,
+    "training_seeds": [
+      17,
+      23,
+      41
+    ],
+    "episodes_per_training_seed": 120,
+    "heldout_world_seeds": [
+      9400000,
+      9400001,
+      9400002,
+      9400003,
+      9400004,
+      9400005,
+      9400006,
+      9400007,
+      9400008,
+      9400009,
+      9400010,
+      9400011
+    ],
+    "agents": 4,
+    "horizon_ticks": 96,
+    "gamma_per_tick": 0.98,
+    "personal_reward_weight": 0.25,
+    "training_communication": "local",
+    "evaluation_communication": [
+      "local",
+      "no_messages",
+      "unread",
+      "instant",
+      "no_relay"
+    ],
+    "observation_contract": {
+      "schema": "hearthbound.physical-message-economy.v0.1",
+      "features": [
+        "time_remaining",
+        "idle",
+        "cargo_a",
+        "cargo_b",
+        "travel_cost",
+        "local_peers",
+        "shareable",
+        "at_hub",
+        "hub_travel",
+        "hub_known",
+        "hub_a",
+        "hub_b",
+        "hub_age",
+        "hub_report",
+        "site_1_type_a",
+        "site_1_type_b",
+        "site_1_travel",
+        "site_1_at",
+        "site_1_known",
+        "site_1_quantity",
+        "site_1_age",
+        "site_1_report",
+        "site_2_type_a",
+        "site_2_type_b",
+        "site_2_travel",
+        "site_2_at",
+        "site_2_known",
+        "site_2_quantity",
+        "site_2_age",
+        "site_2_report",
+        "site_3_type_a",
+        "site_3_type_b",
+        "site_3_travel",
+        "site_3_at",
+        "site_3_known",
+        "site_3_quantity",
+        "site_3_age",
+        "site_3_report",
+        "site_4_type_a",
+        "site_4_type_b",
+        "site_4_travel",
+        "site_4_at",
+        "site_4_known",
+        "site_4_quantity",
+        "site_4_age",
+        "site_4_report"
+      ],
+      "actions": [
+        "WAIT",
+        "GO_HUB",
+        "GO_SITE_1",
+        "GO_SITE_2",
+        "GO_SITE_3",
+        "GO_SITE_4",
+        "PICKUP",
+        "DROP",
+        "SHARE"
+      ],
+      "source_manifest": {
+        "courier_economy_env.py": "89ce9ef61036cfdd787ff29e0fb419d24856224fcc24a1bd244cbf7a0b9f3f1b",
+        "train_courier_economy.py": "b8270b26df9afa73de2458b8d231ae44c4cf7336bb307545aa5fedae0930376d"
+      }
+    },
+    "training_settings": {
+      "algorithm": "shared-independent-Double-DQN",
+      "hidden_units": 64,
+      "batch_size": 32,
+      "replay_start": 64,
+      "replay_capacity": 20000,
+      "replay_trim": 2000,
+      "target_update_interval": 200,
+      "adam_rate": 0.001,
+      "epsilon_initial": 0.9,
+      "epsilon_final": 0.08,
+      "epsilon_decay_fraction": 0.8,
+      "updates_per_world_tick": 1,
+      "gradient_norm_clip": 5.0,
+      "huber_delta": 1.0
+    },
+    "numpy_version": "2.3.5",
+    "primary_metric": "completed simulated production batches",
+    "primary_comparison": "frozen trained local minus same initialization untrained local",
+    "information_comparison": "frozen trained local minus frozen trained unread",
+    "planned_evaluation_slots": 288,
+    "independent_units": "crossed training seed and world seed; citizens and ticks are not replicates",
+    "roles_are_observational": true,
+    "learned_specialization_established": false,
+    "delivery_reward": 0,
+    "occupation_reward": 0,
+    "recurrent_network": false,
+    "centralized_critic": false,
+    "forge_control_enabled": false,
+    "minecraft_worlds": 0,
+    "confirmatory_study": false,
+    "uncertainty": "exploratory crossed bootstrap; few training seeds"
+  },
+  "protocol_sha256": "3136d397bb34f26b21eb42a26e99fc88e1b3dcd6c225f758df315c9e74041a80",
+  "training": [
+    {
+      "training_seed": 17,
+      "trained_sha256": "3de7a46d98c4325c39310355146437d167b2d25e7fdd1f18cf8d538fd530712b",
+      "initial_sha256": "d4d5f941cc1f6193f320411261fa51ebf90cfb016b123345fd7f9c56d8692b19",
+      "episodes": 120,
+      "world_ticks": 11520,
+      "agent_ticks": 46080,
+      "decisions": 21327,
+      "training_products": 223,
+      "optimizer_updates": 11470,
+      "mean_huber_loss": 0.020978554423719608,
+      "training_world_seed_manifest_sha256": "f05369a3fad2442e7ca60b78512f44ccea9e9e75f5fd64c6b5f82e75b8373927"
+    },
+    {
+      "training_seed": 23,
+      "trained_sha256": "24c3c80bb1937c7f5b1e6823a8415c56830cec61c4516b7c8952f197de166fd1",
+      "initial_sha256": "dd587dede879489a3b3a81a6bb3a0714113161609d8b1187255b06cadabde98a",
+      "episodes": 120,
+      "world_ticks": 11520,
+      "agent_ticks": 46080,
+      "decisions": 22088,
+      "training_products": 257,
+      "optimizer_updates": 11477,
+      "mean_huber_loss": 0.021395653719521464,
+      "training_world_seed_manifest_sha256": "2841e5dae54cb11736b31a843de014cb03cf903e8d8b44f464760d90a7a2971f"
+    },
+    {
+      "training_seed": 41,
+      "trained_sha256": "9bec267282494fe258c73dad570ea36c7bd7305d5900b7b54c5abba928fe11ae",
+      "initial_sha256": "5e55b0cdc059afccf9d9fa6e8e097fe333d60daae150fcf192230810a0e7d77c",
+      "episodes": 120,
+      "world_ticks": 11520,
+      "agent_ticks": 46080,
+      "decisions": 21738,
+      "training_products": 226,
+      "optimizer_updates": 11472,
+      "mean_huber_loss": 0.01747983652097424,
+      "training_world_seed_manifest_sha256": "c1ff5d93dd322e2b67a6bb51ebfbc1b3d35ffa1c5ea2d0f4c9681df45613e64c"
+    }
+  ],
+  "evaluation_weights_frozen": true,
+  "summary": {
+    "conditions": {
+      "random:local": {
+        "planned": 36,
+        "retained": 36,
+        "valid": 36,
+        "failed": 0,
+        "mean_products_valid_only": 0.5,
+        "per_training_seed_mean_products": {
+          "17": 0.5,
+          "23": 0.5,
+          "41": 0.5
+        },
+        "mean_counts_valid_only": {
+          "attempts": 4.5,
+          "delivered": 1.4166666666666667,
+          "forwarded": 0.0,
+          "cross_site_deliveries": 1.4166666666666667,
+          "read_report_inputs": 3.9166666666666665,
+          "travel_ticks": 347.3333333333333,
+          "pickup_denials": 1.25
+        },
+        "descriptive_delivery_concentration": {
+          "worlds_with_cross_site_deliveries": 21,
+          "mean_hhi_conditional_on_deliveries": 0.7879365079365078,
+          "occupation_or_causal_evidence": false
+        }
+      },
+      "scripted_local:local": {
+        "planned": 36,
+        "retained": 36,
+        "valid": 36,
+        "failed": 0,
+        "mean_products_valid_only": 4.5,
+        "per_training_seed_mean_products": {
+          "17": 4.5,
+          "23": 4.5,
+          "41": 4.5
+        },
+        "mean_counts_valid_only": {
+          "attempts": 0.0,
+          "delivered": 0.0,
+          "forwarded": 0.0,
+          "cross_site_deliveries": 0.0,
+          "read_report_inputs": 0.0,
+          "travel_ticks": 232.33333333333334,
+          "pickup_denials": 2.5833333333333335
+        },
+        "descriptive_delivery_concentration": {
+          "worlds_with_cross_site_deliveries": 0,
+          "mean_hhi_conditional_on_deliveries": null,
+          "occupation_or_causal_evidence": false
+        }
+      },
+      "trained:instant": {
+        "planned": 36,
+        "retained": 36,
+        "valid": 36,
+        "failed": 0,
+        "mean_products_valid_only": 0.5277777777777778,
+        "per_training_seed_mean_products": {
+          "17": 0.25,
+          "23": 1.3333333333333333,
+          "41": 0.0
+        },
+        "mean_counts_valid_only": {
+          "attempts": 72.63888888888889,
+          "delivered": 0.25,
+          "forwarded": 0.0,
+          "cross_site_deliveries": 0.25,
+          "read_report_inputs": 0.0,
+          "travel_ticks": 85.55555555555556,
+          "pickup_denials": 92.30555555555556
+        },
+        "descriptive_delivery_concentration": {
+          "worlds_with_cross_site_deliveries": 3,
+          "mean_hhi_conditional_on_deliveries": 0.8518518518518517,
+          "occupation_or_causal_evidence": false
+        }
+      },
+      "trained:local": {
+        "planned": 36,
+        "retained": 36,
+        "valid": 36,
+        "failed": 0,
+        "mean_products_valid_only": 1.2222222222222223,
+        "per_training_seed_mean_products": {
+          "17": 1.5833333333333333,
+          "23": 0.4166666666666667,
+          "41": 1.6666666666666667
+        },
+        "mean_counts_valid_only": {
+          "attempts": 71.80555555555556,
+          "delivered": 2.861111111111111,
+          "forwarded": 0.05555555555555555,
+          "cross_site_deliveries": 2.861111111111111,
+          "read_report_inputs": 14.944444444444445,
+          "travel_ticks": 157.58333333333334,
+          "pickup_denials": 43.416666666666664
+        },
+        "descriptive_delivery_concentration": {
+          "worlds_with_cross_site_deliveries": 16,
+          "mean_hhi_conditional_on_deliveries": 0.6659713561350467,
+          "occupation_or_causal_evidence": false
+        }
+      },
+      "trained:no_messages": {
+        "planned": 36,
+        "retained": 36,
+        "valid": 36,
+        "failed": 0,
+        "mean_products_valid_only": 1.3333333333333333,
+        "per_training_seed_mean_products": {
+          "17": 2.0,
+          "23": 0.5833333333333334,
+          "41": 1.4166666666666667
+        },
+        "mean_counts_valid_only": {
+          "attempts": 91.13888888888889,
+          "delivered": 0.0,
+          "forwarded": 0.0,
+          "cross_site_deliveries": 0.0,
+          "read_report_inputs": 0.0,
+          "travel_ticks": 148.77777777777777,
+          "pickup_denials": 39.25
+        },
+        "descriptive_delivery_concentration": {
+          "worlds_with_cross_site_deliveries": 0,
+          "mean_hhi_conditional_on_deliveries": null,
+          "occupation_or_causal_evidence": false
+        }
+      },
+      "trained:no_relay": {
+        "planned": 36,
+        "retained": 36,
+        "valid": 36,
+        "failed": 0,
+        "mean_products_valid_only": 1.2222222222222223,
+        "per_training_seed_mean_products": {
+          "17": 1.5833333333333333,
+          "23": 0.4166666666666667,
+          "41": 1.6666666666666667
+        },
+        "mean_counts_valid_only": {
+          "attempts": 71.86111111111111,
+          "delivered": 2.8055555555555554,
+          "forwarded": 0.0,
+          "cross_site_deliveries": 2.8055555555555554,
+          "read_report_inputs": 14.777777777777779,
+          "travel_ticks": 157.58333333333334,
+          "pickup_denials": 43.27777777777778
+        },
+        "descriptive_delivery_concentration": {
+          "worlds_with_cross_site_deliveries": 16,
+          "mean_hhi_conditional_on_deliveries": 0.6807283005794911,
+          "occupation_or_causal_evidence": false
+        }
+      },
+      "trained:unread": {
+        "planned": 36,
+        "retained": 36,
+        "valid": 36,
+        "failed": 0,
+        "mean_products_valid_only": 1.3333333333333333,
+        "per_training_seed_mean_products": {
+          "17": 2.0,
+          "23": 0.5833333333333334,
+          "41": 1.4166666666666667
+        },
+        "mean_counts_valid_only": {
+          "attempts": 91.13888888888889,
+          "delivered": 2.9722222222222223,
+          "forwarded": 0.027777777777777776,
+          "cross_site_deliveries": 2.9722222222222223,
+          "read_report_inputs": 0.0,
+          "travel_ticks": 148.77777777777777,
+          "pickup_denials": 39.25
+        },
+        "descriptive_delivery_concentration": {
+          "worlds_with_cross_site_deliveries": 16,
+          "mean_hhi_conditional_on_deliveries": 0.63164027069161,
+          "occupation_or_causal_evidence": false
+        }
+      },
+      "untrained:local": {
+        "planned": 36,
+        "retained": 36,
+        "valid": 36,
+        "failed": 0,
+        "mean_products_valid_only": 0.0,
+        "per_training_seed_mean_products": {
+          "17": 0.0,
+          "23": 0.0,
+          "41": 0.0
+        },
+        "mean_counts_valid_only": {
+          "attempts": 9.277777777777779,
+          "delivered": 0.4722222222222222,
+          "forwarded": 0.0,
+          "cross_site_deliveries": 0.4722222222222222,
+          "read_report_inputs": 0.4722222222222222,
+          "travel_ticks": 370.1111111111111,
+          "pickup_denials": 0.0
+        },
+        "descriptive_delivery_concentration": {
+          "worlds_with_cross_site_deliveries": 3,
+          "mean_hhi_conditional_on_deliveries": 0.8518518518518517,
+          "occupation_or_causal_evidence": false
+        }
+      }
+    },
+    "paired_differences": {
+      "local_trained_minus_random:local": {
+        "complete": true,
+        "mean_products_difference": 0.7222222222222222,
+        "exploratory_crossed_bootstrap_95_interval": [
+          -0.19444444444444445,
+          1.9166666666666667
+        ],
+        "per_training_seed_mean_difference": [
+          1.0833333333333333,
+          -0.08333333333333333,
+          1.1666666666666667
+        ]
+      },
+      "local_trained_minus_scripted_local:local": {
+        "complete": true,
+        "mean_products_difference": -3.2777777777777777,
+        "exploratory_crossed_bootstrap_95_interval": [
+          -4.916666666666667,
+          -1.75
+        ],
+        "per_training_seed_mean_difference": [
+          -2.9166666666666665,
+          -4.083333333333333,
+          -2.8333333333333335
+        ]
+      },
+      "local_trained_minus_trained:instant": {
+        "complete": true,
+        "mean_products_difference": 0.6944444444444444,
+        "exploratory_crossed_bootstrap_95_interval": [
+          -0.9166666666666666,
+          2.1666666666666665
+        ],
+        "per_training_seed_mean_difference": [
+          1.3333333333333333,
+          -0.9166666666666666,
+          1.6666666666666667
+        ]
+      },
+      "local_trained_minus_trained:no_messages": {
+        "complete": true,
+        "mean_products_difference": -0.1111111111111111,
+        "exploratory_crossed_bootstrap_95_interval": [
+          -0.5833333333333334,
+          0.3333333333333333
+        ],
+        "per_training_seed_mean_difference": [
+          -0.4166666666666667,
+          -0.16666666666666666,
+          0.25
+        ]
+      },
+      "local_trained_minus_trained:no_relay": {
+        "complete": true,
+        "mean_products_difference": 0.0,
+        "exploratory_crossed_bootstrap_95_interval": [
+          0.0,
+          0.0
+        ],
+        "per_training_seed_mean_difference": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "local_trained_minus_trained:unread": {
+        "complete": true,
+        "mean_products_difference": -0.1111111111111111,
+        "exploratory_crossed_bootstrap_95_interval": [
+          -0.5833333333333334,
+          0.3333333333333333
+        ],
+        "per_training_seed_mean_difference": [
+          -0.4166666666666667,
+          -0.16666666666666666,
+          0.25
+        ]
+      },
+      "local_trained_minus_untrained:local": {
+        "complete": true,
+        "mean_products_difference": 1.2222222222222223,
+        "exploratory_crossed_bootstrap_95_interval": [
+          0.3333333333333333,
+          2.3333333333333335
+        ],
+        "per_training_seed_mean_difference": [
+          1.5833333333333333,
+          0.4166666666666667,
+          1.6666666666666667
+        ]
+      }
+    }
+  },
+  "learned_specialization_established": false,
+  "forge_control_enabled": false,
+  "minecraft_worlds": 0,
+  "confirmatory_study": false,
+  "base_commit": "7d2f8710b832040ee72f74646738490481139b0d",
+  "validation": {
+    "scheduled_evaluation_slots": 288,
+    "valid_evaluation_slots": 288,
+    "failed_evaluation_slots": 0,
+    "unique_run_ids": 288,
+    "material_conservation_violations": 0,
+    "mechanism_and_learner_tests_passed": 27
+  },
+  "interpretation": {
+    "trained_better_than_initial_in_this_pilot": true,
+    "trained_beats_scripted": false,
+    "communication_benefit_demonstrated": false,
+    "dedicated_courier_emergence_demonstrated": false,
+    "null_result_retained": true,
+    "instant_information_is_distribution_shift": true,
+    "repeated_script_and_random_rows_are_not_new_independent_worlds": true,
+    "limits": [
+      "Three training seeds and twelve heldout world seeds only",
+      "Finite-stock single-hub economy can be solved well without messages",
+      "Only two forwarded reports in trained/local evaluation",
+      "Frequent redundant sends and denied pickups",
+      "No recurrent model, centralized critic, contracts, or live Forge integration"
+    ]
+  }
+}
