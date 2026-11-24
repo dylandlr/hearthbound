@@ -13,6 +13,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /** Engineering contracts; physical transport and outcomes require live evidence. */
@@ -173,12 +174,54 @@ public final class CommunicationNetworkPolicyTest {
             "Bounded engineering identity accepted");
     }
 
+    private static void nativeSessionAndDerivedEpisodeStayDistinct() {
+        // Archived PR218 pair-01-direct report ID and runtime episode; this is
+        // an identity regression fixture, not a new qualification observation.
+        UUID world = UUID.fromString("b540facc-e1aa-4fe6-8f4f-252411afb6d0");
+        UUID session = UUID.fromString("65419d4c-cebe-4f7f-9b98-0cbf979d951a");
+        UUID episode = UUID.fromString("afbf9d64-c4e9-31c1-b884-640eb4e9bded");
+        String dimension = "minecraft:overworld";
+        check(session.version() == 4 && episode.version() == 3 && !session.equals(episode),
+            "The actual native server session and derived decision episode are distinct identities");
+        check(CommunicationNetworkPolicy.observationEpisode(world, session, dimension).equals(episode),
+            "Exact UTF-8 name-UUID derivation reproduces the archived live episode");
+        check(CommunicationNetworkPolicy.bindObservationEpisode(world, episode, world, session, dimension).equals(episode),
+            "A valid native observation binds to its configured episode without treating the raw session as an episode");
+
+        UUID restartedSession = UUID.fromString("12345678-90ab-4cde-8f01-23456789abcd");
+        UUID restartedEpisode = CommunicationNetworkPolicy.observationEpisode(world, restartedSession, dimension);
+        rejected(() -> CommunicationNetworkPolicy.bindObservationEpisode(world, restartedEpisode, world, session, dimension));
+        rejected(() -> CommunicationNetworkPolicy.bindObservationEpisode(world, episode, world, restartedSession, dimension));
+        check(CommunicationNetworkPolicy.bindObservationEpisode(world, restartedEpisode, world, restartedSession, dimension)
+            .equals(restartedEpisode), "Only the matching native session binds after a new server lifetime");
+        rejected(() -> CommunicationNetworkPolicy.bindObservationEpisode(world, session, world, session, dimension));
+        rejected(() -> CommunicationNetworkPolicy.bindObservationEpisode(world, episode, world, episode, dimension));
+
+        UUID otherWorld = UUID.fromString("01234567-89ab-4def-8123-456789abcdef");
+        rejected(() -> CommunicationNetworkPolicy.bindObservationEpisode(world, episode, otherWorld, session, dimension));
+        UUID otherWorldEpisode = CommunicationNetworkPolicy.observationEpisode(otherWorld, session, dimension);
+        rejected(() -> CommunicationNetworkPolicy.bindObservationEpisode(world, otherWorldEpisode, otherWorld, session, dimension));
+        rejected(() -> CommunicationNetworkPolicy.bindObservationEpisode(world, episode, world, session, "minecraft:the_nether"));
+        UUID otherDimensionEpisode = CommunicationNetworkPolicy.observationEpisode(world, session, "minecraft:the_nether");
+        rejected(() -> CommunicationNetworkPolicy.bindObservationEpisode(world, otherDimensionEpisode, world, session, dimension));
+
+        // A separately declared vector anchors the encoding and separator bytes.
+        check(CommunicationNetworkPolicy.observationEpisode(otherWorld, restartedSession, dimension)
+            .equals(UUID.fromString("163ed56f-c2ed-3070-8bc0-19a426af0612")), "Declared derivation vector is stable");
+        rejected(() -> CommunicationNetworkPolicy.bindObservationEpisode(null, episode, world, session, dimension));
+        rejected(() -> CommunicationNetworkPolicy.bindObservationEpisode(world, null, world, session, dimension));
+        rejected(() -> CommunicationNetworkPolicy.observationEpisode(null, session, dimension));
+        rejected(() -> CommunicationNetworkPolicy.observationEpisode(world, null, dimension));
+        rejected(() -> CommunicationNetworkPolicy.observationEpisode(world, session, null));
+    }
+
     public static void main(String[] args) {
         exactDirectedEdgesAndNoSelfLinks();
         recipientRotationAndChargedRejections();
         unreadDoesNotFetchOrAffectPrivateDecisions();
         counterbalancedSeatsAndClosedLegacyInterface();
         malformedInputs();
+        nativeSessionAndDerivedEpisodeStayDistinct();
         System.out.println("CommunicationNetworkPolicyTest: " + checks + " checks passed");
     }
 }

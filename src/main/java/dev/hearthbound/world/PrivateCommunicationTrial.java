@@ -52,10 +52,10 @@ import net.minecraftforge.fml.common.Mod;
 @Mod.EventBusSubscriber(modid = "hearthbound", bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class PrivateCommunicationTrial {
     public static final String SCHEMA = "hearthbound.private-communication-trial.v1";
-    public static final String NETWORK_SCHEMA = "hearthbound.communication-network-trial.v1";
+    public static final String NETWORK_SCHEMA = "hearthbound.communication-network-trial.v2";
     private static final String MARKER = "hearthbound.private_communication_trial.v1";
     private static final String PREFIX = "COMMUNICATION_TRIAL_V1 ";
-    private static final String NETWORK_PREFIX = "COMMUNICATION_NETWORK_TRIAL_V1 ";
+    private static final String NETWORK_PREFIX = "COMMUNICATION_NETWORK_TRIAL_V2 ";
     private static final int MAX_RECORDS = 4096;
     private static final Map<ServerLevel, Trial> TRIALS = new WeakHashMap<>();
     private static final List<String> COUNTERS = List.of("idle_opportunities", "motor_ticks",
@@ -309,7 +309,8 @@ public final class PrivateCommunicationTrial {
             row.addProperty("charged_send_budget", 0);
             row.addProperty("result", "NO_ELIGIBLE_DIRECT_EVIDENCE");
             for (String key : List.of("attempt_id", "source", "source_observation_owner", "observed_tick",
-                    "source_revision", "claimed_wheat", "source_state", "observation_world", "observation_episode"))
+                    "source_revision", "claimed_wheat", "source_state", "observation_world",
+                    "observation_session", "observation_episode"))
                 row.add(key, JsonNull.INSTANCE);
         } else {
             Knowledge chosen = own.get((int) (trial.rounds % own.size()));
@@ -320,8 +321,11 @@ public final class PrivateCommunicationTrial {
                     || !evidence.getString("state").equals(chosen.state().name())
                     || evidence.getInt("revision") < 1
                     || !evidence.hasUUID("observationWorld") || !evidence.getUUID("observationWorld").equals(trial.world)
-                    || !evidence.hasUUID("observationSession") || !evidence.getUUID("observationSession").equals(trial.episode))
+                    || !evidence.hasUUID("observationSession") || !SourceReportSession.accepts(level, evidence, now))
                 throw new IllegalStateException("Outgoing payload does not match the sender's native direct evidence");
+            UUID observationEpisode = CommunicationNetworkPolicy.bindObservationEpisode(trial.world, trial.episode,
+                evidence.getUUID("observationWorld"), evidence.getUUID("observationSession"),
+                level.dimension().location().toString());
             String permission = CommunicationNetworkPolicy.chargeAndCheck(trial.arm, actor.slot, trial.rounds, actor.budget);
             actor.add("send_attempts", 1);
             row.addProperty("edge_allowed", permission.equals("ALLOWED"));
@@ -335,7 +339,8 @@ public final class PrivateCommunicationTrial {
             row.addProperty("claimed_wheat", evidence.getInt("wheat"));
             row.addProperty("source_state", evidence.getString("state"));
             row.addProperty("observation_world", evidence.getUUID("observationWorld").toString());
-            row.addProperty("observation_episode", evidence.getUUID("observationSession").toString());
+            row.addProperty("observation_session", evidence.getUUID("observationSession").toString());
+            row.addProperty("observation_episode", observationEpisode.toString());
             if (!permission.equals("ALLOWED")) {
                 UUID attempt = CitizenCommunicationRecords.sendAttempt(level, source, sender, recipient);
                 CitizenCommunicationRecords.rejected(level, attempt, permission);

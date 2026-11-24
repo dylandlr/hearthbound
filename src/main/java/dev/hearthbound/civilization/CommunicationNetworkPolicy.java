@@ -1,9 +1,11 @@
 package dev.hearthbound.civilization;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.function.Supplier;
 
 /** Permission and access rules for the separately qualified communication modes. */
@@ -20,6 +22,24 @@ public final class CommunicationNetworkPolicy {
         new PrivateCommunicationPolicy.Position(12.5, 101, 12.5));
 
     private CommunicationNetworkPolicy() {}
+
+    /** Same derivation as SourceReportSession; the native session is not itself an episode. */
+    public static UUID observationEpisode(UUID world, UUID session, String dimension) {
+        Objects.requireNonNull(world); Objects.requireNonNull(session); Objects.requireNonNull(dimension);
+        return UUID.nameUUIDFromBytes((world + "|" + session + "|" + dimension)
+            .getBytes(StandardCharsets.UTF_8));
+    }
+
+    /** Bind an already active-fence-validated native observation to the configured trial. */
+    public static UUID bindObservationEpisode(UUID trialWorld, UUID trialEpisode,
+                                              UUID observationWorld, UUID observationSession,
+                                              String dimension) {
+        Objects.requireNonNull(trialWorld); Objects.requireNonNull(trialEpisode);
+        UUID derived = observationEpisode(observationWorld, observationSession, dimension);
+        if (!trialWorld.equals(observationWorld) || !trialEpisode.equals(derived))
+            throw new IllegalStateException("Outgoing observation does not belong to the configured trial episode");
+        return derived;
+    }
 
     public enum Arm {
         NO_MESSAGES, DIRECT, DIRECT_UNREAD, STAR, CHAIN, CYCLE;

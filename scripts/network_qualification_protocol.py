@@ -18,7 +18,7 @@ from private_communication_protocol import (
 
 SCHEMA = "hearthbound.network-qualification-result.v1"
 PLAN_SCHEMA = "hearthbound.network-qualification-plan.v1"
-RUNTIME_SCHEMA = "hearthbound.communication-network-trial.v1"
+RUNTIME_SCHEMA = "hearthbound.communication-network-trial.v2"
 SUMMARY_SCHEMA = "hearthbound.network-qualification-summary.v1"
 LEDGER_SCHEMA = "hearthbound.network-qualification-evidence-digests.v1"
 DESIGN_SHA256 = "43588a883e3c5674deff44e022ca9c4819d5e1ca48c82b664884ff603fdc6b45"

@@ -15,14 +15,14 @@ from network_qualification_protocol import (
     SCHEMA, WORLD_SEED, actor_uuid, digest, initial_manifest as matched_manifest, parse_json, plan_document,
 )
 from network_qualification_native import (
-    CommunicationNbtReader, SnbtReader, expected_report, inbox_witness, native_uuid,
+    CommunicationNbtReader, SnbtReader, derive_episode, expected_report, inbox_witness, native_report_id, native_uuid,
     normalize_inbox, replay_inboxes, validate_inbox_witness,
 )
 from rcon_network_qualification import (
     SETUP_COMMANDS, packed, source_key, trial_id, uuid_ints, validate_trial,
 )
 from summarize_network_qualification import capability_coverage, qualification_summary, summarize
-from uuid import NAMESPACE_URL, uuid5
+from uuid import NAMESPACE_URL, UUID, uuid3, uuid5
 import run_network_qualification as runner
 
 COUNTERS = ("idle_opportunities", "motor_ticks", "near_probes", "near_inspections",
@@ -31,6 +31,7 @@ COUNTERS = ("idle_opportunities", "motor_ticks", "near_probes", "near_inspection
             "motor_elapsed_ns", "discovery_elapsed_ns", "communication_elapsed_ns", "decision_elapsed_ns")
 CAPS = ("near_probes", "near_inspections", "outer_probes", "outer_inspections",
         "rechecks", "assignment_attempts", "send_attempts")
+RAW_SESSION = "65419d4c-cebe-4f7f-9b98-0cbf979d951a"
 
 
 def identity(label):
@@ -49,7 +50,8 @@ def empty_communication(world, episode):
 
 def zero_output_fixture(arm="NO_MESSAGES", seed=WORLD_SEED):
     """A full valid observation with 120 abstentions and zero physical output."""
-    world, episode = identity("world"), identity("episode")
+    world = identity("world")
+    episode = derive_episode(world, RAW_SESSION, DIMENSION)
     configured = dict(schema=RUNTIME_SCHEMA, status="CONFIGURED", arm=arm, policy_seed=POLICY_SEED,
                       horizon_ticks=600, cadence_ticks=20, dimension=DIMENSION,
                       actor_count=0, rounds=0, records_total=0, destination=list(DESTINATION),
@@ -79,7 +81,7 @@ def zero_output_fixture(arm="NO_MESSAGES", seed=WORLD_SEED):
                        route_semantics="PROPOSED_DIRECT_RECIPIENT", edge_decision="NOT_ATTEMPTED_NO_PAYLOAD",
                        charged_send_budget=0, result="NO_ELIGIBLE_DIRECT_EVIDENCE")
             row.update({key: None for key in ("attempt_id", "source", "source_observation_owner", "observed_tick",
-                       "source_revision", "claimed_wheat", "source_state", "observation_world", "observation_episode")})
+                       "source_revision", "claimed_wheat", "source_state", "observation_world", "observation_session", "observation_episode")})
             records.append(row)
         for slot in order:
             records.append(dict(common, sequence=len(records) + 1, kind="DECISION", tick=100 + round_number * 20,
@@ -179,7 +181,7 @@ def one_send_fixture(arm="DIRECT_UNREAD"):
     permission = "NETWORK_DISABLED" if arm == "NO_MESSAGES" else "ALLOWED" if allowed else "TOPOLOGY_BLOCKED"
     send.update(kind="SEND", charged_send_budget=1, attempt_id=identity("attempt"), source=list(SOURCES[0]),
                 source_observation_owner=actor["citizen"], observed_tick=680, source_revision=1, claimed_wheat=2,
-                source_state="AVAILABLE", observation_world=send["world"], observation_episode=send["episode"],
+                source_state="AVAILABLE", observation_world=send["world"], observation_session=RAW_SESSION, observation_episode=send["episode"],
                 edge_decision=permission, route_semantics="ATTEMPTED_DIRECT_RECIPIENT",
                 result="KNOWLEDGE_SHARE status=DELIVERED action_authorized=false" if allowed else "REJECTED_" + permission)
     attempt = dict(id=send["attempt_id"], world=send["world"], episode=send["episode"], sender=send["citizen"],
@@ -190,7 +192,8 @@ def one_send_fixture(arm="DIRECT_UNREAD"):
     comm["attempts"] = [attempt]
     comm["audit"].update(send_attempts=1, send_records=1, rejected_sends=0 if allowed else 1)
     if allowed:
-        report_id = "actual-owned-observation"
+        report_id = native_report_id(dict(sender=send["citizen"], source=source_key(SOURCES[0]),
+                                          source_revision=1, observed_tick=680, world=send["world"]), RAW_SESSION)
         attempt["report_id"] = report_id
         message = dict(id=identity("message"), world=send["world"], episode=send["episode"], sender=send["citizen"],
                        recipient=send["recipient"], report_id=report_id, source=source_key(SOURCES[0]),
@@ -199,7 +202,7 @@ def one_send_fixture(arm="DIRECT_UNREAD"):
         comm["messages"] = [message]
         comm["events"] = [dict(sequence=1, stage="DELIVERED", tick=680, message_id=message["id"], actor=send["recipient"])]
         comm["audit"].update(messages=1, delivered=1, events=1)
-        data["native_inboxes_after"][3] = inbox_record(send["recipient"], [expected_report(message)])
+        data["native_inboxes_after"][3] = inbox_record(send["recipient"], [expected_report(message, RAW_SESSION, DIMENSION)])
         data["native_inboxes_after_export"] = copy.deepcopy(data["native_inboxes_after"])
     actor.update(private_sources=1, active=True, phase=0, current_job=job)
     actor["counters"].update(outer_inspections=1, rechecks=1, send_attempts=1, assignment_attempts=1, assignments=1)
@@ -315,13 +318,43 @@ class NetworkEvidenceTests(unittest.TestCase):
                        {"observed_tick": 660}, {"source_revision": 2}, {"claimed_wheat": 1}):
             self.invalid(lambda data, values=values: next(row for row in data["records"] if row["kind"] == "SEND").update(values))
 
+    def test_send_requires_raw_session_and_correct_scoped_episode(self):
+        for values in ({"observation_session": None}, {"observation_session": identity("forged-session")},
+                       {"observation_world": identity("forged-world")}, {"observation_episode": RAW_SESSION}):
+            with self.subTest(values=values):
+                self.invalid(lambda data, values=values: next(row for row in data["records"] if row["kind"] == "SEND").update(values))
+        self.invalid(lambda data: next(row for row in data["records"] if row["kind"] == "SEND").update(
+            observation_session=data["final"]["episode"]))
+
+    def test_network_v1_schema_or_missing_session_is_rejected(self):
+        self.invalid(lambda data: data["final"].update(schema="hearthbound.communication-network-trial.v1"))
+        self.invalid(lambda data: next(row for row in data["records"] if row["kind"] == "SEND").pop("observation_session"))
+        self.invalid(lambda data: data["records"][0].pop("observation_session"))
+
+    def test_native_inbox_session_cannot_be_rewritten_in_both_exports(self):
+        def mutate(data):
+            entries = copy.deepcopy(data["native_inboxes_after"][3]["entries"])
+            entries[0]["observationSession"] = data["final"]["episode"]
+            witness = inbox_record(actor_uuid(WORLD_SEED, 3), entries)
+            data["native_inboxes_after"][3] = witness
+            data["native_inboxes_after_export"][3] = copy.deepcopy(witness)
+        self.invalid(mutate)
+
+    def test_attempt_report_id_binds_exact_raw_session(self):
+        def mutate(data):
+            forged = data["communication"]["messages"][0]["report_id"].rsplit("|", 1)[0] + "|" + identity("forged-session")
+            data["communication"]["messages"][0]["report_id"] = forged
+            data["communication"]["attempts"][0]["report_id"] = forged
+        self.invalid(mutate)
+
     def test_no_relay_and_no_alternate_peer_retry(self):
         for values in ({"route": [actor_uuid(WORLD_SEED, 0), actor_uuid(WORLD_SEED, 1), actor_uuid(WORLD_SEED, 3)]},
                        {"recipient_slot": 1}, {"permission_edge": [0, 1]}, {"charged_send_budget": 0}):
             self.invalid(lambda data, values=values: next(row for row in data["records"] if row["kind"] == "SEND").update(values))
 
     def test_no_payload_cannot_charge_or_invent_attempt(self):
-        for values in ({"charged_send_budget": 1}, {"attempt_id": identity("invented")}, {"source": list(SOURCES[0])}):
+        for values in ({"charged_send_budget": 1}, {"attempt_id": identity("invented")},
+                       {"source": list(SOURCES[0])}, {"observation_session": RAW_SESSION}):
             self.invalid(lambda data, values=values: data["records"][0].update(values))
 
     def test_discovery_after_send_is_rejected(self):
@@ -360,6 +393,76 @@ class NetworkEvidenceTests(unittest.TestCase):
         self.invalid(lambda data: data["final"].update(record_capacity_denials=1))
 
 
+class SessionIdentityTests(unittest.TestCase):
+    def test_java_name_uuid_vectors_from_retained_artifacts(self):
+        # First two vectors are actual retained legacy messages from PR218 and
+        # c1184 respectively. Java UUID.nameUUIDFromBytes was also run directly;
+        # these are identity-regression fixtures, not qualification outcomes.
+        vectors = [
+            ("b540facc-e1aa-4fe6-8f4f-252411afb6d0", RAW_SESSION, "minecraft:overworld", "afbf9d64-c4e9-31c1-b884-640eb4e9bded"),
+            ("585b1010-8001-47e9-817d-43a6f6deb7d0", "c85f0970-6466-4a8a-9cb8-560af9aa9a73", "minecraft:overworld", "07697ff6-fa62-3d52-910a-a43a9d13c1f5"),
+            ("b540facc-e1aa-4fe6-8f4f-252411afb6d0", RAW_SESSION, "minecraft:the_nether", "87c28b40-30f2-3ad9-9f13-382c590f8309"),
+        ]
+        for world, session, dimension, expected in vectors:
+            with self.subTest(world=world, dimension=dimension):
+                self.assertEqual(derive_episode(world, session, dimension), expected)
+                self.assertEqual(UUID(session).version, 4)
+                self.assertEqual(UUID(expected).version, 3)
+                self.assertNotEqual(session, expected)
+                self.assertNotEqual(str(uuid3(NAMESPACE_URL, world + "|" + session + "|" + dimension)), expected)
+
+    def test_scope_derivation_changes_with_world_session_or_dimension(self):
+        world = "b540facc-e1aa-4fe6-8f4f-252411afb6d0"
+        expected = "afbf9d64-c4e9-31c1-b884-640eb4e9bded"
+        for changed in ((identity("other-world"), RAW_SESSION, DIMENSION),
+                        (world, identity("other-session"), DIMENSION), (world, RAW_SESSION, "minecraft:the_nether")):
+            with self.subTest(changed=changed):
+                self.assertNotEqual(derive_episode(*changed), expected)
+
+    def test_derive_episode_rejects_noncanonical_or_malformed_inputs(self):
+        for changed in ((identity("world").upper(), RAW_SESSION, DIMENSION),
+                        (identity("world"), [], DIMENSION), (identity("world"), RAW_SESSION, "minecraft:overworld|extra")):
+            with self.subTest(changed=changed), self.assertRaises((ValueError, TypeError)):
+                derive_episode(*changed)
+
+    def test_native_report_preserves_raw_session_not_derived_episode(self):
+        data = one_send_fixture()
+        message = data["communication"]["messages"][0]
+        report = expected_report(message, RAW_SESSION, DIMENSION)
+        self.assertEqual(report["observationSession"], RAW_SESSION)
+        self.assertNotEqual(report["observationSession"], message["episode"])
+        self.assertEqual(report, data["native_inboxes_after"][3]["entries"][0])
+        self.assertEqual(report["id"], native_report_id(message, RAW_SESSION))
+
+    def test_native_message_session_binding_rejects_forgery(self):
+        original = one_send_fixture()["communication"]["messages"][0]
+        cases = [(original, identity("forged-session"), DIMENSION),
+                 (original, original["episode"], DIMENSION), (original, RAW_SESSION, "minecraft:the_nether"),
+                 (dict(original, world=identity("forged-world")), RAW_SESSION, DIMENSION),
+                 (dict(original, episode=identity("forged-episode")), RAW_SESSION, DIMENSION)]
+        for message, session, dimension in cases:
+            with self.subTest(session=session, dimension=dimension), self.assertRaises(ValueError):
+                expected_report(message, session, dimension)
+
+    def test_native_report_identity_rejects_changed_observation_fields(self):
+        original = one_send_fixture()["communication"]["messages"][0]
+        for changed in ({"sender": actor_uuid(WORLD_SEED, 1)}, {"source_revision": 2},
+                        {"observed_tick": 681}, {"source": source_key(SOURCES[1])}, {"report_id": "unbound-report"}):
+            with self.subTest(changed=changed), self.assertRaises(ValueError):
+                expected_report(dict(original, **changed), RAW_SESSION, DIMENSION)
+
+    def test_mapping_covers_exact_messages_and_empty_world_has_no_session_witness(self):
+        citizens = [actor_uuid(WORLD_SEED, slot) for slot in range(4)]
+        empty = zero_output_fixture()["communication"]
+        inboxes, _ = replay_inboxes(empty, citizens, 700, {}, DIMENSION)
+        self.assertTrue(all(not entries for entries in inboxes.values()))
+        with self.assertRaises(ValueError): replay_inboxes(empty, citizens, 700, {identity("invented-message"): RAW_SESSION}, DIMENSION)
+        real = one_send_fixture()["communication"]
+        with self.assertRaises(ValueError): replay_inboxes(real, citizens, 700, {}, DIMENSION)
+        with self.assertRaises(ValueError):
+            replay_inboxes(real, citizens, 700, {real["messages"][0]["id"]: identity("forged-session")}, DIMENSION)
+
+
 class NativeEvidenceTests(unittest.TestCase):
     def test_real_binary_nbt_uuid_arrays_preserved(self):
         values = uuid_ints(identity("binary-uuid"))
@@ -388,7 +491,7 @@ class NativeEvidenceTests(unittest.TestCase):
         attempt.update(id=identity("duplicate"), tick=1000, outcome="DUPLICATE", reason="ALREADY_DELIVERED")
         data["attempts"].append(attempt)
         citizens = [actor_uuid(WORLD_SEED, slot) for slot in range(4)]
-        inboxes, lifecycle = replay_inboxes(data, citizens, 1001)
+        inboxes, lifecycle = replay_inboxes(data, citizens, 1001, {row["id"]: RAW_SESSION for row in data["messages"]}, DIMENSION)
         self.assertEqual(len(inboxes[citizens[3]]), 1)
         self.assertEqual(lifecycle[citizens[3]]["ttl_pruned"], 0)
         self.assertEqual(lifecycle[citizens[3]]["retained_expired_at_horizon"], 1)
@@ -398,19 +501,22 @@ class NativeEvidenceTests(unittest.TestCase):
         data = one_send_fixture()["communication"]
         original = copy.deepcopy(data["messages"][0]); original_attempt = copy.deepcopy(data["attempts"][0])
         for i in range(1, 18):
-            message = dict(original, id=identity(f"message-{i}"), report_id=f"report-{i}",
+            message = dict(original, id=identity(f"message-{i}"), observed_tick=680+i,
                            sent_tick=680+i, delivered_tick=680+i, expires_after_tick=880+i)
+            message["report_id"] = native_report_id(message, RAW_SESSION)
             data["messages"].append(message)
-            data["attempts"].append(dict(original_attempt, id=identity(f"attempt-{i}"), report_id=f"report-{i}", tick=680+i))
+            data["attempts"].append(dict(original_attempt, id=identity(f"attempt-{i}"), report_id=message["report_id"], tick=680+i))
         citizens = [actor_uuid(WORLD_SEED, slot) for slot in range(4)]
-        inboxes, lifecycle = replay_inboxes(data, citizens, 700)
+        inboxes, lifecycle = replay_inboxes(data, citizens, 700, {row["id"]: RAW_SESSION for row in data["messages"]}, DIMENSION)
         self.assertEqual(len(inboxes[citizens[3]]), 16)
         self.assertEqual(lifecycle[citizens[3]]["fifo_evicted"], 2)
         self.assertEqual(lifecycle[citizens[3]]["ttl_pruned"], 0)
-        data["messages"].append(dict(original, id=identity("late-message"), report_id="late", sent_tick=1000,
-                                     delivered_tick=1000, expires_after_tick=1200))
-        data["attempts"].append(dict(original_attempt, id=identity("late-attempt"), report_id="late", tick=1000))
-        inboxes, lifecycle = replay_inboxes(data, citizens, 1001)
+        late = dict(original, id=identity("late-message"), observed_tick=1000, sent_tick=1000,
+                    delivered_tick=1000, expires_after_tick=1200)
+        late["report_id"] = native_report_id(late, RAW_SESSION)
+        data["messages"].append(late)
+        data["attempts"].append(dict(original_attempt, id=identity("late-attempt"), report_id=late["report_id"], tick=1000))
+        inboxes, lifecycle = replay_inboxes(data, citizens, 1001, {row["id"]: RAW_SESSION for row in data["messages"]}, DIMENSION)
         self.assertEqual(len(inboxes[citizens[3]]), 1)
         self.assertEqual(lifecycle[citizens[3]]["ttl_pruned"], 16)
         self.assertEqual(lifecycle[citizens[3]]["fifo_evicted"], 2)

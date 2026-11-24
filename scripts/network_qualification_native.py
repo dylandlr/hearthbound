@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Bounded native inbox witnesses and saved communication-history comparisons."""
 import gzip
+import hashlib
 import json
 import re
 import struct
 from uuid import UUID
 
-from rcon_private_communication_trial import packed, require
+from rcon_private_communication_trial import packed, require, uuid
 from run_colony_reliability_trial import NbtReader
 
 
@@ -150,8 +151,36 @@ def validate_inbox_witness(witness):
         require(parsed == witness["entries"], "Native inbox differs from raw witness")
 
 
-def expected_report(message):
-    return {"observationWorld": message["world"], "observationSession": message["episode"],
+def derive_episode(world, observation_session, dimension):
+    """Exact Java UUID.nameUUIDFromBytes(world|rawSession|dimension), UTF-8.
+
+    This hashes the bytes directly. Python uuid3(namespace, name) would prepend
+    namespace bytes and produce a different identifier.
+    """
+    uuid(world); uuid(observation_session)
+    require(isinstance(dimension, str) and re.fullmatch(r"[a-z0-9_.-]+:[a-z0-9_/.-]+", dimension),
+            "Invalid episode dimension")
+    encoded = (world + "|" + observation_session + "|" + dimension).encode("utf-8")
+    return str(UUID(bytes=hashlib.md5(encoded, usedforsecurity=False).digest(), version=3))
+
+
+def native_report_id(message, observation_session):
+    """The exact transport identity includes the raw observation session."""
+    uuid(message["sender"]); uuid(message["world"]); uuid(observation_session)
+    require(isinstance(message["source"], str) and type(message["source_revision"]) is int
+            and message["source_revision"] > 0 and type(message["observed_tick"]) is int,
+            "Invalid native report identity fields")
+    return (message["sender"] + "|" + message["source"] + "|" + str(message["source_revision"])
+            + "|" + str(message["observed_tick"]) + "|" + message["world"] + "|" + observation_session)
+
+
+def expected_report(message, observation_session, dimension):
+    require(derive_episode(message["world"], observation_session, dimension) == uuid(message["episode"]),
+            "Raw observation session does not derive the scoped message episode")
+    require(message["source"].split("|", 1)[0] == dimension
+            and message["report_id"] == native_report_id(message, observation_session),
+            "Native report identity differs from exact observation provenance")
+    return {"observationWorld": message["world"], "observationSession": observation_session,
             "id": message["report_id"], "source": message["source"],
             "state": "AVAILABLE" if message["reported_wheat"] > 0 else "EMPTY",
             "wheat": message["reported_wheat"], "observed_tick": message["observed_tick"],
@@ -160,7 +189,10 @@ def expected_report(message):
             "origin": "REPORTED_DIRECT_FORGE_OBSERVATION"}
 
 
-def replay_inboxes(communication, citizens, end_tick):
+def replay_inboxes(communication, citizens, end_tick, message_sessions, dimension):
+    require(isinstance(message_sessions, dict)
+            and set(message_sessions) == {message["id"] for message in communication["messages"]},
+            "Raw session mapping must cover exactly the actually delivered messages")
     inboxes = {citizen: [] for citizen in citizens}
     counters = {citizen: {"ttl_pruned": 0, "fifo_evicted": 0, "duplicate_without_pruning": 0}
                 for citizen in citizens}
@@ -181,7 +213,8 @@ def replay_inboxes(communication, citizens, end_tick):
         counters[recipient]["ttl_pruned"] += len(current) - len(retained)
         while len(retained) >= 16:
             retained.pop(0); counters[recipient]["fifo_evicted"] += 1
-        retained.append(expected_report(messages[0])); inboxes[recipient] = retained
+        message = messages[0]
+        retained.append(expected_report(message, message_sessions[message["id"]], dimension)); inboxes[recipient] = retained
     for citizen, entries in inboxes.items():
         counters[citizen]["retained"] = len(entries)
         counters[citizen]["retained_expired_at_horizon"] = sum(end_tick - row["delivered_tick"] > 200 for row in entries)

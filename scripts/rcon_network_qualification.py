@@ -23,9 +23,9 @@ from rcon_private_communication_trial import (
     connection, inventories, packed, require, source_key, uuid, uuid_ints,
     validate_setup_response, xyz,
 )
-from network_qualification_native import inbox_witness, replay_inboxes, validate_inbox_witness
+from network_qualification_native import derive_episode, inbox_witness, native_report_id, replay_inboxes, validate_inbox_witness
 
-MARKER = "COMMUNICATION_NETWORK_TRIAL_V1 "
+MARKER = "COMMUNICATION_NETWORK_TRIAL_V2 "
 COMMAND = "hearthbound-communication-trial"
 
 
@@ -39,7 +39,7 @@ RECORD_COMMON = NETWORK_CONTEXT | {"kind", "tick", "relative_tick", "slot", "cit
 SEND_FIELDS = {"recipient_slot", "recipient_seat", "recipient", "permission_edge", "route", "edge_allowed",
                "edge_decision", "route_semantics", "charged_send_budget", "result", "attempt_id", "source",
                "source_observation_owner", "observed_tick", "source_revision", "claimed_wheat", "source_state",
-               "observation_world", "observation_episode"}
+               "observation_world", "observation_session", "observation_episode"}
 AUDIT_FIELDS = NETWORK_CONTEXT | {"schema", "kind", "dimension", "read_only", "policy_seed", "horizon_ticks",
     "status", "actor_count", "start_tick", "end_tick", "observed_tick", "elapsed_ticks", "rounds", "records_total",
     "record_capacity_denials", "errors", "destination", "cadence_ticks", "max_records", "causal_benefit_established",
@@ -136,7 +136,7 @@ def validate_network_contract(data, seed, arm):
                     and row["edge_decision"] == "NOT_ATTEMPTED_NO_PAYLOAD"
                     and row["route_semantics"] == "PROPOSED_DIRECT_RECIPIENT"
                     and all(row[key] is None for key in ("attempt_id", "source", "source_observation_owner", "observed_tick",
-                              "source_revision", "claimed_wheat", "source_state", "observation_world", "observation_episode")),
+                              "source_revision", "claimed_wheat", "source_state", "observation_world", "observation_session", "observation_episode")),
                     "Empty-payload opportunity fabricated evidence or consumed a send")
             continue
         require(kind == "SEND" and row["charged_send_budget"] == 1
@@ -147,6 +147,8 @@ def validate_network_contract(data, seed, arm):
                 and row["source_state"] == evidence["state"] and row["source_observation_owner"] == row["citizen"]
                 and row["observation_world"] == world and row["observation_episode"] == episode,
                 "Send payload is not the selected own direct observation")
+        require(derive_episode(row["observation_world"], row["observation_session"], final["dimension"])
+                == row["observation_episode"], "Raw observation session does not derive the trial episode")
         permission = "NETWORK_DISABLED" if arm == "NO_MESSAGES" else "ALLOWED" if allowed else "TOPOLOGY_BLOCKED"
         require(row["edge_decision"] == permission and uuid(row["attempt_id"]) in attempts, "Permission/attempt binding missing")
         attempt = attempts[row["attempt_id"]]
@@ -165,6 +167,11 @@ def validate_network_contract(data, seed, arm):
         else:
             require(attempt["outcome"] == "DELIVERED" and row["result"].startswith("KNOWLEDGE_SHARE status=DELIVERED "),
                     "Transport outcome changed")
+        if attempt["outcome"] in ("DELIVERED", "DUPLICATE"):
+            identity = {"sender": row["citizen"], "source": source_key(row["source"]),
+                        "source_revision": row["source_revision"], "observed_tick": row["observed_tick"], "world": world}
+            require(attempt["report_id"] == native_report_id(identity, row["observation_session"]),
+                    "Native attempt report ID changed the exact payload/session provenance")
         sends.append(row)
     expected = [(round_number, (POLICY_SEED % 4 + round_number % 4 + offset) % 4)
                 for round_number in range(30) for offset in range(4)]
@@ -179,7 +186,23 @@ def validate_network_contract(data, seed, arm):
             validate_inbox_witness(witness)
     require(all(row["status"] == "ABSENT_AT_NATIVE_PROBE" for row in data["native_inboxes_before"]),
             "Qualification started with preexisting inbox state")
-    expected_inboxes, lifecycle = replay_inboxes(data["communication"], citizens, final["end_tick"])
+    send_by_attempt = {row["attempt_id"]: row for row in sends}
+    message_sessions = {}
+    for message in data["communication"]["messages"]:
+        matched = [attempt for attempt in attempts.values() if attempt["outcome"] == "DELIVERED"
+                   and attempt.get("report_id") == message["report_id"]
+                   and attempt["sender"] == message["sender"] and attempt["recipient"] == message["recipient"]
+                   and attempt["source"] == message["source"] and attempt["tick"] == message["sent_tick"]]
+        require(len(matched) == 1, "Message raw session has no unique native delivery attempt")
+        send = send_by_attempt[matched[0]["id"]]
+        require(message["world"] == send["observation_world"] and message["episode"] == send["observation_episode"]
+                and message["observed_tick"] == send["observed_tick"]
+                and message["source_revision"] == send["source_revision"]
+                and message["reported_wheat"] == send["claimed_wheat"]
+                and message["id"] not in message_sessions, "Delivered message differs from exact selected send evidence")
+        message_sessions[message["id"]] = send["observation_session"]
+    expected_inboxes, lifecycle = replay_inboxes(data["communication"], citizens, final["end_tick"],
+                                                message_sessions, final["dimension"])
     require(data["native_inboxes_after"] == data["native_inboxes_after_export"], "Native inbox changed after freeze")
     for witness in data["native_inboxes_after"]:
         citizen = witness["citizen"]

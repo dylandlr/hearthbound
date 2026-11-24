@@ -1,5 +1,9 @@
 # Six-arm communication runtime qualification v0.16
 
+This document records the initial v1 qualification contract. The subsequent
+[session/episode binding correction](COMMUNICATION_NETWORK_SESSION_BINDING_V0_16_1.md)
+defines the v2 SEND identity fields and preserves the failed first cohort.
+
 ## Purpose and boundary
 
 This change implements and adds qualification for the four additional communication
