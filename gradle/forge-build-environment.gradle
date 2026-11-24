@@ -1,12 +1,20 @@
 import groovy.json.JsonOutput
 import java.security.MessageDigest
-import net.minecraftforge.gradle.common.util.MavenArtifactDownloader
-import net.minecraftforge.gradle.common.util.Utils
 
 // Diagnostic evidence only. These tasks do not change Minecraft dependencies,
 // compiler inputs, policies, or trial clocks.
 def evidenceDirectory = providers.gradleProperty('hearthboundBuildEvidenceDir')
     .map { file(it) }.orElse(layout.buildDirectory.dir('reports/forge-build').map { it.asFile })
+
+// An applied script does not compile against the root plugin's classpath.
+// Resolve these public helpers lazily from the plugin already in this build,
+// avoiding a second dependency declaration or a different plugin instance.
+def forgeClass = { String name ->
+    project.plugins.getPlugin('net.minecraftforge.gradle').getClass().getClassLoader().loadClass(name)
+}
+def installerToolsCoordinate = {
+    forgeClass('net.minecraftforge.gradle.common.util.Utils').getField('INSTALLERTOOLS').get(null).toString()
+}
 
 def sha256 = { File artifact ->
     MessageDigest digest = MessageDigest.getInstance('SHA-256')
@@ -47,9 +55,9 @@ tasks.register('captureHearthboundBuildEnvironment') {
             configured_java_toolchain_language_version: java.toolchain.languageVersion.get().asInt(),
             resolved_build_plugins: selected,
             requested_build_plugins: [
-                ForgeGradle: '[6.0,6.2)', mixingradle: '0.7-SNAPSHOT'
+                ForgeGradle: '6.0.54', mixingradle: '0.7-SNAPSHOT'
             ],
-            installer_tools_coordinate: Utils.INSTALLERTOOLS,
+            installer_tools_coordinate: installerToolsCoordinate(),
             limits: [
                 immutable_plugin_versions_declared: false,
                 snapshot_timestamp_not_available_from_resolved_module_id: true
@@ -63,10 +71,11 @@ tasks.register('verifyHearthboundForgeToolFallback') {
     description = 'Exercise the actual ForgeGradle installer-tools fallback in an isolated cold build.'
     mustRunAfter tasks.named('captureHearthboundBuildEnvironment')
     doLast {
+        String coordinate = installerToolsCoordinate()
         def before = repositories.toList()
         Map result = [
             schema: 'hearthbound-forge-tool-fallback-v1',
-            installer_tools_coordinate: Utils.INSTALLERTOOLS,
+            installer_tools_coordinate: coordinate,
             repository_names_before: before.collect { it.name },
             forced_maven_exclusions: project.findProperty('hearthboundForcedInstallerMavenExclusions') ?: [],
             status: 'FAIL', errors: []
@@ -75,10 +84,12 @@ tasks.register('verifyHearthboundForgeToolFallback') {
             if (result.forced_maven_exclusions.isEmpty()) {
                 throw new GradleException('The diagnostic Maven exclusion init script is required.')
             }
-            if (Utils.INSTALLERTOOLS != 'net.minecraftforge:installertools:1.4.4:fatjar') {
+            if (coordinate != 'net.minecraftforge:installertools:1.4.4:fatjar') {
                 throw new GradleException('Installer-tools coordinate changed; review this regression gate before updating it.')
             }
-            File artifact = MavenArtifactDownloader.gradle(project, Utils.INSTALLERTOOLS, false)
+            Class downloader = forgeClass('net.minecraftforge.gradle.common.util.MavenArtifactDownloader')
+            File artifact = (File) downloader.getMethod('gradle', org.gradle.api.Project, String, Boolean.TYPE)
+                .invoke(null, project, coordinate, false)
             if (artifact == null || !artifact.isFile()) {
                 throw new GradleException('ForgeGradle did not resolve the installer-tools artifact.')
             }

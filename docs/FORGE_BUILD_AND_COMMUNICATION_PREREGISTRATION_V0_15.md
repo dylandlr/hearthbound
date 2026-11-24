@@ -54,8 +54,10 @@ is not proof of the old job's exact plugin release.
 Maven endpoint, filtered to the installer-tools module. Maven-compatible layout
 preserves the existing `1.4.4:fatjar` coordinate. ForgeGradle can now retain an
 eligible repository in its non-Maven fallback. Minecraft and mod dependency
-versions are unchanged. This fixes the empty-fallback configuration; it does not
-promise that a remote repository can never fail.
+versions are unchanged. ForgeGradle is pinned to the directly observed 6.0.54
+release so the tested helper behavior cannot float under a version range. This
+fixes the empty-fallback configuration; it does not promise that a remote
+repository can never fail.
 
 The `Forge cold dependency setup` workflow runs two independent, cache-disabled
 build jobs, each with one preflight invocation:
@@ -75,10 +77,10 @@ Configuration failure can prevent a Gradle evidence task from running; the
 Python wrapper's invocation/result record still distinguishes that missing
 evidence from successful resolution.
 
-The build still requests a ForgeGradle version range and a MixinGradle snapshot.
+The build pins ForgeGradle 6.0.54 but still requests a MixinGradle snapshot.
 Recording resolved artifact hashes makes a run inspectable; it does **not** turn
-those declarations into an immutable dependency lock. The expanded study's future
-execution binding must freeze actual build inputs and resolved dependencies.
+all dependencies into an immutable lock. The expanded study's future execution
+binding must freeze actual build inputs and resolved dependencies.
 
 ```bash
 python3 scripts/run_forge_build_preflight.py \
@@ -91,6 +93,31 @@ its records. Their protocol fingerprints now include the build configuration
 and helpers, so build changes cannot silently share an old protocol identity.
 The active Minecraft compatibility workflows also trigger on the relevant
 build inputs.
+
+## Retained first build-script failure and correction
+
+The first v0.15 source, `71b3770b1f3dcb40c3cfdf28ba63c5406bd73ca2`, passed
+the 165 focused Python checks but failed actual Gradle configuration. The new
+applied evidence script could not resolve its static imports of ForgeGradle's
+`MavenArtifactDownloader` and `Utils`. This is a new build-script defect,
+separate from the archived installer-tools dependency failure.
+
+Both [first cold jobs](https://github.com/dylandlr/hearthbound/actions/runs/45312803215)
+remain failures. Their [ordinary artifact](https://github.com/dylandlr/hearthbound/actions/runs/45312803215/artifacts/14883559244)
+and [forced-fallback artifact](https://github.com/dylandlr/hearthbound/actions/runs/45312803215/artifacts/14883069793)
+retain one cold attempt each, exact input/log hashes, and no successful plugin
+capture or fallback verification. The [controlled trial](https://github.com/dylandlr/hearthbound/actions/runs/45312803237)
+also stopped before Minecraft, with its plan and
+[failed build evidence](https://github.com/dylandlr/hearthbound/actions/runs/45312803237/artifacts/14883479406)
+retained. No unrun world is relabelled as a zero-output result.
+
+The correction resolves the public helper classes lazily through the already
+applied Forge plugin's classloader. It does not introduce a second copy of the
+plugin. Both cold logs independently identify ForgeGradle 6.0.54 and the
+MixinGradle artifact `0.7-20230803.124500-15`; the corrected revision pins that
+observed ForgeGradle release. Artifact SHA-256 capture remains unavailable in
+the failed revision. Corrected code receives a separate first-outcome cohort;
+the earlier jobs are not rerun or overwritten.
 
 ## Continuing the original accounting and active-haul investigation
 
