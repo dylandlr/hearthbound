@@ -81,6 +81,8 @@ public final class ServiceValueLearnerTest {
         check(model.status().independentlyVerifiedOutputUnits() == 1);
         check(model.status().productionLearningActive());
         check(model.score(candidate("supply", Kind.SUPPLY_WHEAT)).learnedProductionUnits() > 0.);
+        for (Kind kind : List.of(Kind.CARRY_REQUEST, Kind.OBSERVE_BUFFER, Kind.WAIT))
+            check(model.score(candidate("no-output-for-" + kind, kind)).learnedProductionUnits() == 0.);
         check(!model.recordProduction(output));
         check(model.parameters().equals(learned));
         reject(() -> model.recordProduction(new ProductionReceipt(id("different-id-same-output"), SCOPE,

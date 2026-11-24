@@ -140,9 +140,53 @@ public final class NeedServiceKernelTest {
             snapshot.packets(), snapshot.receivedPackets(), snapshot.commitments(), snapshot.transfers());
         reject(() -> NeedServiceKernel.restore(conflict, SCOPE, 12));
     }
+    static void productiveCustodyAndActualYield() {
+        var kernel = new NeedServiceKernel(SCOPE);
+        kernel.observe(new Need(NEED, SCOPE, 100, "create:wheat_flour", 3, 1, A, 0, 600), 0);
+        Commitment c = kernel.reserve(A, NEED, 1, 1, 20);
+        c = kernel.begin(c.id(), A, id("flour-input-job"), 2);
+        kernel.pickedUp(c.id(), c.job(), 3);
+        check(kernel.availableUnits(NEED, 3) == 2);
+        c = kernel.beginProcessing(c.id(), c.job(), 4);
+        check(c.state() == State.PROCESSING && kernel.snapshot().transfers().isEmpty());
+        check(kernel.availableUnits(NEED, 4) == 2); // Input insertion does not fulfill flour demand.
+        check(kernel.beginProcessing(c.id(), c.job(), 5).equals(c));
+        Commitment processing = c;
+        reject(() -> kernel.cancelBeforePickup(processing.id(), A, processing.job(), 6));
+        reject(() -> kernel.beginProcessing(processing.id(), id("foreign-job"), 6));
+        kernel.observe(new Need(NEED, SCOPE, 100, "create:wheat_flour", 3, 2, A, 10, 610), 10);
+        check(kernel.availableUnits(NEED, 10) == 2); // Fresh observation retains the pending batch.
+        kernel.expire(21);
+        check(kernel.active(A).state() == State.PROCESSING);
+        var restored = NeedServiceKernel.restore(kernel.snapshot(), SCOPE, 22);
+        check(restored.active(A).state() == State.HELD);
+        check(restored.availableUnits(NEED, 22) == 2);
+        kernel.observe(new Need(NEED, SCOPE, 100, "create:wheat_flour", 0, 3, A, 23, 623), 23);
+        kernel.expire(24);
+        check(kernel.active(A).state() == State.PROCESSING); // Closure cannot abandon machine custody.
+        var output = new TransferReceipt(id("physical-flour-output"), SCOPE, c.id(), A, c.job(), 100, 30, 4);
+        var beforeFinal = restored.snapshot();
+        restored.validateDelivery(output);
+        check(restored.snapshot().equals(beforeFinal));
+        reject(() -> restored.validateDelivery(new TransferReceipt(id("wrong-output-site"), SCOPE,
+            processing.id(), A, processing.job(), 200, 30, 4)));
+        check(restored.delivered(output)); // Actual yield, including surplus, is preserved.
+        check(!restored.delivered(output));
+        check(restored.active(A) == null && restored.availableUnits(NEED, 30) == 0);
+        check(restored.snapshot().needs().get(0).deliveredSinceObservation() == 4);
+        check(NeedServiceKernel.restore(restored.snapshot(), SCOPE, 30).snapshot().equals(restored.snapshot()));
+        reject(() -> restored.delivered(new TransferReceipt(id("different-output-id"), SCOPE,
+            processing.id(), A, processing.job(), 100, 31, 4)));
+        var old = ready(1).snapshot();
+        var legacy = new Snapshot(1, old.scope(), old.needs(), old.books(), old.packets(), old.receivedPackets(),
+            old.commitments(), old.transfers());
+        check(NeedServiceKernel.restore(legacy, SCOPE, 2).snapshot().schemaVersion() == NeedServiceKernel.SCHEMA_VERSION);
+        reject(() -> new Snapshot(1, kernel.scope(), kernel.snapshot().needs(), kernel.snapshot().books(),
+            kernel.snapshot().packets(), kernel.snapshot().receivedPackets(), kernel.snapshot().commitments(), List.of()));
+    }
     public static void main(String[] args) {
         privateEvidenceAndTransport(); exactQuantitySurvivesRefresh(); closureNeverDeletesCargoOrJobs();
-        delayedAndSameTickReceiptOrdering(); expiryRestartAndPersistence();
-        System.out.println("Need service kernel: PASS (private requests, one-unit claims, cargo, receipts, restart)");
+        delayedAndSameTickReceiptOrdering(); expiryRestartAndPersistence(); productiveCustodyAndActualYield();
+        System.out.println("Need service kernel: PASS (private requests, batch claims, processing custody, actual output, restart)");
     }
 }

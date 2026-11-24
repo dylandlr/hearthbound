@@ -209,7 +209,7 @@ def run_live(rcon, output):
               "initial_stock": INITIAL, "target": TARGET, "source": list(SOURCE),
               "buffer": list(BUFFER), "planned_citizens": 2,
               "deadline_seconds": DEADLINE_SECONDS, "quiet_seconds": QUIET_SECONDS,
-              "policy": "AUTHORED_PERSISTENT_SERVICE_OPTIONS",
+              "policy": "PRIVATE_CONTEXTUAL_SERVICE_RLS_V1",
               "production_claimed": False, "learned_emergence_claimed": False,
               "commit": os.environ.get("HEARTHBOUND_EXPECTED_COMMIT", "UNSPECIFIED")}
     output.parent.mkdir(parents=True, exist_ok=True)

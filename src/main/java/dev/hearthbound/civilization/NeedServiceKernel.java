@@ -17,7 +17,7 @@ import java.util.UUID;
  * Public record constructors validate data contracts, not physical authenticity.
  */
 public final class NeedServiceKernel {
-    public static final int SCHEMA_VERSION = 1;
+    public static final int SCHEMA_VERSION = 2;
     public static final int MAX_NEEDS = 128, MAX_CITIZENS = 128, MAX_KNOWN = 64;
     public static final int MAX_RECORDS = 8192, MAX_PACKETS = 16384, MAX_HOPS = 8;
 
@@ -56,7 +56,7 @@ public final class NeedServiceKernel {
                 throw new IllegalArgumentException("Invalid request packet");
         }
     }
-    public enum State { RESERVED, RUNNING, CARRYING, DRAINING, HELD, DELIVERED, CANCELLED }
+    public enum State { RESERVED, RUNNING, CARRYING, DRAINING, PROCESSING, HELD, DELIVERED, CANCELLED }
     public record Commitment(UUID id, UUID citizen, UUID needId, long revision,
                              State state, UUID job, long reservedTick, long leaseUntil,
                              long finishedTick, UUID transferReceipt, String reason) {
@@ -68,7 +68,8 @@ public final class NeedServiceKernel {
                     || (terminal ? finishedTick < reservedTick : finishedTick != -1)
                     || (state == State.RESERVED && job != null)
                     || ((state == State.RUNNING || state == State.CARRYING
-                         || state == State.DRAINING || state == State.DELIVERED) && job == null)
+                         || state == State.DRAINING || state == State.PROCESSING
+                         || state == State.DELIVERED) && job == null)
                     || (state == State.DELIVERED) != (transferReceipt != null))
                 throw new IllegalArgumentException("Invalid service commitment");
         }
@@ -79,14 +80,15 @@ public final class NeedServiceKernel {
         public TransferReceipt {
             Objects.requireNonNull(id); Objects.requireNonNull(scope); Objects.requireNonNull(commitment);
             Objects.requireNonNull(citizen); Objects.requireNonNull(job);
-            if (tick < 0 || units != 1) throw new IllegalArgumentException("A lease transfers exactly one unit");
+            if (tick < 0 || units < 1 || units > 64)
+                throw new IllegalArgumentException("A settlement requires one to 64 physically delivered units");
         }
     }
     public record NeedState(Need need, int deliveredSinceObservation, long refreshAfterTick) {
         public NeedState(Need need, int deliveredSinceObservation) { this(need, deliveredSinceObservation, -1); }
         public NeedState {
             Objects.requireNonNull(need);
-            if (deliveredSinceObservation < 0 || deliveredSinceObservation > MAX_RECORDS || refreshAfterTick < -1)
+            if (deliveredSinceObservation < 0 || deliveredSinceObservation > MAX_RECORDS * 64 || refreshAfterTick < -1)
                 throw new IllegalArgumentException("Invalid observed-need delivery count");
         }
     }
@@ -107,11 +109,14 @@ public final class NeedServiceKernel {
             needs = List.copyOf(needs); books = List.copyOf(books); packets = List.copyOf(packets);
             receivedPackets = List.copyOf(receivedPackets); commitments = List.copyOf(commitments);
             transfers = List.copyOf(transfers);
-            if (schemaVersion != SCHEMA_VERSION || needs.size() > MAX_NEEDS
+            if ((schemaVersion != 1 && schemaVersion != SCHEMA_VERSION) || needs.size() > MAX_NEEDS
                     || books.size() > MAX_CITIZENS * MAX_KNOWN || packets.size() > MAX_PACKETS
                     || receivedPackets.size() > MAX_PACKETS || commitments.size() > MAX_RECORDS
                     || transfers.size() > MAX_RECORDS)
                 throw new IllegalArgumentException("Invalid or over-capacity service snapshot");
+            if (schemaVersion == 1 && (commitments.stream().anyMatch(c -> c.state() == State.PROCESSING)
+                    || transfers.stream().anyMatch(r -> r.units() != 1)))
+                throw new IllegalArgumentException("Production lifecycle requires service schema 2");
         }
     }
 
@@ -277,6 +282,21 @@ public final class NeedServiceKernel {
         return replace(c, shouldCancel(id, now) ? State.DRAINING : State.CARRYING, job, -1, null,
                        "PHYSICAL_PICKUP_OBSERVED");
     }
+    /**
+     * A verified native input transfer changes custody, not the output shortfall.
+     * The adapter must keep the machine reservation and independent process witness.
+     * One pending batch reserves at least one output unit; the final actual yield
+     * can exceed that reservation and all such surplus must be physically retained.
+     */
+    public synchronized Commitment beginProcessing(UUID id, UUID job, long now) {
+        tick(now); Commitment c = require(id);
+        if (!Objects.equals(c.job(), job) || now < c.reservedTick()
+                || (c.state() != State.RUNNING && c.state() != State.CARRYING
+                    && c.state() != State.DRAINING && c.state() != State.PROCESSING))
+            throw new IllegalStateException("Processing does not belong to the active physical input job");
+        if (c.state() == State.PROCESSING) return c;
+        return replace(c, State.PROCESSING, job, -1, null, "INPUT_DELIVERED_OUTPUT_STILL_OWED");
+    }
     public synchronized boolean shouldCancel(UUID id, long now) {
         tick(now); Commitment c = require(id); Need need = latest(c.needId());
         if (!c.active()) return false;
@@ -304,16 +324,17 @@ public final class NeedServiceKernel {
                 replace(c, State.CANCELLED, null, now, null, "UNSTARTED_LEASE_EXPIRED_OR_NEED_CLOSED");
             else if (c.state() == State.CARRYING)
                 replace(c, State.DRAINING, c.job(), -1, null, "CARGO_MUST_DRAIN_OR_BE_RECONCILED");
-            // RUNNING and HELD still own their physical job and their one unit.
+            // RUNNING, PROCESSING and HELD still own their physical job and one
+            // minimum unit of demand. Expiry cannot erase machine/output custody.
         }
     }
-    /** Independently verified insertion finishes a service, not production learning. */
-    public synchronized boolean delivered(TransferReceipt receipt) {
+    /** Non-mutating admission check before the adapter finalizes physical output custody. */
+    public synchronized void validateDelivery(TransferReceipt receipt) {
         Objects.requireNonNull(receipt); sameScope(receipt.scope());
         TransferReceipt old = transfers.get(receipt.id());
         if (old != null) {
             if (!old.equals(receipt)) throw new IllegalStateException("Conflicting transfer receipt");
-            return false;
+            return;
         }
         Commitment c = require(receipt.commitment()); NeedState state = needs.get(c.needId());
         if (!c.active() || c.job() == null || !c.job().equals(receipt.job())
@@ -321,10 +342,17 @@ public final class NeedServiceKernel {
                 || state == null || state.need().site() != receipt.destination()
                 || transfers.size() >= MAX_RECORDS)
             throw new IllegalStateException("Transfer does not independently settle the reserved physical job");
+    }
+    /** Independently verified final insertion settles demand, not production learning by itself. */
+    public synchronized boolean delivered(TransferReceipt receipt) {
+        validateDelivery(receipt);
+        if (transfers.containsKey(receipt.id())) return false;
+        Commitment c = require(receipt.commitment()); NeedState state = needs.get(c.needId());
         transfers.put(receipt.id(), receipt);
         int delivered = state.deliveredSinceObservation();
         long refreshAfter = state.refreshAfterTick();
-        if (receipt.tick() > state.need().observedTick() || state.need().revision() == c.revision()) delivered++;
+        if (receipt.tick() > state.need().observedTick() || state.need().revision() == c.revision())
+            delivered += receipt.units();
         else if (receipt.tick() == state.need().observedTick()) {
             // A newer observation in the same Minecraft tick can be before or
             // after insertion. No new quantity is granted until a later sensor
@@ -333,7 +361,7 @@ public final class NeedServiceKernel {
         }
         // A strictly later direct observation already includes an older receipt.
         needs.put(c.needId(), new NeedState(state.need(), delivered, refreshAfter));
-        replace(c, State.DELIVERED, c.job(), receipt.tick(), receipt.id(), "ONE_UNIT_TRANSFER_VERIFIED");
+        replace(c, State.DELIVERED, c.job(), receipt.tick(), receipt.id(), "PHYSICAL_DEMAND_DELIVERY_VERIFIED");
         return true;
     }
 

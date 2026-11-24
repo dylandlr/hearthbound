@@ -1,0 +1,127 @@
+{
+  "base_commit": "4c0d6d058d5b38ec3e791f7f115e92063d0dd559",
+  "broader_reliability": {
+    "diagnostic_failed_worlds": [
+      "world-02",
+      "world-03"
+    ],
+    "full_gate_passed_worlds": 3,
+    "gameplay_completed_worlds": 5,
+    "observed_failure": "both missing citizens fell below the elevated legacy fixture and died after delivery",
+    "planned_worlds": 5,
+    "resolved": false,
+    "run_id": 45482994556
+  },
+  "checks": {
+    "forge_compilation": "passed",
+    "java17_contract_suites": 13,
+    "native_private_payload_digests_match": true,
+    "native_saved_history_bytes": 174563,
+    "native_saved_history_matches_held_records": true,
+    "python_evidence_tests": 18,
+    "real_nbt_large_unicode_legacy_malformed_payload_tests": "passed"
+  },
+  "claims": {
+    "causal_communication_benefit": false,
+    "generalization": false,
+    "hundred_agent_society": false,
+    "learned_occupations": false,
+    "online_private_parameter_updates": true,
+    "policy_performance_improvement": false
+  },
+  "clean_restart": {
+    "histories_unchanged": true,
+    "inventories_unchanged": true,
+    "private_model_digests_unchanged": true
+  },
+  "completed_phase": {
+    "capacity_arbitration_refusals": 5,
+    "chain": {
+      "assignments": 4,
+      "causal_communication_benefit_estimated": false,
+      "decisions_consulting_updated_model": 61,
+      "distinct_producers": 2,
+      "observations": 15,
+      "output_items": {
+        "create:wheat_flour": 4,
+        "minecraft:wheat_seeds": 2
+      },
+      "output_units_by_citizen": {
+        "8ca1b834-778f-4edb-b6d0-0d0ecc0c72f8": 2,
+        "fe98f704-3a3f-49a3-b12f-dc103808d544": 2
+      },
+      "production_jobs": 4,
+      "received": 5,
+      "recipient_production_chain": true,
+      "request_recipient_job_chain": true,
+      "sent": 5,
+      "transfers": 4
+    },
+    "delivered_items": {
+      "create:wheat_flour": 4,
+      "minecraft:wheat_seeds": 2
+    },
+    "event_records": 271,
+    "initial_items": {
+      "minecraft:wheat": 8
+    },
+    "natural_closure": {
+      "grace_seconds": 35,
+      "learned_withdrawal_claimed": false,
+      "new_physical_jobs": 0,
+      "new_supply_or_carry_options_in_quiet_window": 0,
+      "quiet_seconds": 15
+    },
+    "operator_stop_cancellations_without_physical_job": 2,
+    "production_updates": 4,
+    "remaining_source_items": {
+      "minecraft:wheat": 4
+    },
+    "safe_native_assignment_refusals": 6,
+    "service_updates": 59
+  },
+  "held_restart": {
+    "buffer": {
+      "create:wheat_flour": 4,
+      "minecraft:wheat_seeds": 2
+    },
+    "extra_production_updates": 0,
+    "held_commitments": 1,
+    "mill_input": {
+      "minecraft:wheat": 1
+    },
+    "mill_output": {},
+    "private_model_digests_unchanged_from_stop": true,
+    "source": {
+      "minecraft:wheat": 3
+    },
+    "unsafe_start_denied": true
+  },
+  "production_runs": [
+    {
+      "archive": "first-run-failed.zip",
+      "commit": "99b68fdcdbd2304e7e6472fe4c50cc006c973192",
+      "observed_failure": "recipient suffocated before transfer; oversized NBT strings also failed to save",
+      "run_id": 45479379392,
+      "sha256": "7421204018b5e0b4f0b3dc9a8c306b915d49350c01d98ca554558174045bae87",
+      "status": "failed"
+    },
+    {
+      "archive": "verified-run.zip",
+      "commit": "17c3c353f9fc5d3b29b7cb3ff83d4ea272d6cbb3",
+      "run_id": 45482994505,
+      "sha256": "4669497cda844e3b2d06debceb1a02e637ce6c3db6e7aa42cce4c2f29446200a",
+      "status": "passed_all_three_phases"
+    }
+  ],
+  "recorded_on": "2026-11-24",
+  "schema": "hearthbound.production-service-validation.v1",
+  "scope": "fixed engineering acceptance; not a policy-comparison or reliability estimate",
+  "storage_service_regression": {
+    "clean_stopped_restart": "passed",
+    "physical_transfers": 2,
+    "production_credit": 0,
+    "run_id": 45482994663
+  },
+  "tested_commit": "17c3c353f9fc5d3b29b7cb3ff83d4ea272d6cbb3"
+}
