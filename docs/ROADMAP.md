@@ -5,7 +5,7 @@
 The v0.20 service controller completed its scoped live storage acceptance on
 `4c0d6d058d5b38ec3e791f7f115e92063d0dd559`: locally observed shortage → physically
 carried request → persistent commitment → native physical transfer → target
-closure. The current v0.21 work extends the same executor and private knowledge
+closure. The v0.21 work extends the same executor and private knowledge
 boundary through actual Create processing, output custody, final flour delivery,
 and per-citizen learning. See [the production contract](PRODUCTION_SERVICE_LEARNING_V0_21.md)
 and [playtest](PRODUCTION_SERVICE_PLAYTEST_V0_21.md) for its validation status.
@@ -18,9 +18,19 @@ no policy-performance or emergent-occupation claim is promoted.
 The small recipient-only PPO diagnostic is paused; frozen simulator baselines
 remain reference evidence.
 
-Follow with several changing work sites, bounded shared-policy neural training,
-and a matched frozen/authored comparison, then evaluate adaptive division of
-labor across independent worlds. Do not turn
+The next bounded increment, [shared neural services v0.22](SHARED_NEURAL_SERVICES_V0_22.md),
+now passes its six-slot real Forge integration/restart cohort on `495938dc`.
+Three offline training seeds improved the fixed simulator comparison, but the
+preselected neural checkpoint averaged 7.5 live deadline flour versus 8.0
+untrained and 8.5 authored. Both neural worlds responded to later demand at both
+sites, with only two productive citizens and lower recorded travel/message costs.
+This is a verified neural integration milestone, not a throughput promotion or
+learned division-of-labor result. Private RLS remains the default.
+
+Next calibrate native timing, yield, refusals and information gathering, then
+train/evaluate improved allocation on fresh worlds with a private-RLS control.
+Use complete native option transitions before claiming learning from Minecraft
+experience. Do not turn
 each internal implementation change into a new full benchmark campaign. The
 three milestone deliverables and their evidence boundaries are defined in
 [Need-driven service architecture v0.20](NEED_DRIVEN_SERVICE_ARCHITECTURE_V0_20.md).

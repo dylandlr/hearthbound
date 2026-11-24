@@ -1,0 +1,260 @@
+{
+  "schema": "hearthbound.shared-service-validation.v0.22",
+  "recorded_utc": "2026-11-24T22:10:21.710628+00:00",
+  "tested_commit": "495938dc4a31befd31afb224b109474ae4d3c296",
+  "tested_tree": "d6e94b41185097be2ec7511da9635ca366dee39e",
+  "base_commit": "bc54819cd39c6c624e6ff5b445c2f8359d871211",
+  "branch": "feat/shared-neural-services-v0-22",
+  "pull_request": 225,
+  "latest_branch_audit": {
+    "remote_branches": 219,
+    "changed_since_start": [
+      "feat/shared-neural-services-v0-22"
+    ],
+    "other_remote_heads_unchanged": true
+  },
+  "canonical_java_suites": 14,
+  "java_python_forward_cases": 40,
+  "focused_python_tests": 11,
+  "live_slots_planned": 6,
+  "live_slots_passed": 6,
+  "neural_response_slots_passed": 2,
+  "neural_checkpoint_sha256": "d792c4a4a8990f3c7955a2f2e715f14beb5b1e83de6c6b55de481feb9eae99af",
+  "untrained_checkpoint_sha256": "2d2b015d051b8e978728e60a1acc3c2983f7d0e3af5f9224a7d97051ad547f4d",
+  "synthetic_slots": 216,
+  "synthetic_independent_worlds": 24,
+  "synthetic_training_seeds": 3,
+  "synthetic_receipt_origin": "SYNTHETIC",
+  "development_archive": {
+    "path": "development-run.zip",
+    "sha256": "962289418b2f6e2e2947a668302e634771cd8e7137257e388598f79cefdf0c42",
+    "episodes": 100,
+    "training_seed": 11,
+    "evaluation_worlds": [
+      21000,
+      21001,
+      21002,
+      21003,
+      21004,
+      21005,
+      21006,
+      21007
+    ]
+  },
+  "live_receipt_origin": "REAL_FORGE_CREATE",
+  "live_throughput_superiority_demonstrated": false,
+  "policy_default": "PRIVATE_CONTEXTUAL_SERVICE_RLS_V1",
+  "evidence": [
+    {
+      "name": "shared-service-cohort-summary",
+      "id": 14970345431,
+      "size_in_bytes": 883,
+      "sha256": "58f65702449c3a19a7c2d8493a0c03c2835782a15c8a9415c7c9c48e13f536be",
+      "path": "live/shared-service-cohort-summary.zip",
+      "run_id": 45494997186
+    },
+    {
+      "name": "shared-service-22001-untrained",
+      "id": 14969146832,
+      "size_in_bytes": 444808,
+      "sha256": "9b0a699d3967d765e2cd366c3ef3ffcac4935851ead60cebd81505f758a82da2",
+      "path": "live/shared-service-22001-untrained.zip",
+      "run_id": 45494997186
+    },
+    {
+      "name": "shared-service-22001-neural",
+      "id": 14968558015,
+      "size_in_bytes": 436653,
+      "sha256": "e1a3245b6e76a10e6aeff1bf4668d24aeef38044bf5c8bf1cde23fd75f9c7457",
+      "path": "live/shared-service-22001-neural.zip",
+      "run_id": 45494997186
+    },
+    {
+      "name": "shared-service-22002-neural",
+      "id": 14968384612,
+      "size_in_bytes": 443250,
+      "sha256": "818598fe03112818107723129f4886c0e312b902a7fbd321f5b4030eecd1fbee",
+      "path": "live/shared-service-22002-neural.zip",
+      "run_id": 45494997186
+    },
+    {
+      "name": "shared-service-22001-authored",
+      "id": 14968334149,
+      "size_in_bytes": 406436,
+      "sha256": "665edf7cb166b232f09180e13b50b4aa502dae01f0dae6822aa1d68c8b73690d",
+      "path": "live/shared-service-22001-authored.zip",
+      "run_id": 45494997186
+    },
+    {
+      "name": "shared-service-22002-untrained",
+      "id": 14968304389,
+      "size_in_bytes": 452605,
+      "sha256": "e8d4d691acf6de247427b9a775df0f82b8abfc1774aca2c0dbcd96f635dd308e",
+      "path": "live/shared-service-22002-untrained.zip",
+      "run_id": 45494997186
+    },
+    {
+      "name": "shared-service-22002-authored",
+      "id": 14967694328,
+      "size_in_bytes": 447495,
+      "sha256": "ad2ab3290b5a5e89cfa612297243cd3743bee23d7ab22bd3608e1055fcecd900",
+      "path": "live/shared-service-22002-authored.zip",
+      "run_id": 45494997186
+    }
+  ],
+  "workflows": [
+    {
+      "id": 45494997219,
+      "name": "Minecraft playtest JAR",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/45494997219"
+    },
+    {
+      "id": 45494997186,
+      "name": "Shared neural service learning",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/45494997186"
+    },
+    {
+      "id": 45494996721,
+      "name": "Civilization decision contracts",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/45494996721"
+    },
+    {
+      "id": 45494996620,
+      "name": "Rapid attention curriculum (simulator only)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/45494996620"
+    },
+    {
+      "id": 45494996451,
+      "name": "Haul ledger regression",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/45494996451"
+    },
+    {
+      "id": 45494997008,
+      "name": "Real Create causal outcome proposal (no payout)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/45494997008"
+    },
+    {
+      "id": 45494996626,
+      "name": "Real Forge pickup belief restart and lost-save fence",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/45494996626"
+    },
+    {
+      "id": 45494996641,
+      "name": "Real Forge independent-world colony reliability",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/45494996641"
+    },
+    {
+      "id": 45494996869,
+      "name": "Forge compilation",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/45494996869"
+    },
+    {
+      "id": 45494996719,
+      "name": "Forge cold dependency setup",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/45494996719"
+    },
+    {
+      "id": 45494996942,
+      "name": "Real Forge causal outcome restart acceptance",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/45494996942"
+    },
+    {
+      "id": 45494996770,
+      "name": "Real Forge four-citizen autonomous colony acceptance",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/45494996770"
+    },
+    {
+      "id": 45494996280,
+      "name": "Real Forge bounded idle colony discovery",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/45494996280"
+    },
+    {
+      "id": 45494996542,
+      "name": "Real Forge colony completion with dispatch disabled",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/45494996542"
+    },
+    {
+      "id": 45494996737,
+      "name": "Need-driven Minecraft services",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/45494996737"
+    },
+    {
+      "id": 45494996334,
+      "name": "Real Forge private communication matched pilot",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/45494996334"
+    },
+    {
+      "id": 45494996613,
+      "name": "Production services and private learning",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/45494996613"
+    },
+    {
+      "id": 45494996748,
+      "name": "Minecraft dedicated server smoke",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/45494996748"
+    },
+    {
+      "id": 45494996690,
+      "name": "Real Forge six-arm communication qualification",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/45494996690"
+    }
+  ],
+  "playtest_artifact": {
+    "id": 14968615942,
+    "name": "hearthbound-minecraft-1.20.1-dev-jar",
+    "size_in_bytes": 630193,
+    "url": "https://api.github.com/repos/dylandlr/hearthbound/actions/artifacts/14968615942",
+    "archive_download_url": "https://api.github.com/repos/dylandlr/hearthbound/actions/artifacts/14968615942/zip",
+    "expired": false,
+    "created_at": "2026-11-24T21:53:30Z",
+    "expires_at": "2026-12-08T21:53:29Z",
+    "updated_at": "2026-11-24T21:53:30Z",
+    "digest": "sha256:7f506c805890e1fb1bb6428c24a6d5477924f62124203dccc91a02227641ac24",
+    "workflow_run": {
+      "id": 45494997219,
+      "repository_id": 1418116426,
+      "head_repository_id": 1418116426,
+      "head_branch": "feat/shared-neural-services-v0-22",
+      "head_sha": "495938dc4a31befd31afb224b109474ae4d3c296"
+    }
+  },
+  "historical_risk": "v0.21 legacy elevated fixture had intermittent post-delivery falls; unchanged here, current 5/5 reliability cohort passes"
+}

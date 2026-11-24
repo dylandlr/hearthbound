@@ -1,0 +1,157 @@
+{
+  "schema": "hearthbound.shared-service-live-summary.v0.22",
+  "commit": "495938dc4a31befd31afb224b109474ae4d3c296",
+  "planned_slots": 6,
+  "slots": [
+    {
+      "world": 22001,
+      "arm": "neural",
+      "status": "passed_live_and_restart",
+      "integrity_passed": true,
+      "milestone_passed": true,
+      "score": {
+        "drain_output": 0,
+        "output": 8,
+        "per_site": [
+          3,
+          5
+        ],
+        "sends": 0,
+        "settled_personal_cost": 2.857701589249383
+      },
+      "error": null,
+      "model_sha256": "d792c4a4a8990f3c7955a2f2e715f14beb5b1e83de6c6b55de481feb9eae99af",
+      "replayed_choices": 202,
+      "responded_to_later_demand": [
+        true,
+        true
+      ]
+    },
+    {
+      "world": 22001,
+      "arm": "untrained",
+      "status": "passed_live_and_restart",
+      "integrity_passed": true,
+      "milestone_passed": true,
+      "score": {
+        "drain_output": 1,
+        "output": 9,
+        "per_site": [
+          4,
+          5
+        ],
+        "sends": 24,
+        "settled_personal_cost": 7.404772178864534
+      },
+      "error": null,
+      "model_sha256": "2d2b015d051b8e978728e60a1acc3c2983f7d0e3af5f9224a7d97051ad547f4d",
+      "replayed_choices": 120,
+      "responded_to_later_demand": [
+        true,
+        true
+      ]
+    },
+    {
+      "world": 22001,
+      "arm": "authored",
+      "status": "passed_live_and_restart",
+      "integrity_passed": true,
+      "milestone_passed": true,
+      "score": {
+        "drain_output": 2,
+        "output": 8,
+        "per_site": [
+          3,
+          5
+        ],
+        "sends": 10,
+        "settled_personal_cost": 5.9428542615440225
+      },
+      "error": null,
+      "model_sha256": "",
+      "replayed_choices": 120,
+      "responded_to_later_demand": [
+        true,
+        true
+      ]
+    },
+    {
+      "world": 22002,
+      "arm": "neural",
+      "status": "passed_live_and_restart",
+      "integrity_passed": true,
+      "milestone_passed": true,
+      "score": {
+        "drain_output": 1,
+        "output": 7,
+        "per_site": [
+          3,
+          4
+        ],
+        "sends": 1,
+        "settled_personal_cost": 3.406742788185605
+      },
+      "error": null,
+      "model_sha256": "d792c4a4a8990f3c7955a2f2e715f14beb5b1e83de6c6b55de481feb9eae99af",
+      "replayed_choices": 194,
+      "responded_to_later_demand": [
+        true,
+        true
+      ]
+    },
+    {
+      "world": 22002,
+      "arm": "untrained",
+      "status": "passed_live_and_restart",
+      "integrity_passed": true,
+      "milestone_passed": true,
+      "score": {
+        "drain_output": 2,
+        "output": 7,
+        "per_site": [
+          3,
+          4
+        ],
+        "sends": 21,
+        "settled_personal_cost": 6.806220714830057
+      },
+      "error": null,
+      "model_sha256": "2d2b015d051b8e978728e60a1acc3c2983f7d0e3af5f9224a7d97051ad547f4d",
+      "replayed_choices": 130,
+      "responded_to_later_demand": [
+        true,
+        true
+      ]
+    },
+    {
+      "world": 22002,
+      "arm": "authored",
+      "status": "passed_live_and_restart",
+      "integrity_passed": true,
+      "milestone_passed": true,
+      "score": {
+        "drain_output": 0,
+        "output": 9,
+        "per_site": [
+          5,
+          4
+        ],
+        "sends": 56,
+        "settled_personal_cost": 6.302998113741988
+      },
+      "error": null,
+      "model_sha256": "",
+      "replayed_choices": 145,
+      "responded_to_later_demand": [
+        true,
+        true
+      ]
+    }
+  ],
+  "integrity_passed": 6,
+  "neural_milestone_passed": 2,
+  "neural_planned": 2,
+  "passed": true,
+  "independent_worlds": 2,
+  "claim": "bounded integration comparison; no population or causal communication effect estimate"
+}

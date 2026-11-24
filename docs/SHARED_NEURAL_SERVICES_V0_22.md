@@ -8,10 +8,13 @@ its real production/restart evidence remain intact. This increment introduces a
 small deep reinforcement learner and frozen Java inference around the existing
 Create production executor. LLMs remain deferred.
 
-Local numerical, evidence and standalone Java contracts pass. The fixed
-six-slot Forge comparison is required before a live learning milestone is
-claimed; its results will be appended after execution. The broader legacy
-colony reliability fixture still has the documented post-delivery fall issue.
+The bounded neural **integration and demand-response milestone passed** on
+`495938dc4a31befd31afb224b109474ae4d3c296`: all six real Forge comparison slots
+passed physical integrity and restart, and both neural worlds responded to both
+later demand increases. **Live throughput did not improve.** The frozen neural
+selector remains opt-in; the verified private RLS selector remains the default.
+The broader legacy five-world colony gate passed this cohort, but its previously
+documented intermittent post-delivery fall issue was not changed here.
 
 ## What learns
 
@@ -44,7 +47,8 @@ y = G + (terminal ? 0 : gamma^duration * Q_target(next, argmax Q_online(next)))
 Time is measured in seconds, equivalent to 20 Minecraft ticks, with gamma 0.98
 per second. Each actor's reward ledger covers its entire sustained option.
 Offline reward is 0.75 personal plus 0.25 colony reward. Personal reward is own
-delivered synthetic flour minus time, travel and message costs; colony reward
+delivered synthetic flour minus 0.002 per elapsed second, 0.01 per traveled block
+and 0.02 per packet sent; colony reward
 is total delivered synthetic flour; research reward is zero. Observation,
 sending, receiving and inserting wheat into a mill confer no production reward.
 The shared training reward is not a live observation.
@@ -79,7 +83,9 @@ all thirty actual inputs, effective scores, selected candidate, policy mode,
 model hash and frozen flag. The native private RLS ledger continues as a
 **shadow outcome audit** in these three modes and does not select their actions.
 Logs distinguish its estimates from the effective neural/authored scores.
-Status reports zero neural weight updates.
+Private partner-success statistics still change with that citizen's own service
+history and are explicit observation features. Frozen weights do not mean
+frozen memories or observations. Status reports zero neural weight updates.
 
 SavedData persists policy mode and checkpoint hash. A restart rejects a changed
 or malformed checkpoint, stays disabled until explicit revalidation, and
@@ -153,6 +159,81 @@ use, but these three policy arms do not identify communication's causal effect.
 Likewise, productive actions by different citizens do not establish learned
 occupations, institutions or society-level emergence.
 
+## Actual Forge results and interpretation
+
+[Run 45494997186](https://github.com/dylandlr/hearthbound/actions/runs/45494997186)
+ran the exact code above. All **6/6** declared slots passed their physical and
+restart checks. The two neural slots passed the predeclared later-demand
+response criterion. This criterion requires real work at both sites after the
+new needs are observed; it does **not** require complete target fulfillment or
+superiority over a control.
+
+Final requested inventory was `[5,4]`. Scored output uses the fixed 2,400-tick
+boundary. Cleanup output is separate.
+
+| World | Policy | Deadline site A / B | Total scored flour | Cleanup flour | Packets sent | Settled travel/message cost |
+|---|---|---:|---:|---:|---:|---:|
+| 22001 | Trained neural | 3 / 5 | 8 | 0 | 0 | 2.858 |
+| 22001 | Untrained, same initialization | 4 / 5 | 9 | 1 | 24 | 7.405 |
+| 22001 | Authored | 3 / 5 | 8 | 2 | 10 | 5.943 |
+| 22002 | Trained neural | 3 / 4 | 7 | 1 | 1 | 3.407 |
+| 22002 | Untrained, same initialization | 3 / 4 | 7 | 2 | 21 | 6.806 |
+| 22002 | Authored | 5 / 4 | 9 | 0 | 56 | 6.303 |
+
+Mean deadline flour was **7.5 neural, 8.0 untrained, 8.5 authored**. Capping each
+site at its requested inventory gives demand coverage of 7/9 in both neural
+worlds, 8/9 and 7/9 untrained, and 7/9 and 9/9 authored. Capped coverage is a
+post-run descriptive calculation, not a replacement for the declared raw-output
+score. The trained controller did not fill site A's target in either world,
+even after the bounded cleanup (final neural inventories `[3,5]` and `[4,4]`).
+
+The network made **396 replayed neural choices**; all **911** policy choices
+across the six slots matched independently recomputed Python scores and inputs.
+Its checkpoint remained
+`d792c4a4a8990f3c7955a2f2e715f14beb5b1e83de6c6b55de481feb9eae99af`,
+with zero neural weight updates and unchanged policy/private-ledger/inventory
+state after restart. The neural slots completed **10 real Create jobs**,
+delivering **16 flour including one cleanup flour**. Across all six slots,
+**35 jobs delivered 54 flour and 10 seeds**, with exact source consumption,
+empty completed machines, released custody and no held commitments after drain.
+Demand changes occurred 0–3 ticks after their declared times, within the fixed
+20-tick tolerance.
+
+Both neural worlds had only **two productive citizens out of four**. They sent
+zero and one packets, respectively. The controls had three or four productive
+citizens and more traffic, but also many native assignment/capacity refusals;
+all refusals and cancellations remain in `live/analysis.json` and the raw logs.
+Lower measured travel/message cost is real descriptive evidence, but it comes
+with lower output and idle capacity. It is not evidence of superior collective
+welfare, a learned occupation, or a causal benefit from reducing communication.
+There are only two worlds, and actual Create yields and tick/UUID details vary
+across slots. No population confidence interval is reported for this cohort.
+
+The simulator gain therefore did not establish a live throughput gain. The next
+learning work should calibrate the surrogate against these native durations,
+variable yields, refusal/cooldown behavior and private information opportunities;
+then collect complete native option transitions and assess a revised learner on
+fresh worlds. Include the existing private RLS policy in the next promotion
+comparison. Do not tune to these six worlds and relabel them as held-out evidence.
+
+### Retained evidence and regression gates
+
+`live/` contains the original six GitHub evidence ZIPs, the original cohort
+summary ZIP, its JSON summary, and derived analysis. `validation.json` records
+artifact SHA-256 values, exact tested commit, workflow IDs and regression status.
+The separate `development-run.zip` retains the earlier 100-episode seed-11
+probe and its eight development evaluation worlds (21000–21007); these are not
+pooled into the 216-slot fixed simulator cohort.
+
+All **19 workflows triggered on the tested code commit passed**. The canonical
+Java 17 gate passed all 14 standalone suites, including 40
+Python/Java numerical cases. All 11 focused Python learner/evidence tests passed.
+Actual Forge compilation and SavedData payload contracts passed, as did the
+existing need-service, three-phase production, native pickup/restart, four-citizen
+and five-world reliability gates on this code. The current five-world pass is
+not a repair claim for the intermittent legacy fixture failures retained under
+v0.21.
+
 ## How the supplied research changes this implementation
 
 | Source | Concrete use in v0.22 | Limit |
@@ -187,4 +268,11 @@ OPENBLAS_NUM_THREADS=1 python3 scripts/train_service_policy.py --output /tmp/hea
 The reproduction command writes a separate run; compare model/source hashes
 before making a reproduction claim. The CI workflow uses the committed frozen
 models, compiles actual Forge sources, and runs the declared native cohort.
+The stored simulator summary is reproduced with:
+
+```bash
+python3 scripts/summarize_service_learning.py --input docs/evidence/shared-service-learning-v0-22/results.json --output /tmp/service-learning-summary.json
+python3 scripts/analyze_shared_service_live.py --input docs/evidence/shared-service-learning-v0-22/live --output /tmp/service-live-analysis.json
+```
+
 Training is local/free and requires neither an LLM nor a paid API.

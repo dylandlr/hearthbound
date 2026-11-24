@@ -1,0 +1,470 @@
+{
+  "tested_commit": "495938dc4a31befd31afb224b109474ae4d3c296",
+  "origin": "REAL_FORGE_CREATE",
+  "run_id": 45494997186,
+  "rows": [
+    {
+      "world": 22001,
+      "arm": "authored",
+      "score": {
+        "drain_output": 2,
+        "output": 8,
+        "per_site": [
+          3,
+          5
+        ],
+        "sends": 10,
+        "settled_personal_cost": 5.9428542615440225
+      },
+      "demand_covered_at_deadline": 7,
+      "final_flour": [
+        5,
+        5
+      ],
+      "final_seeds": [
+        1,
+        1
+      ],
+      "final_source_wheat": [
+        12,
+        13
+      ],
+      "jobs_total": 7,
+      "jobs_scored": 6,
+      "distinct_producers": 4,
+      "per_citizen_output": [
+        1,
+        3,
+        1,
+        5
+      ],
+      "productive_duration_seconds": [
+        18.0,
+        23.0,
+        19.0,
+        20.0,
+        19.0,
+        23.0,
+        19.0
+      ],
+      "refusals_cancellations": {
+        "NO_EXECUTABLE_PRIVATE_REQUEST_CAPACITY": 27,
+        "NATIVE_ASSIGNMENT_REFUSED": 19,
+        "OPERATOR_STOP_NO_PHYSICAL_JOB": 3
+      },
+      "decision_count": 120,
+      "model_sha256": "",
+      "neural_weight_updates": 0,
+      "status": "passed_live_and_restart",
+      "changes": [
+        {
+          "actual": 800,
+          "planned": 800,
+          "targets": [
+            2,
+            4
+          ]
+        },
+        {
+          "actual": 1601,
+          "planned": 1600,
+          "targets": [
+            5,
+            4
+          ]
+        }
+      ],
+      "held": 0,
+      "active_commitments": 0
+    },
+    {
+      "world": 22001,
+      "arm": "neural",
+      "score": {
+        "drain_output": 0,
+        "output": 8,
+        "per_site": [
+          3,
+          5
+        ],
+        "sends": 0,
+        "settled_personal_cost": 2.857701589249383
+      },
+      "demand_covered_at_deadline": 7,
+      "final_flour": [
+        3,
+        5
+      ],
+      "final_seeds": [
+        1,
+        1
+      ],
+      "final_source_wheat": [
+        14,
+        14
+      ],
+      "jobs_total": 4,
+      "jobs_scored": 4,
+      "distinct_producers": 2,
+      "per_citizen_output": [
+        3,
+        0,
+        5,
+        0
+      ],
+      "productive_duration_seconds": [
+        19.0,
+        18.0,
+        18.0,
+        18.0
+      ],
+      "refusals_cancellations": {
+        "OPERATOR_CONFIGURATION_GOAL_WITHDRAWN": 1,
+        "OPERATOR_STOP_NO_PHYSICAL_JOB": 3
+      },
+      "decision_count": 202,
+      "model_sha256": "d792c4a4a8990f3c7955a2f2e715f14beb5b1e83de6c6b55de481feb9eae99af",
+      "neural_weight_updates": 0,
+      "status": "passed_live_and_restart",
+      "changes": [
+        {
+          "actual": 803,
+          "planned": 800,
+          "targets": [
+            2,
+            4
+          ]
+        },
+        {
+          "actual": 1603,
+          "planned": 1600,
+          "targets": [
+            5,
+            4
+          ]
+        }
+      ],
+      "held": 0,
+      "active_commitments": 0
+    },
+    {
+      "world": 22001,
+      "arm": "untrained",
+      "score": {
+        "drain_output": 1,
+        "output": 9,
+        "per_site": [
+          4,
+          5
+        ],
+        "sends": 24,
+        "settled_personal_cost": 7.404772178864534
+      },
+      "demand_covered_at_deadline": 8,
+      "final_flour": [
+        5,
+        5
+      ],
+      "final_seeds": [
+        1,
+        2
+      ],
+      "final_source_wheat": [
+        14,
+        11
+      ],
+      "jobs_total": 7,
+      "jobs_scored": 6,
+      "distinct_producers": 4,
+      "per_citizen_output": [
+        1,
+        4,
+        2,
+        3
+      ],
+      "productive_duration_seconds": [
+        22.0,
+        22.0,
+        21.0,
+        18.0,
+        21.0,
+        21.0,
+        24.0
+      ],
+      "refusals_cancellations": {
+        "NATIVE_ASSIGNMENT_REFUSED": 19,
+        "NO_EXECUTABLE_PRIVATE_REQUEST_CAPACITY": 11,
+        "OWN_REQUEST_CLOSED_OR_EXPIRED": 1,
+        "OPERATOR_CONFIGURATION_GOAL_WITHDRAWN": 1,
+        "OPERATOR_STOP_NO_PHYSICAL_JOB": 3
+      },
+      "decision_count": 120,
+      "model_sha256": "2d2b015d051b8e978728e60a1acc3c2983f7d0e3af5f9224a7d97051ad547f4d",
+      "neural_weight_updates": 0,
+      "status": "passed_live_and_restart",
+      "changes": [
+        {
+          "actual": 803,
+          "planned": 800,
+          "targets": [
+            2,
+            4
+          ]
+        },
+        {
+          "actual": 1603,
+          "planned": 1600,
+          "targets": [
+            5,
+            4
+          ]
+        }
+      ],
+      "held": 0,
+      "active_commitments": 0
+    },
+    {
+      "world": 22002,
+      "arm": "authored",
+      "score": {
+        "drain_output": 0,
+        "output": 9,
+        "per_site": [
+          5,
+          4
+        ],
+        "sends": 56,
+        "settled_personal_cost": 6.302998113741988
+      },
+      "demand_covered_at_deadline": 9,
+      "final_flour": [
+        5,
+        4
+      ],
+      "final_seeds": [
+        0,
+        1
+      ],
+      "final_source_wheat": [
+        15,
+        12
+      ],
+      "jobs_total": 5,
+      "jobs_scored": 5,
+      "distinct_producers": 4,
+      "per_citizen_output": [
+        2,
+        2,
+        1,
+        4
+      ],
+      "productive_duration_seconds": [
+        18.0,
+        21.0,
+        19.0,
+        17.0,
+        21.0
+      ],
+      "refusals_cancellations": {
+        "NO_EXECUTABLE_PRIVATE_REQUEST_CAPACITY": 12,
+        "NATIVE_ASSIGNMENT_REFUSED": 20,
+        "OWN_REQUEST_CLOSED_OR_EXPIRED": 1,
+        "OPERATOR_STOP_NO_PHYSICAL_JOB": 4
+      },
+      "decision_count": 145,
+      "model_sha256": "",
+      "neural_weight_updates": 0,
+      "status": "passed_live_and_restart",
+      "changes": [
+        {
+          "actual": 800,
+          "planned": 800,
+          "targets": [
+            2,
+            4
+          ]
+        },
+        {
+          "actual": 1600,
+          "planned": 1600,
+          "targets": [
+            5,
+            4
+          ]
+        }
+      ],
+      "held": 0,
+      "active_commitments": 0
+    },
+    {
+      "world": 22002,
+      "arm": "neural",
+      "score": {
+        "drain_output": 1,
+        "output": 7,
+        "per_site": [
+          3,
+          4
+        ],
+        "sends": 1,
+        "settled_personal_cost": 3.406742788185605
+      },
+      "demand_covered_at_deadline": 7,
+      "final_flour": [
+        4,
+        4
+      ],
+      "final_seeds": [
+        1,
+        0
+      ],
+      "final_source_wheat": [
+        14,
+        12
+      ],
+      "jobs_total": 6,
+      "jobs_scored": 5,
+      "distinct_producers": 2,
+      "per_citizen_output": [
+        3,
+        0,
+        5,
+        0
+      ],
+      "productive_duration_seconds": [
+        18.0,
+        18.0,
+        18.0,
+        18.0,
+        18.0,
+        21.0
+      ],
+      "refusals_cancellations": {
+        "OPERATOR_CONFIGURATION_GOAL_WITHDRAWN": 1,
+        "OPERATOR_STOP_NO_PHYSICAL_JOB": 3
+      },
+      "decision_count": 194,
+      "model_sha256": "d792c4a4a8990f3c7955a2f2e715f14beb5b1e83de6c6b55de481feb9eae99af",
+      "neural_weight_updates": 0,
+      "status": "passed_live_and_restart",
+      "changes": [
+        {
+          "actual": 800,
+          "planned": 800,
+          "targets": [
+            2,
+            4
+          ]
+        },
+        {
+          "actual": 1600,
+          "planned": 1600,
+          "targets": [
+            5,
+            4
+          ]
+        }
+      ],
+      "held": 0,
+      "active_commitments": 0
+    },
+    {
+      "world": 22002,
+      "arm": "untrained",
+      "score": {
+        "drain_output": 2,
+        "output": 7,
+        "per_site": [
+          3,
+          4
+        ],
+        "sends": 21,
+        "settled_personal_cost": 6.806220714830057
+      },
+      "demand_covered_at_deadline": 7,
+      "final_flour": [
+        5,
+        4
+      ],
+      "final_seeds": [
+        1,
+        0
+      ],
+      "final_source_wheat": [
+        13,
+        13
+      ],
+      "jobs_total": 6,
+      "jobs_scored": 5,
+      "distinct_producers": 3,
+      "per_citizen_output": [
+        2,
+        3,
+        4,
+        0
+      ],
+      "productive_duration_seconds": [
+        25.0,
+        24.0,
+        21.0,
+        19.0,
+        21.0,
+        19.0
+      ],
+      "refusals_cancellations": {
+        "NO_EXECUTABLE_PRIVATE_REQUEST_CAPACITY": 9,
+        "OWN_REQUEST_CLOSED_OR_EXPIRED": 2,
+        "NATIVE_ASSIGNMENT_REFUSED": 28,
+        "OPERATOR_CONFIGURATION_GOAL_WITHDRAWN": 1,
+        "OPERATOR_STOP_NO_PHYSICAL_JOB": 3
+      },
+      "decision_count": 130,
+      "model_sha256": "2d2b015d051b8e978728e60a1acc3c2983f7d0e3af5f9224a7d97051ad547f4d",
+      "neural_weight_updates": 0,
+      "status": "passed_live_and_restart",
+      "changes": [
+        {
+          "actual": 801,
+          "planned": 800,
+          "targets": [
+            2,
+            4
+          ]
+        },
+        {
+          "actual": 1602,
+          "planned": 1600,
+          "targets": [
+            5,
+            4
+          ]
+        }
+      ],
+      "held": 0,
+      "active_commitments": 0
+    }
+  ],
+  "total_replayed_decisions": 911,
+  "neural_replayed_decisions": 396,
+  "total_real_jobs": 35,
+  "neural_real_jobs": 10,
+  "total_delivered_flour": 54,
+  "total_delivered_seeds": 10,
+  "means": {
+    "neural": {
+      "deadline_flour": 7.5,
+      "settled_cost": 3.132222188717494,
+      "messages": 0.5
+    },
+    "untrained": {
+      "deadline_flour": 8,
+      "settled_cost": 7.105496446847296,
+      "messages": 22.5
+    },
+    "authored": {
+      "deadline_flour": 8.5,
+      "settled_cost": 6.122926187643005,
+      "messages": 33
+    }
+  }
+}
