@@ -49,6 +49,22 @@ def failure_status(log):
     return "BUILD_FAILURE"
 
 
+def mapped_policy_errors(policy):
+    if not isinstance(policy, dict):
+        return ["Missing mapped-version repository filter policy."]
+    repositories = policy.get("external_repositories")
+    if (policy.get("policy") != "exclude-mapped-versions-once-v1"
+            or policy.get("version_pattern") != ".*_mapped_.*"
+            or policy.get("upstream_repeated_filter_enabled") is not False
+            or policy.get("generated_repositories_exempt") is not True
+            or not isinstance(repositories, list) or not repositories
+            or any(not isinstance(repo, dict) or not repo.get("name")
+                   or type(repo.get("applications")) is not int or repo["applications"] != 1
+                   for repo in repositories)):
+        return ["The same mapped-version policy must be applied once per external repository with the upstream repeated callback disabled."]
+    return []
+
+
 def environment_errors(environment):
     if not isinstance(environment, dict) or environment.get("schema") != "hearthbound-forge-build-environment-v1":
         return ["Missing or invalid resolved build environment."]
@@ -62,6 +78,7 @@ def environment_errors(environment):
     for field in ("gradle_version", "java_runtime_version", "java_vendor", "configured_java_toolchain_language_version"):
         if not environment.get(field):
             errors.append(f"Missing build environment field: {field}.")
+    errors += mapped_policy_errors(environment.get("mapped_repository_filter"))
     return errors
 
 
@@ -73,7 +90,18 @@ def fallback_errors(fallback):
             or not fallback.get("forced_maven_exclusions")
             or not HASH_RE.fullmatch(str(fallback.get("artifact_sha256", "")))):
         return ["The actual ForgeGradle fallback and repository restoration were not verified."]
-    return []
+    errors = mapped_policy_errors(fallback.get("mapped_repository_filter"))
+    before = fallback.get("mapped_exclusions_before")
+    after = fallback.get("mapped_exclusions_after")
+    if (fallback.get("mapped_version_exclusions_verified") is not True
+            or not isinstance(before, list) or not before or before != after
+            or any(not isinstance(repo, dict) or repo.get("mapped_installer_excluded") is not True
+                   for repo in before)
+            or not any(repo.get("name") == "HearthboundForgeInstallerToolsFallback"
+                       and repo.get("unmapped_installer_excluded") is False
+                       for repo in before if isinstance(repo, dict))):
+        errors.append("Actual mapped-version exclusions and fallback eligibility must be verified before and after resolution.")
+    return errors
 
 
 def process_identity(pid):

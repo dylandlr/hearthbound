@@ -59,6 +59,17 @@ release so the tested helper behavior cannot float under a version range. This
 fixes the empty-fallback configuration; it does not promise that a remote
 repository can never fail.
 
+The fallback also removes and re-adds already-used repository objects. The
+supported `net.minecraftforge.gradle.filter.repos=false` setting disables
+ForgeGradle's repeated filter callback; `build.gradle` applies the identical
+`.*_mapped_.*` exclusion once per external repository object instead. Generated
+repositories retain their exemption, and IDE `DownloadSources` tasks retain
+the upstream existing-only behavior. This preserves the filter rather than
+removing it. The upstream
+[filter implementation](https://github.com/MinecraftForge/ForgeGradle/blob/14206fa010c92f79ccf61e3bd9bd0d1aedce9a9c/src/common/java/net/minecraftforge/gradle/common/util/Utils.java)
+and [supported setting](https://github.com/MinecraftForge/ForgeGradle/blob/14206fa010c92f79ccf61e3bd9bd0d1aedce9a9c/src/common/java/net/minecraftforge/gradle/common/util/EnvironmentChecks.java)
+define the policy being preserved.
+
 The `Forge cold dependency setup` workflow runs two independent, cache-disabled
 build jobs, each with one preflight invocation:
 
@@ -66,8 +77,11 @@ build jobs, each with one preflight invocation:
 2. A diagnostic cold build that excludes only installer-tools from every project
    Maven repository. The actual ForgeGradle helper must resolve that tool through
    the Gradle fallback, produce an artifact under the Gradle modules cache, and
-   leave the original repository objects and order intact. Forge and test
-   compilation then provide a compatibility check in that same build process.
+   leave the original repository objects and order intact. The public upstream
+   content-filter inspector checks the actual filters before and after that
+   helper call: mapped installer versions must remain excluded, and the ordinary
+   installer must remain eligible in the Ivy fallback. Forge and test compilation
+   then provide a compatibility check in that same build process.
 
 The exclusion init script is used only by the diagnostic job. It does not apply
 to the normal pilot or reliability jobs. There is no repeated attempt to obtain
@@ -119,6 +133,37 @@ observed ForgeGradle release. Artifact SHA-256 capture remains unavailable in
 the failed revision. Corrected code receives a separate first-outcome cohort;
 the earlier jobs are not rerun or overwritten.
 
+## Retained second-source outcomes and repository-filter correction
+
+At source `8df440c36598ecc7e5a256defae7a1e791f00ddc`, the
+[ordinary cold job](https://github.com/dylandlr/hearthbound/actions/runs/45313501271/job/138174656959)
+passed both `compileJava` and `compileTestJava`. Its
+[artifact](https://github.com/dylandlr/hearthbound/actions/runs/45313501271/artifacts/14885086706)
+has ZIP SHA-256
+`5f430244fd51a60e67486c01305de15977188a4608e2fec8d5a8483c938ea417`.
+The [forced-fallback job](https://github.com/dylandlr/hearthbound/actions/runs/45313501271/job/138174656589)
+reached the actual helper but failed while re-adding the Ivy repository: the
+upstream callback tried to mutate a content descriptor after use. Its
+[failed artifact](https://github.com/dylandlr/hearthbound/actions/runs/45313501271/artifacts/14885320720)
+has ZIP SHA-256
+`9a301c0a4b62b7ee4c859be659943cc7d038711180bfc9034bda2310af14854c`.
+Both jobs retained their single cold attempts and captured matching actual
+ForgeGradle and MixinGradle artifact hashes. The idempotent filter correction
+above receives a new source revision and separate first-outcome cohort.
+
+A separate [completion-boundary job](https://github.com/dylandlr/hearthbound/actions/runs/45313501292/job/138174656487)
+failed before Minecraft with `Invalid patcher dependency, could not resolve
+sources: null`. Its [artifact](https://github.com/dylandlr/hearthbound/actions/runs/45313501292/artifacts/14884776162)
+retains the sparse compile log (ZIP SHA-256
+`1f1ff17ab81266ab426631813890d3d71532661c8dc7e47c5163020017595d7f`).
+The upstream
+[Patcher source lookup](https://github.com/MinecraftForge/ForgeGradle/blob/14206fa010c92f79ccf61e3bd9bd0d1aedce9a9c/src/userdev/java/net/minecraftforge/gradle/userdev/MinecraftUserRepo.java)
+uses the manual-only downloader and prints the returned `File`. A null result
+does not establish a missing coordinate. This path does not use the new Ivy
+fallback, and the retained log does not establish its HTTP failure cause.
+Neither the filter correction nor a later passing build resolves that separate
+uncertainty by itself.
+
 ## Continuing the original accounting and active-haul investigation
 
 The original five trials remain `world-01` through `world-05`, with seeds
@@ -154,6 +199,34 @@ Follow the existing
 [motor diagnostic protocol](HAUL_MOTOR_DIAGNOSTICS_V0_14.md) for the frozen
 definitions. Report new source revisions separately, retaining all failed,
 incomplete, and unrun worlds in their planned denominators.
+
+### Observed active-carrying stall on the original fixture
+
+The second source's original `world-04`, seed 43104, produced a physical failure
+with complete motor observations. Its
+[retained artifact](https://github.com/dylandlr/hearthbound/actions/runs/45313501320/artifacts/14884149409)
+identifies native world `367defee-7504-4c09-be67-6b01954f9d1b`.
+After the original full fixture window, the destination held three wheat, all
+four sources were empty, and one worker retained one wheat and its claim.
+Accounting was DONE=3 / ASSIGNED=1. The frozen result remains
+`FIXTURE_ASSERTION_FAILURE`; this is distinct from the original accounting-only
+event where all four items physically arrived.
+
+Worker `737c925d-ae6d-48d7-9ca8-40f92f4ede07` was active in `TO_DEST`, loaded
+in unforced chunk `(1,-1)`, with `no_ai=false` and `can_update=true`, but
+`position_entity_ticking=false`. Across world ticks 3047, 3068, and 3088, its
+entity tick counter stayed at 97 and its position stayed unchanged. The loaded
+destination was already within the motor's reach threshold. Native probes
+corroborated the same job, phase, and one-wheat cargo. All four original subjects
+were observed in every diagnostic round.
+
+The full failed-fixture transcript contains no decision-trace command because
+the fixture stopped at its timeout first; all four identities were recovered
+through the declared current-roster fallback. No actor was moved, frozen,
+force-loaded, repaired, or rescored by the post-window diagnostic. This directly
+records an active-carrying stall with absent entity ticking in this new world.
+It does not retrospectively establish the cause of the older archived stall,
+and the accounting-only reliability question remains open.
 
 ## Research foundation and validation boundary
 

@@ -14,6 +14,32 @@ plugins {
     id 'net.minecraftforge.gradle' version '6.0.54'
 }
 apply plugin: 'org.spongepowered.mixin'
+
+// ForgeGradle 6.0.54 re-adds existing repository objects in its tool fallback.
+// Its default all() callback then tries to mutate their frozen content filters.
+// Use the supported opt-out and preserve the same exclusion once per object.
+def forgePluginLoader = project.plugins.getPlugin('net.minecraftforge.gradle').getClass().getClassLoader()
+def generatedRepositoryType = forgePluginLoader.loadClass('net.minecraftforge.artifactural.gradle.GradleRepositoryAdapter')
+def upstreamRepoFilter = forgePluginLoader.loadClass('net.minecraftforge.gradle.common.util.EnvironmentChecks')
+    .getField('FILTER_REPOS').get(null)
+if (upstreamRepoFilter.getClass().getMethod('isEnabled').invoke(upstreamRepoFilter)) {
+    throw new GradleException('Set net.minecraftforge.gradle.filter.repos=false; Hearthbound preserves its rule with an idempotent callback.')
+}
+def mappedFilterApplications = new IdentityHashMap()
+ext.hearthboundMappedRepositoryFilterApplications = mappedFilterApplications
+def installMappedFilterOnce = { repository ->
+    if (!generatedRepositoryType.isInstance(repository) && !mappedFilterApplications.containsKey(repository)) {
+        repository.content { excludeVersionByRegex('.*', '.*', '.*_mapped_.*') }
+        mappedFilterApplications.put(repository, 1)
+    }
+}
+// Preserve ForgeGradle's existing-only handling for IDE DownloadSources tasks.
+if (gradle.startParameter.taskNames.any { it.endsWith('DownloadSources') }) {
+    repositories.each(installMappedFilterOnce)
+} else {
+    repositories.all(installMappedFilterOnce)
+}
+
 group = mod_group_id
 version = mod_version
 base { archivesName = mod_id }

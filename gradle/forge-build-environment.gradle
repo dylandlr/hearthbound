@@ -15,6 +15,34 @@ def forgeClass = { String name ->
 def installerToolsCoordinate = {
     forgeClass('net.minecraftforge.gradle.common.util.Utils').getField('INSTALLERTOOLS').get(null).toString()
 }
+def mappedFilterPolicy = {
+    def flag = forgeClass('net.minecraftforge.gradle.common.util.EnvironmentChecks').getField('FILTER_REPOS').get(null)
+    Class generatedRepositoryType = forgeClass('net.minecraftforge.artifactural.gradle.GradleRepositoryAdapter')
+    Map applications = project.findProperty('hearthboundMappedRepositoryFilterApplications') ?: [:]
+    [policy: 'exclude-mapped-versions-once-v1', version_pattern: '.*_mapped_.*',
+     upstream_repeated_filter_enabled: flag.getClass().getMethod('isEnabled').invoke(flag),
+     generated_repositories_exempt: true,
+     external_repositories: repositories.findAll { !generatedRepositoryType.isInstance(it) }.collect {
+         [name: it.name, applications: applications.get(it) ?: 0]
+     }]
+}
+def inspectMappedExclusions = {
+    Class generatedRepositoryType = forgeClass('net.minecraftforge.artifactural.gradle.GradleRepositoryAdapter')
+    Class identifier = forgeClass('net.minecraftforge.artifactural.api.artifact.ArtifactIdentifier')
+    Class artifact = forgeClass('net.minecraftforge.gradle.common.util.Artifact')
+    def from = artifact.getMethod('from', String)
+    def mapped = from.invoke(null, 'net.minecraftforge:installertools:1.4.4_mapped_official_1.20.1:fatjar')
+    def unmapped = from.invoke(null, installerToolsCoordinate())
+    def inspector = forgeClass('net.minecraftforge.artifactural.gradle.RepositoryContentUtils')
+        .getMethod('contentFilterExcludes', org.gradle.api.artifacts.repositories.ArtifactRepository, identifier)
+    // The public upstream inspector reads (and freezes) the actual filters.
+    // The fallback must survive re-adding those already-used repositories.
+    repositories.findAll { !generatedRepositoryType.isInstance(it) }.collect {
+        [name: it.name,
+         mapped_installer_excluded: inspector.invoke(null, it, mapped),
+         unmapped_installer_excluded: inspector.invoke(null, it, unmapped)]
+    }
+}
 
 def sha256 = { File artifact ->
     MessageDigest digest = MessageDigest.getInstance('SHA-256')
@@ -58,6 +86,7 @@ tasks.register('captureHearthboundBuildEnvironment') {
                 ForgeGradle: '6.0.54', mixingradle: '0.7-SNAPSHOT'
             ],
             installer_tools_coordinate: installerToolsCoordinate(),
+            mapped_repository_filter: mappedFilterPolicy(),
             limits: [
                 immutable_plugin_versions_declared: false,
                 snapshot_timestamp_not_available_from_resolved_module_id: true
@@ -76,6 +105,7 @@ tasks.register('verifyHearthboundForgeToolFallback') {
         Map result = [
             schema: 'hearthbound-forge-tool-fallback-v1',
             installer_tools_coordinate: coordinate,
+            mapped_repository_filter: mappedFilterPolicy(),
             repository_names_before: before.collect { it.name },
             forced_maven_exclusions: project.findProperty('hearthboundForcedInstallerMavenExclusions') ?: [],
             status: 'FAIL', errors: []
@@ -87,9 +117,20 @@ tasks.register('verifyHearthboundForgeToolFallback') {
             if (coordinate != 'net.minecraftforge:installertools:1.4.4:fatjar') {
                 throw new GradleException('Installer-tools coordinate changed; review this regression gate before updating it.')
             }
+            if (result.mapped_repository_filter.upstream_repeated_filter_enabled ||
+                result.mapped_repository_filter.external_repositories.any { it.applications != 1 }) {
+                throw new GradleException('Mapped-version filtering must be applied exactly once per external repository.')
+            }
+            result.mapped_exclusions_before = inspectMappedExclusions()
+            def fallbackBefore = result.mapped_exclusions_before.find { it.name == 'HearthboundForgeInstallerToolsFallback' }
+            if (result.mapped_exclusions_before.any { !it.mapped_installer_excluded } ||
+                fallbackBefore == null || fallbackBefore.unmapped_installer_excluded) {
+                throw new GradleException('Mapped versions must remain excluded while the ordinary installer tool remains eligible in the fallback.')
+            }
             Class downloader = forgeClass('net.minecraftforge.gradle.common.util.MavenArtifactDownloader')
             File artifact = (File) downloader.getMethod('gradle', org.gradle.api.Project, String, Boolean.TYPE)
                 .invoke(null, project, coordinate, false)
+            result.mapped_exclusions_after = inspectMappedExclusions()
             if (artifact == null || !artifact.isFile()) {
                 throw new GradleException('ForgeGradle did not resolve the installer-tools artifact.')
             }
@@ -100,13 +141,22 @@ tasks.register('verifyHearthboundForgeToolFallback') {
             if (!artifact.canonicalFile.toPath().startsWith(fallbackCache.canonicalFile.toPath())) {
                 throw new GradleException('Installer-tools did not come from the Gradle fallback cache.')
             }
-            if (repositories.toList() != before) {
+            List after = repositories.toList()
+            boolean sameRepositoryObjects = after.size() == before.size()
+            for (int index = 0; sameRepositoryObjects && index < before.size(); index++) {
+                sameRepositoryObjects = after[index].is(before[index])
+            }
+            if (!sameRepositoryObjects) {
                 throw new GradleException('ForgeGradle did not restore the original repository objects and order.')
+            }
+            if (result.mapped_exclusions_before != result.mapped_exclusions_after) {
+                throw new GradleException('Repository content filtering changed during the actual ForgeGradle fallback.')
             }
             result.artifact_filename = artifact.name
             result.artifact_sha256 = sha256(artifact)
             result.resolution_path = 'forgegradle_non_maven_gradle_fallback'
             result.repositories_restored = true
+            result.mapped_version_exclusions_verified = true
             result.status = 'PASS'
         } catch (Exception failure) {
             result.errors.add("${failure.class.name}: ${failure.message}")
