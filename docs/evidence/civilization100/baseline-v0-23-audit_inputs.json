@@ -1,0 +1,83 @@
+{
+  "run": {
+    "id": 45511112716,
+    "head_sha": "a072519518db1458e8cb5aa1898aebd4ba93f03a",
+    "status": "completed",
+    "conclusion": "success",
+    "run_attempt": 1,
+    "run_number": 4,
+    "html_url": "https://github.com/dylandlr/hearthbound/actions/runs/45511112716"
+  },
+  "artifacts": [
+    {
+      "id": 14979255004,
+      "name": "village-23001-adaptive",
+      "size_in_bytes": 4381639,
+      "digest": "sha256:5dd6e89b8e7bedee50bb737685b36289fcd2f909524e1b5a2a82c77d98889077",
+      "expired": false,
+      "workflow_run": {
+        "id": 45511112716,
+        "repository_id": 1418116426,
+        "head_repository_id": 1418116426,
+        "head_branch": "feat/renewable-village-economy-v0-23",
+        "head_sha": "a072519518db1458e8cb5aa1898aebd4ba93f03a"
+      }
+    },
+    {
+      "id": 14978101744,
+      "name": "village-23001-authored",
+      "size_in_bytes": 4424592,
+      "digest": "sha256:7db97766ad004061e1479482cbb50941cbbb8270b71f8703359254c97600991d",
+      "expired": false,
+      "workflow_run": {
+        "id": 45511112716,
+        "repository_id": 1418116426,
+        "head_repository_id": 1418116426,
+        "head_branch": "feat/renewable-village-economy-v0-23",
+        "head_sha": "a072519518db1458e8cb5aa1898aebd4ba93f03a"
+      }
+    },
+    {
+      "id": 14977940753,
+      "name": "village-23002-authored",
+      "size_in_bytes": 4337120,
+      "digest": "sha256:8cca7f5a864cb6424a9cb72f9b33857aa82b6b0485307d92d55104dd9695fbff",
+      "expired": false,
+      "workflow_run": {
+        "id": 45511112716,
+        "repository_id": 1418116426,
+        "head_repository_id": 1418116426,
+        "head_branch": "feat/renewable-village-economy-v0-23",
+        "head_sha": "a072519518db1458e8cb5aa1898aebd4ba93f03a"
+      }
+    },
+    {
+      "id": 14977837333,
+      "name": "village-cohort-summary",
+      "size_in_bytes": 2894,
+      "digest": "sha256:885dbfd47cb7f08275d9fe9a32036c4aaca371652dde8c0351b0c5b10bea8985",
+      "expired": false,
+      "workflow_run": {
+        "id": 45511112716,
+        "repository_id": 1418116426,
+        "head_repository_id": 1418116426,
+        "head_branch": "feat/renewable-village-economy-v0-23",
+        "head_sha": "a072519518db1458e8cb5aa1898aebd4ba93f03a"
+      }
+    },
+    {
+      "id": 14977602889,
+      "name": "village-23002-adaptive",
+      "size_in_bytes": 4215653,
+      "digest": "sha256:a564fad3c57d6d639113c9f0b7996aeb3f0363fc460cd180f7e5f4dfba9cf30a",
+      "expired": false,
+      "workflow_run": {
+        "id": 45511112716,
+        "repository_id": 1418116426,
+        "head_repository_id": 1418116426,
+        "head_branch": "feat/renewable-village-economy-v0-23",
+        "head_sha": "a072519518db1458e8cb5aa1898aebd4ba93f03a"
+      }
+    }
+  ]
+}

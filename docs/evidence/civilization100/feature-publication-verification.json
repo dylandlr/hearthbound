@@ -1,0 +1,31 @@
+{
+  "feature_verification": {
+    "feature_count": 116,
+    "created": 110,
+    "reused": 6,
+    "duplicate_ids": [],
+    "missing_ids": [],
+    "new_body_matches": 110,
+    "new_all_phases_unchecked": 110,
+    "reused_bodies_changed_by_other_work": [
+      "C00-02",
+      "C14-01"
+    ]
+  },
+  "publication_summary": {
+    "repository_records": 346,
+    "repository_issues": 127,
+    "repository_pull_requests": 219,
+    "source_feature_issues": 116,
+    "created_feature_issues": 110,
+    "reused_feature_issues": 6,
+    "duplicate_feature_ids": [],
+    "missing_feature_ids": [],
+    "specialization_tracker_number": 346,
+    "specialization_tracker_url": "https://github.com/dylandlr/hearthbound/issues/346",
+    "specialization_tracker_type": "milestone_tracking_issue",
+    "new_issues_created_total": 111,
+    "final_readback_verified": true,
+    "native_github_milestone_created": false
+  }
+}
