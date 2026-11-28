@@ -4,6 +4,7 @@ import os
 import socket
 import struct
 import time
+from haul_arrival_evidence import ArrivalEvidence
 
 HOST = "127.0.0.1"
 PORT = 25575
@@ -11,6 +12,7 @@ PASSWORD = os.environ["HEARTHBOUND_RCON_PASSWORD"]
 TRIAL_MODE = os.environ.get("HEARTHBOUND_TRIAL_MODE", "TRAINED_MLP").upper()
 if TRIAL_MODE not in ("SCRIPTED", "TRAINED_MLP"):
     raise ValueError("HEARTHBOUND_TRIAL_MODE must be SCRIPTED or TRAINED_MLP")
+arrival_evidence = ArrivalEvidence("haul-arrival-evidence.json")
 
 def packet(request_id, packet_type, payload):
     body = struct.pack("<ii", request_id, packet_type) + payload.encode() + b"\x00\x00"
@@ -49,6 +51,13 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
         auth_id, _, _ = response(sock, allow_empty=True)
     if auth_id != 1:
         raise RuntimeError("RCON authentication failed")
+
+    def haul_read(request_id, command):
+        sock.sendall(packet(request_id, 2, command))
+        got_id, _, output=response(sock)
+        arrival_evidence.record_poll(request_id, got_id, command, output)
+        return got_id, output
+
     for request_id, command, expected in (
         (2, "hearthbound status", "bootstrap active"),
         (3, "sable spawn", "Sable spawned"),
@@ -92,6 +101,8 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
         "AUDIT job=", "source=", "destination=", "claim=owned",
         "[observations only; no reconciliation performed]")):
         raise AssertionError("Haul audit missing or invalid: " + audit_output)
+    # Bind the exact native UUID and newly assigned job before transfer polling.
+    arrival_evidence.bind(haul_read, audit_output)
 
     # A vanilla chest must NOT masquerade as a processed Create recipe.
     sock.sendall(packet(91, 2, 'sable mill-inspect 3 100 1'))
@@ -121,16 +132,17 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
     from haul_smoke_diagnostics import (
         poll_delivery, read_only_commands, acceptance_timeout_seconds)
 
-    def haul_read(request_id, command):
-        sock.sendall(packet(request_id, 2, command))
-        got_id, _, output=response(sock)
-        return got_id, output
-
-    transferred, polls_used=poll_delivery(
-        haul_read, time.sleep, lambda message: print(message, flush=True))
+    try:
+        transferred, polls_used=poll_delivery(
+            haul_read, time.sleep, lambda message: print(message, flush=True))
+    except Exception as error:
+        arrival_evidence.fail(haul_read, error)
+        raise
+    arrival_evidence.record_transfer(polls_used, transferred)
     print(f"HAUL_POLL_SUMMARY polls={polls_used} transferred={str(transferred).lower()}",
           flush=True)
     if not transferred:
+        arrival_evidence.fail(haul_read, AssertionError("Sable did not deliver wheat within 150 seconds"))
         # Failure diagnostics are strictly read-only. Preserve the original
         # acceptance threshold instead of weakening a real server check.
         # Capture citizen location, job state and both chest inventories so
@@ -155,16 +167,17 @@ with socket.create_connection((HOST, PORT), timeout=15) as sock:
     sock.sendall(packet(300, 2,
         'execute if data block 3 100 1 Items[{id:"minecraft:wheat",Count:7b}]'))
     got_id, _, output = response(sock)
+    arrival_evidence.record_source_check(got_id, output)
     if got_id != 300 or "test passed" not in output.lower():
+        arrival_evidence.fail(haul_read, AssertionError("Source count is not 7 wheat after delivery: " + output))
         raise AssertionError("Source count is not 7 wheat after delivery: " + output)
     print("Real server-side wheat transfer verified: source 8->7, destination 0->1")
-    # Require physical proximity to destination, not merely inventory mutation.
-    sock.sendall(packet(301, 2,
-        'execute positioned 7.5 100 1.5 if entity @e[type=minecraft:villager,name=Sable,distance=..2.6]'))
-    got_id, _, output = response(sock)
-    if got_id != 301 or "test passed" not in output.lower():
-        raise AssertionError("Wheat delivered but Sable not near destination: " + output)
-    print("Sable proximity verified at destination chest")
+    # Arrival and actual native inventory delta must agree at insertion. Keep
+    # the later identical-radius query as a separate, exact-citizen observation.
+    # A later near pose cannot rescue a remote or unavailable insertion witness.
+    arrival = arrival_evidence.check_delivery(haul_read)
+    import json
+    print("HAUL_ARRIVAL_VERIFIED " + json.dumps(arrival, sort_keys=True), flush=True)
 
 
 

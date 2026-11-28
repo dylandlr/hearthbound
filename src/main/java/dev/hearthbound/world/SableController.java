@@ -60,6 +60,7 @@ public final class SableController {
         NeedServiceRuntime.register(dispatcher);
         VillageEconomyRuntime.register(dispatcher);
         HaulMotorDiagnostics.register(dispatcher);
+        HaulArrivalWitness.register(dispatcher);
         // Separate permission-2 inspection command; never modifies Minecraft.
         dispatcher.register(Commands.literal("hearthbound-pickup-journal")
             .requires(source -> source.hasPermission(2))

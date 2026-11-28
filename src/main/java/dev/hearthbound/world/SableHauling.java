@@ -98,6 +98,7 @@ public final class SableHauling {
         // Actual executor assignment time, not an inferred policy decision.
         // Persisted on the villager; legacy jobs without it fail closed at the probe.
         tag.putLong(ASSIGNED_TICK, level.getGameTime());
+        HaulArrivalWitness.assigned(level, tag);
         citizen.getPersistentData().put(KEY, tag);
         markLive(level.getServer(), job);
     }
@@ -370,6 +371,7 @@ public final class SableHauling {
                 MillExperimentTrace.beforeDelivery(level, citizen, tag.getUUID(JOB_ID), target, cargo);
             }
             ItemStack remaining;
+            var arrivalObservation = HaulArrivalWitness.beforeInsertion(level, citizen, tag);
             try {
                 String fault = tag.getString(FAULT);
                 tag.remove(FAULT);
@@ -390,6 +392,8 @@ public final class SableHauling {
                 quarantine(tag, "Inventory insertion raised an exception; review contents");
                 entity.setChanged();
                 return;
+            } finally {
+                HaulArrivalWitness.afterInsertion(level, citizen, tag, arrivalObservation);
             }
             if (remaining.isEmpty()) {
                 if (durableDelivery) {

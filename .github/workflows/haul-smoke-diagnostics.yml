@@ -6,6 +6,11 @@ on:
       - 'scripts/haul_smoke_diagnostics.py'
       - 'scripts/test_haul_smoke_diagnostics.py'
       - 'scripts/test_haul_smoke_simulated_rcon.py'
+      - 'scripts/haul_arrival_evidence.py'
+      - 'scripts/test_haul_arrival_evidence.py'
+      - 'src/main/java/dev/hearthbound/world/HaulArrivalWitness.java'
+      - 'src/main/java/dev/hearthbound/evidence/HaulArrivalGeometry.java'
+      - 'src/test/java/dev/hearthbound/evidence/HaulArrivalGeometryTest.java'
       - '.github/workflows/haul-smoke-diagnostics.yml'
   workflow_dispatch:
 jobs:
@@ -22,3 +27,4 @@ jobs:
           set -euo pipefail
           python3 scripts/test_haul_smoke_diagnostics.py
           python3 scripts/test_haul_smoke_simulated_rcon.py
+          python3 -m unittest discover -s scripts -p test_haul_arrival_evidence.py -v

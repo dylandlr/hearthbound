@@ -41,6 +41,15 @@ public final class SourceReportSession {
             + level.dimension().location()).getBytes(StandardCharsets.UTF_8));
     }
 
+    /** Read the existing lifetime fence without creating world identity data. */
+    static UUID peekEpisode(ServerLevel level) {
+        var fence = SESSIONS.get(level.getServer());
+        UUID world = HearthboundWorldIdentity.peek(level);
+        if (fence == null || world == null || !fence.world().equals(world)) return null;
+        return UUID.nameUUIDFromBytes((fence.world() + "|" + fence.session() + "|"
+            + level.dimension().location()).getBytes(StandardCharsets.UTF_8));
+    }
+
     /** Only stamp at the actual local observation, never at report delivery. */
     static void stamp(ServerLevel level, CompoundTag observation) {
         var fence = SESSIONS.get(level.getServer());

@@ -90,6 +90,12 @@ jobs:
           python3 scripts/test_report_policy_trial.py
           python3 scripts/test_report_live_shadow.py
           python3 scripts/test_rcon_frames.py
+          python3 -m unittest discover -s scripts -p test_haul_arrival_evidence.py -v
+          mkdir -p /tmp/hb-arrival-contract
+          javac --release 17 -d /tmp/hb-arrival-contract \
+            src/main/java/dev/hearthbound/evidence/HaulArrivalGeometry.java \
+            src/test/java/dev/hearthbound/evidence/HaulArrivalGeometryTest.java
+          java -cp /tmp/hb-arrival-contract dev.hearthbound.evidence.HaulArrivalGeometryTest
           python3 scripts/test_validate_live_perception_receipts.py
           python3 scripts/test_replay_real_forge_chronology.py
           python3 scripts/test_validate_forge_attention_opportunity.py
@@ -147,6 +153,7 @@ jobs:
           HEARTHBOUND_RESOURCE_SCHEDULE: ${{ matrix.schedule }}
           HEARTHBOUND_ATTENTION_MODE: ${{ matrix.attention || 'scripted' }}
           HEARTHBOUND_ATTENTION_CHALLENGE: ${{ matrix.challenge || 'none' }}
+          HEARTHBOUND_MATRIX_SLOT: ${{ matrix.artifact_name }}
         run: |
           set -euo pipefail
           mkdir -p run
@@ -198,6 +205,8 @@ jobs:
           fi
           echo "Hearthbound mod initialization confirmed"
           python3 scripts/rcon_smoke.py | tee smoke-rcon.log
+          python3 scripts/haul_arrival_evidence.py haul-arrival-evidence.json \
+            --expected-checkout-sha "$(git rev-parse HEAD)" > haul-arrival-verified.json
           python3 scripts/report_live_shadow.py smoke-rcon.log --output live-shadow-report.json
           python3 scripts/report_policy_trial.py smoke-rcon.log --expected-mode "$HEARTHBOUND_TRIAL_MODE" --output policy-trial-result.json
           python3 scripts/report_policy_rejection.py smoke-rcon.log --expected-mode "$HEARTHBOUND_TRIAL_MODE" --output policy-rejection.json
@@ -366,6 +375,8 @@ jobs:
             server-after-restart.log
             run/logs/latest.log
             smoke-rcon.log
+            haul-arrival-evidence.json
+            haul-arrival-verified.json
             real-perception-rcon.log
             real-perception-receipts.txt
             real-perception-acceptance.json
