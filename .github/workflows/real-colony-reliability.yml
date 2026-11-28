@@ -105,9 +105,13 @@ jobs:
       - name: Include all five planned worlds and retain unknown failures
         env:
           HEARTHBOUND_EXPECTED_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+          HEARTHBOUND_EXPECTED_RUN_ID: ${{ github.run_id }}
+          HEARTHBOUND_EXPECTED_RUN_ATTEMPT: ${{ github.run_attempt }}
         run: >-
           python3 scripts/summarize_colony_reliability.py reliability-downloads
           --expected-commit "$HEARTHBOUND_EXPECTED_COMMIT"
+          --expected-run-id "$HEARTHBOUND_EXPECTED_RUN_ID"
+          --expected-run-attempt "$HEARTHBOUND_EXPECTED_RUN_ATTEMPT"
           --require-motor-diagnostics
           --require-prospective-plans
           --output colony-reliability-summary.json
