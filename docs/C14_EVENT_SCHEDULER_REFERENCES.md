@@ -126,3 +126,19 @@ Likewise, the following are separate gates:
 Passing an earlier gate cannot substitute for a later one. Routine serialization and filesystem
 mechanics do not need unrelated game-theory or LLM citations. Other `refs/` papers remain available for
 the tickets where their mechanisms materially apply.
+
+## Scenario-v1 continuation: relevant prior principles
+
+The [seeded scenario layer](C14_SEEDED_SCENARIO_CONTRACT.md) applies the prior source review above:
+Chan et al.'s identifier/logging distinction motivates retaining the original trial identity and
+binding complete scope/configuration provenance; Project Sid's intended-versus-observed distinction
+keeps generated treatment/sham plans separate from verified physical effects; MultiAgentBench's
+separate contribution and outcome measures keep event delivery and native injection separate from
+colony recovery and occupation emergence. The same transfer limits apply. These are applications of
+the already recorded review, not a claim of new primary-source reading.
+
+Counter-based SHA draws, rejection sampling, ppm quantization, canonical manifests, target caps,
+mode-independent planned choices, and the wrapper's exact run-ID encoding are ordinary engineering
+decisions. They require the fixed-oracle, malformed-input and cross-language tests in the scenario
+acceptance record. Identical planned choices and a zero effective severity do not establish matched
+physical outcomes or a verified sham; the native paired control remains a separate empirical gate.
