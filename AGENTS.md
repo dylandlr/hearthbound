@@ -33,3 +33,21 @@ Read these alongside the user's CSCE 631 PA4 Reading Reports, particularly P42 (
 - `docs/PROJECT_SID_PA4_RESEARCH_FOUNDATION.md`: primary Project Sid/MultiAgentBench/MARBLE references, PA4 mappings and transfer limits.
 
 A paper's stated benchmark result is **not** a Hearthbound result. Pin the actual upstream revision, especially because MARBLE's November 2026 maintenance changed benchmark runner behavior and repaired scenario data.
+
+## Reference relevance and continuity
+
+For every ticket, consult the project references that materially affect its design, implementation,
+or evaluation, including the configured [Drive refs folder](https://drive.google.com/drive/folders/1t-z8bDUgvEfu1eP_SfWEsJHrkuT4RMOY)
+and supplied course/textbook sources where applicable. Record source identity/version and section/page,
+the relevant finding, the resulting design decision, the validation it motivates, and its transfer limits.
+Distinguish directly reviewed primary sources from reading reports and prior summaries. Mark routine
+engineering details as research-not-applicable when appropriate; this is a relevance rule, not a source
+quota. Do not insert unrelated information to make a ticket appear research-grounded.
+
+Carry this rule through requirements, design, implementation, review, QA, and acceptance. The concrete
+C14-01 mapping is [docs/C14_EVENT_SCHEDULER_REFERENCES.md](docs/C14_EVENT_SCHEDULER_REFERENCES.md).
+[PR #228](https://github.com/dylandlr/hearthbound/pull/228) separately proposes
+`docs/CIVILIZATION100_RESEARCH_POLICY.md` at commit `c97f1d42e101519ba625d0bc53d797564ab4cb5a`;
+that policy PR is pending integration, not merged. This subsection records the user's standing rule
+as a persistent project instruction in the repository; it makes no claim that account-level memory
+was written.

@@ -1,0 +1,4 @@
+Alpha	crop_failure	0	3	-0.0
+alpha	mill_failure	3	2	0.5
+tiny	resource_depletion	2	1	5e-324
+z	communication_failure	1	4	0.1
