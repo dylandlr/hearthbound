@@ -74,6 +74,8 @@ class CohortTests(unittest.TestCase):
     def test_all_passed_does_not_resolve_defect(self):
         result = summarize(self.records, expected_commit=COMMIT)
         self.assertTrue(result["all_trials_passed"])
+        self.assertFalse(result["acceptance_passed"])
+        self.assertEqual(result["validation_context"]["status"], "DESCRIPTIVE_ONLY")
         event = result["three_of_four_accounting_event"]
         self.assertEqual((event["observed"], event["assessable_trials"], event["unknown_trials"]), (0, 5, 0))
         self.assertAlmostEqual(event["wilson_95_interval_among_assessable"][1], 0.43448246, places=6)
@@ -364,6 +366,107 @@ class CohortTests(unittest.TestCase):
                          {"assigned": 1, "done": 3})
 
 
+class MalformedArtifactTests(unittest.TestCase):
+    def setUp(self):
+        self.records = [record(item) for item in PLAN]
+
+    def test_unassignable_results_are_explicit_and_keep_every_planned_slot(self):
+        malformed = (None, False, [], [record(PLAN[0])], {},
+                     {"trial_id": None}, {"trial_id": False},
+                     {"trial_id": []}, {"trial_id": {}}, {"trial_id": 1})
+        for value in malformed:
+            with self.subTest(value=value):
+                result = summarize(self.records + [value])
+                self.assertEqual(len(result["trials"]), 5)
+                self.assertEqual(result["received_result_artifacts"], 6)
+                self.assertEqual(len(result["invalid_or_duplicate_artifacts"]), 1)
+                self.assertTrue(result["cohort_errors"])
+                self.assertEqual(result["three_of_four_accounting_event"]["unknown_trials"], 5)
+                self.assertFalse(result["acceptance_passed"])
+
+    def test_malformed_consumed_fields_are_invalid_slot_evidence(self):
+        cases = {
+            "schema": (None, False, [], {}),
+            "seed": (None, True, [], {}),
+            "status": (None, False, [], {}),
+            "source_commit": (None, False, [], {}),
+            "protocol_sha256": (None, False, [], {}),
+            "fixture_passed": (None, 1, [], {}),
+            "observation_window_completed": (None, 1, [], {}),
+            "fresh_world_directory": (None, 1, [], {}),
+            "world": (None, False, [], {}),
+            "terminal_snapshot": (None, False, [], {}),
+            "error_type": (False, [], {}),
+            "rcon_log_sha256": (None, False, [], {}),
+            "server_log_sha256": (None, False, [], {}),
+            "github_run_id": (False, [], {}),
+            "github_run_attempt": (False, [], {}),
+            "prospective_plan_sha256": (False, [], {}),
+            "motor_diagnostics_required": (None, 1, [], {}),
+            "prospective_plan_required": (None, 1, [], {}),
+            "artifact_validation_errors": (None, False, 1, {}, [None], [[]]),
+            "motor_diagnostics": (None, False, []),
+            "verified_motor_diagnostics": (None, False, [], {},
+                {"status": [], "findings": []},
+                {"status": "VERIFIED_COMPLETE", "findings": None},
+                {"status": "VERIFIED_COMPLETE", "findings": [None]},
+                {"status": "VERIFIED_COMPLETE", "findings": [{"flags": {}}]},
+                {"status": "VERIFIED_COMPLETE", "findings": [{"flags": [[]]}]}),
+        }
+        for field, values in cases.items():
+            for value in values:
+                with self.subTest(field=field, value=value):
+                    records = copy.deepcopy(self.records)
+                    records[0][field] = value
+                    result = summarize(records)
+                    self.assertEqual(len(result["trials"]), 5)
+                    self.assertEqual(result["trials"][0]["status"], "INVALID_EVIDENCE")
+                    self.assertTrue(result["trials"][0]["errors"])
+                    self.assertEqual(result["three_of_four_accounting_event"]["unknown_trials"], 1)
+
+    def test_nested_world_fields_cannot_reach_unhashable_operations(self):
+        for field in ("world_uuid", "generated_seed", "configured_seed", "level_name",
+                      "level_dat_sha256", "world_identity_sha256"):
+            for value in (None, False, [], {}):
+                with self.subTest(field=field, value=value):
+                    records = copy.deepcopy(self.records)
+                    records[0]["world"][field] = value
+                    result = summarize(records)
+                    self.assertEqual(result["trials"][0]["status"], "INVALID_EVIDENCE")
+                    self.assertEqual(result["three_of_four_accounting_event"]["unknown_trials"], 1)
+
+    def test_invalid_duplicate_never_replaces_or_hides_a_valid_receipt(self):
+        invalid = {"trial_id": PLAN[0]["trial_id"], "status": []}
+        for records, first_status in ((self.records + [invalid], "PASS"),
+                                      ([invalid] + self.records, "INVALID_EVIDENCE")):
+            with self.subTest(first_status=first_status):
+                result = summarize(records)
+                self.assertEqual(result["received_result_artifacts"], 6)
+                self.assertEqual(result["received_unique_trials"], 5)
+                self.assertEqual(result["trials"][0]["status"], first_status)
+                self.assertIn("duplicate trial result: world-01", result["cohort_errors"])
+                self.assertEqual(len(result["invalid_or_duplicate_artifacts"]), 1)
+                self.assertEqual(result["three_of_four_accounting_event"]["unknown_trials"], 5)
+                self.assertFalse(result["all_trials_passed"])
+
+    def test_unassignable_plans_and_bad_plan_field_types_are_retained(self):
+        plans = [prospective_plan(item) for item in PLAN]
+        for value in (None, False, [], {}, {"trial_id": []}, {"trial_id": {}}):
+            with self.subTest(value=value):
+                result = summarize(self.records, prospective_plans=plans + [value])
+                self.assertEqual(len(result["trials"]), 5)
+                self.assertEqual(len(result["invalid_or_duplicate_artifacts"]), 1)
+                self.assertEqual(result["three_of_four_accounting_event"]["unknown_trials"], 5)
+        for field in ("source_commit", "protocol_sha256", "github_run_id", "github_run_attempt"):
+            for value in (False, [], {}):
+                with self.subTest(field=field, value=value):
+                    changed = copy.deepcopy(plans)
+                    changed[0][field] = value
+                    result = summarize(self.records, prospective_plans=changed)
+                    self.assertEqual(result["trials"][0]["status"], "INVALID_EVIDENCE")
+                    self.assertTrue(result["trials"][0]["prospective_plan"]["errors"])
+
+
 class ProspectivePlanTests(unittest.TestCase):
     def setUp(self):
         self.plans = [prospective_plan(item) for item in PLAN]
@@ -378,11 +481,55 @@ class ProspectivePlanTests(unittest.TestCase):
                       github_run_id=document["github_run_id"],
                       github_run_attempt=document["github_run_attempt"])
 
-    def summarize(self, records=None, plans=None):
+    def summarize(self, records=None, plans=None, **context):
         return summarize(self.records if records is None else records,
                          prospective_plans=self.plans if plans is None else plans,
                          expected_commit=COMMIT, expected_protocol=HASH,
-                         require_prospective_plans=True)
+                         require_prospective_plans=True, **context)
+
+    def test_acceptance_requires_trusted_context_and_every_existing_gate(self):
+        for result in self.records:
+            result["verified_motor_diagnostics"] = {"status": "VERIFIED_COMPLETE", "findings": []}
+        descriptive = self.summarize()
+        self.assertTrue(descriptive["all_trials_passed"])
+        self.assertFalse(descriptive["acceptance_passed"])
+        self.assertEqual(descriptive["validation_context"]["status"], "DESCRIPTIVE_ONLY")
+        accepted = self.summarize(expected_run_id="12345", expected_run_attempt="1")
+        self.assertTrue(accepted["acceptance_passed"])
+        self.assertEqual(accepted["validation_context"]["errors"], [])
+        self.records[0].pop("verified_motor_diagnostics")
+        missing = self.summarize(expected_run_id="12345", expected_run_attempt="1")
+        self.assertTrue(missing["all_trials_passed"])
+        self.assertFalse(missing["acceptance_passed"])
+        self.assertFalse(missing["post_window_motor_diagnostics"]["all_required_worlds_verified"])
+
+    def test_consistent_old_workflow_run_or_attempt_never_passes_current_context(self):
+        for run_id, attempt in (("99999", "1"), ("12345", "2")):
+            with self.subTest(run_id=run_id, attempt=attempt):
+                result = self.summarize(expected_run_id=run_id, expected_run_attempt=attempt)
+                self.assertEqual(result["planned_trials"], 5)
+                self.assertEqual(result["statuses"], {"INVALID_EVIDENCE": 5})
+                self.assertEqual(result["three_of_four_accounting_event"]["unknown_trials"], 5)
+                self.assertFalse(result["acceptance_passed"])
+                self.assertEqual(result["validation_context"]["status"], "UNVERIFIED_EVIDENCE")
+                self.assertTrue(any("requested context" in reason
+                                    for reason in result["validation_context"]["errors"]))
+
+    def test_missing_or_malformed_trusted_context_is_descriptive_only(self):
+        for context in ({}, {"expected_run_id": "12345"}, {"expected_run_attempt": "1"},
+                        {"expected_run_id": None, "expected_run_attempt": None},
+                        {"expected_run_id": False, "expected_run_attempt": []},
+                        {"expected_run_id": {}, "expected_run_attempt": "0"}):
+            with self.subTest(context=context):
+                result = self.summarize(**context)
+                self.assertFalse(result["acceptance_passed"])
+                self.assertEqual(result["validation_context"]["status"], "DESCRIPTIVE_ONLY")
+                self.assertTrue(result["validation_context"]["errors"])
+
+    def test_acceptance_context_cannot_certify_unverified_plans(self):
+        result = self.summarize(plans=[], expected_run_id="12345", expected_run_attempt="1")
+        self.assertFalse(result["acceptance_passed"])
+        self.assertTrue(any("plans" in reason for reason in result["validation_context"]["errors"]))
 
     def test_verified_plans_do_not_redefine_original_events(self):
         self.records[0] = record(PLAN[0], done=3, assigned=1)
@@ -576,6 +723,65 @@ class PersistenceTests(unittest.TestCase):
 
 
 class ArtifactTests(unittest.TestCase):
+    def test_cli_rejects_duplicate_keys_and_retains_loader_owned_source_paths(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary)
+            payloads = {
+                "ambiguous-plan/trial-plan.json": '{"trial_id":"world-01","trial_id":"world-02"}',
+                "ambiguous-result/trial-result.json": '{"trial_id":"world-01","status":"PASS","status":"INVALID_EVIDENCE"}',
+                "world-03/trial-result.json": 'null',
+            }
+            for relative, payload in payloads.items():
+                target = path / relative
+                target.parent.mkdir(parents=True)
+                target.write_text(payload)
+            output = path / "summary.json"
+            script = Path(__file__).with_name("summarize_colony_reliability.py")
+            process = subprocess.run([sys.executable, str(script), str(path),
+                "--output", str(output)], capture_output=True, text=True)
+            self.assertEqual(process.returncode, 1, process.stderr)
+            self.assertNotIn("Traceback", process.stderr)
+            summary = json.loads(output.read_text())
+            self.assertEqual(len(summary["trials"]), 5)
+            self.assertEqual(summary["three_of_four_accounting_event"]["unknown_trials"], 5)
+            self.assertEqual(len(summary["invalid_or_duplicate_artifacts"]), 3)
+            self.assertTrue(any("Duplicate JSON key: trial_id" in error
+                                for error in summary["cohort_errors"]))
+            self.assertTrue(any("Duplicate JSON key: status" in error
+                                for error in summary["cohort_errors"]))
+            sources = summary["artifact_sources"]
+            self.assertEqual(sources, {
+                "plan": [{"input_index": 0, "path": "ambiguous-plan/trial-plan.json"}],
+                "result": [{"input_index": 0, "path": "ambiguous-result/trial-result.json"},
+                           {"input_index": 1, "path": "world-03/trial-result.json"}],
+            })
+            self.assertEqual({sources[item["kind"]][item["input_index"]]["path"]
+                              for item in summary["invalid_or_duplicate_artifacts"]}, set(payloads))
+            # A plausible directory name does not turn null into world-03 data.
+            self.assertEqual(summary["received_unique_trials"], 0)
+            self.assertFalse(summary["acceptance_passed"])
+
+    def test_cli_writes_all_planned_rows_for_malformed_json_value_types(self):
+        script = Path(__file__).with_name("summarize_colony_reliability.py")
+        cases = (None, False, [], {"trial_id": []}, {"trial_id": {}},
+                 {**record(PLAN[0]), "status": []},
+                 {**record(PLAN[0]), "source_commit": {}},
+                 {**record(PLAN[0]), "artifact_validation_errors": None})
+        for value in cases:
+            with self.subTest(value=value), tempfile.TemporaryDirectory() as temporary:
+                path = Path(temporary)
+                (path / "trial-result.json").write_text(json.dumps(value))
+                output = path / "summary.json"
+                command = [sys.executable, str(script), str(path), "--output", str(output)]
+                process = subprocess.run(command, capture_output=True, text=True)
+                self.assertEqual(process.returncode, 1, process.stderr)
+                self.assertNotIn("Traceback", process.stderr)
+                summary = json.loads(output.read_text())
+                self.assertEqual(len(summary["trials"]), 5)
+                self.assertEqual(summary["three_of_four_accounting_event"]["unknown_trials"], 5)
+                self.assertFalse(summary["acceptance_passed"])
+                self.assertTrue(summary["cohort_errors"] or summary["trials"][0]["errors"])
+
     def test_cli_preserves_precompile_plans_and_rejects_an_unreadable_plan(self):
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary)
@@ -597,6 +803,13 @@ class ArtifactTests(unittest.TestCase):
             self.assertEqual(summary["prospective_plans"]["statuses"], {"VERIFIED": 5})
             self.assertEqual(summary["three_of_four_accounting_event"]["unknown_trials"], 5)
             self.assertEqual(summary["post_window_motor_diagnostics"]["statuses"], {"MISSING_TRIAL": 5})
+            stale = subprocess.run(command + ["--expected-run-id", "12345",
+                "--expected-run-attempt", "2"], capture_output=True, text=True)
+            self.assertEqual(stale.returncode, 1, stale.stderr)
+            summary = json.loads((path / "summary.json").read_text())
+            self.assertEqual(summary["statuses"], {"INVALID_EVIDENCE": 5})
+            self.assertTrue(any("requested context" in reason
+                                for reason in summary["validation_context"]["errors"]))
             (path / "world-01/plans/trial-plan.json").write_text("{truncated")
             unreadable = subprocess.run(command, capture_output=True, text=True)
             self.assertEqual(unreadable.returncode, 1, unreadable.stderr)
@@ -627,8 +840,11 @@ class ArtifactTests(unittest.TestCase):
             command = [sys.executable, str(script), str(path), "--expected-commit", COMMIT,
                        "--output", str(path / "summary.json")]
             success = subprocess.run(command, capture_output=True, text=True)
-            self.assertEqual(success.returncode, 0, success.stderr)
-            self.assertTrue(json.loads((path / "summary.json").read_text())["all_trials_passed"])
+            self.assertEqual(success.returncode, 1, success.stderr)
+            descriptive = json.loads((path / "summary.json").read_text())
+            self.assertTrue(descriptive["all_trials_passed"])
+            self.assertFalse(descriptive["acceptance_passed"])
+            self.assertEqual(descriptive["validation_context"]["status"], "DESCRIPTIVE_ONLY")
             (path / PLAN[0]["trial_id"] / "rcon.log").write_text("changed bytes")
             corrupted_log = subprocess.run(command, capture_output=True, text=True)
             self.assertEqual(corrupted_log.returncode, 1)

@@ -22,6 +22,7 @@ PLAN = tuple({"trial_id": f"world-{i:02d}", "seed": 43100 + i}
              for i in range(1, 6))
 SHA = re.compile(r"[0-9a-f]{40}")
 HASH = re.compile(r"[0-9a-f]{64}")
+WORKFLOW_ID = re.compile(r"[1-9][0-9]*")
 TERMINAL_STATUSES = {
     "PASS", "ACCOUNTING_THREE_OF_FOUR", "TASK_ACCOUNTING_MISMATCH",
     "FIXTURE_ASSERTION_FAILURE", "INFRASTRUCTURE_FAILURE", "INVALID_EVIDENCE",
@@ -61,7 +62,8 @@ def plan_hash(document):
                                      allow_nan=False).encode()).hexdigest()
 
 
-def plan_errors(document, expected, expected_commit=None, expected_protocol=None):
+def plan_errors(document, expected, expected_commit=None, expected_protocol=None,
+                expected_run_id=None, expected_run_attempt=None):
     """Validate prospective intent without treating it as a world observation."""
     errors = []
     if not isinstance(document, dict):
@@ -72,11 +74,13 @@ def plan_errors(document, expected, expected_commit=None, expected_protocol=None
             or type(document.get("seed")) is not int
             or document.get("seed") != expected["seed"]):
         errors.append("prospective trial/seed differs from predeclared cohort")
-    if not SHA.fullmatch(str(document.get("source_commit", ""))):
+    if (not isinstance(document.get("source_commit"), str)
+            or not SHA.fullmatch(document["source_commit"])):
         errors.append("missing prospective source commit")
     elif expected_commit and document["source_commit"] != expected_commit:
         errors.append("prospective source commit differs from requested commit")
-    if not HASH.fullmatch(str(document.get("protocol_sha256", ""))):
+    if (not isinstance(document.get("protocol_sha256"), str)
+            or not HASH.fullmatch(document["protocol_sha256"])):
         errors.append("missing prospective protocol hash")
     elif expected_protocol and document["protocol_sha256"] != expected_protocol:
         errors.append("prospective protocol differs from checked-out inputs")
@@ -87,11 +91,14 @@ def plan_errors(document, expected, expected_commit=None, expected_protocol=None
             or document.get("fresh_world_required") is not True
             or document.get("motor_diagnostics_required") is not True):
         errors.append("prospective execution requirements changed")
-    for field in ("github_run_id", "github_run_attempt"):
+    for field, trusted in (("github_run_id", expected_run_id),
+                           ("github_run_attempt", expected_run_attempt)):
         value = document.get(field)
         if field not in document or (value is not None
-                and (not isinstance(value, str) or not re.fullmatch(r"[1-9][0-9]*", value))):
+                and (not isinstance(value, str) or not WORKFLOW_ID.fullmatch(value))):
             errors.append("invalid prospective workflow identity: " + field)
+        if trusted is not None and value != trusted:
+            errors.append("prospective workflow identity differs from requested context: " + field)
     if any(field in document for field in ("world", "world_uuid", "terminal_snapshot",
                                            "fixture_passed", "observation_window_completed")):
         errors.append("prospective declaration contains claimed world observations")
@@ -100,6 +107,118 @@ def plan_errors(document, expected, expected_commit=None, expected_protocol=None
     except (TypeError, ValueError):
         errors.append("prospective declaration is not canonical JSON")
     return errors
+
+
+def result_shape_errors(record):
+    """Validate consumed JSON types before hashing, membership, or inspection.
+
+    Missing optional fields remain the semantic validator's responsibility.
+    A malformed field never becomes a replacement value or a zero observation.
+    """
+    if not isinstance(record, dict):
+        return ["result is not an object"]
+    errors = []
+    required = {
+        "schema": str, "trial_id": str, "seed": int, "source_commit": str,
+        "protocol_sha256": str, "status": str, "fixture_passed": bool,
+        "observation_window_completed": bool, "fresh_world_directory": bool,
+    }
+    optional = {
+        "world": dict, "terminal_snapshot": (dict, type(None)),
+        "error_type": (str, type(None)), "rcon_log_sha256": str,
+        "server_log_sha256": str, "github_run_id": (str, type(None)),
+        "github_run_attempt": (str, type(None)), "prospective_plan_sha256": (str, type(None)),
+        "motor_diagnostics_required": bool, "prospective_plan_required": bool,
+        "motor_diagnostics": dict, "verified_motor_diagnostics": dict,
+    }
+    for field, allowed in {**required, **optional}.items():
+        if field in required or field in record:
+            allowed_types = allowed if isinstance(allowed, tuple) else (allowed,)
+            if type(record.get(field)) not in allowed_types:
+                errors.append("invalid result field type: " + field)
+    retained_errors = record.get("artifact_validation_errors", [])
+    if (not isinstance(retained_errors, list)
+            or any(not isinstance(value, str) for value in retained_errors)):
+        errors.append("invalid result field type: artifact_validation_errors")
+    world = record.get("world")
+    if isinstance(world, dict):
+        for field, kind in (("world_uuid", str), ("generated_seed", int),
+                            ("configured_seed", str), ("level_name", str),
+                            ("level_dat_sha256", str), ("world_identity_sha256", str)):
+            if field in world and type(world[field]) is not kind:
+                errors.append("invalid result field type: world." + field)
+    verified = record.get("verified_motor_diagnostics")
+    if isinstance(verified, dict):
+        if not isinstance(verified.get("status"), str):
+            errors.append("invalid verified diagnostic status")
+        findings = verified.get("findings")
+        if (not isinstance(findings, list) or any(
+                not isinstance(finding, dict)
+                or not isinstance(finding.get("flags", []), list)
+                or any(not isinstance(flag, str) for flag in finding.get("flags", []))
+                for finding in findings)):
+            errors.append("invalid verified diagnostic findings")
+    return errors
+
+
+def index_artifacts(artifacts, expected_ids, kind, errors, invalid_artifacts):
+    """Retain unassignable and duplicate inputs without selecting a replacement."""
+    indexed = {}
+    for index, document in enumerate(artifacts):
+        trial_id = document.get("trial_id") if isinstance(document, dict) else None
+        reason = None
+        if not isinstance(document, dict):
+            reason = kind + " is not an object"
+        elif not isinstance(trial_id, str):
+            reason = kind + " has non-string trial_id"
+        elif trial_id not in expected_ids:
+            reason = "unexpected " + ("trial" if kind == "result" else "prospective plan") + ": " + trial_id
+        elif trial_id in indexed:
+            reason = "duplicate " + ("trial result" if kind == "result" else "prospective plan") + ": " + trial_id
+        if reason is not None:
+            errors.append(reason)
+            invalid_artifacts.append({"kind": kind, "input_index": index,
+                                      "trial_id": trial_id if isinstance(trial_id, str) else None,
+                                      "error": reason})
+        else:
+            indexed[trial_id] = document
+    return indexed
+
+
+def validation_context(expected_commit, expected_protocol, expected_run_id,
+                       expected_run_attempt, plans_required):
+    """Caller-supplied expectations are separate from artifact self-reporting.
+
+    Offline callers may inspect historical data without this context, but that
+    descriptive calculation cannot certify workflow acceptance. The caller must
+    obtain expected values from a trusted checkout/run, not from these records.
+    """
+    expected = {"source_commit": expected_commit, "protocol_sha256": expected_protocol,
+                "github_run_id": expected_run_id, "github_run_attempt": expected_run_attempt}
+    patterns = {"source_commit": SHA, "protocol_sha256": HASH,
+                "github_run_id": WORKFLOW_ID, "github_run_attempt": WORKFLOW_ID}
+    errors = ["trusted expected " + field + " is missing or invalid"
+              for field, value in expected.items()
+              if not isinstance(value, str) or not patterns[field].fullmatch(value)]
+    if not plans_required:
+        errors.append("prospective plans are not required by the acceptance context")
+    return {"status": "VERIFIED_EXPECTATIONS" if not errors else "DESCRIPTIVE_ONLY",
+            "expected": {key: value if isinstance(value, str) else None
+                         for key, value in expected.items()},
+            "errors": errors,
+            "artifact_identity_is_not_trusted_context": True}
+
+
+def artifact_json(text):
+    """Reject ambiguous JSON objects before any field can overwrite another."""
+    def unique_object(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("Duplicate JSON key: " + key)
+            result[key] = value
+        return result
+    return json.loads(text, object_pairs_hook=unique_object)
 
 
 def wilson(successes, total):
@@ -229,7 +348,11 @@ def classified_status(fixture_passed, full_window, error_type, snapshot):
     return "INFRASTRUCTURE_FAILURE"
 
 
-def result_errors(record, expected, expected_commit=None):
+def result_errors(record, expected, expected_commit=None,
+                  expected_run_id=None, expected_run_attempt=None):
+    shape_errors = result_shape_errors(record)
+    if shape_errors:
+        return shape_errors
     errors = list(record.get("artifact_validation_errors", []))
     if record.get("schema") != TRIAL_SCHEMA:
         errors.append("wrong schema")
@@ -241,6 +364,10 @@ def result_errors(record, expected, expected_commit=None):
         errors.append("tested commit differs from requested commit")
     if not HASH.fullmatch(str(record.get("protocol_sha256", ""))):
         errors.append("missing protocol hash")
+    for field, trusted in (("github_run_id", expected_run_id),
+                           ("github_run_attempt", expected_run_attempt)):
+        if trusted is not None and record.get(field) != trusted:
+            errors.append("result workflow identity differs from requested context: " + field)
     if record.get("status") not in TERMINAL_STATUSES:
         errors.append("unfinished or unknown status")
     if record.get("fresh_world_directory") is not True:
@@ -282,40 +409,31 @@ def result_errors(record, expected, expected_commit=None):
 
 
 def summarize(records, plan=PLAN, expected_commit=None, require_motor_diagnostics=False,
-              prospective_plans=(), require_prospective_plans=False, expected_protocol=None):
-    by_id = {}
-    declarations = {}
+              prospective_plans=(), require_prospective_plans=False, expected_protocol=None,
+              expected_run_id=None, expected_run_attempt=None):
     errors = []
+    invalid_artifacts = []
     expected_ids = {item["trial_id"] for item in plan}
-    for record in records:
-        trial_id = record.get("trial_id")
-        if trial_id not in expected_ids:
-            errors.append("unexpected trial: " + str(trial_id))
-        elif trial_id in by_id:
-            errors.append("duplicate trial result: " + trial_id)
-        else:
-            by_id[trial_id] = record
-    for document in prospective_plans:
-        trial_id = document.get("trial_id") if isinstance(document, dict) else None
-        if not isinstance(trial_id, str) or trial_id not in expected_ids:
-            errors.append("unexpected prospective plan: " + str(trial_id))
-        elif trial_id in declarations:
-            errors.append("duplicate prospective plan: " + trial_id)
-        else:
-            declarations[trial_id] = document
+    by_id = index_artifacts(records, expected_ids, "result", errors, invalid_artifacts)
+    declarations = index_artifacts(prospective_plans, expected_ids, "plan", errors, invalid_artifacts)
     normalized = []
     world_ids = set()
     commits, protocols = set(), set()
     workflow_attempts = set()
     motor_diagnostics_required = (require_motor_diagnostics or any(
-        record.get("motor_diagnostics_required") is True for record in records) or any(
+        isinstance(record, dict) and record.get("motor_diagnostics_required") is True
+        for record in records) or any(
         isinstance(document, dict) and document.get("motor_diagnostics_required") is True
         for document in prospective_plans))
     plans_required = (require_prospective_plans or bool(prospective_plans) or any(
-        record.get("prospective_plan_required") is True for record in records))
+        isinstance(record, dict) and record.get("prospective_plan_required") is True
+        for record in records))
+    context = validation_context(expected_commit, expected_protocol, expected_run_id,
+                                 expected_run_attempt, plans_required)
     for item in plan:
         declaration = declarations.get(item["trial_id"])
-        invalid_plan = (plan_errors(declaration, item, expected_commit, expected_protocol)
+        invalid_plan = (plan_errors(declaration, item, expected_commit, expected_protocol,
+                                    expected_run_id, expected_run_attempt)
                         if declaration is not None else
                         ["missing prospective plan"] if plans_required else [])
         plan_status = ("INVALID" if declaration is not None and invalid_plan else
@@ -343,7 +461,8 @@ def summarize(records, plan=PLAN, expected_commit=None, require_motor_diagnostic
                                "errors": ["no trial result; world creation and outcome are unobserved"]
                                    + invalid_plan})
             continue
-        invalid = result_errors(record, item, expected_commit) + invalid_plan
+        invalid = result_errors(record, item, expected_commit,
+                                expected_run_id, expected_run_attempt) + invalid_plan
         if declaration is not None and not invalid_plan:
             if record.get("prospective_plan_sha256") != plan_detail["sha256"]:
                 invalid.append("result is not bound to retained prospective plan")
@@ -352,14 +471,16 @@ def summarize(records, plan=PLAN, expected_commit=None, require_motor_diagnostic
                     invalid.append("result differs from prospective plan: " + field)
         world = record.get("world", {})
         world_id = world.get("world_uuid") if isinstance(world, dict) else None
+        if not isinstance(world_id, str):
+            world_id = None
         if world_id:
             canonical = str(world_id).lower()
             if canonical in world_ids:
                 invalid.append("persisted world UUID reused")
             world_ids.add(canonical)
-        if record.get("source_commit"):
+        if isinstance(record.get("source_commit"), str) and record["source_commit"]:
             commits.add(record["source_commit"])
-        if record.get("protocol_sha256"):
+        if isinstance(record.get("protocol_sha256"), str) and record["protocol_sha256"]:
             protocols.add(record["protocol_sha256"])
         eligible = (not invalid and record["status"] != "INVALID_EVIDENCE"
                     and record.get("observation_window_completed") is True
@@ -412,13 +533,16 @@ def summarize(records, plan=PLAN, expected_commit=None, require_motor_diagnostic
                           if item["motor_diagnostics"]["status"] == "VERIFIED_COMPLETE"
                           for finding in item["motor_diagnostics"].get("findings", [])
                           for flag in finding.get("flags", []))
-    return {
+    result = {
         "schema": SUMMARY_SCHEMA,
         "planned_trials": total,
         "received_unique_trials": len(by_id),
+        "received_result_artifacts": len(records),
+        "invalid_or_duplicate_artifacts": invalid_artifacts,
         "statuses": dict(sorted(count.items())),
         "terminal_diagnostic_patterns": dict(sorted(diagnostic_counts.items())),
         "all_trials_passed": not errors and count["PASS"] == total,
+        "validation_context": context,
         "prospective_plans": {
             "required_for_cohort": plans_required,
             "planned_worlds": total,
@@ -474,6 +598,23 @@ def summarize(records, plan=PLAN, expected_commit=None, require_motor_diagnostic
             "legacy_fixture_receipt_seed_is_world_provenance": False,
         },
     }
+    if not result["prospective_plans"]["all_required_plans_verified"]:
+        context["errors"].append("prospective plans are missing, invalid, duplicated, or do not match trusted context")
+    identity_mismatches = sorted({error for trial in normalized for error in trial["errors"]
+                                  if "requested context" in error or "requested commit" in error
+                                  or "differs from prospective plan" in error
+                                  or "prospective plan" in error and "bound" in error})
+    context["errors"].extend(identity_mismatches)
+    if errors:
+        context["errors"].append("cohort provenance is ambiguous; inspect cohort_errors and invalid_or_duplicate_artifacts")
+    if context["errors"] and context["status"] == "VERIFIED_EXPECTATIONS":
+        context["status"] = "UNVERIFIED_EVIDENCE"
+    result["acceptance_passed"] = (
+        context["status"] == "VERIFIED_EXPECTATIONS"
+        and result["all_trials_passed"]
+        and result["prospective_plans"]["all_required_plans_verified"]
+        and result["post_window_motor_diagnostics"]["all_required_worlds_verified"])
+    return result
 
 
 def main():
@@ -481,6 +622,10 @@ def main():
     parser.add_argument("directory", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--expected-commit")
+    parser.add_argument("--expected-run-id",
+                        help="Trusted current workflow run; never infer it from downloaded records")
+    parser.add_argument("--expected-run-attempt",
+                        help="Trusted current workflow attempt; consistent older attempts are rejected")
     parser.add_argument("--require-motor-diagnostics", action="store_true",
                         help="Trusted workflow requirement; artifact flags cannot disable this gate")
     parser.add_argument("--require-prospective-plans", action="store_true",
@@ -488,19 +633,25 @@ def main():
     args = parser.parse_args()
     records = []
     plans = []
+    artifact_sources = {"plan": [], "result": []}
     for path in sorted(args.directory.rglob("trial-plan.json")):
+        relative_path = path.relative_to(args.directory).as_posix()
+        artifact_sources["plan"].append({"input_index": len(plans), "path": relative_path})
         try:
-            document = json.loads(path.read_text())
+            document = artifact_json(path.read_text())
             if not isinstance(document, dict):
                 raise ValueError("prospective plan is not an object")
             plans.append(document)
         except (OSError, ValueError) as error:
-            plans.append({"trial_id": "UNREADABLE " + str(path) + ": " + str(error)})
+            plans.append({"trial_id": "UNREADABLE " + relative_path + ": " + str(error)})
     for path in sorted(args.directory.rglob("trial-result.json")):
+        relative_path = path.relative_to(args.directory).as_posix()
+        artifact_sources["result"].append({"input_index": len(records), "path": relative_path})
         try:
-            record = json.loads(path.read_text())
-            if not isinstance(record, dict):
-                raise ValueError("result is not an object")
+            record = artifact_json(path.read_text())
+            if result_shape_errors(record):
+                records.append(record)
+                continue
             if record.get("observation_window_completed") is True or record.get("status") == "PASS":
                 artifact_errors = []
                 for name, key in (("rcon.log", "rcon_log_sha256"),
@@ -529,20 +680,24 @@ def main():
         except (OSError, ValueError) as error:
             # A corrupt additional artifact could hide a duplicate trial.
             # Preserve it as a cohort error and invalidate pooled estimation.
-            records.append({"trial_id": "UNREADABLE " + str(path) + ": " + str(error)})
+            records.append({"trial_id": "UNREADABLE " + relative_path + ": " + str(error)})
     plans_required = args.require_prospective_plans or bool(plans) or any(
-        record.get("prospective_plan_required") is True for record in records)
+        isinstance(record, dict) and record.get("prospective_plan_required") is True
+        for record in records)
     expected_protocol = protocol_hash(Path(__file__).resolve().parents[1]) if plans_required else None
     result = summarize(records, expected_commit=args.expected_commit,
                        require_motor_diagnostics=args.require_motor_diagnostics,
                        prospective_plans=plans, require_prospective_plans=plans_required,
-                       expected_protocol=expected_protocol)
+                       expected_protocol=expected_protocol,
+                       expected_run_id=args.expected_run_id,
+                       expected_run_attempt=args.expected_run_attempt)
+    # Collected by the loader, outside the artifact payload. Filenames locate
+    # evidence only; they never supply a missing or malformed trial identity.
+    result["artifact_sources"] = artifact_sources
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
     print(json.dumps(result, indent=2, sort_keys=True))
-    raise SystemExit(0 if result["all_trials_passed"]
-                     and result["prospective_plans"]["all_required_plans_verified"]
-                     and result["post_window_motor_diagnostics"]["all_required_worlds_verified"] else 1)
+    raise SystemExit(0 if result["acceptance_passed"] else 1)
 
 
 if __name__ == "__main__":
