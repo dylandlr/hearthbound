@@ -1,0 +1,24 @@
+{
+  "aggregate_acceptance": "FAILURE",
+  "all_required_world_diagnostics_verified": false,
+  "artifact_id": 15243707778,
+  "bytes": 2859,
+  "digest_verified": true,
+  "followup_issue": "https://github.com/dylandlr/hearthbound/issues/353",
+  "head_verified": true,
+  "planned_worlds": 5,
+  "received_unique_trials": 5,
+  "reported_all_original_trials_passed": true,
+  "reported_physical_statuses": {
+    "PASS": 5
+  },
+  "required_diagnostic_statuses": {
+    "CAPTURE_INCOMPLETE": 1,
+    "VERIFIED_COMPLETE": 4
+  },
+  "score_scope_note": "all_trials_passed describes the original fixture score; it does not override the required diagnostics gate.",
+  "selected_files": [
+    "colony-reliability-summary.json"
+  ],
+  "sha256": "sha256:53216f94baed8616c3e8b448fcbef31256273a8030aada386d00f863be907cb2"
+}

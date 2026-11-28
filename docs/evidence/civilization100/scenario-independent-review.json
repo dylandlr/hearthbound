@@ -1,0 +1,13 @@
+{
+  "review": "independent specification oracle and empty-control identity review",
+  "baseline": "7cf3730e64433849c56952f88780284f8f98b2a0",
+  "latent_choices_recomputed_without_production_imports": 9,
+  "foreign_empty_controls_rejected": 7,
+  "foreign_world_rejected": true,
+  "same_identity_reopened": true,
+  "journal_bytes_unchanged": true,
+  "consolidated_run_input_hashes_match": true,
+  "source_changed_since_consolidated_run": [],
+  "native_execution": false,
+  "strict_java17_executed_successfully": false
+}

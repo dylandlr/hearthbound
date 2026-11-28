@@ -1,0 +1,131 @@
+{
+  "actual_failure": "Minecraft server did not reach ready state within 12 minutes",
+  "archive_files": [
+    {
+      "bytes": 529896,
+      "name": "server-smoke.log",
+      "sha256": "0cfc52a63a3a91cb58b6947e6f8abfde45ed8fb1caeb027161e68617405bb129"
+    },
+    {
+      "bytes": 479,
+      "name": "real-world-provenance.json",
+      "sha256": "6a8c21a42a35a0b619e753a52e686e468add88b52320f5f4b3d7345a56d40fb2"
+    },
+    {
+      "bytes": 8891,
+      "name": "forge-preflight.log",
+      "sha256": "604ad5bf107a0c42c21f0f9d6a436f73b2f74e705242b57236d98a9d2c8728e1"
+    },
+    {
+      "bytes": 7511,
+      "name": "causal-attention-java-weights.txt",
+      "sha256": "0fc77e87357f72c351727725a7fcf510da1ac7bdc6cab9e6d8480c8fe5644af7"
+    },
+    {
+      "bytes": 8369,
+      "name": "causal-attention-java-fixtures.txt",
+      "sha256": "d0258fbbd7c6d9e03489e529dd7fbf6aedf86d5ff8772091a5d833e2d17f2738"
+    }
+  ],
+  "arrival_evidence_present": false,
+  "arrival_gate_executed": false,
+  "artifact": {
+    "archive_download_url": "https://api.github.com/repos/dylandlr/hearthbound/actions/artifacts/15245091349/zip",
+    "created_at": "2026-11-28T02:46:40Z",
+    "digest": "sha256:6fa958239a3be4f4c8a96b2b01b746bd1d27346b7dc8b793ad12179b52d9338e",
+    "expired": false,
+    "expires_at": "2026-12-12T02:46:39Z",
+    "id": 15245091349,
+    "name": "minecraft-policy-trial-SCRIPTED",
+    "size_in_bytes": 123462,
+    "updated_at": "2026-11-28T02:46:40Z",
+    "url": "https://api.github.com/repos/dylandlr/hearthbound/actions/artifacts/15245091349",
+    "workflow_run": {
+      "head_branch": "fix/haul-arrival-witness",
+      "head_repository_id": 1418116426,
+      "head_sha": "64c0fc63cb1940928c0b9abb53763f75abf7f1db",
+      "id": 46096030530,
+      "repository_id": 1418116426
+    }
+  },
+  "checked_at": "2026-11-28 02:47:04 UTC",
+  "checkout_log_excerpts": [
+    "2026-11-28T02:14:13.6407020Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +d39639856cb1a3417f03e27333f06c5730f9f6a4:refs/remotes/pull/349/merge",
+    "2026-11-28T02:14:14.3093417Z  * [new ref]         d39639856cb1a3417f03e27333f06c5730f9f6a4 -> pull/349/merge",
+    "2026-11-28T02:14:14.3658337Z HEAD is now at d396398 Merge 64c0fc63cb1940928c0b9abb53763f75abf7f1db into a072519518db1458e8cb5aa1898aebd4ba93f03a",
+    "2026-11-28T02:14:14.3733124Z d39639856cb1a3417f03e27333f06c5730f9f6a4"
+  ],
+  "checkout_sha": "d39639856cb1a3417f03e27333f06c5730f9f6a4",
+  "checkout_verified_from_job_log": true,
+  "classification": "SERVER_READINESS_TIMEOUT_CAUSE_UNESTABLISHED",
+  "configured_world_provenance": {
+    "fixture_id": "chest-two-source-v1",
+    "independent_world_sample_claimed": false,
+    "neural_policy_executed": false,
+    "origin": "FORGE_SERVER_PROPERTIES_CAPTURE",
+    "policy_arm": "SCRIPTED",
+    "schema": "hearthbound.real-forge-world-provenance.v1",
+    "server_properties_sha256": "bdcfad34d722f2c1002b2885bcdce80bbedb01fab48a36e1626035ee22e25d8b",
+    "world_generation_verified": false,
+    "world_name": "smoke-world",
+    "world_seed_configured": "hearthbound-policy-v0-8-10"
+  },
+  "failed_step": {
+    "completed_at": "2026-11-28T02:46:39Z",
+    "conclusion": "failure",
+    "name": "Start a disposable Forge dedicated server",
+    "number": 7,
+    "started_at": "2026-11-28T02:34:37Z",
+    "status": "completed"
+  },
+  "failure_time": "2026-11-28T02:46:39.3742786Z",
+  "head_sha": "64c0fc63cb1940928c0b9abb53763f75abf7f1db",
+  "job_conclusion": "failure",
+  "job_id": 140827445252,
+  "launcher_tail": [
+    "",
+    "> Task :extractNatives",
+    "> Task :makeSrcDirs",
+    "> Task :prepareRuns",
+    "> Task :prepareRunServer",
+    "> Task :prepareRunServerCompile UP-TO-DATE"
+  ],
+  "limits": [
+    "This remains a failed declared world slot with missing arrival evidence.",
+    "The captured server launcher log ends at prepareRunServerCompile; no application exception or ready marker is present.",
+    "Preflight compilation succeeded. This does not establish why the subsequent launch exceeded its readiness budget.",
+    "No evidence identifies this as a PR349 regression, navigation/proximity failure, or infrastructure defect.",
+    "No retry, rerun, timeout extension or extra trial was performed."
+  ],
+  "log_excerpts": [
+    "2026-11-28T02:35:36.0270502Z Cold Forge startup pending after 60 seconds",
+    "2026-11-28T02:36:36.1517724Z Cold Forge startup pending after 120 seconds",
+    "2026-11-28T02:37:36.2748716Z Cold Forge startup pending after 180 seconds",
+    "2026-11-28T02:38:36.3969594Z Cold Forge startup pending after 240 seconds",
+    "2026-11-28T02:39:36.5188026Z Cold Forge startup pending after 300 seconds",
+    "2026-11-28T02:40:36.6387483Z Cold Forge startup pending after 360 seconds",
+    "2026-11-28T02:41:36.7597154Z Cold Forge startup pending after 420 seconds",
+    "2026-11-28T02:42:36.8812753Z Cold Forge startup pending after 480 seconds",
+    "2026-11-28T02:43:37.0033716Z Cold Forge startup pending after 540 seconds",
+    "2026-11-28T02:44:37.1236704Z Cold Forge startup pending after 600 seconds",
+    "2026-11-28T02:45:37.2444476Z Cold Forge startup pending after 660 seconds",
+    "2026-11-28T02:46:37.3694043Z Cold Forge startup pending after 720 seconds",
+    "2026-11-28T02:46:37.3715712Z > Task :prepareRunServer",
+    "2026-11-28T02:46:37.3716013Z > Task :prepareRunServerCompile UP-TO-DATE",
+    "2026-11-28T02:46:39.3742786Z Minecraft server did not reach ready state within 12 minutes",
+    "2026-11-28T02:46:39.3845524Z > Task :prepareRunServer",
+    "2026-11-28T02:46:39.3845724Z > Task :prepareRunServerCompile UP-TO-DATE",
+    "2026-11-28T02:46:39.3849234Z ##[error]Process completed with exit code 1."
+  ],
+  "native_policy_executed_unestablished": true,
+  "preflight_build_result": [
+    "BUILD SUCCESSFUL in 20m 8s"
+  ],
+  "run_id": 46096030530,
+  "schema": "hearthbound.smoke-failure-diagnosis.v1",
+  "slot": "baseline-scripted",
+  "source_file": ".github/workflows/dedicated-server-smoke.yml",
+  "source_file_sha256": "3ddbad6946c734ca0fae4d1e5f58233d674778c435c2436113d521fbe9e4e10b",
+  "source_tree": "5917af6e5df072b37b9281c6e3ffab17035f2fa3",
+  "url": "https://github.com/dylandlr/hearthbound/actions/runs/46096030530/job/140827445252"
+}

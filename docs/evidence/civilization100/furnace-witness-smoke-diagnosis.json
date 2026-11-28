@@ -1,0 +1,258 @@
+{
+  "schema": "hearthbound.smoke-diagnosis.v1",
+  "qa_followup_issue": "https://github.com/dylandlr/hearthbound/issues/348",
+  "checked_at_utc": "2026-11-28 01:21:57 UTC",
+  "run_id": 46090831824,
+  "run_url": "https://github.com/dylandlr/hearthbound/actions/runs/46090831824",
+  "head_sha": "8206ca0e3bb6668e896ecb03d7bd1b0269ae7f50",
+  "run_status": "in_progress",
+  "run_conclusion": null,
+  "actual_checkout_sha": "828bf827670ecfea5829081146a385fca0f85bc3",
+  "actual_checkout_tree": "a2f22c4cada4174617200797a6b936db0a6fa227",
+  "checkout_tree_equals_head_tree": true,
+  "matrix_snapshot": {
+    "total_boot_jobs": 11,
+    "successful_boot_jobs": 7,
+    "failed_boot_jobs": 3,
+    "in_progress_boot_jobs": 1
+  },
+  "failures": [
+    {
+      "job_id": 140811099238,
+      "case": "SCRIPTED baseline",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/46090831824/job/140811099238",
+      "status": "failure",
+      "failed_step": "Start a disposable Forge dedicated server",
+      "classification": "infrastructure_asset_download_or_validation_failure",
+      "observed_cause": "Gradle :downloadAssets failed to obtain minecraft/sounds/mob/horse/gallop3.ogg; the server process exited before readiness.",
+      "underlying_cause_limit": "The captured failure does not distinguish transport failure from asset validation failure. No transient-network root cause is proven.",
+      "evidence": [
+        {
+          "log_line": 532,
+          "text": "Minecraft server process exited before readiness"
+        },
+        {
+          "log_line": 629,
+          "text": "> Task :downloadAssets FAILED"
+        },
+        {
+          "log_line": 635,
+          "text": "Execution failed for task ':downloadAssets'."
+        },
+        {
+          "log_line": 636,
+          "text": "> Failed to get asset: minecraft/sounds/mob/horse/gallop3.ogg"
+        },
+        {
+          "log_line": 637,
+          "text": "Some assets failed to download or validate, try running the task again."
+        },
+        {
+          "log_line": 651,
+          "text": "BUILD FAILED in 14s"
+        }
+      ]
+    },
+    {
+      "job_id": 140811099525,
+      "case": "TRAINED_MLP baseline",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/46090831824/job/140811099525",
+      "status": "failure",
+      "failed_step": "Start a disposable Forge dedicated server",
+      "classification": "native_haul_proximity_acceptance_failure",
+      "observed_cause": "scripts/rcon_smoke.py line 166 raised AssertionError: Wheat delivered but Sable not near destination: Test failed.",
+      "transferred": true,
+      "transfer_polls": 2,
+      "source_count_transition": [
+        8,
+        7
+      ],
+      "destination_count_transition": [
+        0,
+        1
+      ],
+      "proximity_probe": "execute positioned 7.5 100 1.5 if entity @e[type=minecraft:villager,name=Sable,distance=..2.6]",
+      "root_cause_status": "Unresolved. These are real acceptance failures; they are not classified as infrastructure failures.",
+      "uncertainty": "No citizen position or job-scoped delivery-time distance is recorded on this failure path. Logs cannot distinguish later movement, timing, geometry mismatch, or an incorrect arrival/delivery implementation.",
+      "evidence": [
+        {
+          "log_line": 532,
+          "text": "Minecraft dedicated server reached ready state"
+        },
+        {
+          "log_line": 533,
+          "text": "Hearthbound mod initialization confirmed"
+        },
+        {
+          "log_line": 563,
+          "text": "HAUL_POLL_SUMMARY polls=2 transferred=true"
+        },
+        {
+          "log_line": 564,
+          "text": "Real server-side wheat transfer verified: source 8->7, destination 0->1"
+        },
+        {
+          "log_line": 568,
+          "text": "AssertionError: Wheat delivered but Sable not near destination: Test failed"
+        }
+      ]
+    },
+    {
+      "job_id": 140811099560,
+      "case": "SCRIPTED resource-probe-A",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/46090831824/job/140811099560",
+      "status": "failure",
+      "failed_step": "Start a disposable Forge dedicated server",
+      "classification": "native_haul_proximity_acceptance_failure",
+      "observed_cause": "scripts/rcon_smoke.py line 166 raised AssertionError: Wheat delivered but Sable not near destination: Test failed.",
+      "transferred": true,
+      "transfer_polls": 1,
+      "source_count_transition": [
+        8,
+        7
+      ],
+      "destination_count_transition": [
+        0,
+        1
+      ],
+      "proximity_probe": "execute positioned 7.5 100 1.5 if entity @e[type=minecraft:villager,name=Sable,distance=..2.6]",
+      "root_cause_status": "Unresolved. These are real acceptance failures; they are not classified as infrastructure failures.",
+      "uncertainty": "No citizen position or job-scoped delivery-time distance is recorded on this failure path. Logs cannot distinguish later movement, timing, geometry mismatch, or an incorrect arrival/delivery implementation.",
+      "evidence": [
+        {
+          "log_line": 541,
+          "text": "Minecraft dedicated server reached ready state"
+        },
+        {
+          "log_line": 542,
+          "text": "Hearthbound mod initialization confirmed"
+        },
+        {
+          "log_line": 572,
+          "text": "HAUL_POLL_SUMMARY polls=1 transferred=true"
+        },
+        {
+          "log_line": 573,
+          "text": "Real server-side wheat transfer verified: source 8->7, destination 0->1"
+        },
+        {
+          "log_line": 577,
+          "text": "AssertionError: Wheat delivered but Sable not near destination: Test failed"
+        }
+      ]
+    }
+  ],
+  "last_rapid_case": {
+    "job_id": 140811099457,
+    "case": "TRAINED_MLP rapid-four-D neural attention",
+    "url": "https://github.com/dylandlr/hearthbound/actions/runs/46090831824/job/140811099457",
+    "status": "in_progress",
+    "conclusion": null,
+    "active_step": "Start a disposable Forge dedicated server"
+  },
+  "parser_causality": {
+    "changed_files_from_base": [
+      "docs/RENEWABLE_VILLAGE_ECONOMY_V0_23.md",
+      "scripts/test_village_economy_evidence.py",
+      "scripts/village_economy_evidence.py"
+    ],
+    "base_sha": "a072519518db1458e8cb5aa1898aebd4ba93f03a",
+    "observed_execution_path": "The dedicated smoke workflow and rcon_smoke.py do not import or call village_economy_evidence.py or native_furnace_counts.",
+    "conclusion": "No supported causal path from the furnace parser change to these failures. The failures occurred in asset preparation or the separate haul-proximity acceptance check."
+  },
+  "comparison": {
+    "run_id": 46089616488,
+    "run_url": "https://github.com/dylandlr/hearthbound/actions/runs/46089616488",
+    "head_sha": "7cf3730e64433849c56952f88780284f8f98b2a0",
+    "conclusion": "success",
+    "byte_identical_paths": [
+      ".github/workflows/dedicated-server-smoke.yml",
+      "scripts/rcon_smoke.py",
+      "scripts/haul_smoke_diagnostics.py",
+      "src/main/java/dev/hearthbound/world/SableHauling.java",
+      "src/main/java/dev/hearthbound/world/SableController.java"
+    ],
+    "equivalent_jobs": [
+      {
+        "job_id": 140807202933,
+        "url": "https://github.com/dylandlr/hearthbound/actions/runs/46089616488/job/140807202933",
+        "conclusion": "success",
+        "evidence": [
+          {
+            "log_line": 572,
+            "text": "HAUL_POLL_SUMMARY polls=1 transferred=true"
+          },
+          {
+            "log_line": 573,
+            "text": "Real server-side wheat transfer verified: source 8->7, destination 0->1"
+          },
+          {
+            "log_line": 574,
+            "text": "Sable proximity verified at destination chest"
+          }
+        ]
+      },
+      {
+        "job_id": 140807203203,
+        "url": "https://github.com/dylandlr/hearthbound/actions/runs/46089616488/job/140807203203",
+        "conclusion": "success",
+        "evidence": [
+          {
+            "log_line": 572,
+            "text": "HAUL_POLL_SUMMARY polls=1 transferred=true"
+          },
+          {
+            "log_line": 573,
+            "text": "Real server-side wheat transfer verified: source 8->7, destination 0->1"
+          },
+          {
+            "log_line": 574,
+            "text": "Sable proximity verified at destination chest"
+          }
+        ]
+      },
+      {
+        "job_id": 140807203366,
+        "url": "https://github.com/dylandlr/hearthbound/actions/runs/46089616488/job/140807203366",
+        "conclusion": "success",
+        "evidence": [
+          {
+            "log_line": 563,
+            "text": "HAUL_POLL_SUMMARY polls=2 transferred=true"
+          },
+          {
+            "log_line": 564,
+            "text": "Real server-side wheat transfer verified: source 8->7, destination 0->1"
+          },
+          {
+            "log_line": 565,
+            "text": "Sable proximity verified at destination chest"
+          }
+        ]
+      }
+    ],
+    "interpretation": "Equivalent cases passed with identical smoke/haul implementation. This supports investigating nondeterministic behavior or measurement timing but does not prove the current failures are harmless flakiness."
+  },
+  "static_code_observation": {
+    "runtime_delivery_gate": "SableHauling checks squared distance <=6.25 from the target block center (7.5,100.5,1.5).",
+    "smoke_check": "The later RCON assertion checks radius2.6 from (7.5,100,1.5).",
+    "limit": "The probes use different reference points and times. This static difference is not a demonstrated explanation for the failed runs."
+  },
+  "focused_qa_followup_criteria": [
+    "Capture the citizen UUID, job ID, native tick and position/distance at the verified insertion boundary and at a failed proximity query.",
+    "Determine whether failure is post-delivery movement, reference-geometry mismatch, or an actual arrival/execution defect; retain all failed cases.",
+    "Preserve physical inventory-transfer and proximity requirements; do not weaken thresholds or rerun selectively to hide failures.",
+    "Keep asset download/validation failure classification separate from physical acceptance failures."
+  ],
+  "actions": {
+    "read_only": true,
+    "code_changed": false,
+    "workflows_rerun": false,
+    "failures_reclassified_as_pass": false
+  },
+  "limitations": [
+    "The overall smoke workflow was still in progress at the last snapshot; the rapid trained case and any downstream comparison jobs were not given a final outcome.",
+    "No new native trial or code change was performed in this diagnosis.",
+    "The successful renewable-village cohort is a separate workflow and does not erase these smoke failures."
+  ]
+}

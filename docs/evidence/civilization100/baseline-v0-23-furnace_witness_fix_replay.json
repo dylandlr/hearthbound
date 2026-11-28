@@ -1,0 +1,48 @@
+{
+  "source_baseline": "a072519518db1458e8cb5aa1898aebd4ba93f03a",
+  "validator_sha256": "129a7a3aa81868da821b6784083f90889ef8a9c082250fa39f6bcb6ea9dccc4c",
+  "tests_sha256": "2b02c6a33c7ac14868a320ee51c18f1957ab75f1b3f67c43254d8f4982281f9e",
+  "native_server_rerun": false,
+  "archive_slots": [
+    {
+      "world": 23001,
+      "arm": "adaptive",
+      "records": 9102,
+      "physical_audit_unchanged": true,
+      "furnace_recipe_counts": {
+        "9895604670565": 7,
+        "9895604760677": 12
+      }
+    },
+    {
+      "world": 23001,
+      "arm": "authored",
+      "records": 8950,
+      "physical_audit_unchanged": true,
+      "furnace_recipe_counts": {
+        "9895604670565": 8,
+        "9895604760677": 13
+      }
+    },
+    {
+      "world": 23002,
+      "arm": "adaptive",
+      "records": 8793,
+      "physical_audit_unchanged": true,
+      "furnace_recipe_counts": {
+        "9895604760677": 12,
+        "9895604670565": 9
+      }
+    },
+    {
+      "world": 23002,
+      "arm": "authored",
+      "records": 8802,
+      "physical_audit_unchanged": true,
+      "furnace_recipe_counts": {
+        "9895604670565": 10,
+        "9895604760677": 11
+      }
+    }
+  ]
+}

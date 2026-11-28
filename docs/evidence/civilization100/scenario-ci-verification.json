@@ -1,0 +1,175 @@
+{
+  "verified_at": "2026-11-28T02:14:52.896264+00:00",
+  "status": "passed",
+  "head": "59772fbacd0cb0d056b29b70b96c91bc8f5cce6e",
+  "head_tree": "13f2d6d48f36637082f20a85f87c2dc9ac263b22",
+  "synthetic_merge_commit": "c8a93fcda8638660e2941939892b2ea86b5a076b",
+  "synthetic_merge_tree": "13f2d6d48f36637082f20a85f87c2dc9ac263b22",
+  "base": "7cf3730e64433849c56952f88780284f8f98b2a0",
+  "local_worktree_clean": true,
+  "source_hashes": {
+    "docs/C14_EVENT_SCHEDULER_CONTRACT.md": "c54c5a36f3837318119577428e0423a34b3e8c2343dc558d46a7f46838d02180",
+    "docs/C14_SEEDED_SCENARIO_CONTRACT.md": "78ce751b7a35ed885335187a0a1c5bd1de49ac1f37eef35c4ec539a449944734",
+    "scripts/event_scenarios.py": "759e92a663368887c0f7743c3b7902ce2838c3774e038ad7b2b048f7fc6653c0",
+    "scripts/event_scheduler.py": "5ae83cfe66332fbf569f6cb23dbc89ea515f15db1f74d31ece73f8a03e7fd201",
+    "scripts/test-event-scheduler-contracts.py": "72c3b3041107be4f1f307d70f47aa499afa77ecd74fe96a0ce28f9720d889f7f",
+    "scripts/test_event_scheduler.py": "317adf85d5504111147b788669c6c30b9583bbd239822da60eab6605f95146a5",
+    "scripts/test_event_scheduler_parity.py": "0b56f9264ec41aadd3d23fb94709d10a8b0d123612b69aa2c9f8fad22788da17",
+    "scripts/test_event_scheduler_scenarios.py": "247332104316926f1e65dbe1cefc891a3a0075ad306de0830144c5f48a629cb1",
+    "src/main/java/dev/hearthbound/experiment/EventScenarios.java": "6ac3f13711a6b26c29d5dc148295a7acd2dee874605542255e010bf05a7f437e",
+    "src/main/java/dev/hearthbound/experiment/EventScheduler.java": "9253fc9bc1af8929182f2c5642a314c4f7bfa57d82e05d2f1bbf18237ba6a7cf",
+    "src/test/java/dev/hearthbound/experiment/EventScenariosCli.java": "a366e406182cd7ad57f29975da9650afbc92f9e0eae872c88d445c5804a9c6bc",
+    "src/test/java/dev/hearthbound/experiment/EventScenariosTest.java": "b898fabee5e7c65a4fe34ed015f97c57ffa465b77a083f58507cd3c95c5dc300",
+    "src/test/java/dev/hearthbound/experiment/EventSchedulerCli.java": "fcfb3b80697534d9413c1ff4e9c5894351e66f06fa65a8bbd087931275c4ab88",
+    "src/test/java/dev/hearthbound/experiment/EventSchedulerTest.java": "7f50dd7fae8c040ed87a1b921364a7a8a4a74a5334a3d02c3a52850ee05a71f7"
+  },
+  "fixture_hashes": {
+    "tests/fixtures/event_scenarios/README.md": "7788e7df0b41464fd7cdd464cdf54486e4015296dbccb2f27a46ccf2581fd6e8",
+    "tests/fixtures/event_scenarios/basic.config": "00579fa97894a6759e7115109213e82bf0b4f3065105a4a0679337b3b53b9a78",
+    "tests/fixtures/event_scenarios/golden-index.tsv": "8293df964d4bc53bbbdab95afd3956defb7d99568d2d5b58fc75c0a9c113548d",
+    "tests/fixtures/event_scenarios/latent-choices.tsv": "a57f04b9af1846c64bd6e897f1a51d9bbc968202ad5899390d2e53c92494330c",
+    "tests/fixtures/event_scenarios/seed-0-no_event.manifest": "36d1ee1502a8c91ba292f0f6a8058134883a6428fbeadce5fa8af56456f1a51e",
+    "tests/fixtures/event_scenarios/seed-0-sham.manifest": "7a3ff9b57e628ddeb3f720c132414b687b9af325389d2f6779ddd2da98302397",
+    "tests/fixtures/event_scenarios/seed-0-treatment.manifest": "35b0f533fb408233d5da30ab34f356f896958515e550118c8e42c48a68c4d7f3",
+    "tests/fixtures/event_scenarios/seed-7-no_event.manifest": "be65c366aacfffe27e9135a302a7e5ebba7976ff3de0d1f0059315498881280c",
+    "tests/fixtures/event_scenarios/seed-7-sham.manifest": "284f2e723fac21d20241c06d60a2c42aa3c165a444071b37d1ff4ac95fc9fc47",
+    "tests/fixtures/event_scenarios/seed-7-treatment.manifest": "f54199d6276fd636d891221b6845177fd2028f2940dbf319a30fced2cf82a48a",
+    "tests/fixtures/event_scenarios/seed-9223372036854775807-no_event.manifest": "6086dd9bcff07c78b1ec4a8b05c38d08fb47b5d4aa4596583ab891836563d576",
+    "tests/fixtures/event_scenarios/seed-9223372036854775807-sham.manifest": "22bf346a24d7836f5f1778dcfd9be5c7176cb537df519b69092fac7f5a0bdb7b",
+    "tests/fixtures/event_scenarios/seed-9223372036854775807-treatment.manifest": "bdbe20992ac89277ad1fc8fb10d1989dbb174495a9b4aecd6030cfd66df6c778",
+    "tests/fixtures/event_scheduler/boundary.tsv": "85c78d0a538be648e983f1265047eae77fe771158fa70b8bd5656ccb4f106dd9",
+    "tests/fixtures/event_scheduler/compound.tsv": "a99aa3ddd26e865cc6f3fad285be268cb29306067b23cc9bbe5a1abbc397e1f4",
+    "tests/fixtures/event_scheduler/empty.tsv": "2f3f1d0c06d31bcbb4d49ea13e26a3b765998a32e436b638cb29c830c7c61257"
+  },
+  "runs": [
+    {
+      "run_id": 46096847430,
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/46096847430",
+      "event": "push",
+      "run_attempt": 1,
+      "job_id": 140830058373,
+      "artifact_id": 15243940792,
+      "archive": "push-46096847430.zip",
+      "api_archive_size_bytes": 5780,
+      "verified_archive_sha256": "9dbddef7ef231028eb116286295a8d74a1fa6e09326fcb73398664fc0d320b57",
+      "source_git_sha": "59772fbacd0cb0d056b29b70b96c91bc8f5cce6e",
+      "source_files_verified": 14,
+      "fixture_files_verified": 16,
+      "all_source_fixture_hashes_match": true,
+      "clean_inputs": true,
+      "input_hashes_unchanged_during_run": true,
+      "compile_release": 17,
+      "java_version": "openjdk version \"17.0.21.1\" 2026-11-17\nOpenJDK Runtime Environment Temurin-17.0.21.1+2 (build 17.0.21.1+2)\nOpenJDK 64-Bit Server VM Temurin-17.0.21.1+2 (build 17.0.21.1+2, mixed mode, sharing)",
+      "python_version": "3.12.16 (main, Oct 26 2026, 02:48:44) [GCC 15.2.0]",
+      "stages": [
+        {
+          "name": "compile_java17",
+          "status": "passed",
+          "exit_code": 0,
+          "duration_seconds": 2.597267,
+          "log_file": "01-compile_java17.log"
+        },
+        {
+          "name": "java_contracts",
+          "status": "passed",
+          "exit_code": 0,
+          "duration_seconds": 0.40471,
+          "log_file": "02-java_contracts.log"
+        },
+        {
+          "name": "java_scenario_contracts",
+          "status": "passed",
+          "exit_code": 0,
+          "duration_seconds": 0.490793,
+          "log_file": "03-java_scenario_contracts.log"
+        },
+        {
+          "name": "python_and_cross_language_contracts",
+          "status": "passed",
+          "exit_code": 0,
+          "duration_seconds": 11.778683,
+          "log_file": "04-python_and_cross_language_contracts.log"
+        }
+      ],
+      "java_delivery_groups": 20,
+      "java_scenario_groups": 11,
+      "python_tests": 58,
+      "python_new_scenario_tests": 17,
+      "members_sha256": {
+        "manifest.json": "d9a608491402ff369e7b2872fb173f018c7da8be637a36b7bcd55e2d2562d13e",
+        "01-compile_java17.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "02-java_contracts.log": "1df40e11000a1538f6f52e93aafb2eade2abb9c793d49f691e48c40e3365e079",
+        "03-java_scenario_contracts.log": "68a75450cfd8ace7e27d123e2e60bcb263d8107012244bae02027e8806eae397",
+        "04-python_and_cross_language_contracts.log": "238cd249e5a82761c8cdbc546d5fc6b3ef9eaa7b4ce8cf1b80c9d80eebebd48c"
+      },
+      "native_disruption_validated": false
+    },
+    {
+      "run_id": 46096878816,
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/46096878816",
+      "event": "pull_request",
+      "run_attempt": 1,
+      "job_id": 140830156166,
+      "artifact_id": 15243613303,
+      "archive": "pr-46096878816.zip",
+      "api_archive_size_bytes": 5773,
+      "verified_archive_sha256": "22a8ba190fe7ab77ab8e4e6288748fd511c14e3f1e51973d678c55c5bcb59497",
+      "source_git_sha": "59772fbacd0cb0d056b29b70b96c91bc8f5cce6e",
+      "source_files_verified": 14,
+      "fixture_files_verified": 16,
+      "all_source_fixture_hashes_match": true,
+      "clean_inputs": true,
+      "input_hashes_unchanged_during_run": true,
+      "compile_release": 17,
+      "java_version": "openjdk version \"17.0.21.1\" 2026-11-17\nOpenJDK Runtime Environment Temurin-17.0.21.1+2 (build 17.0.21.1+2)\nOpenJDK 64-Bit Server VM Temurin-17.0.21.1+2 (build 17.0.21.1+2, mixed mode, sharing)",
+      "python_version": "3.12.16 (main, Oct 26 2026, 02:48:44) [GCC 15.2.0]",
+      "stages": [
+        {
+          "name": "compile_java17",
+          "status": "passed",
+          "exit_code": 0,
+          "duration_seconds": 1.800964,
+          "log_file": "01-compile_java17.log"
+        },
+        {
+          "name": "java_contracts",
+          "status": "passed",
+          "exit_code": 0,
+          "duration_seconds": 0.249486,
+          "log_file": "02-java_contracts.log"
+        },
+        {
+          "name": "java_scenario_contracts",
+          "status": "passed",
+          "exit_code": 0,
+          "duration_seconds": 0.48877,
+          "log_file": "03-java_scenario_contracts.log"
+        },
+        {
+          "name": "python_and_cross_language_contracts",
+          "status": "passed",
+          "exit_code": 0,
+          "duration_seconds": 11.78578,
+          "log_file": "04-python_and_cross_language_contracts.log"
+        }
+      ],
+      "java_delivery_groups": 20,
+      "java_scenario_groups": 11,
+      "python_tests": 58,
+      "python_new_scenario_tests": 17,
+      "members_sha256": {
+        "manifest.json": "87e571d7b3ab31839cb4e87a89ac3a8cc6c9ea94b4d17e0f3f4059a7ea3195d7",
+        "01-compile_java17.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "02-java_contracts.log": "1df40e11000a1538f6f52e93aafb2eade2abb9c793d49f691e48c40e3365e079",
+        "03-java_scenario_contracts.log": "68a75450cfd8ace7e27d123e2e60bcb263d8107012244bae02027e8806eae397",
+        "04-python_and_cross_language_contracts.log": "e796254eb1707e9bfcc1170dddc0f0c546831a054c607628c6222e1170c02de4"
+      },
+      "native_disruption_validated": false
+    }
+  ],
+  "limits": [
+    "No native disruption, native scope enforcement, physical sham or adaptation claim.",
+    "Other workflow statuses are separate and may still be pending; no all-CI-green claim.",
+    "Read-only verification; no workflow rerun, GitHub write, Git mutation or repository edit."
+  ]
+}
