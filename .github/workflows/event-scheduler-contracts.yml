@@ -1,0 +1,46 @@
+name: Experimental event scheduler contracts
+on:
+  pull_request:
+    paths:
+      - 'src/main/java/dev/hearthbound/experiment/**'
+      - 'src/test/java/dev/hearthbound/experiment/**'
+      - 'scripts/event_scheduler.py'
+      - 'scripts/test_event_scheduler*.py'
+      - 'scripts/test-event-scheduler-contracts.py'
+      - 'tests/fixtures/event_scheduler/**'
+      - '.github/workflows/event-scheduler-contracts.yml'
+  push:
+    paths:
+      - 'src/main/java/dev/hearthbound/experiment/**'
+      - 'src/test/java/dev/hearthbound/experiment/**'
+      - 'scripts/event_scheduler.py'
+      - 'scripts/test_event_scheduler*.py'
+      - 'scripts/test-event-scheduler-contracts.py'
+      - 'tests/fixtures/event_scheduler/**'
+      - '.github/workflows/event-scheduler-contracts.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate delivery, crash recovery, and language parity
+        run: python scripts/test-event-scheduler-contracts.py --evidence-dir event-scheduler-evidence
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: event-scheduler-contracts-${{ github.run_id }}
+          path: event-scheduler-evidence/
+          if-no-files-found: error
