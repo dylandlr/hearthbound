@@ -264,7 +264,7 @@ public final class HaulMotorDiagnostics {
     }
 
     /** Reads native local Items without querying capability inventory or unpacking loot. */
-    private static JsonObject inventory(ServerLevel level, BlockPos position) {
+    static JsonObject inventory(ServerLevel level, BlockPos position) {
         JsonObject row = new JsonObject();
         row.addProperty("status", "NO_ENDPOINT");
         row.addProperty("scope", "LOCAL_VANILLA_CONTAINER_NBT");
