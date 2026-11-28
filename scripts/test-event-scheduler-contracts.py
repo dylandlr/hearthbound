@@ -45,13 +45,15 @@ def main():
     sources = sorted((root / "src/main/java/dev/hearthbound/experiment").glob("*.java"))
     sources += sorted((root / "src/test/java/dev/hearthbound/experiment").glob("*.java"))
     tracked_inputs = sources + [root / "scripts" / name for name in (
-        "event_scheduler.py", "test_event_scheduler.py", "test_event_scheduler_parity.py",
+        "event_scheduler.py", "event_scenarios.py", "test_event_scheduler.py", "test_event_scheduler_parity.py",
+        "test_event_scheduler_scenarios.py",
         "test-event-scheduler-contracts.py")]
-    tracked_inputs += [root / "docs/C14_EVENT_SCHEDULER_CONTRACT.md"]
+    tracked_inputs += [root / "docs/C14_EVENT_SCHEDULER_CONTRACT.md", root / "docs/C14_SEEDED_SCENARIO_CONTRACT.md"]
     fixtures = sorted((root / "tests/fixtures/event_scheduler").glob("*"))
+    fixtures += sorted((root / "tests/fixtures/event_scenarios").glob("*"))
     initial_hashes = hashes(tracked_inputs + fixtures, root)
     manifest = {
-        "schema_version": 1, "ticket": "C14-01", "started_at": utc_now(), "status": "running",
+        "schema_version": 2, "ticket": "C14-01", "started_at": utc_now(), "status": "running",
         "source_git_sha": subject["output"] if subject["exit_code"] == 0 else None,
         "working_tree_dirty_at_start": bool(dirty["output"]) if dirty["exit_code"] == 0 else None,
         "python_version": sys.version, "java_version": read_command([java, "-version"], root) if java else None,
@@ -59,8 +61,9 @@ def main():
         "compile_release": 17, "source_sha256": hashes(tracked_inputs, root),
         "fixture_sha256": hashes(fixtures, root), "forge_executed": False,
         "native_physical_effects_tested": False, "learned_adaptation_tested": False,
+        "native_scope_enforcement_tested": False, "native_sham_state_preservation_tested": False,
         "stages": [{"name": name, "status": "not_run", "exit_code": None}
-                   for name in ("compile_java17", "java_contracts", "python_and_cross_language_contracts")],
+                   for name in ("compile_java17", "java_contracts", "java_scenario_contracts", "python_and_cross_language_contracts")],
     }
 
     def save():
@@ -102,6 +105,7 @@ def main():
             commands = [
                 compiler + ["--release", "17", "-encoding", "UTF-8", "-d", output] + [str(p) for p in sources],
                 [java, "-ea", "-cp", output, "dev.hearthbound.experiment.EventSchedulerTest"],
+                [java, "-ea", "-cp", output, "dev.hearthbound.experiment.EventScenariosTest"],
                 [sys.executable, "-m", "unittest", "discover", "-s", "scripts",
                  "-p", "test_event_scheduler*.py", "-v"],
             ]
@@ -115,7 +119,7 @@ def main():
             exit_code = 1
             print(manifest["error"], file=sys.stderr)
             return exit_code
-        print("PASS event scheduler Python, Java, and cross-language contracts; Forge not executed")
+        print("PASS delivery and seeded scenario Python, Java, and cross-language contracts; Forge not executed")
         return 0
     except Exception as error:
         exit_code = 1

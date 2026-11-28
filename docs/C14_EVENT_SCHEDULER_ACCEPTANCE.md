@@ -108,7 +108,11 @@ The first physical adapter should be a deliberately bounded crop disruption in a
 Before touching blocks, define a versioned target descriptor and target digest, a fresh world/run binding,
 the permitted fixture region, authoritative preconditions, and a separate physical witness. The current
 event schema identifies kind/timing/severity; it does **not** yet pin native positions or dimensions.
-Those physical targets must be included in a versioned binding before runtime promotion.
+The separate [scenario-v1 layer](C14_SEEDED_SCENARIO_CONTRACT.md) now binds configured block-target
+scopes and seeded choices through a complete manifest and derived journal identity. The generic v2
+event schema and existing journals remain unchanged. This is configuration binding, not native
+validation of target blocks, permitted operations, physical effects, or sham preservation. Those
+native gates must still pass before runtime promotion.
 
 The adapter must check the current server tick, act on the server thread, record actual effects, and
 keep unloaded or ambiguous evidence unresolved. It must not retry a potentially applied operation after
@@ -124,3 +128,10 @@ adaptation and specialization protocols evaluate recovery, reassignment, and occ
 The source-to-decision record is [C14_EVENT_SCHEDULER_REFERENCES.md](C14_EVENT_SCHEDULER_REFERENCES.md).
 Sources motivate lifecycle and evaluation distinctions; they do not supply Hearthbound performance
 results or replace these engineering gates.
+
+## Seeded-generation continuation
+
+The recovered original backlog also requires seeded event generation, scoped parameters, and sham
+controls. Their separate [scenario acceptance record](C14_SEEDED_SCENARIO_ACCEPTANCE.md) preserves
+those requirements and records the planning-layer implementation. The original delivery-core CI
+evidence is not reused as evidence that the later scenario code or native sham controls passed.
