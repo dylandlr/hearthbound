@@ -1,0 +1,456 @@
+{
+  "schema": "hearthbound.scenario-smoke-diagnosis.v1",
+  "observed_at": "2026-11-28T02:41:07.412Z",
+  "repository": "dylandlr/hearthbound",
+  "run": {
+    "id": 46096878805,
+    "url": "https://github.com/dylandlr/hearthbound/actions/runs/46096878805",
+    "name": "Minecraft dedicated server smoke",
+    "event": "pull_request",
+    "attempt": 1,
+    "head_sha": "59772fbacd0cb0d056b29b70b96c91bc8f5cce6e",
+    "status": "completed",
+    "conclusion": "failure",
+    "head_tree": "13f2d6d48f36637082f20a85f87c2dc9ac263b22"
+  },
+  "complete_job_enumeration": {
+    "api_total_count": 16,
+    "retrieved": 16,
+    "per_page": 100,
+    "page": 1,
+    "boot_slots": 11,
+    "boot_success": 10,
+    "boot_failure": 1,
+    "downstream_skipped": 5
+  },
+  "boot_slots": [
+    {
+      "job_id": 140830156250,
+      "name": "boot-server (SCRIPTED, hearthbound-resource-probe-B, seeded-v1, minecraft-policy-trial-SCRIPTED-s...",
+      "html_url": "https://github.com/dylandlr/hearthbound/actions/runs/46096878805/job/140830156250",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "59772fbacd0cb0d056b29b70b96c91bc8f5cce6e",
+      "environment": {
+        "trial_mode": "SCRIPTED",
+        "world_seed": "hearthbound-resource-probe-B",
+        "resource_schedule": "seeded-v1",
+        "attention_mode": "scripted",
+        "attention_challenge": "none"
+      },
+      "checkout_sha": "c8a93fcda8638660e2941939892b2ea86b5a076b",
+      "checkout_evidence": [
+        "2026-11-28T02:12:22.6670561Z HEAD is now at c8a93fc Merge 59772fbacd0cb0d056b29b70b96c91bc8f5cce6e into 7cf3730e64433849c56952f88780284f8f98b2a0",
+        "2026-11-28T02:12:22.6744701Z c8a93fcda8638660e2941939892b2ea86b5a076b"
+      ],
+      "forge_preflight_step": "success",
+      "failed_steps": []
+    },
+    {
+      "job_id": 140830156454,
+      "name": "boot-server (TRAINED_MLP, hearthbound-resource-probe-A, seeded-v1, neural, minecraft-attention-tr...",
+      "html_url": "https://github.com/dylandlr/hearthbound/actions/runs/46096878805/job/140830156454",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "59772fbacd0cb0d056b29b70b96c91bc8f5cce6e",
+      "environment": {
+        "trial_mode": "TRAINED_MLP",
+        "world_seed": "hearthbound-resource-probe-A",
+        "resource_schedule": "seeded-v1",
+        "attention_mode": "neural",
+        "attention_challenge": "none"
+      },
+      "checkout_sha": "c8a93fcda8638660e2941939892b2ea86b5a076b",
+      "checkout_evidence": [
+        "2026-11-28T02:13:33.5998483Z HEAD is now at c8a93fc Merge 59772fbacd0cb0d056b29b70b96c91bc8f5cce6e into 7cf3730e64433849c56952f88780284f8f98b2a0",
+        "2026-11-28T02:13:33.6032403Z c8a93fcda8638660e2941939892b2ea86b5a076b"
+      ],
+      "forge_preflight_step": "success",
+      "failed_steps": []
+    },
+    {
+      "job_id": 140830156462,
+      "name": "boot-server (SCRIPTED, hearthbound-policy-v0-8-10, baseline, minecraft-policy-trial-SCRIPTED)",
+      "html_url": "https://github.com/dylandlr/hearthbound/actions/runs/46096878805/job/140830156462",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "59772fbacd0cb0d056b29b70b96c91bc8f5cce6e",
+      "environment": {
+        "trial_mode": "SCRIPTED",
+        "world_seed": "hearthbound-policy-v0-8-10",
+        "resource_schedule": "baseline",
+        "attention_mode": "scripted",
+        "attention_challenge": "none"
+      },
+      "checkout_sha": "c8a93fcda8638660e2941939892b2ea86b5a076b",
+      "checkout_evidence": [
+        "2026-11-28T02:16:40.6881763Z HEAD is now at c8a93fc Merge 59772fbacd0cb0d056b29b70b96c91bc8f5cce6e into 7cf3730e64433849c56952f88780284f8f98b2a0",
+        "2026-11-28T02:16:40.6976511Z c8a93fcda8638660e2941939892b2ea86b5a076b"
+      ],
+      "forge_preflight_step": "success",
+      "failed_steps": []
+    },
+    {
+      "job_id": 140830156483,
+      "name": "boot-server (TRAINED_MLP, hearthbound-rapid-four-D, baseline, neural, rapid-four-v1, minecraft-at...",
+      "html_url": "https://github.com/dylandlr/hearthbound/actions/runs/46096878805/job/140830156483",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "59772fbacd0cb0d056b29b70b96c91bc8f5cce6e",
+      "environment": {
+        "trial_mode": "TRAINED_MLP",
+        "world_seed": "hearthbound-rapid-four-D",
+        "resource_schedule": "baseline",
+        "attention_mode": "neural",
+        "attention_challenge": "rapid-four-v1"
+      },
+      "checkout_sha": "c8a93fcda8638660e2941939892b2ea86b5a076b",
+      "checkout_evidence": [
+        "2026-11-28T02:19:35.1587456Z HEAD is now at c8a93fc Merge 59772fbacd0cb0d056b29b70b96c91bc8f5cce6e into 7cf3730e64433849c56952f88780284f8f98b2a0",
+        "2026-11-28T02:19:35.1658390Z c8a93fcda8638660e2941939892b2ea86b5a076b"
+      ],
+      "forge_preflight_step": "success",
+      "failed_steps": []
+    },
+    {
+      "job_id": 140830156502,
+      "name": "boot-server (SCRIPTED, hearthbound-resource-probe-A, seeded-v1, minecraft-policy-trial-SCRIPTED-s...",
+      "html_url": "https://github.com/dylandlr/hearthbound/actions/runs/46096878805/job/140830156502",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "59772fbacd0cb0d056b29b70b96c91bc8f5cce6e",
+      "environment": {
+        "trial_mode": "SCRIPTED",
+        "world_seed": "hearthbound-resource-probe-A",
+        "resource_schedule": "seeded-v1",
+        "attention_mode": "scripted",
+        "attention_challenge": "none"
+      },
+      "checkout_sha": "c8a93fcda8638660e2941939892b2ea86b5a076b",
+      "checkout_evidence": [
+        "2026-11-28T02:21:32.4716239Z HEAD is now at c8a93fc Merge 59772fbacd0cb0d056b29b70b96c91bc8f5cce6e into 7cf3730e64433849c56952f88780284f8f98b2a0",
+        "2026-11-28T02:21:32.4782478Z c8a93fcda8638660e2941939892b2ea86b5a076b"
+      ],
+      "forge_preflight_step": "success",
+      "failed_steps": []
+    },
+    {
+      "job_id": 140830156506,
+      "name": "boot-server (TRAINED_MLP, hearthbound-policy-v0-8-10, baseline, minecraft-policy-trial-TRAINED_MLP)",
+      "html_url": "https://github.com/dylandlr/hearthbound/actions/runs/46096878805/job/140830156506",
+      "status": "completed",
+      "conclusion": "failure",
+      "head_sha": "59772fbacd0cb0d056b29b70b96c91bc8f5cce6e",
+      "environment": {
+        "trial_mode": "TRAINED_MLP",
+        "world_seed": "hearthbound-policy-v0-8-10",
+        "resource_schedule": "baseline",
+        "attention_mode": "scripted",
+        "attention_challenge": "none"
+      },
+      "checkout_sha": "c8a93fcda8638660e2941939892b2ea86b5a076b",
+      "checkout_evidence": [
+        "2026-11-28T02:19:29.2553067Z HEAD is now at c8a93fc Merge 59772fbacd0cb0d056b29b70b96c91bc8f5cce6e into 7cf3730e64433849c56952f88780284f8f98b2a0",
+        "2026-11-28T02:19:29.2698360Z c8a93fcda8638660e2941939892b2ea86b5a076b"
+      ],
+      "forge_preflight_step": "success",
+      "failed_steps": [
+        {
+          "name": "Start a disposable Forge dedicated server",
+          "number": 7
+        }
+      ]
+    },
+    {
+      "job_id": 140830156512,
+      "name": "boot-server (SCRIPTED, hearthbound-rapid-four-D, baseline, rapid-four-v1, minecraft-attention-cha...",
+      "html_url": "https://github.com/dylandlr/hearthbound/actions/runs/46096878805/job/140830156512",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "59772fbacd0cb0d056b29b70b96c91bc8f5cce6e",
+      "environment": {
+        "trial_mode": "SCRIPTED",
+        "world_seed": "hearthbound-rapid-four-D",
+        "resource_schedule": "baseline",
+        "attention_mode": "scripted",
+        "attention_challenge": "rapid-four-v1"
+      },
+      "checkout_sha": "c8a93fcda8638660e2941939892b2ea86b5a076b",
+      "checkout_evidence": [
+        "2026-11-28T02:20:12.4856122Z HEAD is now at c8a93fc Merge 59772fbacd0cb0d056b29b70b96c91bc8f5cce6e into 7cf3730e64433849c56952f88780284f8f98b2a0",
+        "2026-11-28T02:20:12.4941077Z c8a93fcda8638660e2941939892b2ea86b5a076b"
+      ],
+      "forge_preflight_step": "success",
+      "failed_steps": []
+    },
+    {
+      "job_id": 140830156523,
+      "name": "boot-server (TRAINED_MLP, hearthbound-resource-probe-A, seeded-v1, minecraft-policy-trial-TRAINED...",
+      "html_url": "https://github.com/dylandlr/hearthbound/actions/runs/46096878805/job/140830156523",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "59772fbacd0cb0d056b29b70b96c91bc8f5cce6e",
+      "environment": {
+        "trial_mode": "TRAINED_MLP",
+        "world_seed": "hearthbound-resource-probe-A",
+        "resource_schedule": "seeded-v1",
+        "attention_mode": "scripted",
+        "attention_challenge": "none"
+      },
+      "checkout_sha": "c8a93fcda8638660e2941939892b2ea86b5a076b",
+      "checkout_evidence": [
+        "2026-11-28T02:22:34.5389739Z HEAD is now at c8a93fc Merge 59772fbacd0cb0d056b29b70b96c91bc8f5cce6e into 7cf3730e64433849c56952f88780284f8f98b2a0",
+        "2026-11-28T02:22:34.5462474Z c8a93fcda8638660e2941939892b2ea86b5a076b"
+      ],
+      "forge_preflight_step": "success",
+      "failed_steps": []
+    },
+    {
+      "job_id": 140830156544,
+      "name": "boot-server (TRAINED_MLP, hearthbound-resource-probe-B, seeded-v1, neural, minecraft-attention-tr...",
+      "html_url": "https://github.com/dylandlr/hearthbound/actions/runs/46096878805/job/140830156544",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "59772fbacd0cb0d056b29b70b96c91bc8f5cce6e",
+      "environment": {
+        "trial_mode": "TRAINED_MLP",
+        "world_seed": "hearthbound-resource-probe-B",
+        "resource_schedule": "seeded-v1",
+        "attention_mode": "neural",
+        "attention_challenge": "none"
+      },
+      "checkout_sha": "c8a93fcda8638660e2941939892b2ea86b5a076b",
+      "checkout_evidence": [
+        "2026-11-28T02:20:16.3628071Z HEAD is now at c8a93fc Merge 59772fbacd0cb0d056b29b70b96c91bc8f5cce6e into 7cf3730e64433849c56952f88780284f8f98b2a0",
+        "2026-11-28T02:20:16.3688958Z c8a93fcda8638660e2941939892b2ea86b5a076b"
+      ],
+      "forge_preflight_step": "success",
+      "failed_steps": []
+    },
+    {
+      "job_id": 140830156556,
+      "name": "boot-server (TRAINED_MLP, hearthbound-resource-probe-C, seeded-v1, neural, minecraft-attention-tr...",
+      "html_url": "https://github.com/dylandlr/hearthbound/actions/runs/46096878805/job/140830156556",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "59772fbacd0cb0d056b29b70b96c91bc8f5cce6e",
+      "environment": {
+        "trial_mode": "TRAINED_MLP",
+        "world_seed": "hearthbound-resource-probe-C",
+        "resource_schedule": "seeded-v1",
+        "attention_mode": "neural",
+        "attention_challenge": "none"
+      },
+      "checkout_sha": "c8a93fcda8638660e2941939892b2ea86b5a076b",
+      "checkout_evidence": [
+        "2026-11-28T02:22:14.3820249Z HEAD is now at c8a93fc Merge 59772fbacd0cb0d056b29b70b96c91bc8f5cce6e into 7cf3730e64433849c56952f88780284f8f98b2a0",
+        "2026-11-28T02:22:14.3889738Z c8a93fcda8638660e2941939892b2ea86b5a076b"
+      ],
+      "forge_preflight_step": "success",
+      "failed_steps": []
+    },
+    {
+      "job_id": 140830156578,
+      "name": "boot-server (SCRIPTED, hearthbound-resource-probe-C, seeded-v1, minecraft-policy-trial-SCRIPTED-s...",
+      "html_url": "https://github.com/dylandlr/hearthbound/actions/runs/46096878805/job/140830156578",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "59772fbacd0cb0d056b29b70b96c91bc8f5cce6e",
+      "environment": {
+        "trial_mode": "SCRIPTED",
+        "world_seed": "hearthbound-resource-probe-C",
+        "resource_schedule": "seeded-v1",
+        "attention_mode": "scripted",
+        "attention_challenge": "none"
+      },
+      "checkout_sha": "c8a93fcda8638660e2941939892b2ea86b5a076b",
+      "checkout_evidence": [
+        "2026-11-28T02:22:39.6405648Z HEAD is now at c8a93fc Merge 59772fbacd0cb0d056b29b70b96c91bc8f5cce6e into 7cf3730e64433849c56952f88780284f8f98b2a0",
+        "2026-11-28T02:22:39.6474491Z c8a93fcda8638660e2941939892b2ea86b5a076b"
+      ],
+      "forge_preflight_step": "success",
+      "failed_steps": []
+    }
+  ],
+  "downstream_jobs": [
+    {
+      "job_id": 140834266127,
+      "name": "compare-seeded-resource-arms",
+      "status": "completed",
+      "conclusion": "skipped",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/46096878805/job/140834266127"
+    },
+    {
+      "job_id": 140834266322,
+      "name": "compare-policy-arms",
+      "status": "completed",
+      "conclusion": "skipped",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/46096878805/job/140834266322"
+    },
+    {
+      "job_id": 140834266565,
+      "name": "compare-multi-seed-live-attention",
+      "status": "completed",
+      "conclusion": "skipped",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/46096878805/job/140834266565"
+    },
+    {
+      "job_id": 140834266791,
+      "name": "compare-live-attention-arms",
+      "status": "completed",
+      "conclusion": "skipped",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/46096878805/job/140834266791"
+    },
+    {
+      "job_id": 140834267116,
+      "name": "compare-rapid-four-attention",
+      "status": "completed",
+      "conclusion": "skipped",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/46096878805/job/140834267116"
+    }
+  ],
+  "checkout_verification": {
+    "all_11_checkout_sha": "c8a93fcda8638660e2941939892b2ea86b5a076b",
+    "synthetic_merge_tree": "13f2d6d48f36637082f20a85f87c2dc9ac263b22",
+    "synthetic_merge_parents": [
+      "7cf3730e64433849c56952f88780284f8f98b2a0",
+      "59772fbacd0cb0d056b29b70b96c91bc8f5cce6e"
+    ],
+    "published_tree": "13f2d6d48f36637082f20a85f87c2dc9ac263b22",
+    "merge_and_published_trees_equal": true
+  },
+  "failure": {
+    "job_id": 140830156506,
+    "scenario": {
+      "policy": "TRAINED_MLP",
+      "seed": "hearthbound-policy-v0-8-10",
+      "schedule": "baseline",
+      "attention": "scripted",
+      "challenge": "none"
+    },
+    "assertion": "Wheat delivered but Sable not near destination: Test failed",
+    "source": "scripts/rcon_smoke.py",
+    "source_line": 166,
+    "command": "execute positioned 7.5 100 1.5 if entity @e[type=minecraft:villager,name=Sable,distance=..2.6]",
+    "phase": "Initial direct chest-haul smoke prologue, before the later policy_trial dispatch",
+    "verified_before_failure": [
+      "Forge compilation preflight succeeded",
+      "Minecraft dedicated server readiness and Hearthbound initialization confirmed",
+      "Sable spawn and initial entity existence check passed",
+      "Destination transfer poll reported success",
+      "Source 8->7 and destination 0->1 verification completed"
+    ],
+    "failure_log_excerpt": [
+      "2026-11-28T02:22:50.6964666Z ",
+      "2026-11-28T02:22:50.6964808Z HAUL_ACCEPTANCE_TRANSFER_POLL index=1 nominal_elapsed_seconds=4",
+      "2026-11-28T02:22:50.6965107Z HAUL_POLL_SUMMARY polls=2 transferred=true",
+      "2026-11-28T02:22:50.6977460Z Real server-side wheat transfer verified: source 8->7, destination 0->1",
+      "2026-11-28T02:22:50.7819968Z Traceback (most recent call last):",
+      "2026-11-28T02:22:50.7821389Z   File \"/home/runner/work/hearthbound/hearthbound/scripts/rcon_smoke.py\", line 166, in <module>",
+      "2026-11-28T02:22:50.7822153Z     raise AssertionError(\"Wheat delivered but Sable not near destination: \" + output)",
+      "2026-11-28T02:22:50.7823186Z AssertionError: Wheat delivered but Sable not near destination: Test failed",
+      "2026-11-28T02:22:50.7823565Z ",
+      "2026-11-28T02:22:50.8030229Z ##[error]Process completed with exit code 1.",
+      "2026-11-28T02:22:50.8441871Z ##[group]Run actions/upload-artifact@v4"
+    ],
+    "classified_assertion_family": "post-transfer citizen-proximity",
+    "related_existing_issue": "https://github.com/dylandlr/hearthbound/issues/348",
+    "distinct_death_issue": "https://github.com/dylandlr/hearthbound/issues/353",
+    "same_root_cause_as_prior_failures_established": false,
+    "code_cause_established": false,
+    "post_failure_position_health_or_entity_snapshot_present": false
+  },
+  "failed_artifact_api": {
+    "id": 15243758135,
+    "node_id": "MDg6QXJ0aWZhY3QxNTI0Mzc1ODEzNQ==",
+    "name": "minecraft-policy-trial-TRAINED_MLP",
+    "size_in_bytes": 168982,
+    "url": "https://api.github.com/repos/dylandlr/hearthbound/actions/artifacts/15243758135",
+    "archive_download_url": "https://api.github.com/repos/dylandlr/hearthbound/actions/artifacts/15243758135/zip",
+    "expired": false,
+    "digest": "sha256:b44a547f7c2b4fe77aed4107497f2d513972525d1d0bb6182691fc8a91be4fac",
+    "created_at": "2026-11-28T02:22:51Z",
+    "updated_at": "2026-11-28T02:22:51Z",
+    "expires_at": "2026-12-12T02:22:51Z",
+    "workflow_run": {
+      "id": 46096878805,
+      "repository_id": 1418116426,
+      "head_repository_id": 1418116426,
+      "head_branch": "feature/C14-01-seeded-scenarios",
+      "head_sha": "59772fbacd0cb0d056b29b70b96c91bc8f5cce6e"
+    }
+  },
+  "current_head_workflows": [
+    {
+      "id": 46096878816,
+      "name": "Experimental event scheduler contracts",
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/46096878816"
+    },
+    {
+      "id": 46096878856,
+      "name": "Rapid attention curriculum (simulator only)",
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/46096878856"
+    },
+    {
+      "id": 46096878860,
+      "name": "Forge compilation",
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/46096878860"
+    },
+    {
+      "id": 46096878805,
+      "name": "Minecraft dedicated server smoke",
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/46096878805"
+    },
+    {
+      "id": 46096878848,
+      "name": "Haul ledger regression",
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/46096878848"
+    },
+    {
+      "id": 46096878836,
+      "name": "Minecraft playtest JAR",
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/46096878836"
+    },
+    {
+      "id": 46096878797,
+      "name": "Forge cold dependency setup",
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/46096878797"
+    },
+    {
+      "id": 46096847430,
+      "name": "Experimental event scheduler contracts",
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/dylandlr/hearthbound/actions/runs/46096847430"
+    }
+  ],
+  "limits": [
+    "The ten successful smoke-slot conclusions and checkout logs were inspected; their full native artifacts were not independently replayed.",
+    "The failed assertion does not distinguish movement, disappearance, death or response/timing problems; no final position/health witness was retained.",
+    "Unchanged source blobs/subtrees establish inherited code identity, not a causal diagnosis or immunity from regressions.",
+    "No native disruption adapter was executed; broad smoke failure does not negate the separately verified strict Java 17 planning/lifecycle contract results.",
+    "No workflow reruns, repository edits, Git mutations or GitHub writes were performed."
+  ]
+}

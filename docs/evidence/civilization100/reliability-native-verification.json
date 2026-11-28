@@ -1,0 +1,746 @@
+{
+  "schema": "hearthbound.native-reliability-ci-verification.v1",
+  "verification": {
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "-B",
+      "/workspace/scratch/b58ee6176a33/hearthbound-social-evidence/scripts/summarize_colony_reliability.py",
+      "/workspace/scratch/b58ee6176a33/reliability_ci_evidence/artifacts",
+      "--expected-commit",
+      "e74ff781249b50a28f08fc1f589aebf5d064c90d",
+      "--expected-run-id",
+      "46096305086",
+      "--expected-run-attempt",
+      "1",
+      "--require-motor-diagnostics",
+      "--require-prospective-plans",
+      "--output",
+      "/workspace/scratch/b58ee6176a33/reliability_ci_evidence/final-5-worlds-summary.json"
+    ],
+    "exit_code": 0,
+    "expected": {
+      "head": "e74ff781249b50a28f08fc1f589aebf5d064c90d",
+      "tree": "ecf8945b895689324aa92df5ba2a1be2fedd4116",
+      "workflow_run_id": "46096305086",
+      "workflow_attempt": "1",
+      "protocol_sha256": "b3730f79bbfb643c6704779302a36496a693f8494b7720931913b355ac855fc3",
+      "plan": [
+        {
+          "trial_id": "world-01",
+          "seed": 43101
+        },
+        {
+          "trial_id": "world-02",
+          "seed": 43102
+        },
+        {
+          "trial_id": "world-03",
+          "seed": 43103
+        },
+        {
+          "trial_id": "world-04",
+          "seed": 43104
+        },
+        {
+          "trial_id": "world-05",
+          "seed": 43105
+        }
+      ],
+      "observed_at_utc": "2026-11-28T02:11:27.294133+00:00"
+    },
+    "statuses": {
+      "PASS": 5
+    },
+    "planned_trials": 5,
+    "accounting_event": {
+      "assessable_trials": 5,
+      "definition": "four physical deliveries, zero claims, done=3 and assigned=1 in both terminal audit reads",
+      "frequency_among_assessable": 0.0,
+      "observed": 0,
+      "planned_cohort_missingness_bounds": [
+        0.0,
+        0.0
+      ],
+      "planned_trials": 5,
+      "unknown_trials": 0,
+      "wilson_95_interval_among_assessable": [
+        0.0,
+        0.43448246478317476
+      ]
+    },
+    "acceptance_passed": true,
+    "independent_artifact_audit": [
+      {
+        "artifact_id": 15242749102,
+        "artifact_name": "colony-reliability-world-02",
+        "zip_digest_verified": true,
+        "zip_size_verified": true,
+        "result_present": true,
+        "errors": [],
+        "trial_id": "world-02",
+        "seed": 43102,
+        "reported_status": "PASS",
+        "saved_nbt_checked": true,
+        "actual_seed": 43102,
+        "world_uuid": "911c16ca-a896-4318-a2f2-34027620e45d",
+        "build_status": "PASS",
+        "build_exit_code": 0,
+        "configured_java": 17,
+        "actual_java": "17.0.21.1+2",
+        "build_attempts": 1
+      },
+      {
+        "artifact_id": 15243871488,
+        "artifact_name": "colony-reliability-world-03",
+        "zip_digest_verified": true,
+        "zip_size_verified": true,
+        "result_present": true,
+        "errors": [],
+        "trial_id": "world-03",
+        "seed": 43103,
+        "reported_status": "PASS",
+        "saved_nbt_checked": true,
+        "actual_seed": 43103,
+        "world_uuid": "4c2029fb-056c-412f-9e6b-1820032903db",
+        "build_status": "PASS",
+        "build_exit_code": 0,
+        "configured_java": 17,
+        "actual_java": "17.0.21.1+2",
+        "build_attempts": 1
+      },
+      {
+        "artifact_id": 15243882028,
+        "artifact_name": "colony-reliability-world-04",
+        "zip_digest_verified": true,
+        "zip_size_verified": true,
+        "result_present": true,
+        "errors": [],
+        "trial_id": "world-04",
+        "seed": 43104,
+        "reported_status": "PASS",
+        "saved_nbt_checked": true,
+        "actual_seed": 43104,
+        "world_uuid": "b54637b2-9a9f-48f1-9d51-b8b7d12d1a84",
+        "build_status": "PASS",
+        "build_exit_code": 0,
+        "configured_java": 17,
+        "actual_java": "17.0.21+9",
+        "build_attempts": 1
+      },
+      {
+        "artifact_id": 15243927493,
+        "artifact_name": "colony-reliability-world-05",
+        "zip_digest_verified": true,
+        "zip_size_verified": true,
+        "result_present": true,
+        "errors": [],
+        "trial_id": "world-05",
+        "seed": 43105,
+        "reported_status": "PASS",
+        "saved_nbt_checked": true,
+        "actual_seed": 43105,
+        "world_uuid": "1c7cdb5b-22cf-40fe-b15a-d2c14acbf5b6",
+        "build_status": "PASS",
+        "build_exit_code": 0,
+        "configured_java": 17,
+        "actual_java": "17.0.21+9",
+        "build_attempts": 1
+      },
+      {
+        "artifact_id": 15244112051,
+        "artifact_name": "colony-reliability-world-01",
+        "zip_digest_verified": true,
+        "zip_size_verified": true,
+        "result_present": true,
+        "errors": [],
+        "trial_id": "world-01",
+        "seed": 43101,
+        "reported_status": "PASS",
+        "saved_nbt_checked": true,
+        "actual_seed": 43101,
+        "world_uuid": "5c418e5e-aa65-4cbd-b8cd-4759b66515b5",
+        "build_status": "PASS",
+        "build_exit_code": 0,
+        "configured_java": 17,
+        "actual_java": "17.0.21.1+2",
+        "build_attempts": 1
+      }
+    ]
+  },
+  "artifact_integrity": [
+    {
+      "artifact_id": 15242749102,
+      "artifact_name": "colony-reliability-world-02",
+      "github_size": 245350,
+      "actual_size": 245350,
+      "github_digest": "sha256:7a307fab740d29a8cbbea3a4235ad468d9009a08f65a2b021ddc118fcb1f11af",
+      "actual_sha256": "7a307fab740d29a8cbbea3a4235ad468d9009a08f65a2b021ddc118fcb1f11af",
+      "size_verified": true,
+      "digest_verified": true,
+      "files": [
+        {
+          "path": "reliability/world-02/forge-server.log",
+          "size": 1216561,
+          "sha256": "95ee16f8d4e99677a2fbbce9f49798770a28232ff4301c4da4331a506c348792"
+        },
+        {
+          "path": "reliability/world-02/rcon.log",
+          "size": 52996,
+          "sha256": "aa5ca1879a4d7f8eef7303b316dcc9db3b275b02ae091d632d655ab3cb74d8bd"
+        },
+        {
+          "path": "reliability/world-02/motor-diagnostics.json",
+          "size": 113462,
+          "sha256": "329fcdd740c8279f040c988f9440f72f4f70b766eca8aa8143006a5958258353"
+        },
+        {
+          "path": "reliability/world-02/trial-result.json",
+          "size": 2509,
+          "sha256": "3d8cec85634ed2cf6bd713cfcc476078542e90a80b819b5e37e687c93542a0df"
+        },
+        {
+          "path": "reliability/world-02/world-metadata/hearthbound_world_identity_v1.dat",
+          "size": 99,
+          "sha256": "95372258f1111b17aeee71088e564ed9b6d7edf80aecbcb7e65d8ad37f3e3b25"
+        },
+        {
+          "path": "reliability/world-02/world-metadata/level.dat",
+          "size": 49425,
+          "sha256": "98b7ca34d2cd130521b858bd0379246e482b7f42f9a73fa674b6711aca06a60a"
+        },
+        {
+          "path": "reliability-plans/world-02/trial-plan.json",
+          "size": 536,
+          "sha256": "2931261d18396a0330fb339b8165a0c441b66f603aa3617e36aa14446443ac44"
+        },
+        {
+          "path": "reliability-build/world-02/build-environment.json",
+          "size": 2313,
+          "sha256": "439b07e64cc6e79b1b3221e3aa6ac5df939c398d4ae4d12898e33e6569d1d70b"
+        },
+        {
+          "path": "reliability-build/world-02/gradle-version.log",
+          "size": 688,
+          "sha256": "aebd902039185217f76706a4e6fb3a03bb39b9a211a4d983153b49cb9d3cc2c4"
+        },
+        {
+          "path": "reliability-build/world-02/java-version.log",
+          "size": 193,
+          "sha256": "290c788b0ef53c7787706a0dcb153bbe1b7dcfb72f2590b779c9c59fa5d424ea"
+        },
+        {
+          "path": "reliability-build/world-02/preflight.json",
+          "size": 4083,
+          "sha256": "19a8adc72cf75c4b7a988373360ea67a22ac21846f2a2d761f9edadd01745a83"
+        },
+        {
+          "path": "reliability-preflight.log",
+          "size": 204290,
+          "sha256": "64affa73142fc85e9e296d6722f9932027096d1d01afe0b952ea51e91568205a"
+        }
+      ],
+      "workflow_run": {
+        "id": 46096305086,
+        "repository_id": 1418116426,
+        "head_repository_id": 1418116426,
+        "head_branch": "feature/social-evidence-reconciliation",
+        "head_sha": "e74ff781249b50a28f08fc1f589aebf5d064c90d"
+      }
+    },
+    {
+      "artifact_id": 15243639563,
+      "artifact_name": "colony-reliability-summary",
+      "github_size": 3058,
+      "actual_size": 3058,
+      "github_digest": "sha256:fdf93577d4ca492e2b173e27b511ae326648649f24d827955811634c1884f644",
+      "actual_sha256": "fdf93577d4ca492e2b173e27b511ae326648649f24d827955811634c1884f644",
+      "size_verified": true,
+      "digest_verified": true,
+      "files": [
+        {
+          "path": "colony-reliability-summary.json",
+          "size": 16384,
+          "sha256": "4b259c87ec739e485ed807507b46a6685f644fd858390d29fe601f3b47c7239a"
+        }
+      ],
+      "workflow_run": {
+        "id": 46096305086,
+        "repository_id": 1418116426,
+        "head_repository_id": 1418116426,
+        "head_branch": "feature/social-evidence-reconciliation",
+        "head_sha": "e74ff781249b50a28f08fc1f589aebf5d064c90d"
+      }
+    },
+    {
+      "artifact_id": 15243871488,
+      "artifact_name": "colony-reliability-world-03",
+      "github_size": 245503,
+      "actual_size": 245503,
+      "github_digest": "sha256:df89c4c92e1ccdf95786c35494917db4696cb3c3303b8ba647daa39f412d4d6e",
+      "actual_sha256": "df89c4c92e1ccdf95786c35494917db4696cb3c3303b8ba647daa39f412d4d6e",
+      "size_verified": true,
+      "digest_verified": true,
+      "files": [
+        {
+          "path": "reliability/world-03/forge-server.log",
+          "size": 1218079,
+          "sha256": "f7b05b939afa60d276fe14b1c16ad5cdd93c02e0a2b8a84d389ac2bb579ff4a5"
+        },
+        {
+          "path": "reliability/world-03/motor-diagnostics.json",
+          "size": 113430,
+          "sha256": "b4328fd37400cb4703f13edba943f98a7765e934dccab8330e769e3c23698102"
+        },
+        {
+          "path": "reliability/world-03/rcon.log",
+          "size": 52691,
+          "sha256": "46a05ff12b0b631f28640f2eee2e257a22da1cb5b53822ed3585eb73070b9a36"
+        },
+        {
+          "path": "reliability/world-03/trial-result.json",
+          "size": 2509,
+          "sha256": "1426d66923676afe64f4c8057621699e5ff749d77215481627763066663293e1"
+        },
+        {
+          "path": "reliability/world-03/world-metadata/hearthbound_world_identity_v1.dat",
+          "size": 99,
+          "sha256": "ac033e8eb15cfd03206f8a6fc083ef8204b87ca76dd6ac0e516d38defe354b26"
+        },
+        {
+          "path": "reliability/world-03/world-metadata/level.dat",
+          "size": 49424,
+          "sha256": "67a0bed42375bd6dd34191d003730af64daafec97642f80c097c94fcb40e53c4"
+        },
+        {
+          "path": "reliability-plans/world-03/trial-plan.json",
+          "size": 536,
+          "sha256": "1199e27165efe55deef42251825f57d7714fac2a1b7afdf1401c129f82065bcb"
+        },
+        {
+          "path": "reliability-build/world-03/build-environment.json",
+          "size": 2313,
+          "sha256": "439b07e64cc6e79b1b3221e3aa6ac5df939c398d4ae4d12898e33e6569d1d70b"
+        },
+        {
+          "path": "reliability-build/world-03/gradle-version.log",
+          "size": 688,
+          "sha256": "aebd902039185217f76706a4e6fb3a03bb39b9a211a4d983153b49cb9d3cc2c4"
+        },
+        {
+          "path": "reliability-build/world-03/java-version.log",
+          "size": 193,
+          "sha256": "290c788b0ef53c7787706a0dcb153bbe1b7dcfb72f2590b779c9c59fa5d424ea"
+        },
+        {
+          "path": "reliability-build/world-03/preflight.json",
+          "size": 4083,
+          "sha256": "a6c8c8476dd717535dd9c6da849a66c8ca5fd27f378a1e893385d36a95c3b4ff"
+        },
+        {
+          "path": "reliability-preflight.log",
+          "size": 204269,
+          "sha256": "a9b6ca75ebef17028772a372af25ad00971c5b30e066c18ed2611d2dead2c46b"
+        }
+      ],
+      "workflow_run": {
+        "id": 46096305086,
+        "repository_id": 1418116426,
+        "head_repository_id": 1418116426,
+        "head_branch": "feature/social-evidence-reconciliation",
+        "head_sha": "e74ff781249b50a28f08fc1f589aebf5d064c90d"
+      }
+    },
+    {
+      "artifact_id": 15243882028,
+      "artifact_name": "colony-reliability-world-04",
+      "github_size": 246104,
+      "actual_size": 246104,
+      "github_digest": "sha256:3d0b5d2ad283638cf5da9e1c612350e01bef6fa9ab9ebc7644dea2876febd2e3",
+      "actual_sha256": "3d0b5d2ad283638cf5da9e1c612350e01bef6fa9ab9ebc7644dea2876febd2e3",
+      "size_verified": true,
+      "digest_verified": true,
+      "files": [
+        {
+          "path": "reliability/world-04/forge-server.log",
+          "size": 1216486,
+          "sha256": "ef2328587d2d3435444aafea0456f12a95ba0ff653386b56c6f8601a00541857"
+        },
+        {
+          "path": "reliability/world-04/rcon.log",
+          "size": 53181,
+          "sha256": "a5b64542611320259c9a845ef01e8535d3106bd434931d11fcdec25bcbaf5db6"
+        },
+        {
+          "path": "reliability/world-04/trial-result.json",
+          "size": 2509,
+          "sha256": "cf2d528d636dfcff4965433ada92c1de1ef52e89c3cdebd0569bfda5a348fb55"
+        },
+        {
+          "path": "reliability/world-04/motor-diagnostics.json",
+          "size": 114543,
+          "sha256": "f8666b93e0c6c7c872582ce3e702673b84b49c41085ffa040a05378d7e9d599b"
+        },
+        {
+          "path": "reliability/world-04/world-metadata/hearthbound_world_identity_v1.dat",
+          "size": 99,
+          "sha256": "86354e9c78af07a60fab8732787328608ff21d87c5b41c7a223391217ee2c00d"
+        },
+        {
+          "path": "reliability/world-04/world-metadata/level.dat",
+          "size": 49435,
+          "sha256": "ca383780bef3d7490860134c48638ca36c5b69c791599aabaa8ec059dffeadd1"
+        },
+        {
+          "path": "reliability-plans/world-04/trial-plan.json",
+          "size": 536,
+          "sha256": "2cc70bddb0133633037051652080be2496803aeb9014f2d8933677837b8c2f85"
+        },
+        {
+          "path": "reliability-build/world-04/build-environment.json",
+          "size": 2311,
+          "sha256": "b4229b56c19b22537ba64312d459e9fb2c879dbc064f8c95f1c6fb296892c728"
+        },
+        {
+          "path": "reliability-build/world-04/gradle-version.log",
+          "size": 684,
+          "sha256": "cc0d28525b197bf26237691ffad372d3acfa70503c225986cf3cfe18624f7456"
+        },
+        {
+          "path": "reliability-build/world-04/java-version.log",
+          "size": 183,
+          "sha256": "aa8b8c37cfb8295d241a736330151318fe156c8937b464a27b2c21d638db1862"
+        },
+        {
+          "path": "reliability-build/world-04/preflight.json",
+          "size": 4081,
+          "sha256": "64e934dc2f45ba19a64539809eefd0c93c7216e30cd1c030f18a64ebc9d9d313"
+        },
+        {
+          "path": "reliability-preflight.log",
+          "size": 204241,
+          "sha256": "2272b7fd0d16028db512caa901a7c05fca02b34d91905e796031244e11700eea"
+        }
+      ],
+      "workflow_run": {
+        "id": 46096305086,
+        "repository_id": 1418116426,
+        "head_repository_id": 1418116426,
+        "head_branch": "feature/social-evidence-reconciliation",
+        "head_sha": "e74ff781249b50a28f08fc1f589aebf5d064c90d"
+      }
+    },
+    {
+      "artifact_id": 15243927493,
+      "artifact_name": "colony-reliability-world-05",
+      "github_size": 245761,
+      "actual_size": 245761,
+      "github_digest": "sha256:5951db1fad343a4d03e198b29224088d7fb046635281efdc1804e7d63c0e8957",
+      "actual_sha256": "5951db1fad343a4d03e198b29224088d7fb046635281efdc1804e7d63c0e8957",
+      "size_verified": true,
+      "digest_verified": true,
+      "files": [
+        {
+          "path": "reliability/world-05/forge-server.log",
+          "size": 1217188,
+          "sha256": "3cf621569b9a01a1feaf17ce5b7f59205e51a20c8ac674581aaf9360d4fe7098"
+        },
+        {
+          "path": "reliability/world-05/rcon.log",
+          "size": 52766,
+          "sha256": "c19188f5e971a3558ac711a2dc77c5b01931030b3813f48d935f0eddde15f924"
+        },
+        {
+          "path": "reliability/world-05/motor-diagnostics.json",
+          "size": 113574,
+          "sha256": "a64873c0ad1fc27b16612d1e81b0fc1f278eb22a17907a0cb4c6c432d3b948ef"
+        },
+        {
+          "path": "reliability/world-05/trial-result.json",
+          "size": 2509,
+          "sha256": "a1a3b396d4a245dfcb09a600fd6b4e71d1aca88e5145a66c389d2b11aa056653"
+        },
+        {
+          "path": "reliability/world-05/world-metadata/hearthbound_world_identity_v1.dat",
+          "size": 99,
+          "sha256": "5c4fa2b4288989eb21eb4c30fbf8957e7175ac30dc972f0ecee8edb00bc120e8"
+        },
+        {
+          "path": "reliability/world-05/world-metadata/level.dat",
+          "size": 49429,
+          "sha256": "9cd5ae0226fd1ecfe4adfb089e78707d320c357410f9c82cb3ca662851b2496e"
+        },
+        {
+          "path": "reliability-plans/world-05/trial-plan.json",
+          "size": 536,
+          "sha256": "6bab98940f09e8b44dbd6ac7c7882ca802ac495317875fd80c7945c46fe5cbb1"
+        },
+        {
+          "path": "reliability-build/world-05/build-environment.json",
+          "size": 2311,
+          "sha256": "b4229b56c19b22537ba64312d459e9fb2c879dbc064f8c95f1c6fb296892c728"
+        },
+        {
+          "path": "reliability-build/world-05/gradle-version.log",
+          "size": 684,
+          "sha256": "cc0d28525b197bf26237691ffad372d3acfa70503c225986cf3cfe18624f7456"
+        },
+        {
+          "path": "reliability-build/world-05/java-version.log",
+          "size": 183,
+          "sha256": "aa8b8c37cfb8295d241a736330151318fe156c8937b464a27b2c21d638db1862"
+        },
+        {
+          "path": "reliability-build/world-05/preflight.json",
+          "size": 4081,
+          "sha256": "0b70c1e33e3ac1fcc996a2eb1a2467e392bb568e09751cb0c5993e0a09d82e15"
+        },
+        {
+          "path": "reliability-preflight.log",
+          "size": 204279,
+          "sha256": "eef53d9f8a71d9cb76dda398d64c5e944a6f0934d144afb0c8164fd5ec861672"
+        }
+      ],
+      "workflow_run": {
+        "id": 46096305086,
+        "repository_id": 1418116426,
+        "head_repository_id": 1418116426,
+        "head_branch": "feature/social-evidence-reconciliation",
+        "head_sha": "e74ff781249b50a28f08fc1f589aebf5d064c90d"
+      }
+    },
+    {
+      "artifact_id": 15244112051,
+      "artifact_name": "colony-reliability-world-01",
+      "github_size": 245594,
+      "actual_size": 245594,
+      "github_digest": "sha256:95f93cda5f3fafd22e4f3026f0a34f9a80c9a42b26a8017bf4a946942ed34a58",
+      "actual_sha256": "95f93cda5f3fafd22e4f3026f0a34f9a80c9a42b26a8017bf4a946942ed34a58",
+      "size_verified": true,
+      "digest_verified": true,
+      "files": [
+        {
+          "path": "reliability/world-01/forge-server.log",
+          "size": 1218010,
+          "sha256": "23eaf07a0f6d4bae4f6bf7285766f631742f51058e82c3f2fa22cec63bc316ff"
+        },
+        {
+          "path": "reliability/world-01/motor-diagnostics.json",
+          "size": 113499,
+          "sha256": "17681a2e5ff64b72d13f93556ab0e4ca21f8f40dc832d88d8d65a323c0aecd10"
+        },
+        {
+          "path": "reliability/world-01/rcon.log",
+          "size": 53011,
+          "sha256": "9c5ef0b50cb518cecc1fba6cddff61277adebac7310c730e5266eea2169da70d"
+        },
+        {
+          "path": "reliability/world-01/trial-result.json",
+          "size": 2509,
+          "sha256": "71680771b498b5eaedc6d7e6cca175c070caed299e820deb982f744bf24f9a2a"
+        },
+        {
+          "path": "reliability/world-01/world-metadata/hearthbound_world_identity_v1.dat",
+          "size": 99,
+          "sha256": "74d1fa50b41cd343bc981b845c90a67ab9a4931e6276d210e75262cd3aa2630d"
+        },
+        {
+          "path": "reliability/world-01/world-metadata/level.dat",
+          "size": 49432,
+          "sha256": "dc4ac4a2707788b969ed1befb2bae3a72862ee9d8e68d2a0bebcbddc301c5c81"
+        },
+        {
+          "path": "reliability-plans/world-01/trial-plan.json",
+          "size": 536,
+          "sha256": "8048fef427efc4551664c72c64c66bcf5a25cc566c9824fc77360876f13b6b68"
+        },
+        {
+          "path": "reliability-build/world-01/build-environment.json",
+          "size": 2313,
+          "sha256": "439b07e64cc6e79b1b3221e3aa6ac5df939c398d4ae4d12898e33e6569d1d70b"
+        },
+        {
+          "path": "reliability-build/world-01/gradle-version.log",
+          "size": 688,
+          "sha256": "aebd902039185217f76706a4e6fb3a03bb39b9a211a4d983153b49cb9d3cc2c4"
+        },
+        {
+          "path": "reliability-build/world-01/java-version.log",
+          "size": 193,
+          "sha256": "290c788b0ef53c7787706a0dcb153bbe1b7dcfb72f2590b779c9c59fa5d424ea"
+        },
+        {
+          "path": "reliability-build/world-01/preflight.json",
+          "size": 4083,
+          "sha256": "1edd515d400cae16a6b3bd3d3432e9488a0840bae7290cd6886a82cbe5f0d356"
+        },
+        {
+          "path": "reliability-preflight.log",
+          "size": 204377,
+          "sha256": "2da53d2e5d3184f5933866967c0192ab7566aae798fdd059da7d056fbc949967"
+        }
+      ],
+      "workflow_run": {
+        "id": 46096305086,
+        "repository_id": 1418116426,
+        "head_repository_id": 1418116426,
+        "head_branch": "feature/social-evidence-reconciliation",
+        "head_sha": "e74ff781249b50a28f08fc1f589aebf5d064c90d"
+      }
+    }
+  ],
+  "ci_replay_comparison": {
+    "observed_at_utc": "2026-11-28T02:26:42.330521+00:00",
+    "ci_summary_path": "/workspace/scratch/b58ee6176a33/reliability_ci_evidence/artifacts/15243639563/colony-reliability-summary.json",
+    "ci_summary_file_sha256": "4b259c87ec739e485ed807507b46a6685f644fd858390d29fe601f3b47c7239a",
+    "local_summary_file_sha256": "80be8ce6dc9deddb5158e3d60346b0df5b87218d6b4da1c53df0c4a721c84edb",
+    "all_scoring_and_provenance_fields_equal": true,
+    "different_keys": [
+      "artifact_sources"
+    ],
+    "path_difference_reason": "GitHub downloads use artifact-name directories; local verified downloads use artifact-ID directories. Input indices reflect these deterministic discovery orders.",
+    "normalized_artifact_sources_equal": true,
+    "actual_checkouts": [
+      {
+        "file": "world-01-job-140828310946.log",
+        "actual_checkout": "e74ff781249b50a28f08fc1f589aebf5d064c90d",
+        "sha256": "e5a9a86c09601082bad45191222f7624248fb08f6adf7825581ac83a99d055f6"
+      },
+      {
+        "file": "world-02-job-140828310676.log",
+        "actual_checkout": "e74ff781249b50a28f08fc1f589aebf5d064c90d",
+        "sha256": "edcb24f3e38c877a4eda8760f33968ce9163e17ad780fa9b983951becb835395"
+      },
+      {
+        "file": "world-03-job-140828310914.log",
+        "actual_checkout": "e74ff781249b50a28f08fc1f589aebf5d064c90d",
+        "sha256": "4a7ffe025e6432f725bfdd8c4493b48e510a92540dd291960a46ae5cf2ac0058"
+      },
+      {
+        "file": "world-04-job-140828310931.log",
+        "actual_checkout": "e74ff781249b50a28f08fc1f589aebf5d064c90d",
+        "sha256": "2cfcc46df171dfc907b8416f2ae2cb4c039cf3437eca1c0f4b3d5cf56f704d3c"
+      },
+      {
+        "file": "world-05-job-140828310993.log",
+        "actual_checkout": "e74ff781249b50a28f08fc1f589aebf5d064c90d",
+        "sha256": "ec043082c53f138f92fb0a4d10569e124de9b54073484aa761a4f98b4d7d0e52"
+      },
+      {
+        "file": "summary-job-140832999587.log",
+        "actual_checkout": "e74ff781249b50a28f08fc1f589aebf5d064c90d",
+        "sha256": "ff54cc2b27c7070d233b46cae904d74b77e4e744a3e5b50c52ef57c94297de63"
+      }
+    ],
+    "acceptance_passed": true,
+    "statuses": {
+      "PASS": 5
+    },
+    "diagnostics": {
+      "all_required_worlds_verified": true,
+      "citizen_sequence_patterns": {
+        "ENTITY_TICK_COUNT_UNCHANGED_WHILE_WORLD_ADVANCED": 1,
+        "LOADED_NON_TICKING_SEQUENCE_OBSERVED": 1
+      },
+      "original_score_recomputed": false,
+      "patterns_are_diagnostics_not_independent_replicates": true,
+      "planned_worlds": 5,
+      "required_for_cohort": true,
+      "root_cause_established": false,
+      "statuses": {
+        "VERIFIED_COMPLETE": 5
+      }
+    },
+    "plans": {
+      "all_required_plans_verified": true,
+      "declarations_are_world_observations": false,
+      "no_result_outcomes_remain_unknown": true,
+      "planned_worlds": 5,
+      "required_for_cohort": true,
+      "statuses": {
+        "VERIFIED": 5
+      }
+    },
+    "context": {
+      "artifact_identity_is_not_trusted_context": true,
+      "errors": [],
+      "expected": {
+        "github_run_attempt": "1",
+        "github_run_id": "46096305086",
+        "protocol_sha256": "b3730f79bbfb643c6704779302a36496a693f8494b7720931913b355ac855fc3",
+        "source_commit": "e74ff781249b50a28f08fc1f589aebf5d064c90d"
+      },
+      "status": "VERIFIED_EXPECTATIONS"
+    },
+    "three_of_four_accounting_event": {
+      "assessable_trials": 5,
+      "definition": "four physical deliveries, zero claims, done=3 and assigned=1 in both terminal audit reads",
+      "frequency_among_assessable": 0.0,
+      "observed": 0,
+      "planned_cohort_missingness_bounds": [
+        0.0,
+        0.0
+      ],
+      "planned_trials": 5,
+      "unknown_trials": 0,
+      "wilson_95_interval_among_assessable": [
+        0.0,
+        0.43448246478317476
+      ]
+    },
+    "physical_delivery_accounting_event": {
+      "assessable_trials": 5,
+      "assessment": "complete observation window; invalid, changing, or impossible four-job task counters are unknown",
+      "definition": "four physical deliveries, zero claims, done<4 and assigned>0 with identical terminal task counters",
+      "frequency_among_assessable": 0.0,
+      "observed": 0,
+      "planned_cohort_missingness_bounds": [
+        0.0,
+        0.0
+      ],
+      "planned_trials": 5,
+      "protocol": "additional prospective event; original three-of-four definition and denominator unchanged",
+      "unknown_trials": 0,
+      "wilson_95_interval_among_assessable": [
+        0.0,
+        0.43448246478317476
+      ]
+    }
+  },
+  "partial_accounting": [
+    {
+      "source_file": "partial-summary-1-world.json",
+      "planned_trials": 5,
+      "received_unique_trials": 1,
+      "statuses": {
+        "MISSING_RESULT": 4,
+        "PASS": 1
+      },
+      "acceptance_passed": false
+    },
+    {
+      "source_file": "partial-2-worlds-summary.json",
+      "planned_trials": 5,
+      "received_unique_trials": 2,
+      "statuses": {
+        "MISSING_RESULT": 3,
+        "PASS": 2
+      },
+      "acceptance_passed": false
+    },
+    {
+      "source_file": "partial-4-worlds-summary.json",
+      "planned_trials": 5,
+      "received_unique_trials": 4,
+      "statuses": {
+        "MISSING_RESULT": 1,
+        "PASS": 4
+      },
+      "acceptance_passed": false
+    }
+  ],
+  "limits": [
+    "Native validation applies only to the declared five-world fixture at this source.",
+    "Other CI workflows remain separate, including smoke failures.",
+    "No causal policy benefit, general reliability, legacy frozen-policy export,100-citizen operation or specialization result is established."
+  ]
+}

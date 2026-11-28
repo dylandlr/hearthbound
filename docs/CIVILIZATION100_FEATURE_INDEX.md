@@ -1,9 +1,10 @@
 # Civilization-100 feature and milestone index
 
 **116 of 116 original feature IDs now have GitHub issues:** 110 newly published and six existing
-issues preserved. API readback found no missing or duplicate feature IDs. The 110 new bodies match
-the original ticket and same-ID engineering worksheet, including their acceptance clauses and ten
-unchecked engineering phases. This is complete ticket publication, not completed feature development.
+issues preserved. Publication-time API readback found no missing or duplicate feature IDs. The 110
+new bodies matched the original ticket and same-ID engineering worksheet, including their acceptance
+clauses and ten initially unchecked engineering phases. Later evidence-based issue updates are tracked
+separately. This is complete ticket publication, not completed feature development.
 
 ## Standing mission and working rule
 
@@ -59,24 +60,53 @@ not claim that a native GitHub milestone object was created or that specializati
 - [C14-01 / #233](https://github.com/dylandlr/hearthbound/issues/233): the durable delivery core is
   implemented in [PR #234](https://github.com/dylandlr/hearthbound/pull/234). Java 17 compilation,
   20 Java contract groups and 41 Python/cross-language tests passed; existing Forge compatibility CI
-  also passed. Seeded scenario generation, native scope binding, physical sham controls, physical
-  adapters, actor isolation and final native acceptance remain open.
+  also passed. The separate seeded scenario layer in
+  [PR #352](https://github.com/dylandlr/hearthbound/pull/352) now passes both strict Java 17 runs:
+  20 delivery groups, 11 scenario groups and 58 Python/cross-language tests. Configured block scopes,
+  paired plans and empty-control identities are bound; native scope enforcement, physical sham
+  controls, physical adapters, actor isolation and final native acceptance remain open. See
+  [the artifact verification](C14_SEEDED_SCENARIO_VALIDATION.md).
 - [C00-02 / #227](https://github.com/dylandlr/hearthbound/issues/227): all five historical v0.23 artifacts
   were downloaded and verified, and all four raw trial histories were replayed. See
   [the baseline artifact audit](C00_BASELINE_ARTIFACT_AUDIT.md). The
   [branch ancestry audit](C00_BRANCH_ANCESTRY_AUDIT.md) covers 224 remote branches and 196 open PRs
-  at its recorded snapshot. Semantic reconciliation and integration selection remain open.
+  at its recorded snapshot. The bounded PR210 semantic mapping is complete, with a selective
+  reliability-evidence correction in [PR #351](https://github.com/dylandlr/hearthbound/pull/351)
+  and [QA #350](https://github.com/dylandlr/hearthbound/issues/350). Its unchanged five-world native
+  pipeline passed, with all six archive digests verified and independent trusted-context replay
+  matching the acceptance result. The [validation report](C00_RELIABILITY_VALIDATION.md) keeps the
+  separate broad-smoke failures visible. Other relevant reconciliation and integration selection
+  remain open.
 - [PR #275](https://github.com/dylandlr/hearthbound/pull/275): closes the independent native-furnace
   counter comparison gap discovered during that audit. Four fresh native trials and clean restarts
   passed, with all artifact digests checked and physical audits independently replayed. The
   [validation report](C00_FURNACE_WITNESS_VALIDATION.md) retains those results and the separate smoke
   matrix failures; integration remains open.
-- [QA follow-up #348](https://github.com/dylandlr/hearthbound/issues/348): investigate the two
-  post-transfer citizen-proximity failures without weakening physical-arrival criteria. This is an
-  additional defect ticket; it does not change the original 116-feature inventory.
+- [QA follow-up #348](https://github.com/dylandlr/hearthbound/issues/348): the reviewed
+  insertion-time arrival witness in [PR #349](https://github.com/dylandlr/hearthbound/pull/349)
+  preserves inventory conservation and both existing geometry limits, retains later movement
+  separately and rejects missing or foreign evidence. Local regressions and Java 17 Forge
+  compilation passed. Nine of eleven declared smoke slots yielded independently verified native
+  arrival records; two failed readiness before any arrival test. All nine later positions were
+  still within the existing smoke radius, so these runs do not demonstrate a later out-of-range
+  case or resolve the historical failure causes. The [validation report](C00_HAUL_ARRIVAL_VALIDATION.md)
+  retains all eleven slots and both failed workflows. Integration remains open.
 - [C14-02 / #323](https://github.com/dylandlr/hearthbound/issues/323): the next physical crop-failure
   feature keeps the original criteria: actual harvest loss measured and paired control unchanged.
-  Its implementation depends on resolving the relevant scheduler/scenario/native evidence contracts.
+  Its [reviewed proposed design and 22 named tests](C14_CROP_FAILURE_DESIGN.md) define bounded
+  START-only destruction, real harvested-output measurement and a six-world treatment/sham/no-event
+  cohort. Those tests have not run. Native context/world binding, tick ordering, witness durability
+  and fixture resources remain design gates before implementation.
+- [QA #353](https://github.com/dylandlr/hearthbound/issues/353): the
+  [retained native lifecycle failure](C00_CITIZEN_LIFECYCLE_FAILURE.md) distinguishes completed
+  material transfer from a later exact-UUID alive→dead→absent sequence. Required diagnostics failed;
+  the physical cause and integration disposition remain open.
+- [QA #354](https://github.com/dylandlr/hearthbound/issues/354): two PR349 slots and one PR351 slot
+  timed out at server readiness after successful preflight. No arrival or policy result is inferred
+  from these unavailable native observations. Stage-specific startup diagnosis and correction
+  remain open; the existing deadlines were not extended and failed attempts were not replaced.
+
+The QA follow-ups are additional defect tickets; they do not change the original 116-feature inventory.
 
 The issue pages are authoritative for current progress. The phase notes below are a publication-time
 snapshot, not an automated live status feed. All feature issues remained open at readback.

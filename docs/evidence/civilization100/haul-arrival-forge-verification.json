@@ -1,0 +1,22 @@
+{
+  "schema": "hearthbound.haul-arrival-compile-verification.v1",
+  "run_id": 46096030697,
+  "job_id": 140827445040,
+  "head_sha": "64c0fc63cb1940928c0b9abb53763f75abf7f1db",
+  "checkout_sha": "d39639856cb1a3417f03e27333f06c5730f9f6a4",
+  "checkout_tree": "5917af6e5df072b37b9281c6e3ffab17035f2fa3",
+  "head_tree_matches": true,
+  "parents": [
+    "a072519518db1458e8cb5aa1898aebd4ba93f03a",
+    "64c0fc63cb1940928c0b9abb53763f75abf7f1db"
+  ],
+  "java_major": 17,
+  "result": "PASSED",
+  "observed_compile_task": ":compileJava",
+  "build_result": "BUILD SUCCESSFUL in 2m 42s",
+  "completed_build_at": "2026-11-28T02:04:55.1359679Z",
+  "public_url": "https://github.com/dylandlr/hearthbound/actions/runs/46096030697/job/140827445040",
+  "limits": [
+    "Compilation only; no live arrival claim from this job."
+  ]
+}

@@ -1,0 +1,392 @@
+{
+  "observed_at_utc": "2026-11-28T02:48:31Z",
+  "status_snapshot": "20261128024821-smoke-jobs.json",
+  "final_job_counts": true,
+  "workflow_run_id": 46096305068,
+  "workflow_run_attempt": 1,
+  "workflow_url": "https://github.com/dylandlr/hearthbound/actions/runs/46096305068",
+  "associated_pr": 351,
+  "existing_tracking_issue": 348,
+  "parent_issue": 227,
+  "head": "e74ff781249b50a28f08fc1f589aebf5d064c90d",
+  "head_tree": "ecf8945b895689324aa92df5ba2a1be2fedd4116",
+  "actual_checkout_tree_verified_from_git_api": "ecf8945b895689324aa92df5ba2a1be2fedd4116",
+  "matrix_counts": {
+    "planned_slots": 11,
+    "success": 7,
+    "failure": 4,
+    "skipped": 0,
+    "cancelled": 0,
+    "timed_out": 0,
+    "in_progress": 0,
+    "queued": 0
+  },
+  "jobs": [
+    {
+      "id": 140828310624,
+      "name": "boot-server (TRAINED_MLP, hearthbound-policy-v0-8-10, baseline, minecraft-policy-trial-TRAINED_MLP)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-28T02:18:02Z",
+      "completed_at": "2026-11-28T02:22:09Z"
+    },
+    {
+      "id": 140828310709,
+      "name": "boot-server (TRAINED_MLP, hearthbound-rapid-four-D, baseline, neural, rapid-four-v1, minecraft-at...",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-28T02:07:30Z",
+      "completed_at": "2026-11-28T02:12:38Z"
+    },
+    {
+      "id": 140828310756,
+      "name": "boot-server (TRAINED_MLP, hearthbound-resource-probe-B, seeded-v1, neural, minecraft-attention-tr...",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-28T02:12:25Z",
+      "completed_at": "2026-11-28T02:18:10Z"
+    },
+    {
+      "id": 140828310785,
+      "name": "boot-server (SCRIPTED, hearthbound-resource-probe-B, seeded-v1, minecraft-policy-trial-SCRIPTED-s...",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-28T02:18:47Z",
+      "completed_at": "2026-11-28T02:22:46Z"
+    },
+    {
+      "id": 140828310791,
+      "name": "boot-server (TRAINED_MLP, hearthbound-resource-probe-A, seeded-v1, minecraft-policy-trial-TRAINED...",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-28T02:12:56Z",
+      "completed_at": "2026-11-28T02:18:01Z"
+    },
+    {
+      "id": 140828310802,
+      "name": "boot-server (TRAINED_MLP, hearthbound-resource-probe-C, seeded-v1, neural, minecraft-attention-tr...",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-28T02:18:51Z",
+      "completed_at": "2026-11-28T02:23:21Z"
+    },
+    {
+      "id": 140828310803,
+      "name": "boot-server (SCRIPTED, hearthbound-rapid-four-D, baseline, rapid-four-v1, minecraft-attention-cha...",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-28T02:17:54Z",
+      "completed_at": "2026-11-28T02:22:38Z"
+    },
+    {
+      "id": 140828310817,
+      "name": "boot-server (SCRIPTED, hearthbound-resource-probe-C, seeded-v1, minecraft-policy-trial-SCRIPTED-s...",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-28T02:14:41Z",
+      "completed_at": "2026-11-28T02:46:37Z"
+    },
+    {
+      "id": 140828310824,
+      "name": "boot-server (SCRIPTED, hearthbound-resource-probe-A, seeded-v1, minecraft-policy-trial-SCRIPTED-s...",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-28T02:18:12Z",
+      "completed_at": "2026-11-28T02:22:45Z"
+    },
+    {
+      "id": 140828310826,
+      "name": "boot-server (SCRIPTED, hearthbound-policy-v0-8-10, baseline, minecraft-policy-trial-SCRIPTED)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-28T02:16:59Z",
+      "completed_at": "2026-11-28T02:22:53Z"
+    },
+    {
+      "id": 140828310831,
+      "name": "boot-server (TRAINED_MLP, hearthbound-resource-probe-A, seeded-v1, neural, minecraft-attention-tr...",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-28T02:12:04Z",
+      "completed_at": "2026-11-28T02:16:18Z"
+    },
+    {
+      "id": 140839141781,
+      "name": "compare-seeded-resource-arms",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-11-28T02:46:38Z",
+      "completed_at": "2026-11-28T02:46:38Z"
+    },
+    {
+      "id": 140839141895,
+      "name": "compare-live-attention-arms",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-11-28T02:46:38Z",
+      "completed_at": "2026-11-28T02:46:38Z"
+    },
+    {
+      "id": 140839141896,
+      "name": "compare-policy-arms",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-11-28T02:46:38Z",
+      "completed_at": "2026-11-28T02:46:38Z"
+    },
+    {
+      "id": 140839141906,
+      "name": "compare-rapid-four-attention",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-11-28T02:46:38Z",
+      "completed_at": "2026-11-28T02:46:38Z"
+    },
+    {
+      "id": 140839142515,
+      "name": "compare-multi-seed-live-attention",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-11-28T02:46:38Z",
+      "completed_at": "2026-11-28T02:46:38Z"
+    }
+  ],
+  "proximity_failures": [
+    {
+      "job_id": 140828310624,
+      "job_url": "https://github.com/dylandlr/hearthbound/actions/runs/46096305068/job/140828310624",
+      "scenario_label": "TRAINED_MLP / hearthbound-policy-v0-8-10 / baseline",
+      "conclusion": "failure",
+      "failed_step": "Start a disposable Forge dedicated server",
+      "actual_checkout": "c8361a205b38cfc6fb1262a83ba900b48561c402",
+      "log_path": "/workspace/scratch/b58ee6176a33/reliability_ci_evidence/smoke-failed-job-140828310624.log",
+      "log_sha256": "015f9e93ceec5cda9ae5b2ed85e6d295d4711fdf8a4d1d57668851b597af2b9d",
+      "inventory_success_snippet": "2026-11-28T02:22:05.2794838Z Real server-side wheat transfer verified: source 8->7, destination 0->1",
+      "error_snippet": "2026-11-28T02:22:05.4206055Z AssertionError: Wheat delivered but Sable not near destination: Test failed",
+      "error_source": "scripts/rcon_smoke.py:166",
+      "classification": "POST_DELIVERY_PROXIMITY_ASSERTION_FAILURE",
+      "historical_cause": "UNKNOWN"
+    },
+    {
+      "job_id": 140828310785,
+      "job_url": "https://github.com/dylandlr/hearthbound/actions/runs/46096305068/job/140828310785",
+      "scenario_label": "SCRIPTED / hearthbound-resource-probe-B / seeded-v1",
+      "conclusion": "failure",
+      "failed_step": "Start a disposable Forge dedicated server",
+      "actual_checkout": "c8361a205b38cfc6fb1262a83ba900b48561c402",
+      "log_path": "/workspace/scratch/b58ee6176a33/reliability_ci_evidence/smoke-failed-job-140828310785.log",
+      "log_sha256": "0613ad3a114198f17af273ee044666187ee948bfbdd903ec2e8c65ede9c58bdf",
+      "inventory_success_snippet": "2026-11-28T02:22:42.5598320Z Real server-side wheat transfer verified: source 8->7, destination 0->1",
+      "error_snippet": "2026-11-28T02:22:42.6598183Z AssertionError: Wheat delivered but Sable not near destination: Test failed",
+      "error_source": "scripts/rcon_smoke.py:166",
+      "classification": "POST_DELIVERY_PROXIMITY_ASSERTION_FAILURE",
+      "historical_cause": "UNKNOWN"
+    },
+    {
+      "job_id": 140828310824,
+      "job_url": "https://github.com/dylandlr/hearthbound/actions/runs/46096305068/job/140828310824",
+      "scenario_label": "SCRIPTED / hearthbound-resource-probe-A / seeded-v1",
+      "conclusion": "failure",
+      "failed_step": "Start a disposable Forge dedicated server",
+      "actual_checkout": "c8361a205b38cfc6fb1262a83ba900b48561c402",
+      "log_path": "/workspace/scratch/b58ee6176a33/reliability_ci_evidence/smoke-failed-job-140828310824.log",
+      "log_sha256": "ca7f5a696933d5dc19aa9f0b96b3991295f463e78acae1afe2d0dfb396283521",
+      "inventory_success_snippet": "2026-11-28T02:22:39.9206849Z Real server-side wheat transfer verified: source 8->7, destination 0->1",
+      "error_snippet": "2026-11-28T02:22:40.0132979Z AssertionError: Wheat delivered but Sable not near destination: Test failed",
+      "error_source": "scripts/rcon_smoke.py:166",
+      "classification": "POST_DELIVERY_PROXIMITY_ASSERTION_FAILURE",
+      "historical_cause": "UNKNOWN"
+    }
+  ],
+  "source_identity": {
+    "revisions": {
+      "candidate": "e74ff781249b50a28f08fc1f589aebf5d064c90d",
+      "base": "a072519518db1458e8cb5aa1898aebd4ba93f03a",
+      "historical": "8206ca0e3bb6668e896ecb03d7bd1b0269ae7f50"
+    },
+    "files": [
+      {
+        "path": ".github/workflows/dedicated-server-smoke.yml",
+        "blobs": {
+          "candidate": "79b493c6e22ce9e180af770d22219642fb2b0ab1",
+          "base": "79b493c6e22ce9e180af770d22219642fb2b0ab1",
+          "historical": "79b493c6e22ce9e180af770d22219642fb2b0ab1"
+        },
+        "candidate_sha256": "eb18975d2ecda6bc894fb3a700bf90d70859bacddc44e8feaa06b7ba8255a0b7",
+        "all_available_revisions_identical": true
+      },
+      {
+        "path": "scripts/rcon_smoke.py",
+        "blobs": {
+          "candidate": "45aed6485adeceea21137185a326538cb26aa2a9",
+          "base": "45aed6485adeceea21137185a326538cb26aa2a9",
+          "historical": "45aed6485adeceea21137185a326538cb26aa2a9"
+        },
+        "candidate_sha256": "ec25a43b51ad4b2cce60b2ba4ed2a3f2e6dfb49cb1e719327ccb86cbb63d5ec5",
+        "all_available_revisions_identical": true
+      },
+      {
+        "path": "src/main/java/dev/hearthbound/world/SableHauling.java",
+        "blobs": {
+          "candidate": "c6ce78371e57d9288d396fbf2496a8cbc7f7fcdb",
+          "base": "c6ce78371e57d9288d396fbf2496a8cbc7f7fcdb",
+          "historical": "c6ce78371e57d9288d396fbf2496a8cbc7f7fcdb"
+        },
+        "candidate_sha256": "055cba736d5b1b64ef20ad65418d6236f7a2f090ce74b9a847a44a1332f8883f",
+        "all_available_revisions_identical": true
+      },
+      {
+        "path": "src/main/java/dev/hearthbound/world/SableController.java",
+        "blobs": {
+          "candidate": "87794186c5e5b4e2f2f73fd4940fc4ee4ef71f85",
+          "base": "87794186c5e5b4e2f2f73fd4940fc4ee4ef71f85",
+          "historical": "87794186c5e5b4e2f2f73fd4940fc4ee4ef71f85"
+        },
+        "candidate_sha256": "6bab30cdfe14907ff9112d8b4be6671bf2f30e13c0528bed3f5509dfcf4e54bd",
+        "all_available_revisions_identical": true
+      },
+      {
+        "path": "src/main/java/dev/hearthbound/world/HaulClaims.java",
+        "blobs": {
+          "candidate": "0f64d5bcf3dd0b094cc02e90634a889694e011a8",
+          "base": "0f64d5bcf3dd0b094cc02e90634a889694e011a8",
+          "historical": "0f64d5bcf3dd0b094cc02e90634a889694e011a8"
+        },
+        "candidate_sha256": "0580906f4bc7003394651212fc631b63701f47c95311a0dfca3c9d25a9d03392",
+        "all_available_revisions_identical": true
+      }
+    ],
+    "scope": "Only these five relevant path blobs were compared; no whole-branch equivalence claimed."
+  },
+  "interpretation": {
+    "cause": "UNKNOWN",
+    "measurement_limit": "The unchanged smoke harness checks inventory then a later proximity query. It lacks an insertion-time actor/job/position witness, so these logs cannot identify the historical cause.",
+    "source_equivalence_limit": "Five specifically listed smoke/runtime paths have identical blobs across candidate, parent baseline, and historical baseline. This does not establish whole-branch equivalence or a causal diagnosis.",
+    "native_cohort_separate": "The five-world reliability cohort is independently verified PASS5 and must not absorb or erase these smoke failures.",
+    "new_ticket_created": false,
+    "jobs_rerun": false,
+    "code_or_worktree_changes": false,
+    "downstream_comparisons": "Five comparison jobs were skipped. Their outcomes are unavailable; a skipped comparison is not acceptance evidence.",
+    "startup_timeout": "One separate planned smoke slot reached the 12-minute server-readiness limit; it is not counted as a proximity failure or a native physical-outcome success."
+  },
+  "workflow_status": "completed",
+  "workflow_conclusion": "failure",
+  "unresolved_job_ids": [],
+  "workflow_run_snapshot": "20261128024831-smoke-run.json",
+  "head_workflows_snapshot": "20261128024831-smoke-allruns.json",
+  "workflow_job_counts": {
+    "total_jobs": 16,
+    "success": 7,
+    "failure": 4,
+    "skipped": 5,
+    "cancelled": 0,
+    "timed_out": 0,
+    "in_progress": 0,
+    "queued": 0
+  },
+  "failure_classification_counts": {
+    "POST_DELIVERY_PROXIMITY_ASSERTION_FAILURE": 3,
+    "SERVER_STARTUP_READINESS_TIMEOUT": 1
+  },
+  "tracking_scope": "QA348 covers the three post-delivery proximity assertion recurrences. The separate startup timeout is recorded below without creating a new issue.",
+  "head_workflow_counts": {
+    "total_runs": 7,
+    "success": 6,
+    "failure": 1,
+    "skipped": 0,
+    "cancelled": 0,
+    "timed_out": 0
+  },
+  "head_workflows": [
+    {
+      "id": 46096305094,
+      "name": "Haul ledger regression",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "e74ff781249b50a28f08fc1f589aebf5d064c90d",
+      "run_attempt": 1
+    },
+    {
+      "id": 46096305041,
+      "name": "Rapid attention curriculum (simulator only)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "e74ff781249b50a28f08fc1f589aebf5d064c90d",
+      "run_attempt": 1
+    },
+    {
+      "id": 46096305121,
+      "name": "Forge compilation",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "e74ff781249b50a28f08fc1f589aebf5d064c90d",
+      "run_attempt": 1
+    },
+    {
+      "id": 46096305062,
+      "name": "Minecraft playtest JAR",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "e74ff781249b50a28f08fc1f589aebf5d064c90d",
+      "run_attempt": 1
+    },
+    {
+      "id": 46096305066,
+      "name": "Colony allocation diagnostics (simulator only)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "e74ff781249b50a28f08fc1f589aebf5d064c90d",
+      "run_attempt": 1
+    },
+    {
+      "id": 46096305086,
+      "name": "Real Forge independent-world colony reliability",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "e74ff781249b50a28f08fc1f589aebf5d064c90d",
+      "run_attempt": 1
+    },
+    {
+      "id": 46096305068,
+      "name": "Minecraft dedicated server smoke",
+      "status": "completed",
+      "conclusion": "failure",
+      "head_sha": "e74ff781249b50a28f08fc1f589aebf5d064c90d",
+      "run_attempt": 1
+    }
+  ],
+  "startup_failures": [
+    {
+      "job_id": 140828310817,
+      "job_url": "https://github.com/dylandlr/hearthbound/actions/runs/46096305068/job/140828310817",
+      "scenario_label": "SCRIPTED / hearthbound-resource-probe-C / seeded-v1",
+      "conclusion": "failure",
+      "failed_step": "Start a disposable Forge dedicated server",
+      "actual_checkout": "c8361a205b38cfc6fb1262a83ba900b48561c402",
+      "log_path": "/workspace/scratch/b58ee6176a33/reliability_ci_evidence/smoke-failed-job-140828310817.log",
+      "log_sha256": "a31051f745f61d406fb0cde9ed8e87e94e86269eaa4bf2b64e83f9a6bb208d55",
+      "classification": "SERVER_STARTUP_READINESS_TIMEOUT",
+      "error_snippet": "2026-11-28T02:46:32.2706594Z Minecraft server did not reach ready state within 12 minutes",
+      "pending_snippet": "2026-11-28T02:46:30.2655575Z Cold Forge startup pending after 720 seconds",
+      "compile_preflight_snippet": "2026-11-28T02:34:30.7685498Z FORGE_PREFLIGHT_SUCCESS",
+      "compile_preflight_attempts": 1,
+      "compile_preflight_attempt_snippets": [
+        "2026-11-28T02:14:59.0329681Z FORGE_PREFLIGHT attempt=1"
+      ],
+      "near_timeout_observations": [
+        "2026-11-28T02:46:30.2679522Z > Task :prepareRunServer",
+        "2026-11-28T02:46:30.2676939Z Downloading: https://resources.download.minecraft.net/a4/a449a2395b194c67b17ce2cba15b1e2958130f11 Asset: realms/textures/gui/images/8.png"
+      ],
+      "physical_trial_outcome": "UNKNOWN_NOT_REACHED_IN_OBSERVED_LOG",
+      "cause": "Startup readiness deadline exceeded. The log shows asset downloads/run preparation near the deadline; underlying cause is not established.",
+      "same_as_proximity_assertion": false,
+      "upload_receipt": {
+        "artifact_id": 15244243721,
+        "name": "minecraft-policy-trial-SCRIPTED-seeded-C",
+        "size_in_bytes_reported_in_log": 123487,
+        "sha256_reported_in_log": "2dfd11621bbfd9db7ea1032928a55686a4e01482284f3002fb4fac2d96dd3e59",
+        "independently_downloaded_and_verified": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,504 @@
+{
+  "actions_taken": {
+    "acceptance_relaxations": 0,
+    "fixture_changes": 0,
+    "production_code_changes": 0,
+    "workflow_reruns": 0
+  },
+  "aggregate_acceptance": "FAILURE",
+  "artifact_digest_verified": true,
+  "artifact_head_verified": true,
+  "artifact_id": 15243508369,
+  "artifact_sha256": "sha256:c77b5907b1b836b42aebcc6888f74782d8d781f95ff32f67825e3fe660b8cc22",
+  "artifact_size": 246031,
+  "citizen": "16d1e8b4-76b6-42e1-abbc-d4c2eda0826c",
+  "classification": "REQUIRED_POST_WINDOW_DIAGNOSTIC_COVERAGE_FAILURE",
+  "diagnostic_result": {
+    "collection_atomic": false,
+    "errors": [
+      "Round 2 citizen 16d1e8b4-76b6-42e1-abbc-d4c2eda0826c snapshot: ValueError: Citizen observation is unavailable: NOT_LOADED_IN_DIMENSION",
+      "Round 2 citizen 16d1e8b4-76b6-42e1-abbc-d4c2eda0826c native jobId: ValueError: Native presence or subject binding is invalid",
+      "Round 2 citizen 16d1e8b4-76b6-42e1-abbc-d4c2eda0826c native phase: ValueError: Native presence or subject binding is invalid",
+      "Round 2 citizen 16d1e8b4-76b6-42e1-abbc-d4c2eda0826c native cargo: ValueError: Native presence or subject binding is invalid"
+    ],
+    "identity_source": "RETAINED_FIXTURE_DECISION_TRACES",
+    "interval_wall_seconds": 1.0,
+    "phase": "AFTER_FIXTURE_AND_TERMINAL_SCORE",
+    "planned_rounds": 3,
+    "required": true,
+    "roster_scope": "LOADED_MARKED_CITIZENS_WITHIN_16_OF_FOUR_FIXTURE_SOURCES",
+    "status": "INCOMPLETE"
+  },
+  "established_facts": [
+    "Terminal pre-sampling fixture evidence reports four physical completions, four loaded completed citizens, destination four wheat, all sources empty, and zero outstanding claims.",
+    "The exact citizen UUID is alive and falling at game tick139, dead but still present at tick160, and unavailable in the dimension at tick180.",
+    "The unavailable result persists across the final diagnostic query and three subsequent exact-UUID native presence queries; each native query reports No entity was found.",
+    "At ticks139 and160 its chunk[0,-1] is loaded and entity-ticking, but not force-loaded; no chunk state is available for the missing tick180 sample.",
+    "The artifact records all three planned rounds and preserves fixture PASS separately from diagnostics INCOMPLETE; the process correctly exits1."
+  ],
+  "fixture_geometry_commands": [
+    {
+      "command": "forceload add 0 0 31 4",
+      "request_id": 20,
+      "response": "Marked [0, 0] chunks in minecraft:overworld from [0, 0] to [1, 0] to be force loaded\n"
+    },
+    {
+      "command": "fill 0 99 0 31 99 4 minecraft:stone",
+      "request_id": 21,
+      "response": "Successfully filled 160 block(s)\n"
+    },
+    {
+      "command": "fill 0 100 0 31 103 4 minecraft:air",
+      "request_id": 22,
+      "response": "No blocks were filled\n"
+    }
+  ],
+  "followup_issue": "https://github.com/dylandlr/hearthbound/issues/353",
+  "followup_scope": "Diagnose post-delivery citizen death; upstream cause, introduced-regression attribution and corrective behavior remain open.",
+  "head_sha": "64c0fc63cb1940928c0b9abb53763f75abf7f1db",
+  "inference": [
+    "The server fall-death log names Sable entity388 at a position matching the dead UUID snapshot to logged precision. The runtime numeric entityID-to-UUID mapping is not explicitly retained, so that specific log-event linkage uses matching name/position."
+  ],
+  "internal_diagnostics_rcon_server_hashes_verified": true,
+  "job_id": 140827445614,
+  "job_url": "https://github.com/dylandlr/hearthbound/actions/runs/46096030716/job/140827445614",
+  "limits": [
+    "No per-request wall-clock timestamps are present in rcon.log. Request IDs and native game ticks establish order; planned wall intervals are1s and observed gaps21/20 ticks.",
+    "No further sampling after the third round was performed, so persistence beyond the final three native presence queries is not observed.",
+    "Why the citizen left the elevated fixture and whether PR349 changed its trajectory/timing are not established. No introduced-regression attribution is made.",
+    "NOT_LOADED_IN_DIMENSION alone does not distinguish death/removal from chunk loading; the earlier exact-UUID alive=false observation is separate evidence.",
+    "The physical terminal score is not recomputed from later life events. Diagnostic incompleteness remains an aggregate acceptance failure."
+  ],
+  "observed_sequence": [
+    {
+      "citizen": "16d1e8b4-76b6-42e1-abbc-d4c2eda0826c",
+      "claim": {
+        "owned_by_citizen": false,
+        "source_owner": null,
+        "store_present": true,
+        "total_claims": 0
+      },
+      "dimension": "minecraft:overworld",
+      "entity": {
+        "alive": true,
+        "can_update": true,
+        "chunk": [
+          0,
+          -1
+        ],
+        "chunk_loaded": true,
+        "citizen_marker": false,
+        "forced_chunk": false,
+        "horizontal_collision": false,
+        "no_ai": false,
+        "on_ground": false,
+        "position": [
+          15.001138882705682,
+          82.68393018670787,
+          -1.2881332616713637
+        ],
+        "position_entity_ticking": true,
+        "private_trial_marker": false,
+        "sable_marker": true,
+        "tick_count": 126,
+        "velocity": [
+          -0.0032033886722801397,
+          -1.4568789691071928,
+          -0.006964778217590007
+        ]
+      },
+      "game_tick": 139,
+      "haul": {
+        "assigned_tick": 33,
+        "cargo": {
+          "count": null,
+          "empty": null,
+          "item": null,
+          "item_truncated": false,
+          "present": false,
+          "type": 0
+        },
+        "delivered_tick": 113,
+        "destination": [
+          16,
+          100,
+          1
+        ],
+        "error": null,
+        "error_truncated": false,
+        "job": "ad2caaec-24e4-47cf-bab5-b50283b4260d",
+        "phase": 2,
+        "phase_name": "COMPLETE",
+        "present": true,
+        "source": [
+          20,
+          100,
+          1
+        ],
+        "type": 10,
+        "types": {
+          "assignedTick": 4,
+          "cargo": 0,
+          "colonyWorldId": 11,
+          "destination": 4,
+          "error": 0,
+          "jobId": 11,
+          "phase": 3,
+          "physicalDeliveredTick": 4,
+          "source": 4
+        },
+        "world": "02a5a741-8630-4b9e-ac29-92830243e2e2"
+      },
+      "inventories": {
+        "destination": {
+          "complete": true,
+          "inspected_slots": 27,
+          "scope": "LOCAL_VANILLA_CONTAINER_NBT",
+          "slots": 27,
+          "status": "OBSERVED",
+          "total_items": 4,
+          "wheat": 4
+        },
+        "source": {
+          "complete": true,
+          "inspected_slots": 27,
+          "scope": "LOCAL_VANILLA_CONTAINER_NBT",
+          "slots": 27,
+          "status": "OBSERVED",
+          "total_items": 0,
+          "wheat": 0
+        }
+      },
+      "loaded": true,
+      "named_read_only_checks": {
+        "claim_unchanged": true,
+        "no_ai_unchanged": true,
+        "path_identity_unchanged": true,
+        "path_index_unchanged": true,
+        "persistent_nbt_unchanged": true,
+        "position_unchanged": true,
+        "tick_count_unchanged": true,
+        "velocity_unchanged": true
+      },
+      "native_status": "OBSERVED",
+      "navigation": {
+        "done": true,
+        "end_node": null,
+        "next_node": null,
+        "next_node_index": null,
+        "node_count": null,
+        "path_can_reach": null,
+        "path_present": false,
+        "path_target": null,
+        "stuck": false,
+        "target": [
+          17,
+          100,
+          1
+        ]
+      },
+      "request_id": 67,
+      "round": 0,
+      "world": "02a5a741-8630-4b9e-ac29-92830243e2e2"
+    },
+    {
+      "citizen": "16d1e8b4-76b6-42e1-abbc-d4c2eda0826c",
+      "claim": {
+        "owned_by_citizen": false,
+        "source_owner": null,
+        "store_present": true,
+        "total_claims": 0
+      },
+      "dimension": "minecraft:overworld",
+      "entity": {
+        "alive": false,
+        "can_update": true,
+        "chunk": [
+          0,
+          -1
+        ],
+        "chunk_loaded": true,
+        "citizen_marker": false,
+        "forced_chunk": false,
+        "horizontal_collision": false,
+        "no_ai": false,
+        "on_ground": true,
+        "position": [
+          14.997935494033403,
+          71.0,
+          -1.3324037333932164
+        ],
+        "position_entity_ticking": true,
+        "private_trial_marker": false,
+        "sable_marker": true,
+        "tick_count": 147,
+        "velocity": [
+          0.0,
+          -0.0784000015258789,
+          0.0
+        ]
+      },
+      "game_tick": 160,
+      "haul": {
+        "assigned_tick": 33,
+        "cargo": {
+          "count": null,
+          "empty": null,
+          "item": null,
+          "item_truncated": false,
+          "present": false,
+          "type": 0
+        },
+        "delivered_tick": 113,
+        "destination": [
+          16,
+          100,
+          1
+        ],
+        "error": null,
+        "error_truncated": false,
+        "job": "ad2caaec-24e4-47cf-bab5-b50283b4260d",
+        "phase": 2,
+        "phase_name": "COMPLETE",
+        "present": true,
+        "source": [
+          20,
+          100,
+          1
+        ],
+        "type": 10,
+        "types": {
+          "assignedTick": 4,
+          "cargo": 0,
+          "colonyWorldId": 11,
+          "destination": 4,
+          "error": 0,
+          "jobId": 11,
+          "phase": 3,
+          "physicalDeliveredTick": 4,
+          "source": 4
+        },
+        "world": "02a5a741-8630-4b9e-ac29-92830243e2e2"
+      },
+      "inventories": {
+        "destination": {
+          "complete": true,
+          "inspected_slots": 27,
+          "scope": "LOCAL_VANILLA_CONTAINER_NBT",
+          "slots": 27,
+          "status": "OBSERVED",
+          "total_items": 4,
+          "wheat": 4
+        },
+        "source": {
+          "complete": true,
+          "inspected_slots": 27,
+          "scope": "LOCAL_VANILLA_CONTAINER_NBT",
+          "slots": 27,
+          "status": "OBSERVED",
+          "total_items": 0,
+          "wheat": 0
+        }
+      },
+      "loaded": true,
+      "named_read_only_checks": {
+        "claim_unchanged": true,
+        "no_ai_unchanged": true,
+        "path_identity_unchanged": true,
+        "path_index_unchanged": true,
+        "persistent_nbt_unchanged": true,
+        "position_unchanged": true,
+        "tick_count_unchanged": true,
+        "velocity_unchanged": true
+      },
+      "native_status": "OBSERVED",
+      "navigation": {
+        "done": true,
+        "end_node": null,
+        "next_node": null,
+        "next_node_index": null,
+        "node_count": null,
+        "path_can_reach": null,
+        "path_present": false,
+        "path_target": null,
+        "stuck": false,
+        "target": [
+          17,
+          100,
+          1
+        ]
+      },
+      "request_id": 91,
+      "round": 1,
+      "world": "02a5a741-8630-4b9e-ac29-92830243e2e2"
+    },
+    {
+      "citizen": "16d1e8b4-76b6-42e1-abbc-d4c2eda0826c",
+      "claim": null,
+      "dimension": "minecraft:overworld",
+      "entity": null,
+      "game_tick": 180,
+      "haul": null,
+      "inventories": null,
+      "loaded": false,
+      "named_read_only_checks": null,
+      "native_status": "NOT_LOADED_IN_DIMENSION",
+      "navigation": null,
+      "request_id": 95,
+      "round": 2,
+      "world": "02a5a741-8630-4b9e-ac29-92830243e2e2"
+    }
+  ],
+  "physical_fixture_result": {
+    "fixture_passed": true,
+    "observation_window_completed": true,
+    "status": "PASS",
+    "terminal_snapshot_before_sampling": {
+      "atomic": false,
+      "audit_after": {
+        "assigned": 0,
+        "distinct_completed_citizens": 4,
+        "done": 4,
+        "held": 0,
+        "queued": 0
+      },
+      "audit_before": {
+        "assigned": 0,
+        "distinct_completed_citizens": 4,
+        "done": 4,
+        "held": 0,
+        "queued": 0
+      },
+      "destination_has_exact_four_wheat": true,
+      "history": {
+        "assigned_without_verified_completion": 0,
+        "capacity_denials": 0,
+        "physically_completed": 4,
+        "records": 4
+      },
+      "outstanding_claims": 0,
+      "read_only": true,
+      "reconciliation": "COLONY_PHYSICAL_RECONCILIATION_V0_6 assigned=0 assigned_loaded_incomplete=0 assigned_loaded_physically_complete=0 assigned_unloaded=0 done=4 done_loaded=4 done_unloaded=0 history_records=4 history_capacity_denials=0 anomalies= strictly_read_only=true policy_control=false reward_authorized=false\n",
+      "source_wheat_absent": [
+        true,
+        true,
+        true,
+        true
+      ]
+    }
+  },
+  "process_exit_code": 1,
+  "raw_response_storage": "Exact raw responses appear once in raw_subject_exchanges, keyed by request_id; observed_sequence is a parsed summary.",
+  "raw_subject_exchanges": [
+    {
+      "command": "hearthbound-haul-diagnostics 16d1e8b4-76b6-42e1-abbc-d4c2eda0826c",
+      "request_id": 67,
+      "response": "HAUL_MOTOR_DIAGNOSTICS_V1 {\"schema\":\"hearthbound.haul-motor-diagnostics.v1\",\"status\":\"OBSERVED\",\"dimension\":\"minecraft:overworld\",\"dimension_available\":true,\"tick\":139,\"citizen\":\"16d1e8b4-76b6-42e1-abbc-d4c2eda0826c\",\"loaded\":true,\"strictly_read_only\":true,\"atomic\":true,\"policy_control\":false,\"reward_authorized\":false,\"world\":\"02a5a741-8630-4b9e-ac29-92830243e2e2\",\"world_state\":\"PRESENT\",\"observation_scope\":\"NAMED_MOTOR_AUTHORITY_INVARIANTS\",\"invariant_baseline\":\"AFTER_NATIVE_ENTITY_SERIALIZATION\",\"entity\":{\"alive\":true,\"no_ai\":false,\"can_update\":true,\"tick_count\":126,\"position\":[15.001138882705682,82.68393018670787,-1.2881332616713637],\"velocity\":[-0.0032033886722801397,-1.4568789691071928,-0.006964778217590007],\"on_ground\":false,\"horizontal_collision\":false,\"chunk\":[0,-1],\"chunk_loaded\":true,\"forced_chunk\":false,\"position_entity_ticking\":true,\"sable_marker\":true,\"citizen_marker\":false,\"private_trial_marker\":false},\"haul\":{\"present\":true,\"type\":10,\"types\":{\"phase\":3,\"source\":4,\"destination\":4,\"jobId\":11,\"colonyWorldId\":11,\"assignedTick\":4,\"physicalDeliveredTick\":4,\"cargo\":0,\"error\":0},\"phase\":2,\"phase_name\":\"COMPLETE\",\"job\":\"ad2caaec-24e4-47cf-bab5-b50283b4260d\",\"world\":\"02a5a741-8630-4b9e-ac29-92830243e2e2\",\"source\":[20,100,1],\"destination\":[16,100,1],\"assigned_tick\":33,\"delivered_tick\":113,\"error\":null,\"error_truncated\":false,\"cargo\":{\"present\":false,\"type\":0,\"item\":null,\"count\":null,\"empty\":null,\"item_truncated\":false}},\"claim\":{\"store_present\":true,\"source_owner\":null,\"owned_by_citizen\":false,\"total_claims\":0},\"motor\":{\"active\":false,\"phase_known\":true,\"paused\":false,\"quarantined\":false,\"intended_target\":null,\"reach_sq\":6.25,\"target_chunk_loaded\":null,\"distance_target\":null,\"navigation_request_target\":null,\"distance_sq\":null,\"within_reach\":null},\"navigation\":{\"done\":true,\"stuck\":false,\"target\":[17,100,1],\"path_present\":false,\"next_node_index\":null,\"node_count\":null,\"path_can_reach\":null,\"path_target\":null,\"next_node\":null,\"end_node\":null},\"inventories\":{\"source\":{\"status\":\"OBSERVED\",\"scope\":\"LOCAL_VANILLA_CONTAINER_NBT\",\"slots\":27,\"inspected_slots\":27,\"wheat\":0,\"total_items\":0,\"complete\":true},\"destination\":{\"status\":\"OBSERVED\",\"scope\":\"LOCAL_VANILLA_CONTAINER_NBT\",\"slots\":27,\"inspected_slots\":27,\"wheat\":4,\"total_items\":4,\"complete\":true}},\"read_only_checks\":{\"persistent_nbt_unchanged\":true,\"path_identity_unchanged\":true,\"path_index_unchanged\":true,\"claim_unchanged\":true,\"tick_count_unchanged\":true,\"position_unchanged\":true,\"velocity_unchanged\":true,\"no_ai_unchanged\":true}}\n"
+    },
+    {
+      "command": "execute if data entity 16d1e8b4-76b6-42e1-abbc-d4c2eda0826c ForgeData.\"hearthbound.haul\".jobId",
+      "request_id": 68,
+      "response": "Test passed, count: 1\n"
+    },
+    {
+      "command": "data get entity 16d1e8b4-76b6-42e1-abbc-d4c2eda0826c ForgeData.\"hearthbound.haul\".jobId",
+      "request_id": 69,
+      "response": "Sable has the following entity data: [I; -1389581588, 618940367, -1162496766, -2085345779]\n"
+    },
+    {
+      "command": "execute if data entity 16d1e8b4-76b6-42e1-abbc-d4c2eda0826c ForgeData.\"hearthbound.haul\".phase",
+      "request_id": 70,
+      "response": "Test passed, count: 1\n"
+    },
+    {
+      "command": "data get entity 16d1e8b4-76b6-42e1-abbc-d4c2eda0826c ForgeData.\"hearthbound.haul\".phase",
+      "request_id": 71,
+      "response": "Sable has the following entity data: 2\n"
+    },
+    {
+      "command": "execute if data entity 16d1e8b4-76b6-42e1-abbc-d4c2eda0826c ForgeData.\"hearthbound.haul\".cargo",
+      "request_id": 72,
+      "response": "Test failed\n"
+    },
+    {
+      "command": "hearthbound-haul-diagnostics 16d1e8b4-76b6-42e1-abbc-d4c2eda0826c",
+      "request_id": 91,
+      "response": "HAUL_MOTOR_DIAGNOSTICS_V1 {\"schema\":\"hearthbound.haul-motor-diagnostics.v1\",\"status\":\"OBSERVED\",\"dimension\":\"minecraft:overworld\",\"dimension_available\":true,\"tick\":160,\"citizen\":\"16d1e8b4-76b6-42e1-abbc-d4c2eda0826c\",\"loaded\":true,\"strictly_read_only\":true,\"atomic\":true,\"policy_control\":false,\"reward_authorized\":false,\"world\":\"02a5a741-8630-4b9e-ac29-92830243e2e2\",\"world_state\":\"PRESENT\",\"observation_scope\":\"NAMED_MOTOR_AUTHORITY_INVARIANTS\",\"invariant_baseline\":\"AFTER_NATIVE_ENTITY_SERIALIZATION\",\"entity\":{\"alive\":false,\"no_ai\":false,\"can_update\":true,\"tick_count\":147,\"position\":[14.997935494033403,71.0,-1.3324037333932164],\"velocity\":[0.0,-0.0784000015258789,0.0],\"on_ground\":true,\"horizontal_collision\":false,\"chunk\":[0,-1],\"chunk_loaded\":true,\"forced_chunk\":false,\"position_entity_ticking\":true,\"sable_marker\":true,\"citizen_marker\":false,\"private_trial_marker\":false},\"haul\":{\"present\":true,\"type\":10,\"types\":{\"phase\":3,\"source\":4,\"destination\":4,\"jobId\":11,\"colonyWorldId\":11,\"assignedTick\":4,\"physicalDeliveredTick\":4,\"cargo\":0,\"error\":0},\"phase\":2,\"phase_name\":\"COMPLETE\",\"job\":\"ad2caaec-24e4-47cf-bab5-b50283b4260d\",\"world\":\"02a5a741-8630-4b9e-ac29-92830243e2e2\",\"source\":[20,100,1],\"destination\":[16,100,1],\"assigned_tick\":33,\"delivered_tick\":113,\"error\":null,\"error_truncated\":false,\"cargo\":{\"present\":false,\"type\":0,\"item\":null,\"count\":null,\"empty\":null,\"item_truncated\":false}},\"claim\":{\"store_present\":true,\"source_owner\":null,\"owned_by_citizen\":false,\"total_claims\":0},\"motor\":{\"active\":false,\"phase_known\":true,\"paused\":false,\"quarantined\":false,\"intended_target\":null,\"reach_sq\":6.25,\"target_chunk_loaded\":null,\"distance_target\":null,\"navigation_request_target\":null,\"distance_sq\":null,\"within_reach\":null},\"navigation\":{\"done\":true,\"stuck\":false,\"target\":[17,100,1],\"path_present\":false,\"next_node_index\":null,\"node_count\":null,\"path_can_reach\":null,\"path_target\":null,\"next_node\":null,\"end_node\":null},\"inventories\":{\"source\":{\"status\":\"OBSERVED\",\"scope\":\"LOCAL_VANILLA_CONTAINER_NBT\",\"slots\":27,\"inspected_slots\":27,\"wheat\":0,\"total_items\":0,\"complete\":true},\"destination\":{\"status\":\"OBSERVED\",\"scope\":\"LOCAL_VANILLA_CONTAINER_NBT\",\"slots\":27,\"inspected_slots\":27,\"wheat\":4,\"total_items\":4,\"complete\":true}},\"read_only_checks\":{\"persistent_nbt_unchanged\":true,\"path_identity_unchanged\":true,\"path_index_unchanged\":true,\"claim_unchanged\":true,\"tick_count_unchanged\":true,\"position_unchanged\":true,\"velocity_unchanged\":true,\"no_ai_unchanged\":true}}\n"
+    },
+    {
+      "command": "hearthbound-haul-diagnostics 16d1e8b4-76b6-42e1-abbc-d4c2eda0826c",
+      "request_id": 95,
+      "response": "HAUL_MOTOR_DIAGNOSTICS_V1 {\"schema\":\"hearthbound.haul-motor-diagnostics.v1\",\"status\":\"NOT_LOADED_IN_DIMENSION\",\"dimension\":\"minecraft:overworld\",\"dimension_available\":true,\"tick\":180,\"citizen\":\"16d1e8b4-76b6-42e1-abbc-d4c2eda0826c\",\"loaded\":false,\"strictly_read_only\":true,\"atomic\":true,\"policy_control\":false,\"reward_authorized\":false,\"world\":\"02a5a741-8630-4b9e-ac29-92830243e2e2\",\"world_state\":\"PRESENT\"}\n"
+    },
+    {
+      "command": "execute if data entity 16d1e8b4-76b6-42e1-abbc-d4c2eda0826c ForgeData.\"hearthbound.haul\".jobId",
+      "request_id": 96,
+      "response": "No entity was found\n"
+    },
+    {
+      "command": "execute if data entity 16d1e8b4-76b6-42e1-abbc-d4c2eda0826c ForgeData.\"hearthbound.haul\".phase",
+      "request_id": 97,
+      "response": "No entity was found\n"
+    },
+    {
+      "command": "execute if data entity 16d1e8b4-76b6-42e1-abbc-d4c2eda0826c ForgeData.\"hearthbound.haul\".cargo",
+      "request_id": 98,
+      "response": "No entity was found\n"
+    }
+  ],
+  "run_attempt": 1,
+  "run_id": 46096030716,
+  "schema": "hearthbound.native-reliability-failure-diagnosis.v1",
+  "seed": 43102,
+  "server_life_events": [
+    "[02:10:12] [Server thread/INFO] [minecraft/Villager]: Villager Villager['Sable'/388, l='ServerLevel[colony-reliability-world-02]', x=15.00, y=71.00, z=-1.33] died, message: 'Sable hit the ground too hard'",
+    "[02:10:12] [Server thread/INFO] [minecraft/LivingEntity]: Named entity Villager['Sable'/388, l='ServerLevel[colony-reliability-world-02]', x=15.00, y=71.00, z=-1.33] died: Sable fell from a high place"
+  ],
+  "source_files": [
+    {
+      "path": "scripts/run_colony_reliability_trial.py",
+      "role": "Captures terminal scoring first, then post-window diagnostics; process exits1 unless fixture PASS and diagnostics COMPLETE.",
+      "sha256": "c429e37fa6a8d9ba54b2fb19ed50108994832577edef86140d0f4acbccaf9e43",
+      "unchanged_from_baseline": true,
+      "url": "https://github.com/dylandlr/hearthbound/blob/64c0fc63cb1940928c0b9abb53763f75abf7f1db/scripts/run_colony_reliability_trial.py"
+    },
+    {
+      "path": "scripts/colony_motor_diagnostics.py",
+      "role": "Three post-window exact-citizen rounds at1s planned intervals; requires OBSERVED snapshots and bound native job/phase/cargo witnesses.",
+      "sha256": "d869f39e113a657d9f7e7440385c21167e0663f7f0cd60ee47d511e28013fd6e",
+      "unchanged_from_baseline": true,
+      "url": "https://github.com/dylandlr/hearthbound/blob/64c0fc63cb1940928c0b9abb53763f75abf7f1db/scripts/colony_motor_diagnostics.py"
+    },
+    {
+      "path": "scripts/haul_motor_diagnostics.py",
+      "role": "Validates native snapshot schema/identity; unavailable loaded-citizen state cannot become completion evidence.",
+      "sha256": "ac2fa18f0a52484dae62d8ca5e56347fcb0d354f6da33dbb43cec1c367364b1b",
+      "unchanged_from_baseline": true,
+      "url": "https://github.com/dylandlr/hearthbound/blob/64c0fc63cb1940928c0b9abb53763f75abf7f1db/scripts/haul_motor_diagnostics.py"
+    },
+    {
+      "path": "src/main/java/dev/hearthbound/world/HaulMotorDiagnostics.java",
+      "role": "Reports NOT_LOADED_IN_DIMENSION when ServerLevel.getEntity(UUID) is absent; emits native alive/position/chunk fields when present.",
+      "sha256": "e95272a78c364e7ff782510eb62d3626b6620ee6f536e4ed503827cb835b0149",
+      "unchanged_from_baseline": false,
+      "url": "https://github.com/dylandlr/hearthbound/blob/64c0fc63cb1940928c0b9abb53763f75abf7f1db/src/main/java/dev/hearthbound/world/HaulMotorDiagnostics.java"
+    },
+    {
+      "path": "scripts/rcon_civilization_four_citizens.py",
+      "role": "Original four-citizen fixture and terminal physical completion assertions; platform/ticket geometry retained in RCON log.",
+      "sha256": "54e4007ac0601ee8b21b06f633d08eb6d5f170577baa2bf817ba9b251edec5ed",
+      "unchanged_from_baseline": true,
+      "url": "https://github.com/dylandlr/hearthbound/blob/64c0fc63cb1940928c0b9abb53763f75abf7f1db/scripts/rcon_civilization_four_citizens.py"
+    },
+    {
+      "path": "src/main/java/dev/hearthbound/world/SableHauling.java",
+      "role": "Existing native haul motor, with optional insertion observation hooks in PR349; no introduced-regression attribution is established.",
+      "sha256": "b85e1be2609169a7c673c1858796936a12d8b97db41c9cff492a6502d2a27b57",
+      "unchanged_from_baseline": false,
+      "url": "https://github.com/dylandlr/hearthbound/blob/64c0fc63cb1940928c0b9abb53763f75abf7f1db/src/main/java/dev/hearthbound/world/SableHauling.java"
+    }
+  ],
+  "source_tree": "5917af6e5df072b37b9281c6e3ffab17035f2fa3",
+  "trial_id": "world-02",
+  "world_uuid": "02a5a741-8630-4b9e-ac29-92830243e2e2"
+}

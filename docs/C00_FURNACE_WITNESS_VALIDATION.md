@@ -65,7 +65,7 @@ atomicity is untested. This review downloaded and replayed the CI evidence rathe
 another local server, and did not repeat the historical policy-history forensics.
 
 The independent [dedicated-server smoke matrix](https://github.com/dylandlr/hearthbound/actions/runs/46090831824)
-reported three failures. One SCRIPTED-baseline job failed during Gradle `:downloadAssets` on a horse
+initially reported three failures. One SCRIPTED-baseline job failed during Gradle `:downloadAssets` on a horse
 sound before Forge readiness; the logs do not distinguish transport from asset validation failure.
 The TRAINED_MLP baseline and SCRIPTED resource-probe-A jobs booted Forge and verified source wheat
 8→7 and destination wheat 0→1, then failed a subsequent 2.6-block citizen-proximity query. Their logs
@@ -83,5 +83,18 @@ cases, exact sources, excerpts, pending outcome and comparison evidence. Check t
 later status. [QA issue #348](https://github.com/dylandlr/hearthbound/issues/348) requires the missing
 evidence, a bounded reproduction, and a justified repair while preserving material and physical-arrival
 criteria. No workflow was rerun to replace the failures, and no root-cause fix is claimed.
+
+The run subsequently completed with **seven successful and four failed boot jobs**, and five
+comparison jobs skipped. The final additional failure was TRAINED_MLP rapid-four
+[job 140811099457](https://github.com/dylandlr/hearthbound/actions/runs/46090831824/job/140811099457),
+which did not reach readiness within 12 minutes. It ran no RCON haul checks; the available tail does
+not identify its startup cause. The earlier machine-readable diagnosis is retained as its dated
+partial snapshot rather than rewritten as if that later result had already been known.
+
+[Draft PR #349](https://github.com/dylandlr/hearthbound/pull/349) now implements the bounded
+arrival-witness correction: native position and inventory values at the actual insertion boundary,
+both existing geometry thresholds, later position retained separately, and strict independent raw
+response validation. Its new validation is tracked in QA #348. New passes do not retroactively
+resolve the two historical arrival failures or erase the asset/startup failures above.
 
 Draft PR #275 and C00-02 stay open pending the applicable review and integration gates.

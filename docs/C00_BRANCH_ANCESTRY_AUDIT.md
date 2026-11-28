@@ -49,7 +49,10 @@ These branches remain separate draft PRs. The scheduler adds an experiment Java 
 
 ### PR #210: Record citizen report-to-haul evidence and repeat fresh-world reliability trials
 
-Highest-priority unresolved nearby change. Five added social-evidence/reliability files are absent at candidate; two Java runtime files and acceptance workflows differ. Requires a scoped port/reconciliation against current communication and evaluation contracts.
+At the ancestry snapshot, this was the highest-priority unresolved nearby change. Five added
+social-evidence/reliability files are absent at candidate; two Java runtime files and acceptance
+workflows differ. Path absence alone did not establish a missing capability. The subsequent bounded
+semantic review below found stronger implementations at other paths.
 
 Added paths absent at the candidate:
 
@@ -58,6 +61,19 @@ Added paths absent at the candidate:
 - `scripts/summarize_colony_trials.py`
 - `scripts/test_social_communication_evidence.py`
 - `scripts/test_summarize_colony_trials.py`
+
+The [17-path semantic reconciliation](https://github.com/dylandlr/hearthbound/blob/e74ff781249b50a28f08fc1f589aebf5d064c90d/docs/C00_PR210_SEMANTIC_RECONCILIATION.md)
+is now complete. The candidate already has a structured communication journal and a separate
+five-world reliability pipeline. The initial inference from the older single-seed workflow was
+corrected; the legacy regex parser and three-world workflow were not ported. The justified delta is
+[draft PR #351](https://github.com/dylandlr/hearthbound/pull/351): malformed/duplicate evidence
+retention and trusted current run/attempt acceptance checks, tracked by
+[QA #350](https://github.com/dylandlr/hearthbound/issues/350).
+
+The current native structured-journal fixture is scripted. Shared instrumentation for frozen policies
+does not establish reproduction of the legacy frozen-policy joined export or a fresh frozen-policy
+message-to-inventory trace. Those limits, native validation and integration remain explicit. PR210
+was not closed or merged, and this bounded review does not reconcile all divergent branches.
 
 ### PR #129: feat: shared event-driven colony perception ledger and machine-vision interface roadmap (v0.10.9)
 
