@@ -170,6 +170,30 @@ equations cover wheat, flour, dough, bread, both bucket forms, seeds and mill
 byproducts. Native furnace inventory and recipe counters and Create callback
 responses are retained separately from controller totals.
 
+The furnace gate also parses both captured `data get block ... RecipesUsed`
+responses before and after the trial. Both configured furnaces, `(36,101,5)`
+and `(36,101,27)`, must appear exactly once. The fresh setup must begin with zero
+recipe counts, and each final native bread counter must equal that furnace's
+verified bake count. Matching aggregate bread totals cannot substitute for this
+per-furnace comparison. Missing, partial, duplicated, foreign-position or
+malformed responses fail acceptance; a command error never becomes a zero.
+The parser deliberately accepts the captured English Minecraft 1.20.1 response
+format and its empty compound or quoted bread-recipe key with an unsuffixed,
+nonnegative 32-bit integer. It is not a general SNBT parser or a validator for
+arbitrary pre-existing furnaces. A new fixture or output format needs an explicit
+contract update.
+
+This gate was added after inspecting the actual artifacts from
+[historical run 45511112716](https://github.com/dylandlr/hearthbound/actions/runs/45511112716),
+at commit `a072519518db1458e8cb5aa1898aebd4ba93f03a`. All five artifact ZIP digests
+matched GitHub metadata. All four archived world payloads still pass with the
+stronger gate and return unchanged physical audits. The two native furnace
+counts were respectively `(7,12)`, `(8,13)`, `(9,12)`, and `(10,11)` for seed
+23001 adaptive, 23001 authored, 23002 adaptive, and 23002 authored. This is an
+artifact replay check, not a new live server run. The regression tests keep an
+otherwise self-consistent event and material history while changing only the
+captured native witness, so the previously unchecked disagreement is rejected.
+
 The functional milestone additionally asks for at least four consumed meals,
 repeated complete production, at least one replanted plot harvested again after
 native growth, four productive citizens, two citizens completing more than one
