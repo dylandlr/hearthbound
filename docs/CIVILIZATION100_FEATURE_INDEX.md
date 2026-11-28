@@ -63,11 +63,17 @@ not claim that a native GitHub milestone object was created or that specializati
   adapters, actor isolation and final native acceptance remain open.
 - [C00-02 / #227](https://github.com/dylandlr/hearthbound/issues/227): all five historical v0.23 artifacts
   were downloaded and verified, and all four raw trial histories were replayed. See
-  [the baseline artifact audit](C00_BASELINE_ARTIFACT_AUDIT.md). Branch reconciliation and integration
-  selection remain open.
+  [the baseline artifact audit](C00_BASELINE_ARTIFACT_AUDIT.md). The
+  [branch ancestry audit](C00_BRANCH_ANCESTRY_AUDIT.md) covers 224 remote branches and 196 open PRs
+  at its recorded snapshot. Semantic reconciliation and integration selection remain open.
 - [PR #275](https://github.com/dylandlr/hearthbound/pull/275): closes the independent native-furnace
-  counter comparison gap discovered during that audit. Check its exact-head CI and review status
-  before integration.
+  counter comparison gap discovered during that audit. Four fresh native trials and clean restarts
+  passed, with all artifact digests checked and physical audits independently replayed. The
+  [validation report](C00_FURNACE_WITNESS_VALIDATION.md) retains those results and the separate smoke
+  matrix failures; integration remains open.
+- [QA follow-up #348](https://github.com/dylandlr/hearthbound/issues/348): investigate the two
+  post-transfer citizen-proximity failures without weakening physical-arrival criteria. This is an
+  additional defect ticket; it does not change the original 116-feature inventory.
 - [C14-02 / #323](https://github.com/dylandlr/hearthbound/issues/323): the next physical crop-failure
   feature keeps the original criteria: actual harvest loss measured and paired control unchanged.
   Its implementation depends on resolving the relevant scheduler/scenario/native evidence contracts.

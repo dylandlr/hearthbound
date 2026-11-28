@@ -85,14 +85,21 @@ archives are therefore not contradicted; the problem was an executable-gate cove
 [PR #275](https://github.com/dylandlr/hearthbound/pull/275) adds the missing independent comparison,
 strict response and identity validation, and negative tests that change only the native witness while
 keeping the material history consistent. All 14 focused tests and all four archived replay payloads
-pass locally. Current native CI evidence belongs to that PR and must be checked at its published head.
+pass locally. Four fresh native trials and their clean restart checks subsequently passed at the
+published correction head `8206ca0e3bb6668e896ecb03d7bd1b0269ae7f50`; all five new artifact digests
+were verified and the physical gate was independently replayed. See the separate
+[furnace validation report](C00_FURNACE_WITNESS_VALIDATION.md), which also records the broader smoke
+matrix's unresolved failures. These new results do not replace the historical evidence above.
 
 This parser and reconciliation correction is ordinary engineering validation. It does not add a
 research-performance claim or grant new capabilities to citizens.
 
 ## Remaining C00-02 gates
 
-- Reconcile the candidate's ancestry with remaining active PRs and competing heads.
+- The [remote ancestry inventory](C00_BRANCH_ANCESTRY_AUDIT.md) is complete for its snapshot:
+  224 branches and 196 open PRs, with 61 divergent branches and 36 divergent PR heads.
+  Reconcile the remaining relevant changes semantically, starting with the nearby 17-file patch
+  in PR #210. Commit ancestry alone does not establish that behavior is preserved.
 - Review the capability matrix and select the integration base.
 - Record the rollback reference and integration decision.
 - Integrate the focused furnace-witness correction only through its own review and CI gates.

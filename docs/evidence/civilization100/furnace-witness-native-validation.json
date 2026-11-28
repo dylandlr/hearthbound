@@ -1,0 +1,243 @@
+{
+  "schema": "hearthbound.native-furnace-witness-validation.v1",
+  "run_id": 46090831818,
+  "run_url": "https://github.com/dylandlr/hearthbound/actions/runs/46090831818",
+  "head_sha": "8206ca0e3bb6668e896ecb03d7bd1b0269ae7f50",
+  "run_attempt": 1,
+  "run_conclusion": "success",
+  "validator_path": "scripts/village_economy_evidence.py",
+  "validator_sha256": "129a7a3aa81868da821b6784083f90889ef8a9c082250fa39f6bcb6ea9dccc4c",
+  "artifact_count": 5,
+  "artifacts": [
+    {
+      "id": 15241861369,
+      "name": "village-23002-adaptive",
+      "size_in_bytes": 4529568,
+      "digest": "sha256:2236b6128347564e960e67a3dc035a6e739fc71160156a6bc85d9fbf78b09808",
+      "head_sha": "8206ca0e3bb6668e896ecb03d7bd1b0269ae7f50",
+      "sha256_verified": true
+    },
+    {
+      "id": 15241596639,
+      "name": "village-cohort-summary",
+      "size_in_bytes": 2914,
+      "digest": "sha256:5c6a4e6f7b440fc0d4ff262ce3bbfcf040257975606ef8af961abdc5ee0f5c43",
+      "head_sha": "8206ca0e3bb6668e896ecb03d7bd1b0269ae7f50",
+      "sha256_verified": true
+    },
+    {
+      "id": 15241167196,
+      "name": "village-23002-authored",
+      "size_in_bytes": 4229310,
+      "digest": "sha256:f4694deae2f331864c98b5920879a989abcc67fc8379d40e1b9a95a06be895e2",
+      "head_sha": "8206ca0e3bb6668e896ecb03d7bd1b0269ae7f50",
+      "sha256_verified": true
+    },
+    {
+      "id": 15241158602,
+      "name": "village-23001-adaptive",
+      "size_in_bytes": 4573104,
+      "digest": "sha256:2c87d9a526111445d634dcf8f5310134d200f8ca2031aafb65dd72b1910c7650",
+      "head_sha": "8206ca0e3bb6668e896ecb03d7bd1b0269ae7f50",
+      "sha256_verified": true
+    },
+    {
+      "id": 15240989278,
+      "name": "village-23001-authored",
+      "size_in_bytes": 4462718,
+      "digest": "sha256:95ab1ebe14619e49ed2727581fc75df79f3ca9238b8504ad904545391f649a59",
+      "head_sha": "8206ca0e3bb6668e896ecb03d7bd1b0269ae7f50",
+      "sha256_verified": true
+    }
+  ],
+  "expected_slots": 4,
+  "verified_slots": 4,
+  "strict_physical_gate_replay_passed": true,
+  "native_cohort_success": true,
+  "paired_descriptive_deltas": [
+    {
+      "adaptive_minus_authored_bread": 1,
+      "adaptive_minus_authored_meals": -1,
+      "world": 23001
+    },
+    {
+      "adaptive_minus_authored_bread": -4,
+      "adaptive_minus_authored_meals": 1,
+      "world": 23002
+    }
+  ],
+  "slots": [
+    {
+      "world_seed": 23001,
+      "arm": "adaptive",
+      "commit": "8206ca0e3bb6668e896ecb03d7bd1b0269ae7f50",
+      "status": "passed_live_and_restart",
+      "origin": "REAL_FORGE_CREATE",
+      "acceptance_json_sha256": "df9476693b931733fc7cfad76ebcef60792bf4832c6a9925d49b2de5db88a6e5",
+      "records": 9198,
+      "physical_gate_replay_passed": true,
+      "physical_audit_unchanged": true,
+      "native_furnace_before": {
+        "36,101,5": 0,
+        "36,101,27": 0
+      },
+      "native_furnace_after": {
+        "36,101,5": 10,
+        "36,101,27": 10
+      },
+      "horizon_observed_ticks": 7202,
+      "horizon_bread": 19,
+      "horizon_meals": 11,
+      "terminal_bread": 20,
+      "terminal_meals": 14,
+      "settled_jobs": 521,
+      "completed_settled_jobs_including_observe_wait": 268,
+      "failed_settled_jobs": 253,
+      "completed_productive_jobs": 131,
+      "returned_demand_jobs": 57,
+      "milestone_checks": {
+        "at_least_four_productive": true,
+        "at_least_two_change_capability": true,
+        "eight_survived": true,
+        "meals_at_least_four": true,
+        "repeated_complete_food_chain": true,
+        "repeated_native_regrowth": true,
+        "resumes_after_withdrawal": true
+      },
+      "neural_controller": false,
+      "causal_learning_advantage_claimed": false,
+      "causal_communication_benefit_claimed": false
+    },
+    {
+      "world_seed": 23001,
+      "arm": "authored",
+      "commit": "8206ca0e3bb6668e896ecb03d7bd1b0269ae7f50",
+      "status": "passed_live_and_restart",
+      "origin": "REAL_FORGE_CREATE",
+      "acceptance_json_sha256": "4ff7ec52ce1cffcb3d0d00e8c26e60c5db068dbc627272f660060b3d5489668b",
+      "records": 9044,
+      "physical_gate_replay_passed": true,
+      "physical_audit_unchanged": true,
+      "native_furnace_before": {
+        "36,101,5": 0,
+        "36,101,27": 0
+      },
+      "native_furnace_after": {
+        "36,101,5": 8,
+        "36,101,27": 11
+      },
+      "horizon_observed_ticks": 7200,
+      "horizon_bread": 18,
+      "horizon_meals": 12,
+      "terminal_bread": 19,
+      "terminal_meals": 14,
+      "settled_jobs": 579,
+      "completed_settled_jobs_including_observe_wait": 233,
+      "failed_settled_jobs": 346,
+      "completed_productive_jobs": 115,
+      "returned_demand_jobs": 46,
+      "milestone_checks": {
+        "at_least_four_productive": true,
+        "at_least_two_change_capability": true,
+        "eight_survived": true,
+        "meals_at_least_four": true,
+        "repeated_complete_food_chain": true,
+        "repeated_native_regrowth": true,
+        "resumes_after_withdrawal": true
+      },
+      "neural_controller": false,
+      "causal_learning_advantage_claimed": false,
+      "causal_communication_benefit_claimed": false
+    },
+    {
+      "world_seed": 23002,
+      "arm": "adaptive",
+      "commit": "8206ca0e3bb6668e896ecb03d7bd1b0269ae7f50",
+      "status": "passed_live_and_restart",
+      "origin": "REAL_FORGE_CREATE",
+      "acceptance_json_sha256": "67b310adb5f85e87b4ab8cd18037a34d23d3ebdcd2716971bc6c5d73c86928be",
+      "records": 9286,
+      "physical_gate_replay_passed": true,
+      "physical_audit_unchanged": true,
+      "native_furnace_before": {
+        "36,101,5": 0,
+        "36,101,27": 0
+      },
+      "native_furnace_after": {
+        "36,101,5": 5,
+        "36,101,27": 12
+      },
+      "horizon_observed_ticks": 7201,
+      "horizon_bread": 16,
+      "horizon_meals": 12,
+      "terminal_bread": 17,
+      "terminal_meals": 12,
+      "settled_jobs": 544,
+      "completed_settled_jobs_including_observe_wait": 282,
+      "failed_settled_jobs": 262,
+      "completed_productive_jobs": 115,
+      "returned_demand_jobs": 55,
+      "milestone_checks": {
+        "at_least_four_productive": true,
+        "at_least_two_change_capability": true,
+        "eight_survived": true,
+        "meals_at_least_four": true,
+        "repeated_complete_food_chain": true,
+        "repeated_native_regrowth": true,
+        "resumes_after_withdrawal": true
+      },
+      "neural_controller": false,
+      "causal_learning_advantage_claimed": false,
+      "causal_communication_benefit_claimed": false
+    },
+    {
+      "world_seed": 23002,
+      "arm": "authored",
+      "commit": "8206ca0e3bb6668e896ecb03d7bd1b0269ae7f50",
+      "status": "passed_live_and_restart",
+      "origin": "REAL_FORGE_CREATE",
+      "acceptance_json_sha256": "2c2e5545b6f0aebabffde82d8a04442dc4ef34d72e8c08870449b5b33e5c3aae",
+      "records": 8695,
+      "physical_gate_replay_passed": true,
+      "physical_audit_unchanged": true,
+      "native_furnace_before": {
+        "36,101,5": 0,
+        "36,101,27": 0
+      },
+      "native_furnace_after": {
+        "36,101,5": 11,
+        "36,101,27": 11
+      },
+      "horizon_observed_ticks": 7203,
+      "horizon_bread": 20,
+      "horizon_meals": 11,
+      "terminal_bread": 22,
+      "terminal_meals": 15,
+      "settled_jobs": 527,
+      "completed_settled_jobs_including_observe_wait": 241,
+      "failed_settled_jobs": 286,
+      "completed_productive_jobs": 128,
+      "returned_demand_jobs": 61,
+      "milestone_checks": {
+        "at_least_four_productive": true,
+        "at_least_two_change_capability": true,
+        "eight_survived": true,
+        "meals_at_least_four": true,
+        "repeated_complete_food_chain": true,
+        "repeated_native_regrowth": true,
+        "resumes_after_withdrawal": true
+      },
+      "neural_controller": false,
+      "causal_learning_advantage_claimed": false,
+      "causal_communication_benefit_claimed": false
+    }
+  ],
+  "limits": [
+    "Fresh native CI cohort executed in the linked run; this review downloads and replays its archived evidence, without a second local server run.",
+    "Two configured world seeds crossed with two selectors; eight citizens per slot, authored fixture and skills, accelerated randomTickSpeed400.",
+    "Horizon totals and post-drain terminal totals are distinct; only descriptive paired differences are reported.",
+    "Clean drained restart evidence; no abrupt-crash atomicity established.",
+    "No neural controller, deepMARL, durable job-specialization, population-scale or causal learning/communication advantage claim.",
+    "This review independently reruns physical/native-furnace reconciliation; policy-history forensics were not repeated."
+  ]
+}
