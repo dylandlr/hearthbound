@@ -4,7 +4,9 @@ The fixed utilities, local fact protocol and skill library are authored. Only
 private execution duration, movement/communication cost and success are learned.
 """
 from collections import Counter, defaultdict
+import json
 import math
+import re
 
 KINDS = ('HARVEST_REPLANT', 'MILL_FLOUR', 'PREPARE_DOUGH', 'BAKE_BREAD',
          'REFILL_WATER', 'EAT_BREAD', 'OBSERVE', 'WAIT')
@@ -15,6 +17,14 @@ WHEAT, SEED, FLOUR, DOUGH, BREAD, WATER, BUCKET = (
     'minecraft:bread', 'minecraft:water_bucket', 'minecraft:bucket')
 ITEMS = {WHEAT, SEED, FLOUR, DOUGH, BREAD, WATER, BUCKET, 'minecraft:coal'}
 PRODUCTIVE = set(KINDS[:6])
+FURNACE_RECIPE = 'create:smelting/bread'
+# Fixed positions in the shipped v0.23 acceptance fixture, independently read by RCON.
+FURNACE_POSITIONS = frozenset({(36, 101, 5), (36, 101, 27)})
+FURNACE_BY_PACKED = {(x << 38) | (z << 12) | y: (x, y, z) for x, y, z in FURNACE_POSITIONS}
+_COORDINATE = r'(0|-?[1-9][0-9]*)'
+_FURNACE_RESPONSE = re.compile(
+    _COORDINATE + r', ' + _COORDINATE + r', ' + _COORDINATE
+    + r' has the following block data: (\{[^\r\n]*\})\n?', re.ASCII)
 
 
 def require(condition, message):
@@ -32,6 +42,47 @@ def xyz(packed):
     if z >= 2**25: z -= 2**26
     if y >= 2**11: y -= 2**12
     return x, y, z
+
+
+def native_furnace_counts(snapshot):
+    """Read the pinned fixture's captured RecipesUsed compound; never infer zero from an error.
+
+    Minecraft 1.20.1 emits this subset of SNBT as a JSON-shaped compound: quoted
+    recipe IDs and unsuffixed IntTag values. This deliberately is not a general
+    SNBT parser. Unsupported output must fail acceptance instead of losing data.
+    """
+    responses = snapshot.get('furnace_recipes')
+    require(type(responses) is list and len(responses) == len(FURNACE_POSITIONS),
+            'Missing or extra native furnace recipe responses')
+    counts = {}
+
+    def unique_object(pairs):
+        result = {}
+        for key, value in pairs:
+            require(key not in result, 'Duplicate native furnace recipe key')
+            result[key] = value
+        return result
+
+    for raw in responses:
+        require(type(raw) is str and len(raw) <= 4096, 'Malformed native furnace response')
+        match = _FURNACE_RESPONSE.fullmatch(raw)
+        require(match is not None, 'Malformed native furnace response')
+        position = tuple(map(int, match.group(1, 2, 3)))
+        require(position in FURNACE_POSITIONS and position not in counts,
+                'Foreign or duplicate native furnace position')
+        try:
+            recipes = json.loads(match.group(4), object_pairs_hook=unique_object)
+        except (ValueError, TypeError) as error:
+            raise AssertionError('Malformed native furnace recipe compound') from error
+        require(type(recipes) is dict and set(recipes) <= {FURNACE_RECIPE},
+                'Unexpected native furnace recipe')
+        # Empty, successfully parsed RecipesUsed is zero; a missing response is not.
+        count = recipes.get(FURNACE_RECIPE, 0)
+        require(type(count) is int and 0 <= count <= 2**31 - 1,
+                'Native furnace recipe count is not a nonnegative IntTag')
+        counts[position] = count
+    require(set(counts) == FURNACE_POSITIONS, 'Incomplete native furnace positions')
+    return counts
 
 
 class PrivateModel:
@@ -148,6 +199,9 @@ def validate_history(rows, adaptive):
 
 
 def validate_physical(rows, before, after, totals):
+    native_before, native_after = native_furnace_counts(before), native_furnace_counts(after)
+    require(all(count == 0 for count in native_before.values()),
+            'Unplanned initial native furnace recipe count; acceptance requires a fresh fixture')
     inventory = Counter()
     for snapshot in after['inventories']: inventory.update(snapshot['items'])
     initial = Counter()
@@ -177,6 +231,8 @@ def validate_physical(rows, before, after, totals):
             expected.update(flour_crafted=1,dough_prepared=1)
         elif t == 'NATIVE_BAKE_VERIFIED':
             require(r['recipe'] == 'create:smelting/bread' and r['input_consumed'] == r['bread_produced'] == 1 and r['native_recipe_count_after'] == r['native_recipe_count_before']+1, 'Native furnace recipe count differs')
+            require(type(r['furnace']) is int and r['furnace'] in FURNACE_BY_PACKED,
+                    'Bake receipt references a foreign furnace')
             require(r['native_recipe_count_before'] == bake_recipes[r['furnace']], 'Native furnace receipt reused')
             bake_recipes[r['furnace']] += 1; expected.update(dough_baked=1,bread_baked=1)
         elif t == 'WATER_BUCKET_FILLED':
@@ -199,6 +255,11 @@ def validate_physical(rows, before, after, totals):
                 'EAT_BREAD':{'ITEM_PICKED_UP','BREAD_EATEN'}}[o['kind']]
         require(needed <= kinds, 'Incomplete physical service: '+job)
         if o['kind']=='BAKE_BREAD': expected.update(bread_delivered=1)
+    recorded_counts = {position: 0 for position in FURNACE_POSITIONS}
+    for packed, count in bake_recipes.items():
+        recorded_counts[FURNACE_BY_PACKED[packed]] = count
+    require(native_after == recorded_counts,
+            'Independent native furnace recipe counts disagree with bake receipts')
     for key, count in expected.items(): require(totals.get(key,0)==count, 'Runtime total differs: '+key)
     require(inventory[WHEAT]+expected['wheat_milled']==expected['wheat_harvested'], 'Wheat balance failed')
     require(inventory[FLOUR]+expected['flour_crafted']==expected['flour_produced'], 'Flour balance failed')

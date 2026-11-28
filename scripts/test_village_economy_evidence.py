@@ -20,7 +20,35 @@ class EvidenceTests(unittest.TestCase):
     def fixture(self):
         return dict(inventories=[dict(role='depot',path='Items',items={SEED:64}),
                                 dict(role='water',path='Items',items={BUCKET:8}),
-                                dict(role='furnace',path='Items',items={'minecraft:coal':32})])
+                                dict(role='furnace',path='Items',position=[36,101,5],items={'minecraft:coal':16}),
+                                dict(role='furnace',path='Items',position=[36,101,27],items={'minecraft:coal':16})],
+                    furnace_recipes=[self.furnace_response(5),self.furnace_response(27)])
+
+    @staticmethod
+    def furnace_response(z,count=None):
+        compound={} if count is None else {FURNACE_RECIPE:count}
+        return f'36, 101, {z} has the following block data: '+json.dumps(compound)+'\n'
+
+    def food_chain(self):
+        """Constructed accounting example: all event counters and material balances agree."""
+        before=self.fixture(); after=copy.deepcopy(before); furnace=(36<<38)|(5<<12)|101
+        after['inventories'][2]['items']['minecraft:coal']=15
+        after['inventories'].append(dict(role='pantry',path='Items',items={BREAD:1}))
+        after['furnace_recipes'][0]=self.furnace_response(5,1)
+        rows=[
+            dict(type='HARVEST_REPLANT_VERIFIED',before_age=7,after_age=0,native_drops={WHEAT:1,SEED:1},seed_consumed=1,crop=456),
+            dict(type='MILL_PROCESS_VERIFIED',wheat_before=1,wheat_after=0,flour_before=0,flour_after=1,
+                 native_job='native-mill',citizen='citizen',tick=2,items={FLOUR:1},
+                 proof=dict(units=1,job='native-mill',citizen='citizen',startTick=1,processTick=2)),
+            dict(type='WATER_BUCKET_FILLED',source_before=True,bucket_consumed=1,water_bucket_produced=1),
+            dict(type='NATIVE_CRAFT_VERIFIED',inputs={FLOUR:1,WATER:1},result={DOUGH:1},remaining={BUCKET:1},recipe='create:crafting/appliances/dough'),
+            dict(type='NATIVE_BAKE_VERIFIED',recipe=FURNACE_RECIPE,input_consumed=1,bread_produced=1,
+                 native_recipe_count_before=0,native_recipe_count_after=1,furnace=furnace),
+        ]
+        totals=dict(wheat_harvested=1,crops_replanted=1,crop_seeds_generated=1,wheat_milled=1,
+                    flour_produced=1,mill_seeds_generated=0,water_filled=1,flour_crafted=1,
+                    dough_prepared=1,dough_baked=1,bread_baked=1)
+        return rows,before,after,totals
 
     def test_zero_work_is_conserved_but_does_not_imply_milestone(self):
         a=self.fixture(); result=validate_physical([],a,a,{})
@@ -41,6 +69,68 @@ class EvidenceTests(unittest.TestCase):
         row=dict(type='NATIVE_BAKE_VERIFIED',recipe='create:smelting/bread',input_consumed=1,bread_produced=1,
                  native_recipe_count_before=0,native_recipe_count_after=0,furnace=123)
         with self.assertRaises(AssertionError): validate_physical([row],self.fixture(),self.fixture(),{})
+
+    def test_independent_furnace_response_matches_self_consistent_food_chain(self):
+        rows,before,after,totals=self.food_chain()
+        result=validate_physical(rows,before,after,totals)
+        self.assertEqual(result['verified_totals'],totals)
+        self.assertEqual(result['furnace_recipe_counts'],{(36<<38)|(5<<12)|101:1})
+        # Bind by the native response position, not its position in the response list.
+        before['furnace_recipes'].reverse(); after['furnace_recipes'].reverse()
+        self.assertEqual(validate_physical(rows,before,after,totals),result)
+
+    def test_self_consistent_bake_ledger_cannot_replace_missing_or_mismatched_native_witness(self):
+        for case,responses in {
+            'absent':None,
+            'partial':[self.furnace_response(5,1)],
+            'no_native_increment':[self.furnace_response(5),self.furnace_response(27)],
+            'extra_native_increment':[self.furnace_response(5,2),self.furnace_response(27)],
+            'swapped_position':[self.furnace_response(5),self.furnace_response(27,1)],
+            'unrecorded_second_furnace':[self.furnace_response(5,1),self.furnace_response(27,1)],
+            'duplicate_position':[self.furnace_response(5,1),self.furnace_response(5,1)],
+            'foreign_position':[self.furnace_response(6,1),self.furnace_response(27)],
+            'extra_response':[self.furnace_response(5,1),self.furnace_response(27),self.furnace_response(27)],
+            'command_error':['Found no elements matching RecipesUsed\n',self.furnace_response(27)],
+            'trailing_response_text':[self.furnace_response(5,1)+'unexpected',self.furnace_response(27)],
+        }.items():
+            rows,before,after,totals=self.food_chain()
+            after['furnace_recipes']=responses
+            with self.subTest(case=case),self.assertRaisesRegex(AssertionError,'(?i)native furnace'):
+                validate_physical(rows,before,after,totals)
+        rows,before,after,totals=self.food_chain(); after.pop('furnace_recipes')
+        with self.assertRaisesRegex(AssertionError,'Missing'):
+            validate_physical(rows,before,after,totals)
+
+    def test_malformed_native_recipe_compounds_never_default_to_zero_or_a_success_count(self):
+        for compound in (
+            '"create:smelting/bread":', '"create:smelting/bread": 1b',
+            '"create:smelting/bread": "1"', '"create:smelting/bread": true',
+            '"create:smelting/bread": -1', '"create:smelting/bread": 1.0',
+            '"create:smelting/bread": NaN', '"create:smelting/bread": 2147483648',
+            '"create:smelting/bread": 1, "create:smelting/bread": 1',
+            '"create:smelting/bread": 1, "minecraft:iron_ingot": 1',
+        ):
+            rows,before,after,totals=self.food_chain()
+            after['furnace_recipes'][0]='36, 101, 5 has the following block data: {'+compound+'}\n'
+            with self.subTest(compound=compound),self.assertRaisesRegex(AssertionError,'(?i)native furnace'):
+                validate_physical(rows,before,after,totals)
+
+    def test_fresh_fixture_requires_complete_zero_initial_native_counters(self):
+        for case,responses in {
+            'missing':None,
+            'initial_history':[self.furnace_response(5,1),self.furnace_response(27)],
+            'malformed':['36, 101, 5 has the following block data: {',self.furnace_response(27)],
+        }.items():
+            rows,before,after,totals=self.food_chain()
+            before['furnace_recipes']=responses
+            with self.subTest(case=case),self.assertRaisesRegex(AssertionError,'(?i)native furnace'):
+                validate_physical(rows,before,after,totals)
+
+    def test_bake_receipt_cannot_reference_an_uncaptured_furnace(self):
+        for packed in (123, True, ((36<<38)|(5<<12)|101)+(1<<64)):
+            rows,before,after,totals=self.food_chain(); rows[-1]['furnace']=packed
+            with self.subTest(packed=packed),self.assertRaisesRegex(AssertionError,'foreign furnace'):
+                validate_physical(rows,before,after,totals)
 
     def test_missing_returned_bucket_recipe_rejected(self):
         row=dict(type='NATIVE_CRAFT_VERIFIED',inputs={FLOUR:1,WATER:1},result={DOUGH:1},remaining={},recipe='create:crafting/appliances/dough')
